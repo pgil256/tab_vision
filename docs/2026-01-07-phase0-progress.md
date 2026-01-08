@@ -1,7 +1,7 @@
 # Phase 0: Skeleton - Progress Report
 
-**Date:** 2026-01-07
-**Status:** 12/13 tasks complete
+**Date:** 2026-01-07 (updated 2026-01-08)
+**Status:** 13/13 tasks complete - Phase 0 DONE
 
 ## What Was Built
 
@@ -73,59 +73,89 @@ tabvision-client/
 
 ---
 
-## Remaining: Task 13 - End-to-End Test
+## Task 13 - End-to-End Test: COMPLETE ✅
 
-### To verify the skeleton works:
+### Test Results (2026-01-08):
 
-**Terminal 1: Start backend**
-```bash
-cd tabvision-server
-source venv/bin/activate
-python run.py
-```
+**Backend API verified:**
+- POST /jobs - creates job ✅
+- GET /jobs/:id - returns status ✅
+- GET /jobs/:id/result - returns fake TabDocument ✅
 
-**Terminal 2: Start frontend**
-```bash
-cd tabvision-client
-npm run dev
-```
+**Frontend verified (via browser at localhost:5173):**
+- [x] Dark theme with "TabVision" header
+- [x] Upload panel shows drag-drop area
+- [x] Uploading an MP4/MOV file shows progress bar
+- [x] After upload completes, fake tab data appears
+- [x] Tab shows 6 notes with confidence colors (green/yellow/red)
+- [x] "Upload Another" button resets the UI
 
-**Manual test checklist:**
-- [ ] Electron app opens with dark theme
-- [ ] Header shows "TabVision"
-- [ ] Upload panel shows drag-drop area
-- [ ] Uploading an MP4/MOV file shows progress
-- [ ] After upload completes, fake tab data appears
-- [ ] Tab shows 6 notes with confidence colors (green/yellow/red)
-- [ ] "Upload Another" button resets the UI
+**Note:** Electron window requires WSL display server (WSLg or VcXsrv). Use `npm start` with DISPLAY set, or test via browser with `npx vite`.
 
 ---
 
-## Next Steps for Next Session
+## Phase 1: Audio Pipeline - COMPLETE ✅
 
-### Immediate (finish Phase 0)
-1. Run end-to-end test to verify skeleton works
-2. Fix any issues found during testing
-3. Final commit for Phase 0
+**Date:** 2026-01-08
+**Commit:** `dfd6135` - feat(backend): implement Phase 1 audio pipeline
 
-### Phase 1: Audio Pipeline (from spec)
-1. ffmpeg integration: extract audio track from uploaded video
-2. Basic Pitch integration: process audio, get pitch/onset data
-3. Build MIDI-to-guitar mapping: list candidate fret/string positions per note
-4. Implement "best guess" fingering heuristic (prefer lower positions)
-5. Output preliminary TabDocument based on audio alone
-6. Display real results in frontend (read-only)
+### What Was Built
 
-### Key files to modify for Phase 1:
-- `tabvision-server/app/routes.py` - Replace fake processing with real pipeline
-- `tabvision-server/app/audio_pipeline.py` - New: audio extraction and pitch detection
-- `tabvision-server/app/guitar_mapping.py` - New: MIDI to guitar tab mapping
-- `tabvision-server/requirements.txt` - Add: basic-pitch, ffmpeg-python, numpy
-
-### Dependencies to install:
-```bash
-pip install basic-pitch ffmpeg-python numpy
 ```
+tabvision-server/
+├── app/
+│   ├── audio_pipeline.py   # ffmpeg extraction + Basic Pitch inference
+│   ├── guitar_mapping.py   # MIDI note to fret/string mapping
+│   ├── fusion_engine.py    # DetectedNote → TabNote conversion
+│   └── processing.py       # Background thread orchestration
+├── tests/
+│   ├── fixtures/
+│   │   └── test_a440.mp4   # Synthetic test video (A440 tone)
+│   ├── test_audio_pipeline.py
+│   ├── test_guitar_mapping.py
+│   ├── test_fusion.py
+│   └── test_processing.py
+└── requirements.txt        # Added: basic-pitch, ffmpeg-python, numpy
+```
+
+**All 36 backend tests pass.**
+
+### E2E Test Results (2026-01-08)
+
+Test with synthetic A440 Hz tone (MIDI 69):
+- **Input:** 3-second video with 440 Hz sine wave
+- **Output:** `{ string: 1, fret: 5, confidence: 0.63 }`
+- **Expected:** String 1 (high E), Fret 5 = A4 ✅
+- **Pipeline stages:** extracting_audio → analyzing_audio → fusing → complete
+
+### Key Implementation Details
+
+1. **Audio extraction:** ffmpeg converts video to mono WAV at 22050 Hz
+2. **Pitch detection:** Basic Pitch (TensorFlow) returns MIDI notes with confidence
+3. **Guitar mapping:** MIDI → candidate fret/string positions (standard tuning)
+4. **Fusion (Phase 1):** Simple lowest-fret heuristic for position selection
+5. **Background processing:** Daemon thread with progress updates
+
+---
+
+## Next Steps
+
+### Phase 2: Video Pipeline (from spec)
+1. MediaPipe Hands integration: detect finger landmarks in video frames
+2. Fretboard detection: edge detection + Hough transform for frets/strings
+3. Finger-to-position mapping: convert pixel coordinates to fret/string
+4. Enhanced fusion: combine audio + video signals for better accuracy
+5. Confidence scoring: audio-video agreement increases confidence
+
+### Key files for Phase 2:
+- `tabvision-server/app/video_pipeline.py` - New: frame extraction + MediaPipe
+- `tabvision-server/app/fretboard_detection.py` - New: fretboard geometry
+- `tabvision-server/app/fusion_engine.py` - Update: add video signal fusion
+- `tabvision-server/requirements.txt` - Add: mediapipe, opencv-python
+
+### Parallel Agent Tasks (for Phase 2):
+- **Agent 2:** video_pipeline.py - MediaPipe hand tracking
+- **Agent 3:** fretboard_detection.py - fretboard geometry and mapping
 
 ---
 
