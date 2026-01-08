@@ -1,5 +1,6 @@
 """Background job processing orchestration."""
 import json
+import logging
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -8,7 +9,11 @@ from dataclasses import asdict
 from app.models import Job
 from app.storage import JobStorage
 from app.audio_pipeline import extract_audio, analyze_pitch
-from app.fusion_engine import fuse_audio_only, TabNote
+from app.fusion_engine import fuse_audio_only, fuse_audio_video, TabNote
+from app.video_pipeline import analyze_video_at_timestamps
+from app.fretboard_detection import detect_fretboard_from_video
+
+logger = logging.getLogger(__name__)
 
 
 def update_job(job: Job, stage: str, progress: float) -> None:
@@ -105,11 +110,46 @@ def process_job(
         update_job(job, "analyzing_audio", 0.3)
         detected_notes = analyze_pitch(audio_path)
 
-        # Stage 3: Fuse into tab notes
-        update_job(job, "fusing", 0.7)
-        tab_notes = fuse_audio_only(detected_notes, job.capo_fret)
+        # Stage 3: Analyze video (optional - graceful fallback if fails)
+        update_job(job, "analyzing_video", 0.5)
+        video_observations = {}
+        fretboard = None
 
-        # Stage 4: Save result
+        try:
+            # Get timestamps from detected notes
+            timestamps = [n.start_time for n in detected_notes]
+
+            if timestamps:
+                # Detect fretboard geometry from first frame
+                fretboard = detect_fretboard_from_video(job.video_path)
+
+                if fretboard:
+                    # Analyze hand positions at note onset times
+                    video_observations = analyze_video_at_timestamps(
+                        job.video_path, timestamps
+                    )
+                    logger.info(
+                        f"Video analysis: {len(video_observations)} observations, "
+                        f"fretboard detected"
+                    )
+                else:
+                    logger.info("No fretboard detected, using audio-only mode")
+        except Exception as video_err:
+            # Video analysis is optional - log and continue
+            logger.warning(f"Video analysis failed: {video_err}, using audio-only mode")
+
+        # Stage 4: Fuse into tab notes
+        update_job(job, "fusing", 0.7)
+        if fretboard and video_observations:
+            # Use audio + video fusion
+            tab_notes = fuse_audio_video(
+                detected_notes, video_observations, fretboard, job.capo_fret
+            )
+        else:
+            # Fall back to audio-only
+            tab_notes = fuse_audio_only(detected_notes, job.capo_fret)
+
+        # Stage 5: Save result
         update_job(job, "saving", 0.9)
         result_path = save_result(job, tab_notes, output_dir)
         job.result_path = result_path

@@ -1,8 +1,10 @@
-"""Fusion engine for combining audio analysis into tab notes."""
+"""Fusion engine for combining audio and video analysis into tab notes."""
 from dataclasses import dataclass
 from uuid import uuid4
 from app.audio_pipeline import DetectedNote
-from app.guitar_mapping import get_candidate_positions, pick_lowest_fret
+from app.guitar_mapping import get_candidate_positions, pick_lowest_fret, Position
+from app.video_pipeline import HandObservation
+from app.fretboard_detection import FretboardGeometry, map_finger_to_position
 
 
 @dataclass
@@ -65,6 +67,137 @@ def fuse_audio_only(
             fret=position.fret,
             confidence=note.confidence,
             confidence_level=get_confidence_level(note.confidence),
+            midi_note=note.midi_note,
+        ))
+
+    return tab_notes
+
+
+def find_nearest_observation(
+    observations: dict[float, HandObservation],
+    timestamp: float,
+    tolerance: float = 0.1
+) -> HandObservation | None:
+    """Find the video observation nearest to a timestamp.
+
+    Args:
+        observations: Dict mapping timestamps to HandObservation
+        timestamp: Target timestamp in seconds
+        tolerance: Maximum time difference in seconds
+
+    Returns:
+        Nearest HandObservation within tolerance, or None
+    """
+    if not observations:
+        return None
+
+    nearest_ts = min(observations.keys(), key=lambda t: abs(t - timestamp))
+    if abs(nearest_ts - timestamp) <= tolerance:
+        return observations[nearest_ts]
+    return None
+
+
+def match_video_to_candidates(
+    observation: HandObservation,
+    fretboard: FretboardGeometry,
+    candidates: list[Position],
+    frame_width: int = 640,
+    frame_height: int = 480
+) -> Position | None:
+    """Try to match video finger positions to audio candidates.
+
+    Args:
+        observation: Hand detection from video
+        fretboard: Detected fretboard geometry
+        candidates: Candidate positions from audio analysis
+        frame_width: Video frame width for coordinate conversion
+        frame_height: Video frame height for coordinate conversion
+
+    Returns:
+        Matching Position if found, None otherwise
+    """
+    for finger in observation.fingers:
+        # Convert normalized coordinates to pixel coordinates
+        finger_x = finger.x * frame_width
+        finger_y = finger.y * frame_height
+
+        video_pos = map_finger_to_position(finger_x, finger_y, fretboard)
+        if video_pos is None:
+            continue
+
+        # Check if video position matches any audio candidate
+        for candidate in candidates:
+            if candidate.string == video_pos.string and candidate.fret == video_pos.fret:
+                return candidate
+
+    return None
+
+
+def fuse_audio_video(
+    detected_notes: list[DetectedNote],
+    video_observations: dict[float, HandObservation],
+    fretboard: FretboardGeometry | None,
+    capo_fret: int = 0
+) -> list[TabNote]:
+    """Combine audio and video signals for tab generation.
+
+    For each detected note:
+    1. Get audio candidates (from guitar_mapping)
+    2. Get video observation (if available)
+    3. If video agrees with audio candidate → high confidence
+    4. If video disagrees → medium confidence, use audio
+    5. If no video data → use audio only (as before)
+
+    Args:
+        detected_notes: Notes detected from audio analysis
+        video_observations: Dict mapping timestamp to HandObservation
+        fretboard: Detected fretboard geometry (None if not detected)
+        capo_fret: Fret where capo is placed (0 = no capo)
+
+    Returns:
+        List of TabNote objects
+    """
+    # If no fretboard detected, fall back to audio-only
+    if fretboard is None:
+        return fuse_audio_only(detected_notes, capo_fret)
+
+    tab_notes = []
+
+    for note in detected_notes:
+        # Get audio candidates
+        candidates = get_candidate_positions(note.midi_note, capo_fret)
+        if not candidates:
+            continue
+
+        # Try to get video observation at this timestamp
+        video_obs = find_nearest_observation(video_observations, note.start_time)
+        video_position = None
+
+        if video_obs:
+            # Try to match video fingers to audio candidates
+            video_position = match_video_to_candidates(
+                video_obs, fretboard, candidates
+            )
+
+        # Determine final position and confidence
+        if video_position:
+            # Video agrees with an audio candidate - boost confidence
+            position = video_position
+            confidence = min(1.0, note.confidence + 0.2)
+        else:
+            # Fall back to lowest-fret heuristic
+            position = pick_lowest_fret(candidates)
+            if position is None:
+                continue
+            confidence = note.confidence
+
+        tab_notes.append(TabNote(
+            id=str(uuid4()),
+            timestamp=note.start_time,
+            string=position.string,
+            fret=position.fret,
+            confidence=confidence,
+            confidence_level=get_confidence_level(confidence),
             midi_note=note.midi_note,
         ))
 
