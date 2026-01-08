@@ -30,6 +30,8 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/node": "^25.0.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "autoprefixer": "^10.4.23",
@@ -43,6 +45,8 @@
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "zustand": "^5.0.9"
   }
 }
