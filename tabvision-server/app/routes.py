@@ -1,10 +1,11 @@
 """API routes for TabVision."""
 import os
+from threading import Thread
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.models import Job
 from app.storage import job_storage
-from app.fake_data import generate_fake_tab_document
+from app.processing import process_job, load_result
 
 bp = Blueprint('jobs', __name__)
 
@@ -47,14 +48,18 @@ def create_job():
     file_path = os.path.join(upload_folder, unique_filename)
     file.save(file_path)
 
-    # Update job with file path and mark as completed (fake processing)
+    # Update job with file path
     job.video_path = file_path
-    job.status = "completed"
-    job.progress = 1.0
-    job.current_stage = "complete"
-    job.result_path = f"/results/{job.id}.json"
-
     job_storage.save(job)
+
+    # Launch background processing
+    results_folder = current_app.config.get('RESULTS_FOLDER', upload_folder)
+    thread = Thread(
+        target=process_job,
+        args=(job.id, job_storage, results_folder),
+        daemon=True
+    )
+    thread.start()
 
     return jsonify({'job_id': job.id}), 201
 
@@ -77,5 +82,9 @@ def get_job_result(job_id: str):
     if job.status != "completed":
         return jsonify({'error': 'Job not completed yet'}), 400
 
-    tab_document = generate_fake_tab_document(job.id, job.capo_fret)
+    try:
+        tab_document = load_result(job)
+    except FileNotFoundError:
+        return jsonify({'error': 'Result file not found'}), 500
+
     return jsonify(tab_document), 200
