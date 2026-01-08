@@ -43,7 +43,9 @@ cd tabvision-server
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-flask run                # Start dev server
+pip install pytest        # For testing
+python run.py            # Start dev server (port 5000)
+pytest tests/ -v         # Run all tests
 ```
 
 ### Key Backend Dependencies
