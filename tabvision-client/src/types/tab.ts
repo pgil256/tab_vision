@@ -1,32 +1,31 @@
-// Tab document types for guitar tablature representation
+// tabvision-client/src/types/tab.ts
 
 export interface TabNote {
-  string: number;  // Guitar string (1-6, where 1 is high E)
-  fret: number;    // Fret number
-  duration?: number;
-  techniques?: string[];  // e.g., 'hammer-on', 'pull-off', 'slide', 'bend'
-}
-
-export interface TabMeasure {
-  notes: TabNote[];
-  timeSignature?: string;
-  tempo?: number;
-}
-
-export interface TabSection {
-  name?: string;  // e.g., 'Intro', 'Verse', 'Chorus'
-  measures: TabMeasure[];
+  id: string;
+  timestamp: number;
+  string: 1 | 2 | 3 | 4 | 5 | 6;
+  fret: number | "X";
+  confidence: number;
+  confidenceLevel: "high" | "medium" | "low";
+  isEdited: boolean;
+  originalFret?: number | "X";
+  detectedPitch?: number;
+  detectedMidiNote?: number;
 }
 
 export interface TabDocument {
   id: string;
-  title?: string;
-  artist?: string;
-  tuning?: string[];  // e.g., ['E', 'A', 'D', 'G', 'B', 'E']
-  capo?: number;
-  sections: TabSection[];
-  rawText?: string;  // Original OCR text if available
-  confidence?: number;  // OCR confidence score
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  duration: number;
+  capoFret: number;
+  tuning: string[];
+  notes: TabNote[];
+}
+
+export interface JobStatus {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress: number;
+  current_stage: string;
+  error_message?: string;
 }
