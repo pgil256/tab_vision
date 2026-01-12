@@ -7,7 +7,7 @@ const ALLOWED_TYPES = ['video/mp4', 'video/quicktime'];
 
 export function UploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
-  const { jobStatus, progress, currentStage, errorMessage, setJobId, setStatus, setProgress, setTabDocument, setError, reset } = useAppStore();
+  const { jobStatus, progress, currentStage, errorMessage, setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl, reset } = useAppStore();
 
   const processFile = useCallback(async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -17,6 +17,10 @@ export function UploadPanel() {
 
     reset();
     setStatus('uploading');
+
+    // Create a blob URL for the video player
+    const videoUrl = URL.createObjectURL(file);
+    setVideoUrl(videoUrl);
 
     try {
       const jobId = await uploadVideo(file, 0);
