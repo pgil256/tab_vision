@@ -133,6 +133,21 @@ def match_video_to_candidates(
     return None
 
 
+def has_open_string_candidate(candidates: list[Position]) -> Position | None:
+    """Check if fret 0 (open string) is among the candidates.
+
+    Args:
+        candidates: List of possible positions
+
+    Returns:
+        Position with fret 0 if found, None otherwise
+    """
+    for candidate in candidates:
+        if candidate.fret == 0:
+            return candidate
+    return None
+
+
 def fuse_audio_video(
     detected_notes: list[DetectedNote],
     video_observations: dict[float, HandObservation],
@@ -145,8 +160,8 @@ def fuse_audio_video(
     1. Get audio candidates (from guitar_mapping)
     2. Get video observation (if available)
     3. If video agrees with audio candidate → high confidence
-    4. If video disagrees → medium confidence, use audio
-    5. If no video data → use audio only (as before)
+    4. If no finger match but fret 0 is valid → use open string (medium confidence)
+    5. If no video data → use audio only (lowest-fret heuristic)
 
     Args:
         detected_notes: Notes detected from audio analysis
@@ -184,8 +199,22 @@ def fuse_audio_video(
             # Video agrees with an audio candidate - boost confidence
             position = video_position
             confidence = min(1.0, note.confidence + 0.2)
+        elif video_obs:
+            # We have video observation but no finger matched any candidate
+            # Check if this could be an open string (fret 0)
+            open_string = has_open_string_candidate(candidates)
+            if open_string:
+                # No finger on fretboard + fret 0 is valid = likely open string
+                position = open_string
+                confidence = 0.65  # Medium confidence for open string inference
+            else:
+                # Fall back to lowest-fret heuristic
+                position = pick_lowest_fret(candidates)
+                if position is None:
+                    continue
+                confidence = note.confidence
         else:
-            # Fall back to lowest-fret heuristic
+            # No video observation - fall back to lowest-fret heuristic
             position = pick_lowest_fret(candidates)
             if position is None:
                 continue
