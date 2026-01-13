@@ -19,3 +19,17 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Claude Agent Farm
+.heartbeats/
+.claude_agent_farm_state.json
+.claude_agent_farm_backups/
+agent_farm_report_*.html
+
+# Auto Claude generated files
+.auto-claude/
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.security-key
+logs/security/

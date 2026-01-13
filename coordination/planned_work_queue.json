@@ -1,0 +1,117 @@
+{
+  "queue_version": "1.0",
+  "priority_items": [
+    {
+      "id": "audio-1",
+      "phase": 1,
+      "agent": "agent_1",
+      "task": "Complete Basic Pitch integration with optimized guitar timbre settings",
+      "status": "pending",
+      "files": ["tabvision-server/app/audio_pipeline.py"]
+    },
+    {
+      "id": "audio-2",
+      "phase": 1,
+      "agent": "agent_1",
+      "task": "Build comprehensive MIDI to fret/string candidate mapping",
+      "status": "pending",
+      "files": ["tabvision-server/app/guitar_mapping.py"]
+    },
+    {
+      "id": "video-1",
+      "phase": 2,
+      "agent": "agent_2",
+      "task": "Optimize fretboard edge detection for varied lighting",
+      "status": "pending",
+      "files": ["tabvision-server/app/fretboard_detection.py"]
+    },
+    {
+      "id": "video-2",
+      "phase": 2,
+      "agent": "agent_2",
+      "task": "Implement frame extraction only at onset timestamps",
+      "status": "pending",
+      "files": ["tabvision-server/app/video_pipeline.py"]
+    },
+    {
+      "id": "fusion-1",
+      "phase": 3,
+      "agent": "agent_3",
+      "task": "Implement audio/video timestamp synchronization",
+      "status": "pending",
+      "files": ["tabvision-server/app/fusion_engine.py"]
+    },
+    {
+      "id": "fusion-2",
+      "phase": 3,
+      "agent": "agent_3",
+      "task": "Add open string detection (pitch + no finger = fret 0)",
+      "status": "pending",
+      "files": ["tabvision-server/app/fusion_engine.py"]
+    },
+    {
+      "id": "api-1",
+      "phase": 1,
+      "agent": "agent_4",
+      "task": "Add granular progress reporting to job processing",
+      "status": "pending",
+      "files": ["tabvision-server/app/routes.py", "tabvision-server/app/processing.py"]
+    },
+    {
+      "id": "ui-1",
+      "phase": 4,
+      "agent": "agent_5",
+      "task": "Implement confidence-based color highlighting in tab canvas",
+      "status": "pending",
+      "files": ["tabvision-client/src/components/TabCanvas.tsx"]
+    },
+    {
+      "id": "ui-2",
+      "phase": 4,
+      "agent": "agent_5",
+      "task": "Add keyboard navigation for note editing",
+      "status": "pending",
+      "files": ["tabvision-client/src/components/TabEditor.tsx"]
+    },
+    {
+      "id": "sync-1",
+      "phase": 4,
+      "agent": "agent_6",
+      "task": "Implement bidirectional video/tab sync",
+      "status": "pending",
+      "files": ["tabvision-client/src/components/VideoPlayer.tsx"]
+    },
+    {
+      "id": "state-1",
+      "phase": 4,
+      "agent": "agent_7",
+      "task": "Add job polling with exponential backoff",
+      "status": "pending",
+      "files": ["tabvision-client/src/api/client.ts"]
+    },
+    {
+      "id": "export-1",
+      "phase": 5,
+      "agent": "agent_8",
+      "task": "Build Ultimate Guitar text format exporter",
+      "status": "pending",
+      "files": ["tabvision-client/src/"]
+    },
+    {
+      "id": "test-1",
+      "phase": 1,
+      "agent": "agent_9",
+      "task": "Write unit tests for guitar_mapping.py",
+      "status": "pending",
+      "files": ["tabvision-server/tests/test_guitar_mapping.py"]
+    },
+    {
+      "id": "test-2",
+      "phase": 3,
+      "agent": "agent_9",
+      "task": "Write integration tests for full pipeline",
+      "status": "pending",
+      "files": ["tabvision-server/tests/test_processing.py"]
+    }
+  ]
+}

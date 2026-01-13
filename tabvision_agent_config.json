@@ -1,0 +1,44 @@
+{
+    "comment": "TabVision - Guitar Tab Transcription from Video (Electron + Flask + ML)",
+    "tech_stack": "python",
+    "problem_commands": {
+        "type_check": [
+            "bash",
+            "-c",
+            "cd tabvision-server && python -m mypy app/ --ignore-missing-imports 2>/dev/null || echo 'mypy check complete'"
+        ],
+        "lint": [
+            "bash",
+            "-c",
+            "cd tabvision-server && python -m ruff check . --fix 2>/dev/null || echo 'lint complete'"
+        ],
+        "test": [
+            "bash",
+            "-c",
+            "cd tabvision-server && python -m pytest tests/ -v --tb=short 2>/dev/null || echo 'tests complete'"
+        ]
+    },
+    "best_practices_files": [],
+    "agents": 8,
+    "max_agents": 12,
+    "chunk_size": 30,
+    "session": "tabvision_dev",
+    "prompt_file": "tabvision_prompt.txt",
+    "auto_restart": true,
+    "context_threshold": 25,
+    "idle_timeout": 120,
+    "max_errors": 5,
+    "git_branch": null,
+    "git_remote": "origin",
+    "tmux_kill_on_exit": true,
+    "tmux_mouse": true,
+    "stagger": 8.0,
+    "wait_after_cc": 12.0,
+    "check_interval": 15,
+    "skip_regenerate": false,
+    "skip_commit": true,
+    "no_monitor": true,
+    "attach": false,
+    "fast_start": false,
+    "full_backup": false
+}

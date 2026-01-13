@@ -1,0 +1,8 @@
+{
+  "tech_stack": "python",
+  "problem_commands": {
+    "type_check": ["python", "-m", "mypy", "."],
+    "lint": ["python", "-m", "ruff", "check", "."]
+  },
+  "skip_regenerate": true
+}

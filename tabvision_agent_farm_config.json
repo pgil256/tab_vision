@@ -1,0 +1,221 @@
+{
+  "comment": "TabVision - 9 Agent Configuration for Automatic Guitar Tab Transcription",
+  "tech_stack": "python,typescript,react,electron",
+  "problem_commands": {
+    "type_check_backend": ["python", "-m", "mypy", "tabvision-server/app/", "--ignore-missing-imports"],
+    "lint_backend": ["python", "-m", "ruff", "check", "tabvision-server/app/"],
+    "test_backend": ["python", "-m", "pytest", "tabvision-server/tests/", "-v", "--tb=short"],
+    "type_check_frontend": ["npm", "run", "typecheck", "--prefix", "tabvision-client"],
+    "lint_frontend": ["npm", "run", "lint", "--prefix", "tabvision-client"],
+    "build_frontend": ["npm", "run", "build", "--prefix", "tabvision-client"]
+  },
+  "best_practices_files": [
+    "./CLAUDE.md",
+    "./tabvision_specification.md"
+  ],
+  "chunk_size": 40,
+  "agents": 9,
+  "max_agents": 12,
+  "session": "tabvision_agents",
+  "prompt_file": "tabvision_agent_farm_prompt.txt",
+  "auto_restart": true,
+  "context_threshold": 25,
+  "idle_timeout": 120,
+  "max_errors": 5,
+  "git_branch": "agent-farm-improvements",
+  "git_remote": "origin",
+  "tmux_kill_on_exit": false,
+  "coordination": {
+    "enabled": true,
+    "work_registry": "./coordination/active_work_registry.json",
+    "completed_log": "./coordination/completed_work_log.json",
+    "locks_dir": "./coordination/agent_locks/",
+    "heartbeat_interval": 30
+  },
+  "agent_assignments": {
+    "agent_1": {
+      "name": "Audio Pipeline Specialist",
+      "focus_paths": [
+        "tabvision-server/app/audio_pipeline.py",
+        "tabvision-server/app/guitar_mapping.py",
+        "tabvision-server/tests/test_audio_pipeline.py",
+        "tabvision-server/tests/test_guitar_mapping.py"
+      ],
+      "priority_tasks": [
+        "ffmpeg audio extraction",
+        "Basic Pitch integration",
+        "MIDI to fret/string mapping",
+        "Fingering heuristics"
+      ]
+    },
+    "agent_2": {
+      "name": "Video Pipeline Specialist",
+      "focus_paths": [
+        "tabvision-server/app/video_pipeline.py",
+        "tabvision-server/app/fretboard_detection.py",
+        "tabvision-server/tests/test_video_pipeline.py",
+        "tabvision-server/tests/test_fretboard_detection.py"
+      ],
+      "priority_tasks": [
+        "Frame extraction at onset timestamps",
+        "MediaPipe Hands integration",
+        "Fretboard geometry detection",
+        "Finger to fret mapping"
+      ]
+    },
+    "agent_3": {
+      "name": "Fusion Engine Specialist",
+      "focus_paths": [
+        "tabvision-server/app/fusion_engine.py",
+        "tabvision-server/tests/test_fusion.py"
+      ],
+      "priority_tasks": [
+        "Audio/video timestamp sync",
+        "Confidence scoring algorithm",
+        "Open string detection",
+        "Muted note detection"
+      ]
+    },
+    "agent_4": {
+      "name": "Backend API Specialist",
+      "focus_paths": [
+        "tabvision-server/app/routes.py",
+        "tabvision-server/app/models.py",
+        "tabvision-server/app/storage.py",
+        "tabvision-server/app/__init__.py",
+        "tabvision-server/tests/test_routes.py",
+        "tabvision-server/tests/test_models.py"
+      ],
+      "priority_tasks": [
+        "Job queue management",
+        "File upload handling",
+        "Progress reporting",
+        "Error handling"
+      ]
+    },
+    "agent_5": {
+      "name": "Frontend UI Specialist",
+      "focus_paths": [
+        "tabvision-client/src/components/TabCanvas.tsx",
+        "tabvision-client/src/components/TabEditor.tsx",
+        "tabvision-client/src/components/TabToolbar.tsx"
+      ],
+      "priority_tasks": [
+        "Canvas tab rendering",
+        "Confidence color coding",
+        "Note editing functionality",
+        "Keyboard navigation"
+      ]
+    },
+    "agent_6": {
+      "name": "Video Player & Sync Specialist",
+      "focus_paths": [
+        "tabvision-client/src/components/VideoPlayer.tsx",
+        "tabvision-client/src/components/UploadPanel.tsx"
+      ],
+      "priority_tasks": [
+        "Video/tab sync",
+        "Playhead indicator",
+        "Webcam recording",
+        "Upload progress"
+      ]
+    },
+    "agent_7": {
+      "name": "State Management Specialist",
+      "focus_paths": [
+        "tabvision-client/src/store/appStore.ts",
+        "tabvision-client/src/api/client.ts",
+        "tabvision-client/src/types/tab.ts"
+      ],
+      "priority_tasks": [
+        "Zustand store architecture",
+        "API client with retries",
+        "Job polling",
+        "Settings persistence"
+      ]
+    },
+    "agent_8": {
+      "name": "Export & Polish Specialist",
+      "focus_paths": [
+        "tabvision-client/src/App.tsx",
+        "tabvision-client/src/components/"
+      ],
+      "priority_tasks": [
+        "Text export (UG format)",
+        "PDF export",
+        "Capo handling",
+        "Loading/error states"
+      ]
+    },
+    "agent_9": {
+      "name": "Testing & Integration Specialist",
+      "focus_paths": [
+        "tabvision-server/tests/",
+        "tabvision-client/"
+      ],
+      "priority_tasks": [
+        "Unit test coverage",
+        "Integration tests",
+        "Build configuration",
+        "Performance profiling"
+      ]
+    }
+  },
+  "file_ownership": {
+    "tabvision-server/app/audio_pipeline.py": "agent_1",
+    "tabvision-server/app/guitar_mapping.py": "agent_1",
+    "tabvision-server/app/video_pipeline.py": "agent_2",
+    "tabvision-server/app/fretboard_detection.py": "agent_2",
+    "tabvision-server/app/fusion_engine.py": "agent_3",
+    "tabvision-server/app/routes.py": "agent_4",
+    "tabvision-server/app/models.py": "agent_4",
+    "tabvision-server/app/storage.py": "agent_4",
+    "tabvision-client/src/components/TabCanvas.tsx": "agent_5",
+    "tabvision-client/src/components/TabEditor.tsx": "agent_5",
+    "tabvision-client/src/components/TabToolbar.tsx": "agent_5",
+    "tabvision-client/src/components/VideoPlayer.tsx": "agent_6",
+    "tabvision-client/src/components/UploadPanel.tsx": "agent_6",
+    "tabvision-client/src/store/appStore.ts": "agent_7",
+    "tabvision-client/src/api/client.ts": "agent_7",
+    "tabvision-client/src/types/tab.ts": "agent_7"
+  },
+  "shared_files": [
+    "CLAUDE.md",
+    "tabvision_specification.md",
+    "tabvision-server/requirements.txt",
+    "tabvision-client/package.json"
+  ],
+  "phases": {
+    "current": "1-4",
+    "phase_1": {
+      "name": "Audio Pipeline",
+      "status": "in_progress",
+      "owners": ["agent_1"]
+    },
+    "phase_2": {
+      "name": "Video Pipeline",
+      "status": "in_progress",
+      "owners": ["agent_2"]
+    },
+    "phase_3": {
+      "name": "Fusion",
+      "status": "in_progress",
+      "owners": ["agent_3"]
+    },
+    "phase_4": {
+      "name": "Editor UI",
+      "status": "in_progress",
+      "owners": ["agent_5", "agent_6", "agent_7"]
+    },
+    "phase_5": {
+      "name": "Recording & Export",
+      "status": "not_started",
+      "owners": ["agent_6", "agent_8"]
+    },
+    "phase_6": {
+      "name": "Polish",
+      "status": "not_started",
+      "owners": ["agent_8", "agent_9"]
+    }
+  }
+}

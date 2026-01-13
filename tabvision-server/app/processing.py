@@ -45,14 +45,19 @@ def save_result(job: Job, tab_notes: list[TabNote], output_dir: str) -> str:
             "fret": note.fret,
             "confidence": note.confidence,
             "confidenceLevel": note.confidence_level,
+            "isEdited": False,
         })
 
+    # Calculate duration from notes
+    max_timestamp = max((n.timestamp for n in tab_notes), default=0)
+
     tab_document = {
+        "id": job.id,
+        "createdAt": job.created_at.isoformat(),
+        "duration": max_timestamp + 1,  # Add 1 second buffer
+        "capoFret": job.capo_fret,
+        "tuning": ["E", "B", "G", "D", "A", "E"],  # Standard tuning
         "notes": notes_data,
-        "metadata": {
-            "job_id": job.id,
-            "capo_fret": job.capo_fret,
-        }
     }
 
     result_path = os.path.join(output_dir, f"{job.id}_result.json")

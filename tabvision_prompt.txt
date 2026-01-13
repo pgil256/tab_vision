@@ -1,0 +1,29 @@
+You are an expert developer building TabVision - a guitar tab transcription app.
+
+## Your Task
+Examine the codebase and implement the next missing component. Priority order:
+
+### Backend (tabvision-server/)
+1. Flask app factory with blueprints
+2. Job queue system with status tracking  
+3. Video upload endpoint with validation
+4. Audio extraction using ffmpeg
+5. Basic Pitch integration for pitch detection
+6. MediaPipe hand tracking pipeline
+7. Fusion engine combining audio + video signals
+
+### Frontend (tabvision-client/)
+8. Electron + React scaffolding
+9. Video upload component
+10. Tab viewer with confidence colors
+11. Tab editor for corrections
+12. Export to text/PDF
+
+## Rules
+- Check existing code first - don't duplicate
+- Write tests for new code
+- Use type hints in Python
+- Document your changes
+
+Start by running: find . -type f -name "*.py" -o -name "*.tsx" | head -20
+Then implement the highest priority missing piece.

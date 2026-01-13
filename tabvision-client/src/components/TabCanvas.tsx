@@ -474,7 +474,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       {/* Footer info */}
       <div className="px-4 py-2 border-t border-gray-700 text-xs text-gray-500 flex justify-between">
         <span>
-          Tuning: {tabDocument.tuning.join(' ')} | Capo: {tabDocument.capoFret || 'None'}
+          Tuning: {tabDocument.tuning?.join(' ') || 'E B G D A E'} | Capo: {tabDocument.capoFret ?? 'None'}
         </span>
         <span>
           {selectedNoteId ? 'Editing - type fret number, Esc to cancel' : 'Click a note to edit'}
