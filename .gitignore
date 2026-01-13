@@ -1,0 +1,21 @@
+# Worktrees
+.worktrees/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
