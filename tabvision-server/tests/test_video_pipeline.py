@@ -131,7 +131,11 @@ class TestDetectHandLandmarks:
 
     def test_detect_hand_landmarks_no_hand_in_image(self, tmp_path):
         """detect_hand_landmarks returns None when no hand present."""
-        pytest.importorskip("mediapipe")
+        mp = pytest.importorskip("mediapipe")
+
+        # Skip if mediapipe doesn't have solutions (some versions/environments)
+        if not hasattr(mp, 'solutions'):
+            pytest.skip("mediapipe.solutions not available in this environment")
 
         # Create a simple image without any hand
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -253,3 +257,54 @@ class TestAnalyzeVideoAtTimestamps:
         # Check that timestamps were correctly set
         assert result[0.5].timestamp == 0.5
         assert result[1.5].timestamp == 1.5
+
+
+class TestExtractFrameWithROI:
+    """Tests for frame extraction with ROI cropping."""
+
+    def test_extract_frame_with_roi_crops_correctly(self, tmp_path):
+        """extract_frame with ROI returns cropped frame."""
+        import cv2
+
+        # Create a test video with known dimensions
+        video_path = str(tmp_path / "test.mp4")
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(video_path, fourcc, 30, (100, 100))
+
+        # Create frame with quadrant colors for easy verification
+        frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        frame[0:50, 0:50] = (255, 0, 0)    # Top-left: blue
+        frame[0:50, 50:100] = (0, 255, 0)  # Top-right: green
+        frame[50:100, 0:50] = (0, 0, 255)  # Bottom-left: red
+        frame[50:100, 50:100] = (255, 255, 0)  # Bottom-right: cyan
+        for _ in range(30):
+            out.write(frame)
+        out.release()
+
+        # Extract with ROI covering top-left quadrant
+        roi = {'x1': 0.0, 'y1': 0.0, 'x2': 0.5, 'y2': 0.5}
+        result = extract_frame(video_path, 0.5, roi=roi)
+
+        assert result is not None
+        assert result.shape == (50, 50, 3)
+        # Should be blue (BGR) - use tolerance for video codec compression
+        assert result[25, 25, 0] > 240  # Blue channel (high)
+        assert result[25, 25, 1] < 15   # Green channel (low)
+        assert result[25, 25, 2] < 15   # Red channel (low)
+
+    def test_extract_frame_without_roi_returns_full_frame(self, tmp_path):
+        """extract_frame without ROI returns full frame."""
+        import cv2
+
+        video_path = str(tmp_path / "test.mp4")
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter(video_path, fourcc, 30, (100, 100))
+        frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        for _ in range(30):
+            out.write(frame)
+        out.release()
+
+        result = extract_frame(video_path, 0.5)
+
+        assert result is not None
+        assert result.shape == (100, 100, 3)
