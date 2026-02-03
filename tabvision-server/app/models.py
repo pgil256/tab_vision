@@ -17,6 +17,11 @@ class Job:
     current_stage: str
     result_path: Optional[str] = None
     error_message: Optional[str] = None
+    # ROI coordinates (normalized 0-1)
+    roi_x1: Optional[float] = None
+    roi_y1: Optional[float] = None
+    roi_x2: Optional[float] = None
+    roi_y2: Optional[float] = None
 
     @classmethod
     def create(cls, video_path: str, capo_fret: int) -> "Job":
