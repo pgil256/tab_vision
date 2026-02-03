@@ -123,3 +123,61 @@ def test_get_result_not_completed(client):
 def test_get_result_not_found(client):
     response = client.get('/jobs/nonexistent-id/result')
     assert response.status_code == 404
+
+
+def test_post_jobs_with_roi(client):
+    """POST /jobs accepts ROI coordinates."""
+    with patch('app.routes.Thread') as mock_thread:
+        data = {
+            'video': (io.BytesIO(b'fake video content'), 'test.mp4'),
+            'capo_fret': '0',
+            'roi_x1': '0.1',
+            'roi_y1': '0.2',
+            'roi_x2': '0.8',
+            'roi_y2': '0.9',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 201
+        job_id = response.get_json()['job_id']
+
+        # Verify ROI was stored in job
+        job = job_storage.get(job_id)
+        assert job.roi_x1 == 0.1
+        assert job.roi_y1 == 0.2
+        assert job.roi_x2 == 0.8
+        assert job.roi_y2 == 0.9
+
+
+def test_post_jobs_validates_roi_range(client):
+    """POST /jobs validates ROI coordinates are in 0-1 range."""
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake video content'), 'test.mp4'),
+            'capo_fret': '0',
+            'roi_x1': '0.1',
+            'roi_y1': '0.2',
+            'roi_x2': '1.5',  # Invalid: > 1
+            'roi_y2': '0.9',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        assert 'ROI' in response.get_json()['error']
+
+
+def test_post_jobs_validates_roi_order(client):
+    """POST /jobs validates x1 < x2 and y1 < y2."""
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake video content'), 'test.mp4'),
+            'capo_fret': '0',
+            'roi_x1': '0.8',  # Invalid: x1 > x2
+            'roi_y1': '0.2',
+            'roi_x2': '0.1',
+            'roi_y2': '0.9',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        assert 'ROI' in response.get_json()['error']

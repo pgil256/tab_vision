@@ -34,6 +34,39 @@ def create_job():
     except ValueError:
         capo_fret = 0
 
+    # Parse ROI coordinates if provided
+    roi_x1 = request.form.get('roi_x1')
+    roi_y1 = request.form.get('roi_y1')
+    roi_x2 = request.form.get('roi_x2')
+    roi_y2 = request.form.get('roi_y2')
+
+    roi_values = None
+    if any([roi_x1, roi_y1, roi_x2, roi_y2]):
+        # If any ROI value is provided, all must be provided
+        if not all([roi_x1, roi_y1, roi_x2, roi_y2]):
+            return jsonify({'error': 'ROI requires all four coordinates: roi_x1, roi_y1, roi_x2, roi_y2'}), 400
+
+        try:
+            roi_values = {
+                'x1': float(roi_x1),
+                'y1': float(roi_y1),
+                'x2': float(roi_x2),
+                'y2': float(roi_y2),
+            }
+        except ValueError:
+            return jsonify({'error': 'ROI coordinates must be valid numbers'}), 400
+
+        # Validate range (0-1)
+        for key, val in roi_values.items():
+            if val < 0 or val > 1:
+                return jsonify({'error': f'ROI coordinates must be in 0-1 range'}), 400
+
+        # Validate order (x1 < x2, y1 < y2)
+        if roi_values['x1'] >= roi_values['x2']:
+            return jsonify({'error': 'ROI x1 must be less than x2'}), 400
+        if roi_values['y1'] >= roi_values['y2']:
+            return jsonify({'error': 'ROI y1 must be less than y2'}), 400
+
     # Save the file
     filename = secure_filename(file.filename)
     upload_folder = current_app.config['UPLOAD_FOLDER']
@@ -48,8 +81,13 @@ def create_job():
     file_path = os.path.join(upload_folder, unique_filename)
     file.save(file_path)
 
-    # Update job with file path
+    # Update job with file path and ROI
     job.video_path = file_path
+    if roi_values:
+        job.roi_x1 = roi_values['x1']
+        job.roi_y1 = roi_values['y1']
+        job.roi_x2 = roi_values['x2']
+        job.roi_y2 = roi_values['y2']
     job_storage.save(job)
 
     # Launch background processing
