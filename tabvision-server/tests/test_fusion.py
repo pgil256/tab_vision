@@ -622,6 +622,25 @@ class TestFuseAudioVideoFiltering:
         )
         assert len(result) == 1
 
+    def test_audio_video_produces_similar_count_to_audio_only(self):
+        """fuse_audio_video with no video observations should produce similar results to fuse_audio_only."""
+        # Create a sequence of notes that tests the anchor system
+        notes = [
+            # 3-note chord to establish anchor at fret ~5 region
+            DetectedNote(start_time=1.0, end_time=2.0, midi_note=60, confidence=0.9, amplitude=0.7),
+            DetectedNote(start_time=1.0, end_time=2.0, midi_note=64, confidence=0.9, amplitude=0.7),
+            DetectedNote(start_time=1.0, end_time=2.0, midi_note=67, confidence=0.9, amplitude=0.7),
+            # Single note after chord
+            DetectedNote(start_time=2.5, end_time=3.0, midi_note=62, confidence=0.9, amplitude=0.7),
+            # Another note
+            DetectedNote(start_time=3.5, end_time=4.0, midi_note=65, confidence=0.9, amplitude=0.7),
+        ]
+        fretboard = self._make_fretboard()
+        result_av = fuse_audio_video(notes, {}, fretboard, capo_fret=0)
+        result_ao = fuse_audio_only(notes, capo_fret=0)
+        # Both should produce the same number of notes (same filtering pipeline)
+        assert len(result_av) == len(result_ao)
+
 
 class TestPostfilterTabNotes:
     """Tests for post-fusion note filtering."""

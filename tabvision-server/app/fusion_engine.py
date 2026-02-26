@@ -1007,12 +1007,45 @@ def fuse_audio_video(
     # Limit chord sizes (trim oversized chords by amplitude)
     chords = _limit_chord_sizes(chords, config)
 
+    # Two-pass anchor system (same as fuse_audio_only)
+    chord_anchors = {}
+    for idx, chord_notes_group in enumerate(chords):
+        if len(chord_notes_group) >= 3:
+            cc = []
+            for note in chord_notes_group:
+                candidates = get_candidate_positions(note.midi_note, capo_fret)
+                if candidates:
+                    cc.append((note, candidates))
+            if len(cc) >= 3:
+                positions = _optimize_chord_positions(cc, None, config, hand_position_fret=None)
+                valid = [p for p in positions if p]
+                if valid:
+                    frets = [p.fret for p in valid if p.fret > 0]
+                    if frets:
+                        chord_anchors[idx] = (sum(frets) / len(frets), len(valid))
+
+    def _get_nearest_anchor(chord_idx: int) -> Optional[float]:
+        if not chord_anchors:
+            return None
+        best_anchor = None
+        best_score = float('-inf')
+        for k, (avg_fret, num_notes) in chord_anchors.items():
+            distance = abs(k - chord_idx)
+            if distance > 15:
+                continue
+            score = num_notes * 2.0 - distance * 0.5
+            if score > best_score:
+                best_score = score
+                best_anchor = avg_fret
+        return best_anchor
+
     tab_notes = []
     previous_position = None
+    hand_position_fret = None
 
-    for chord_notes in chords:
-        chord_id = str(uuid4()) if len(chord_notes) > 1 else None
-        chord_timestamp = chord_notes[0].start_time
+    for i, chord_notes_group in enumerate(chords):
+        chord_id = str(uuid4()) if len(chord_notes_group) > 1 else None
+        chord_timestamp = chord_notes_group[0].start_time
 
         # Get video observation for this chord
         video_obs = find_nearest_observation(
@@ -1021,7 +1054,7 @@ def fuse_audio_video(
 
         # Get all candidates for each note in the chord
         chord_candidates = []
-        for note in chord_notes:
+        for note in chord_notes_group:
             candidates = get_candidate_positions(note.midi_note, capo_fret)
             if candidates:
                 chord_candidates.append((note, candidates))
@@ -1029,71 +1062,77 @@ def fuse_audio_video(
         if not chord_candidates:
             continue
 
-        # Process each note with video matching
-        chord_tab_notes = []
-        used_strings = set()
+        # Use anchor-based hand position
+        anchor = _get_nearest_anchor(i)
+        effective_hand_pos = hand_position_fret
+        if anchor is not None:
+            if effective_hand_pos is None:
+                effective_hand_pos = anchor
+            else:
+                effective_hand_pos = effective_hand_pos * 0.3 + anchor * 0.7
 
-        for note, candidates in chord_candidates:
-            # Try video matching for this note
-            video_match = None
-            video_confidence = 0.0
-
-            if video_obs and fretboard:
-                video_match, video_confidence = match_video_to_candidates_enhanced(
-                    video_obs, fretboard, candidates, used_strings
+        # Try video matching first for each note
+        video_matches = {}  # note_index -> (Position, video_confidence)
+        used_strings_video = set()
+        if video_obs and fretboard:
+            for idx, (note, candidates) in enumerate(chord_candidates):
+                match, v_conf = match_video_to_candidates_enhanced(
+                    video_obs, fretboard, candidates, used_strings_video
                 )
+                if match:
+                    video_matches[idx] = (match, v_conf)
+                    used_strings_video.add(match.string)
 
-            # Determine position and confidence
-            if video_match:
-                # Video confirms a candidate position
-                position = video_match
+        # Process single notes
+        if len(chord_candidates) == 1:
+            note, candidates = chord_candidates[0]
+            if 0 in video_matches:
+                # Video confirmed a position
+                position, v_conf = video_matches[0]
                 confidence = min(1.0, note.confidence + config.video_match_boost)
                 video_matched = True
-                used_strings.add(position.string)
             elif video_obs:
-                # We have video but no match - check for open string
+                # Video observation exists but no match
                 open_string = has_open_string_candidate(candidates)
-
-                # Check if any pressing fingers were detected
                 has_pressing_finger = len(video_obs.pressing_fingers) > 0
 
                 if open_string and not has_pressing_finger:
-                    # No finger pressing + open string valid = likely open
                     position = open_string
                     confidence = config.open_string_confidence
                     video_matched = False
-                    used_strings.add(position.string)
+                    v_conf = 0.0
                 elif open_string and has_pressing_finger:
-                    # Finger pressing but no match - might be different fret
-                    # Slight penalty for uncertainty
-                    available = [c for c in candidates if c.string not in used_strings]
-                    position = _select_best_position(available, previous_position, config)
+                    position = _select_best_position(
+                        candidates, previous_position, config,
+                        hand_position_fret=effective_hand_pos
+                    )
                     if position is None:
                         continue
                     confidence = note.confidence - config.no_match_penalty
                     video_matched = False
-                    used_strings.add(position.string)
+                    v_conf = 0.0
                 else:
-                    # Fall back to audio-only position selection
-                    available = [c for c in candidates if c.string not in used_strings]
-                    position = _select_best_position(available, previous_position, config)
+                    position = _select_best_position(
+                        candidates, previous_position, config,
+                        hand_position_fret=effective_hand_pos
+                    )
                     if position is None:
                         continue
                     confidence = note.confidence
                     video_matched = False
-                    used_strings.add(position.string)
+                    v_conf = 0.0
             else:
-                # No video observation - use audio-only selection
-                available = [c for c in candidates if c.string not in used_strings]
-                position = _select_best_position(available, previous_position, config)
+                # No video observation
+                position = _select_best_position(
+                    candidates, previous_position, config,
+                    hand_position_fret=effective_hand_pos
+                )
                 if position is None:
                     continue
                 confidence = note.confidence
                 video_matched = False
-                video_confidence = 0.0
-                used_strings.add(position.string)
+                v_conf = 0.0
 
-            # Create the tab note
             tab_note = TabNote(
                 id=str(uuid4()),
                 timestamp=note.start_time,
@@ -1107,12 +1146,68 @@ def fuse_audio_video(
                 chord_id=chord_id,
                 video_matched=video_matched,
                 audio_confidence=note.confidence,
-                video_confidence=video_confidence,
+                video_confidence=v_conf if 0 in video_matches else 0.0,
             )
-            chord_tab_notes.append(tab_note)
+            tab_notes.append(tab_note)
             previous_position = position
+            if hand_position_fret is None:
+                hand_position_fret = float(position.fret)
+            else:
+                hand_position_fret = hand_position_fret * 0.7 + position.fret * 0.3
 
-        tab_notes.extend(chord_tab_notes)
+        else:
+            # Multiple notes - optimize as chord
+            chord_hand_pos = effective_hand_pos
+            if len(chord_candidates) <= 2 and chord_hand_pos is not None:
+                chord_hand_pos = None  # Let small chords self-determine
+
+            selected_positions = _optimize_chord_positions(
+                chord_candidates, previous_position, config,
+                hand_position_fret=chord_hand_pos
+            )
+
+            for idx, ((note, _), position) in enumerate(zip(chord_candidates, selected_positions)):
+                # Override with video match if available
+                if idx in video_matches:
+                    v_pos, v_conf = video_matches[idx]
+                    position = v_pos
+                    confidence = min(1.0, note.confidence + config.video_match_boost)
+                    video_matched = True
+                elif video_obs and position:
+                    # Video obs exists but no match for this note
+                    confidence = note.confidence
+                    video_matched = False
+                    v_conf = 0.0
+                elif position:
+                    confidence = note.confidence
+                    video_matched = False
+                    v_conf = 0.0
+                else:
+                    continue
+
+                if position:
+                    tab_note = _create_tab_note(
+                        note, position, chord_id,
+                        audio_confidence=note.confidence,
+                        video_confidence=v_conf if idx in video_matches else 0.0,
+                        video_matched=video_matched,
+                    )
+                    tab_notes.append(tab_note)
+
+            # Update previous position and hand position from chord center
+            valid_positions = list(selected_positions)
+            # Include video overrides
+            for idx_vm in video_matches:
+                if idx_vm < len(valid_positions):
+                    valid_positions[idx_vm] = video_matches[idx_vm][0]
+            valid_positions = [p for p in valid_positions if p]
+            if valid_positions:
+                avg_fret = sum(p.fret for p in valid_positions) / len(valid_positions)
+                previous_position = min(valid_positions, key=lambda p: abs(p.fret - avg_fret))
+                if hand_position_fret is None:
+                    hand_position_fret = avg_fret
+                else:
+                    hand_position_fret = hand_position_fret * 0.4 + avg_fret * 0.6
 
     # Post-processing: correct slide/legato positions
     tab_notes = _correct_slide_positions(tab_notes, capo_fret)
