@@ -2,13 +2,26 @@ import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
+// Disable hardware acceleration and sandbox on Linux/WSL2
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+}
+
+console.log('[main] Process started, platform:', process.platform);
+console.log('[main] argv:', process.argv);
+console.log('[main] DISPLAY:', process.env.DISPLAY);
+console.log('[main] electron-squirrel-startup:', started);
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
 const createWindow = () => {
-  // Create the browser window.
+  console.log('[main] Creating window...');
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -17,23 +30,17 @@ const createWindow = () => {
     },
   });
 
-  // Log renderer errors
-  mainWindow.webContents.on('crashed', () => {
-    console.error('Renderer process crashed');
-  });
-
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorCode, errorDescription);
-  });
-
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    console.log('[main] Loading dev URL:', MAIN_WINDOW_VITE_DEV_SERVER_URL);
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+
+  mainWindow.on('closed', () => console.log('[main] Window closed'));
+  mainWindow.webContents.on('crashed', () => console.error('[main] Renderer crashed!'));
 
   // Open the DevTools in development
   mainWindow.webContents.openDevTools();
@@ -42,7 +49,14 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', () => {
+  console.log('[main] App ready, creating window...');
+  createWindow();
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[main] Uncaught exception:', err);
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

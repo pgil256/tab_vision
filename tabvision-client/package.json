@@ -6,6 +6,7 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
+    "start:wsl": "npx vite --config vite.renderer.config.ts --port 5173 & sleep 2 && MAIN_WINDOW_VITE_DEV_SERVER_URL=http://localhost:5173 MAIN_WINDOW_VITE_NAME=main_window ELECTRON_ENABLE_LOGGING=1 node_modules/electron/dist/electron --no-sandbox --disable-gpu .vite/build/main.js",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",

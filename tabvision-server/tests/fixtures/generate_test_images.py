@@ -7,10 +7,13 @@ import os
 def create_fretboard_image(
     width: int = 640,
     height: int = 480,
-    num_frets: int = 5,
+    num_frets: int = 8,
     output_path: str | None = None
 ) -> np.ndarray:
     """Create a synthetic fretboard image with clear lines.
+
+    The fretboard is oriented horizontally (neck pointing left/right)
+    with frets as vertical lines and strings as horizontal lines.
 
     Args:
         width: Image width
@@ -25,11 +28,11 @@ def create_fretboard_image(
     image = np.zeros((height, width, 3), dtype=np.uint8)
     image[:] = (40, 60, 80)  # Dark brown BGR
 
-    # Fretboard region
-    fb_left = int(width * 0.15)
-    fb_right = int(width * 0.85)
-    fb_top = int(height * 0.3)
-    fb_bottom = int(height * 0.7)
+    # Fretboard region - horizontally oriented (wider than tall)
+    fb_left = int(width * 0.1)
+    fb_right = int(width * 0.9)
+    fb_top = int(height * 0.35)
+    fb_bottom = int(height * 0.65)
 
     # Draw fretboard background (lighter brown)
     cv2.rectangle(
@@ -40,7 +43,8 @@ def create_fretboard_image(
         -1
     )
 
-    # Draw fret lines (horizontal, silver/white)
+    # Draw fret lines (VERTICAL lines across the fretboard width)
+    # These are perpendicular to the strings
     fret_spacing = (fb_right - fb_left) / (num_frets + 1)
     for i in range(num_frets + 2):
         x = int(fb_left + i * fret_spacing)
@@ -48,11 +52,11 @@ def create_fretboard_image(
             image,
             (x, fb_top),
             (x, fb_bottom),
-            (200, 200, 200),  # Silver
-            2
+            (200, 200, 200),  # Silver fret wire
+            3  # Thicker line for better detection
         )
 
-    # Draw string lines (horizontal across fretboard, representing strings)
+    # Draw string lines (HORIZONTAL lines along the fretboard length)
     for i in range(6):
         y = int(fb_top + (i + 0.5) * (fb_bottom - fb_top) / 6)
         cv2.line(
@@ -60,16 +64,16 @@ def create_fretboard_image(
             (fb_left, y),
             (fb_right, y),
             (180, 180, 180),  # Lighter gray for strings
-            1
+            2  # Visible but thinner than frets
         )
 
-    # Draw fretboard edge lines (vertical boundaries)
-    cv2.line(image, (fb_left, fb_top), (fb_left, fb_bottom), (100, 100, 100), 3)
-    cv2.line(image, (fb_right, fb_top), (fb_right, fb_bottom), (100, 100, 100), 3)
+    # Draw fretboard edge lines (top and bottom horizontal edges)
+    cv2.line(image, (fb_left, fb_top), (fb_right, fb_top), (100, 100, 100), 4)
+    cv2.line(image, (fb_left, fb_bottom), (fb_right, fb_bottom), (100, 100, 100), 4)
 
-    # Draw top and bottom edges
-    cv2.line(image, (fb_left, fb_top), (fb_right, fb_top), (100, 100, 100), 3)
-    cv2.line(image, (fb_left, fb_bottom), (fb_right, fb_bottom), (100, 100, 100), 3)
+    # Draw left and right vertical edges
+    cv2.line(image, (fb_left, fb_top), (fb_left, fb_bottom), (100, 100, 100), 4)
+    cv2.line(image, (fb_right, fb_top), (fb_right, fb_bottom), (100, 100, 100), 4)
 
     if output_path:
         cv2.imwrite(output_path, image)

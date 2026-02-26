@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "[wrapper] Launching electron with --no-sandbox" >&2
+echo "[wrapper] Args: $@" >&2
+exec "$(dirname "$0")/../node_modules/electron/dist/electron" --no-sandbox "$@"
