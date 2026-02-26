@@ -292,7 +292,27 @@ def _postfilter_tab_notes(
             continue  # Remove low-confidence isolated note
         result.append(note)
 
-    return result
+    # Pass 3: Remove isolated open-string resonance
+    # Open strings (fret 0) that are not in a chord and whose string is far
+    # (2+ strings away) from all neighbors within 1.0s are likely resonance artifacts.
+    neighbor_window = 1.0
+    min_string_distance = 2  # must be 2+ strings away from ALL neighbors
+    final = []
+    for i, note in enumerate(result):
+        if note.fret == 0 and not note.is_part_of_chord:
+            # Check if all neighbors within window are on distant strings
+            neighbors = [
+                other for other in result
+                if other is not note
+                and abs(other.timestamp - note.timestamp) <= neighbor_window
+            ]
+            if neighbors:
+                min_dist = min(abs(note.string - other.string) for other in neighbors)
+                if min_dist >= min_string_distance:
+                    continue  # Skip: isolated open string far from all neighbors
+        final.append(note)
+
+    return final
 
 
 def fuse_audio_only(

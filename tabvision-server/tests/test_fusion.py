@@ -581,3 +581,39 @@ class TestPostfilterTabNotes:
         ]
         result = _postfilter_tab_notes(notes, FusionConfig())
         assert len(result) == 1
+
+    def test_removes_isolated_open_string_different_string_group(self):
+        """Open string note isolated among notes on distant strings should be removed."""
+        notes = [
+            self._make_note(7.55, 3, 2, confidence=0.90, midi_note=57),   # melody on s3
+            self._make_note(7.95, 2, 1, confidence=0.93, midi_note=60),   # melody on s2
+            self._make_note(8.20, 5, 0, confidence=0.70, midi_note=45),   # FP: isolated open A
+            self._make_note(8.81, 1, 0, confidence=0.92, midi_note=64),   # melody on s1
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 3
+        # s5f0 should be removed — isolated open string far from neighbor strings
+        assert all(not (n.string == 5 and n.fret == 0) for n in result)
+
+    def test_keeps_open_string_in_chord(self):
+        """Open string that's part of a chord should be kept."""
+        notes = [
+            self._make_note(10.00, 5, 2, confidence=0.67, midi_note=47,
+                           is_part_of_chord=True),
+            self._make_note(10.00, 3, 0, confidence=0.64, midi_note=55,
+                           is_part_of_chord=True),
+            self._make_note(10.00, 2, 0, confidence=0.71, midi_note=59,
+                           is_part_of_chord=True),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 3  # all kept — part of chord
+
+    def test_keeps_open_string_among_nearby_strings(self):
+        """Open string with neighbors on adjacent strings should be kept."""
+        notes = [
+            self._make_note(5.00, 4, 3, confidence=0.80, midi_note=53),
+            self._make_note(5.20, 5, 0, confidence=0.70, midi_note=45),  # open A near s4
+            self._make_note(5.40, 5, 2, confidence=0.80, midi_note=47),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 3  # kept — s5 is adjacent to s4
