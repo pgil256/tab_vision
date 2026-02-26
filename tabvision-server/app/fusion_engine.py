@@ -784,6 +784,48 @@ def _correct_slide_positions(
                         curr.string = new_pos.string
                         curr.fret = new_pos.fret
 
+    # Pass 3: Re-run Pass 1 to catch cases where Pass 2 created new
+    # same-string pairs that now qualify for semitone correction
+    for i in range(1, len(sorted_notes)):
+        prev = sorted_notes[i - 1]
+        curr = sorted_notes[i]
+
+        time_gap = curr.timestamp - prev.timestamp
+        if time_gap > 0.5:
+            continue
+
+        midi_diff = abs(curr.midi_note - prev.midi_note)
+        if midi_diff < 1 or midi_diff > 2:
+            continue
+
+        if prev.string == curr.string:
+            continue
+
+        prev_candidates = get_candidate_positions(prev.midi_note, capo_fret)
+        curr_candidates = get_candidate_positions(curr.midi_note, capo_fret)
+
+        prev_by_string = {p.string: p for p in prev_candidates}
+        curr_by_string = {p.string: p for p in curr_candidates}
+        common_strings = set(prev_by_string.keys()) & set(curr_by_string.keys())
+
+        if common_strings:
+            def _string_score(s):
+                fret_dist = abs(prev_by_string[s].fret - curr_by_string[s].fret)
+                existing_bonus = 0
+                if s == prev.string:
+                    existing_bonus = -2
+                elif s == curr.string:
+                    existing_bonus = -1
+                return (fret_dist, existing_bonus, s)
+
+            best_string = min(common_strings, key=_string_score)
+            prev_pos = prev_by_string[best_string]
+            curr_pos = curr_by_string[best_string]
+            prev.string = prev_pos.string
+            prev.fret = prev_pos.fret
+            curr.string = curr_pos.string
+            curr.fret = curr_pos.fret
+
     return sorted_notes
 
 
