@@ -7,6 +7,7 @@ from app.fusion_engine import (
     match_video_to_candidates,
     has_open_string_candidate,
     get_confidence_level,
+    _correct_slide_positions,
     TabNote,
 )
 from app.audio_pipeline import DetectedNote
@@ -382,7 +383,7 @@ class TestOpenStringDetection:
         # Should prefer open string (fret 0) since video shows no finger match
         assert result[0].fret == 0
         assert result[0].string == 1
-        assert result[0].confidence == 0.65  # Medium confidence for open string inference
+        assert result[0].confidence == 0.7  # Open string confidence from FusionConfig
         assert result[0].confidence_level == "medium"
 
     def test_no_open_string_when_fret0_not_valid(self):
@@ -450,3 +451,71 @@ class TestOpenStringDetection:
         assert len(result) == 1
         # Result depends on coordinate mapping - just verify we get a result
         # If video matches a candidate, confidence is boosted; otherwise open string or fallback
+
+
+class TestCorrectSlidePositions:
+    """Tests for slide/legato position correction."""
+
+    def test_descending_semitone_prefers_existing_string(self):
+        """When s5f8 is followed by a note that could be s5f7 or s4f2,
+        prefer s5f7 (same string as prev) for continuity."""
+        notes = [
+            TabNote(id='1', timestamp=12.62, string=5, fret=8, confidence=0.77,
+                    confidence_level='medium', midi_note=53),
+            TabNote(id='2', timestamp=12.98, string=4, fret=2, confidence=1.00,
+                    confidence_level='high', midi_note=52),
+        ]
+        result = _correct_slide_positions(notes, capo_fret=0)
+        # Both should end up on string 5 (descending slide)
+        assert result[0].string == 5
+        assert result[0].fret == 8
+        assert result[1].string == 5
+        assert result[1].fret == 7
+
+    def test_ascending_semitone_prefers_existing_string(self):
+        """When s5f7 is followed by a note that could be s5f8 or s4f3,
+        prefer s5f8 (same string as prev)."""
+        notes = [
+            TabNote(id='1', timestamp=1.00, string=5, fret=7, confidence=0.8,
+                    confidence_level='high', midi_note=52),
+            TabNote(id='2', timestamp=1.30, string=4, fret=3, confidence=0.8,
+                    confidence_level='high', midi_note=53),
+        ]
+        result = _correct_slide_positions(notes, capo_fret=0)
+        assert result[0].string == 5
+        assert result[0].fret == 7
+        assert result[1].string == 5
+        assert result[1].fret == 8
+
+    def test_does_not_change_same_string_pair(self):
+        """Notes already on the same string should not be modified."""
+        notes = [
+            TabNote(id='1', timestamp=1.00, string=3, fret=2, confidence=0.8,
+                    confidence_level='high', midi_note=57),
+            TabNote(id='2', timestamp=1.30, string=3, fret=4, confidence=0.8,
+                    confidence_level='high', midi_note=59),
+        ]
+        result = _correct_slide_positions(notes, capo_fret=0)
+        assert result[0].string == 3
+        assert result[0].fret == 2
+        assert result[1].string == 3
+        assert result[1].fret == 4
+
+    def test_full_slide_section_s5f8_to_s5f7(self):
+        """Realistic slide section: s5f0->s5f4->s5f8->s4f2 should correct
+        the last note to s5f7 while preserving the rest."""
+        notes = [
+            TabNote(id='a', timestamp=12.16, string=5, fret=0, confidence=0.88,
+                    confidence_level='high', midi_note=45),
+            TabNote(id='b', timestamp=12.51, string=5, fret=4, confidence=0.54,
+                    confidence_level='medium', midi_note=49),
+            TabNote(id='c', timestamp=12.62, string=5, fret=8, confidence=0.77,
+                    confidence_level='medium', midi_note=53),
+            TabNote(id='d', timestamp=12.98, string=4, fret=2, confidence=1.00,
+                    confidence_level='high', midi_note=52),
+        ]
+        result = _correct_slide_positions(notes, capo_fret=0)
+        assert result[0].string == 5 and result[0].fret == 0   # unchanged
+        assert result[1].string == 5 and result[1].fret == 4   # unchanged
+        assert result[2].string == 5 and result[2].fret == 8   # unchanged
+        assert result[3].string == 5 and result[3].fret == 7   # corrected!
