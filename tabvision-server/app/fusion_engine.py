@@ -997,8 +997,16 @@ def fuse_audio_video(
     if not detected_notes:
         return []
 
+    # Pre-filter to remove ghost notes and chord fragment re-detections
+    if config.enable_prefiltering:
+        detected_notes = _prefilter_notes(detected_notes, config)
+
     # Group notes into chords
     chords = group_notes_into_chords(detected_notes, config.chord_time_tolerance)
+
+    # Limit chord sizes (trim oversized chords by amplitude)
+    chords = _limit_chord_sizes(chords, config)
+
     tab_notes = []
     previous_position = None
 

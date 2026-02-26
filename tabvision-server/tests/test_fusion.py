@@ -523,6 +523,54 @@ class TestCorrectSlidePositions:
         assert result[3].string == 5 and result[3].fret == 7   # corrected!
 
 
+class TestFuseAudioVideoFiltering:
+    """Tests that fuse_audio_video applies the same filtering as fuse_audio_only."""
+
+    def _make_fretboard(self):
+        """Create a minimal FretboardGeometry for testing."""
+        return FretboardGeometry(
+            top_left=(0.0, 0.2),
+            top_right=(1.0, 0.2),
+            bottom_left=(0.0, 0.8),
+            bottom_right=(1.0, 0.8),
+            fret_positions=[i * 0.04 for i in range(25)],
+            string_positions=[0.2 + i * 0.1 for i in range(6)],
+            detection_confidence=0.8,
+            frame_width=640,
+            frame_height=480,
+        )
+
+    def test_ghost_notes_filtered(self):
+        """Ghost notes (low amplitude overlapping loud notes) should be removed."""
+        loud_note = DetectedNote(
+            start_time=1.0, end_time=2.0, midi_note=64,
+            confidence=0.9, amplitude=0.8,
+        )
+        ghost_note = DetectedNote(
+            start_time=1.0, end_time=1.5, midi_note=76,
+            confidence=0.5, amplitude=0.15,
+        )
+        fretboard = self._make_fretboard()
+        result = fuse_audio_video(
+            [loud_note, ghost_note], {}, fretboard, capo_fret=0
+        )
+        assert len(result) == 1
+        assert result[0].midi_note == 64
+
+    def test_chord_size_limited(self):
+        """Chords should be limited to max_chord_size (default 3)."""
+        notes = [
+            DetectedNote(
+                start_time=1.0, end_time=2.0, midi_note=midi,
+                confidence=0.8, amplitude=0.5 + i * 0.1,
+            )
+            for i, midi in enumerate([40, 45, 50, 55, 60])
+        ]
+        fretboard = self._make_fretboard()
+        result = fuse_audio_video(notes, {}, fretboard, capo_fret=0)
+        assert len(result) <= 3
+
+
 class TestPostfilterTabNotes:
     """Tests for post-fusion note filtering."""
 
