@@ -239,6 +239,62 @@ def _limit_chord_sizes(
     return result
 
 
+def _postfilter_tab_notes(
+    tab_notes: list[TabNote],
+    config: FusionConfig
+) -> list[TabNote]:
+    """Remove post-fusion artifacts: duplicate positions and low-confidence strays.
+
+    Two filters applied in order:
+    1. Dedup: same string+fret within 0.3s -> keep highest confidence
+    2. Low-confidence isolated: conf < 0.6, not in chord -> remove
+
+    Args:
+        tab_notes: Tab notes from fusion
+        config: Fusion configuration
+
+    Returns:
+        Filtered tab notes
+    """
+    if not tab_notes:
+        return []
+
+    sorted_notes = sorted(tab_notes, key=lambda n: n.timestamp)
+
+    # Pass 1: Dedup same string+fret within 0.3s window
+    dedup_window = 0.3
+    keep_after_dedup = []
+    skip_indices = set()
+
+    for i, note in enumerate(sorted_notes):
+        if i in skip_indices:
+            continue
+        # Look ahead for duplicates
+        best = note
+        for j in range(i + 1, len(sorted_notes)):
+            other = sorted_notes[j]
+            if other.timestamp - note.timestamp > dedup_window:
+                break
+            if other.string == note.string and other.fret == note.fret:
+                skip_indices.add(j)
+                if other.confidence > best.confidence:
+                    best = other
+        if best is not note:
+            skip_indices.add(i)
+        keep_after_dedup.append(best)
+
+    # Pass 2: Remove low-confidence isolated singletons
+    low_conf_threshold = 0.6
+    result = []
+    for note in keep_after_dedup:
+        if (note.confidence < low_conf_threshold
+                and not note.is_part_of_chord):
+            continue  # Remove low-confidence isolated note
+        result.append(note)
+
+    return result
+
+
 def fuse_audio_only(
     detected_notes: list[DetectedNote],
     capo_fret: int = 0,
@@ -395,6 +451,9 @@ def fuse_audio_only(
     # Post-processing: correct slide/legato positions
     # When consecutive notes are close in time and pitch, put them on same string
     tab_notes = _correct_slide_positions(tab_notes, capo_fret)
+
+    # Post-filter: remove duplicate positions and low-confidence strays
+    tab_notes = _postfilter_tab_notes(tab_notes, config)
 
     # Detect techniques (hammer-ons, pull-offs, slides)
     tab_notes = _detect_techniques(tab_notes, config)

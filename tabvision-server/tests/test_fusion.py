@@ -8,6 +8,8 @@ from app.fusion_engine import (
     has_open_string_candidate,
     get_confidence_level,
     _correct_slide_positions,
+    _postfilter_tab_notes,
+    FusionConfig,
     TabNote,
 )
 from app.audio_pipeline import DetectedNote
@@ -67,7 +69,7 @@ class TestFuseAudioOnly:
         detected_notes = [
             DetectedNote(start_time=0.0, end_time=0.5, midi_note=64, confidence=0.9),  # E4
             DetectedNote(start_time=0.5, end_time=1.0, midi_note=67, confidence=0.7),  # G4
-            DetectedNote(start_time=1.0, end_time=1.5, midi_note=69, confidence=0.4),  # A4
+            DetectedNote(start_time=1.0, end_time=1.5, midi_note=69, confidence=0.65),  # A4
         ]
 
         result = fuse_audio_only(detected_notes, capo_fret=0)
@@ -84,7 +86,7 @@ class TestFuseAudioOnly:
         # Third note: A4 (MIDI 69) = string 1 fret 5
         assert result[2].fret == 5
         assert result[2].string == 1
-        assert result[2].confidence_level == "low"
+        assert result[2].confidence_level == "medium"
 
     def test_fuse_with_capo(self):
         """Capo should affect fret positions."""
@@ -519,3 +521,63 @@ class TestCorrectSlidePositions:
         assert result[1].string == 5 and result[1].fret == 4   # unchanged
         assert result[2].string == 5 and result[2].fret == 8   # unchanged
         assert result[3].string == 5 and result[3].fret == 7   # corrected!
+
+
+class TestPostfilterTabNotes:
+    """Tests for post-fusion note filtering."""
+
+    def _make_note(self, timestamp, string, fret, confidence=0.8, midi_note=60,
+                   is_part_of_chord=False):
+        return TabNote(
+            id=str(timestamp), timestamp=timestamp, string=string, fret=fret,
+            confidence=confidence, confidence_level=get_confidence_level(confidence),
+            midi_note=midi_note, is_part_of_chord=is_part_of_chord,
+        )
+
+    def test_removes_duplicate_position_within_window(self):
+        """Same string+fret within 0.3s should keep only the higher confidence one."""
+        notes = [
+            self._make_note(9.99, 3, 0, confidence=0.64),
+            self._make_note(10.06, 3, 0, confidence=0.85),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 1
+        assert result[0].confidence == 0.85  # kept the higher-confidence one
+
+    def test_keeps_duplicate_outside_window(self):
+        """Same string+fret more than 0.3s apart should both be kept."""
+        notes = [
+            self._make_note(1.00, 3, 0, confidence=0.80),
+            self._make_note(1.50, 3, 0, confidence=0.85),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 2
+
+    def test_removes_low_confidence_isolated_singleton(self):
+        """Low-confidence (<0.6) notes not in a chord should be removed."""
+        notes = [
+            self._make_note(12.16, 5, 0, confidence=0.88, midi_note=45),
+            self._make_note(12.51, 5, 4, confidence=0.54, midi_note=49),  # low conf, not in chord
+            self._make_note(12.62, 5, 8, confidence=0.77, midi_note=53),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        # s5f4 at 12.51 has conf=0.54 < 0.6, not in chord -> removed
+        assert len(result) == 2
+        assert all(n.fret != 4 for n in result)
+
+    def test_keeps_low_confidence_chord_member(self):
+        """Low-confidence notes that are part of a chord should be kept."""
+        notes = [
+            self._make_note(1.00, 3, 5, confidence=0.55, is_part_of_chord=True),
+            self._make_note(1.00, 1, 7, confidence=0.80, is_part_of_chord=True),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 2
+
+    def test_keeps_high_confidence_singleton(self):
+        """High-confidence singletons should always be kept."""
+        notes = [
+            self._make_note(5.00, 5, 0, confidence=0.70),
+        ]
+        result = _postfilter_tab_notes(notes, FusionConfig())
+        assert len(result) == 1
