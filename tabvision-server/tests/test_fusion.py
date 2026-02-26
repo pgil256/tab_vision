@@ -570,6 +570,58 @@ class TestFuseAudioVideoFiltering:
         result = fuse_audio_video(notes, {}, fretboard, capo_fret=0)
         assert len(result) <= 3
 
+    def test_slide_positions_corrected(self):
+        """Consecutive semitone notes on different strings should be corrected to same string."""
+        # MIDI 55 (G3) and MIDI 56 (G#3) are a semitone apart
+        # Both can be played on string 4 or string 5
+        note1 = DetectedNote(
+            start_time=1.0, end_time=1.3, midi_note=55,
+            confidence=0.9, amplitude=0.7,
+        )
+        note2 = DetectedNote(
+            start_time=1.3, end_time=1.6, midi_note=56,
+            confidence=0.9, amplitude=0.7,
+        )
+        fretboard = self._make_fretboard()
+        result = fuse_audio_video(
+            [note1, note2], {}, fretboard, capo_fret=0
+        )
+        assert len(result) == 2
+        # Both should end up on the same string after slide correction
+        assert result[0].string == result[1].string
+
+    def test_low_confidence_singletons_filtered(self):
+        """Low-confidence non-chord notes should be removed by post-filtering."""
+        # A single quiet note with low confidence
+        notes = [
+            DetectedNote(
+                start_time=1.0, end_time=2.0, midi_note=64,
+                confidence=0.45, amplitude=0.5,
+            ),
+        ]
+        fretboard = self._make_fretboard()
+        config = FusionConfig()
+        result = fuse_audio_video(notes, {}, fretboard, capo_fret=0, config=config)
+        # Should be removed by post-filter (confidence < 0.6, not in chord)
+        assert len(result) == 0
+
+    def test_duplicate_positions_deduped(self):
+        """Same string+fret within 0.3s should be deduped."""
+        # Two notes with the same MIDI pitch very close together
+        note1 = DetectedNote(
+            start_time=1.0, end_time=1.5, midi_note=64,
+            confidence=0.9, amplitude=0.7,
+        )
+        note2 = DetectedNote(
+            start_time=1.15, end_time=1.6, midi_note=64,
+            confidence=0.8, amplitude=0.6,
+        )
+        fretboard = self._make_fretboard()
+        result = fuse_audio_video(
+            [note1, note2], {}, fretboard, capo_fret=0
+        )
+        assert len(result) == 1
+
 
 class TestPostfilterTabNotes:
     """Tests for post-fusion note filtering."""

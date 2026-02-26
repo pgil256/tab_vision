@@ -1114,6 +1114,12 @@ def fuse_audio_video(
 
         tab_notes.extend(chord_tab_notes)
 
+    # Post-processing: correct slide/legato positions
+    tab_notes = _correct_slide_positions(tab_notes, capo_fret)
+
+    # Post-filter: remove duplicate positions and low-confidence strays
+    tab_notes = _postfilter_tab_notes(tab_notes, config)
+
     # Detect techniques
     tab_notes = _detect_techniques(tab_notes, config)
 
