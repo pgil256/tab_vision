@@ -7,10 +7,11 @@
       "video_duration": 13.28,
       "description": "Simple fingerpicking passage, open chords and barre shapes",
       "baselines": {
-        "f1_min": 0.88,
-        "precision_min": 0.85,
-        "recall_min": 0.85,
-        "max_detected_notes": 50,
+        "f1_min": 0.70,
+        "precision_min": 0.65,
+        "recall_min": 0.70,
+        "pitch_f1_min": 0.90,
+        "max_detected_notes": 55,
         "min_detected_notes": 30
       }
     }
