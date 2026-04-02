@@ -12,7 +12,7 @@ def _prewarm_ml_libraries():
 
     TF's pybind11 C++ initialization is not thread-safe and crashes with
     "Unable to convert function return value to a Python type! () -> handle"
-    if first imported inside a background thread.
+    if first imported inside a background thread. Must run on main thread.
     """
     try:
         import tensorflow  # noqa: F401
@@ -31,14 +31,18 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', default_uploads)
     app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload
 
-    # Enable CORS for frontend (local dev + deployed Vercel)
-    cors_origins = ['http://localhost:*', 'http://127.0.0.1:*']
+    # Enable CORS for frontend (local dev + any Vercel deployment)
+    cors_origins = [
+        'http://localhost:*',
+        'http://127.0.0.1:*',
+        r'https://.*\.vercel\.app',
+    ]
     frontend_url = os.environ.get('FRONTEND_URL')
     if frontend_url:
         cors_origins.append(frontend_url)
     CORS(app, origins=cors_origins)
 
-    # Pre-warm ML libraries on the main thread to avoid pybind11 threading issues
+    # Pre-warm ML libraries on the main thread (required for TF pybind11)
     _prewarm_ml_libraries()
 
     # Health check endpoint for Railway

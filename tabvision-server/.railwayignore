@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+uploads/
+tests/
+*.mp4
+*.wav
+*.jpg
+*.png
+debug_*
+.claude/
