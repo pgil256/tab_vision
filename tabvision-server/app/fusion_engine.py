@@ -2,10 +2,16 @@
 from dataclasses import dataclass, field
 from typing import Optional
 from uuid import uuid4
-from app.audio_pipeline import DetectedNote, group_notes_into_chords
-from app.guitar_mapping import get_candidate_positions, pick_lowest_fret, Position
+from app.audio_pipeline import DetectedNote, MutedNote, group_notes_into_chords
+from app.guitar_mapping import get_candidate_positions, pick_lowest_fret, Position, STANDARD_TUNING, MAX_FRET
 from app.video_pipeline import HandObservation, FingerPosition
 from app.fretboard_detection import FretboardGeometry, map_finger_to_position
+from app.chord_shapes import (
+    ChordShapeConfig, PlayingStyle, StyleWeights, STYLE_WEIGHTS,
+    find_best_voicing_for_chord, get_voicing_positions,
+    score_positions_against_scale, find_matching_voicings,
+    score_position_against_voicing, GUITAR_POSITIONS, get_position_for_fret,
+)
 
 
 @dataclass
@@ -26,6 +32,7 @@ class TabNote:
     video_matched: bool = False       # Whether video confirmed this position
     audio_confidence: float = 0.0     # Confidence from audio alone
     video_confidence: float = 0.0     # Confidence from video alone
+    pitch_bend: float = 0.0          # Pitch bend/vibrato amount from audio
 
 
 @dataclass
@@ -79,6 +86,71 @@ class FusionConfig:
     chord_fragment_window: float = 2.0             # seconds to look back for re-detections
     chord_fragment_amplitude_ratio: float = 0.9    # remove if amp < this * original
     max_chord_size: int = 3                        # trim oversized chords by amplitude
+
+    # Muted note detection
+    muted_note_min_confidence: float = 0.4           # minimum confidence to include muted note
+    muted_note_audio_only_threshold: float = 0.6     # higher threshold without video confirmation
+    muted_note_video_boost: float = 0.2              # confidence boost for video-confirmed muted
+
+    # Chord shape and style heuristics
+    chord_shape_config: ChordShapeConfig = field(default_factory=ChordShapeConfig)
+    playing_style: PlayingStyle = PlayingStyle.DEFAULT
+
+
+def _create_muted_tab_notes(
+    muted_notes: list[MutedNote],
+    video_observations: dict | None = None,
+    config: FusionConfig | None = None,
+) -> list[TabNote]:
+    """Convert muted notes into TabNote objects with fret='X'.
+
+    Args:
+        muted_notes: Detected muted/percussive notes from audio
+        video_observations: Optional video data for confirmation
+        config: Fusion configuration
+
+    Returns:
+        List of TabNote objects with fret="X"
+    """
+    if config is None:
+        config = FusionConfig()
+
+    tab_notes = []
+    for mn in muted_notes:
+        # Check video confirmation
+        video_confirmed = False
+        if video_observations:
+            # Look for muting fingers at this timestamp (within tolerance)
+            for ts, obs in video_observations.items():
+                if abs(ts - mn.timestamp) <= 0.1:
+                    if hasattr(obs, 'muting_fingers') and obs.muting_fingers:
+                        video_confirmed = True
+                        break
+
+        # Apply confidence thresholds
+        if mn.confidence < config.muted_note_min_confidence:
+            continue
+        if not video_confirmed and mn.confidence < config.muted_note_audio_only_threshold:
+            continue
+
+        # Calculate final confidence
+        final_confidence = mn.confidence
+        if video_confirmed:
+            final_confidence = min(1.0, mn.confidence + config.muted_note_video_boost)
+
+        tab_notes.append(TabNote(
+            id=str(uuid4()),
+            timestamp=mn.timestamp,
+            string=6,
+            fret="X",
+            confidence=final_confidence,
+            confidence_level="low" if final_confidence < 0.5 else "medium",
+            midi_note=0,
+            technique="muted",
+            video_matched=video_confirmed,
+        ))
+
+    return tab_notes
 
 
 def get_confidence_level(confidence: float) -> str:
@@ -195,8 +267,30 @@ def _prefilter_notes(
                             if note.amplitude < prev.amplitude * config.chord_fragment_amplitude_ratio:
                                 is_fragment = True
                                 break
-                # If chord is entirely continuing pitches, keep them all
-                # (might be a repeated strum)
+                elif len(chord) == 2:
+                    # All chord members are continuing pitches (2-note chord).
+                    # Remove notes whose amplitude dropped while the other
+                    # member's amplitude increased (re-articulation exciting
+                    # a sustaining note).
+                    has_reattack = False
+                    for other in chord:
+                        if other is note:
+                            continue
+                        for prev in recent_notes:
+                            if prev.midi_note != other.midi_note:
+                                continue
+                            if prev.end_time >= other.start_time - 0.15:
+                                if other.amplitude >= prev.amplitude:
+                                    has_reattack = True
+                                break
+                    if has_reattack:
+                        for prev in recent_notes:
+                            if prev.midi_note != note.midi_note:
+                                continue
+                            if prev.end_time >= note.start_time - 0.15:
+                                if note.amplitude < prev.amplitude * config.chord_fragment_amplitude_ratio:
+                                    is_fragment = True
+                                break
 
             if not is_fragment:
                 filtered_chord.append(note)
@@ -284,12 +378,15 @@ def _postfilter_tab_notes(
         keep_after_dedup.append(best)
 
     # Pass 2: Remove low-confidence isolated singletons
+    # Open strings use a higher threshold since they're prone to sympathetic resonance
     low_conf_threshold = 0.6
+    open_string_conf_threshold = 0.7
     result = []
     for note in keep_after_dedup:
-        if (note.confidence < low_conf_threshold
-                and not note.is_part_of_chord):
-            continue  # Remove low-confidence isolated note
+        if not note.is_part_of_chord:
+            threshold = open_string_conf_threshold if note.fret == 0 else low_conf_threshold
+            if note.confidence < threshold:
+                continue  # Remove low-confidence isolated note
         result.append(note)
 
     # Pass 3: Remove isolated open-string resonance
@@ -297,7 +394,7 @@ def _postfilter_tab_notes(
     # (2+ strings away) from all neighbors within 1.0s are likely resonance artifacts.
     neighbor_window = 1.0
     min_string_distance = 2  # must be 2+ strings away from ALL neighbors
-    final = []
+    after_open = []
     for i, note in enumerate(result):
         if note.fret == 0 and not note.is_part_of_chord:
             # Check if all neighbors within window are on distant strings
@@ -310,15 +407,108 @@ def _postfilter_tab_notes(
                 min_dist = min(abs(note.string - other.string) for other in neighbors)
                 if min_dist >= min_string_distance:
                     continue  # Skip: isolated open string far from all neighbors
-        final.append(note)
+        after_open.append(note)
 
-    return final
+    # Pass 4: Remove sustained-into-chord artifacts
+    # When a chord (3+ notes) has exactly ONE note whose string+fret was
+    # recently played (within 1.5s) while the other chord members are new,
+    # the repeated note is likely a sustain carryover, not a re-articulation.
+    # Real re-strums repeat MULTIPLE chord members, not just one.
+    sustain_window = 1.5
+    after_sustain = []
+    for note in after_open:
+        if not note.is_part_of_chord or note.chord_id is None:
+            after_sustain.append(note)
+            continue
+
+        # Get all notes in the same chord
+        chord_notes = [n for n in after_open if n.chord_id == note.chord_id]
+        if len(chord_notes) < 3:
+            after_sustain.append(note)
+            continue
+
+        # Count how many chord members are repeats of recent notes
+        repeats_in_chord = []
+        for cn in chord_notes:
+            is_repeat = False
+            for prev in after_open:
+                if prev.chord_id == cn.chord_id:
+                    continue  # Skip same chord
+                if (prev.string == cn.string and prev.fret == cn.fret
+                        and 0 < cn.timestamp - prev.timestamp <= sustain_window):
+                    is_repeat = True
+                    break
+            if is_repeat:
+                repeats_in_chord.append(cn)
+
+        # Only remove if exactly ONE note is a repeat (sustain carryover)
+        if (len(repeats_in_chord) == 1
+                and repeats_in_chord[0] is note):
+            continue  # Skip: lone sustain carryover in a chord of new notes
+
+        after_sustain.append(note)
+
+    return after_sustain
+
+
+def _estimate_initial_position(
+    notes: list[DetectedNote],
+    capo_fret: int = 0
+) -> Optional[float]:
+    """Estimate the initial hand position from the note content.
+
+    Analyzes all detected notes to determine the most likely playing position
+    on the neck. This helps set the correct initial hand position before
+    processing individual notes.
+
+    Strategy:
+    1. For each note, find its minimum fret (lowest position option)
+    2. Cluster these minimum frets to find the most common playing region
+    3. If most notes fit in open position (frets 0-4), return low position
+    4. If notes cluster around a higher position, return that
+
+    Args:
+        notes: All detected notes
+        capo_fret: Capo position
+
+    Returns:
+        Estimated hand position fret, or None if can't determine
+    """
+    if not notes:
+        return None
+
+    # Get minimum fret for each note (the lowest possible position)
+    min_frets = []
+    open_string_count = 0
+    for note in notes:
+        candidates = get_candidate_positions(note.midi_note, capo_fret)
+        if candidates:
+            min_fret = candidates[0].fret  # Sorted by fret ascending
+            min_frets.append(min_fret)
+            if min_fret == 0:
+                open_string_count += 1
+
+    if not min_frets:
+        return None
+
+    # Only set initial position for clear open-position playing:
+    # Many notes can be open strings AND most notes fit in low frets
+    open_ratio = open_string_count / len(min_frets)
+    low_fret_count = sum(1 for f in min_frets if f <= 4)
+    low_fret_ratio = low_fret_count / len(min_frets)
+
+    if open_ratio > 0.25 and low_fret_ratio > 0.7:
+        return 1.0  # Open position (frets 0-3)
+
+    # Otherwise let the first note establish position naturally
+    return None
 
 
 def fuse_audio_only(
     detected_notes: list[DetectedNote],
     capo_fret: int = 0,
-    config: Optional[FusionConfig] = None
+    config: Optional[FusionConfig] = None,
+    muted_notes: list[MutedNote] | None = None
 ) -> list[TabNote]:
     """Convert detected audio notes to TabNotes using intelligent position selection.
 
@@ -353,7 +543,10 @@ def fuse_audio_only(
 
     tab_notes = []
     previous_position = None
-    hand_position_fret = None  # Running estimate of hand position
+
+    # Estimate initial hand position from note content
+    all_notes = [n for chord in chords for n in chord]
+    hand_position_fret = _estimate_initial_position(all_notes, capo_fret)
 
     # Two-pass approach:
     # Pass 1: Process large chords (3+ notes) to establish hand position anchors
@@ -472,11 +665,21 @@ def fuse_audio_only(
     # When consecutive notes are close in time and pitch, put them on same string
     tab_notes = _correct_slide_positions(tab_notes, capo_fret)
 
+    # Post-processing: correct melodic segment string assignments
+    # Ensures scale passages stay on one string rather than scattering across strings
+    tab_notes = _correct_melodic_segments(tab_notes, capo_fret, config)
+
     # Post-filter: remove duplicate positions and low-confidence strays
     tab_notes = _postfilter_tab_notes(tab_notes, config)
 
     # Detect techniques (hammer-ons, pull-offs, slides)
     tab_notes = _detect_techniques(tab_notes, config)
+
+    # Add muted notes as "X" fret TabNotes
+    if muted_notes:
+        muted_tab = _create_muted_tab_notes(muted_notes, config=config)
+        tab_notes.extend(muted_tab)
+        tab_notes.sort(key=lambda n: n.timestamp)
 
     return tab_notes
 
@@ -491,7 +694,8 @@ def _select_best_position(
 
     Uses hand position tracking for continuity. When no hand position context
     is available, prefers lower frets. When hand position is established,
-    strongly prefers staying near it.
+    strongly prefers staying near it. Also considers scale patterns and
+    positional awareness when enabled.
 
     Args:
         candidates: Valid positions for the note
@@ -508,18 +712,31 @@ def _select_best_position(
     if len(candidates) == 1:
         return candidates[0]
 
+    style_weights = STYLE_WEIGHTS.get(
+        config.playing_style, STYLE_WEIGHTS[PlayingStyle.DEFAULT]
+    )
+
     # Score each candidate
     def score_position(pos: Position) -> float:
         score = 0.0
 
-        # Prefer lower frets (moderate weight)
+        # Prefer lower frets (weight from style)
         if config.prefer_lower_frets:
-            score -= pos.fret * 0.05
+            score -= pos.fret * style_weights.lower_fret_weight
+
+        # Open string bonus in low position: open strings are ergonomically
+        # easy and help the algorithm cross strings correctly in scales
+        if pos.fret == 0:
+            if hand_position_fret is None or hand_position_fret <= 4:
+                score += 0.3
 
         # Strong preference for staying near hand position
         if config.prefer_same_position and hand_position_fret is not None:
             fret_distance = abs(pos.fret - hand_position_fret)
-            score -= fret_distance * 0.35
+            score -= fret_distance * style_weights.position_stay_weight
+            # Extra stretch penalty beyond a 4-fret span from hand position
+            if fret_distance > 4 and pos.fret > 0:
+                score -= (fret_distance - 4) * 0.3
 
         # Prefer staying near previous position
         if config.prefer_same_position and previous_position:
@@ -531,6 +748,26 @@ def _select_best_position(
         # Slight preference for middle strings (2-5)
         if 2 <= pos.string <= 5:
             score += 0.03
+
+        # Positional pattern awareness: bonus for frets within the current
+        # guitar position's expected range
+        if (config.chord_shape_config.position_awareness_enabled
+                and hand_position_fret is not None):
+            guitar_pos = get_position_for_fret(round(hand_position_fret))
+            if guitar_pos and guitar_pos.contains_fret(pos.fret):
+                score += 0.1
+            elif pos.fret > 0:
+                # Penalty for notes outside the position range
+                score -= 0.05
+
+        # Scale pattern bonus: if this note fits within a recognized scale
+        # pattern at the current position
+        if (config.chord_shape_config.scale_pattern_enabled
+                and hand_position_fret is not None):
+            scale_score = score_positions_against_scale(
+                [pos], round(hand_position_fret), config.playing_style
+            )
+            score += scale_score * 0.1
 
         return score
 
@@ -565,6 +802,37 @@ def _optimize_chord_positions(
     """
     if not chord_candidates:
         return []
+
+    # --- Context-aware chord shape recognition ---
+    # If the chord MIDI notes match a known voicing, try using that voicing's
+    # positions directly. This handles cases like "G major chord should use
+    # fret 3 on B string, not fret 8 on G string".
+    shape_config = config.chord_shape_config
+    voicing_assignments = None
+
+    if shape_config.enabled and len(chord_candidates) >= shape_config.min_chord_notes:
+        chord_midi = [note.midi_note for note, _ in chord_candidates]
+        best_voicing = find_best_voicing_for_chord(
+            chord_midi, hand_position_fret, config.playing_style
+        )
+        if best_voicing is not None:
+            voicing_pos_map = get_voicing_positions(best_voicing, chord_midi)
+            if len(voicing_pos_map) >= len(chord_candidates) * 0.7:
+                # Good coverage — try using voicing positions
+                v_assignments = {}
+                v_used_strings = set()
+                v_matched = 0
+                for idx, (note, _candidates) in enumerate(chord_candidates):
+                    pos = voicing_pos_map.get(note.midi_note)
+                    if pos and pos.string not in v_used_strings:
+                        v_assignments[idx] = pos
+                        v_used_strings.add(pos.string)
+                        v_matched += 1
+                    else:
+                        v_assignments[idx] = None
+
+                if v_matched >= len(chord_candidates) * 0.7:
+                    voicing_assignments = v_assignments
 
     # Phase 1: Find best fret region by scoring candidate combinations
     # For each note, get all candidate frets and find the region that
@@ -624,9 +892,40 @@ def _optimize_chord_positions(
         elif config.prefer_lower_frets:
             region_score -= center_fret * 0.02
 
+        # Prefer compact string arrangements (notes on adjacent strings)
+        assigned_positions = [p for p in assignments.values() if p]
+        if len(assigned_positions) >= 2:
+            assigned_strings = [p.string for p in assigned_positions]
+            string_span = max(assigned_strings) - min(assigned_strings)
+            region_score -= string_span * 0.1
+
+        # Chord voicing match bonus: if these positions closely match a known
+        # voicing, boost the score
+        if shape_config.enabled and assigned_positions:
+            chord_midi = [note.midi_note for note, _ in chord_candidates]
+            voicing_matches = find_matching_voicings(chord_midi, config.playing_style)
+            if voicing_matches:
+                best_voicing, v_score = voicing_matches[0]
+                pos_match = score_position_against_voicing(
+                    assigned_positions, best_voicing
+                )
+                style_weights = STYLE_WEIGHTS.get(
+                    config.playing_style, STYLE_WEIGHTS[PlayingStyle.DEFAULT]
+                )
+                region_score += pos_match * style_weights.voicing_match_bonus
+
         if region_score > best_region_score:
             best_region_score = region_score
             best_assignments = assignments
+
+    # If we have a strong voicing match, compare it against the region-based
+    # result and use whichever is better
+    if voicing_assignments is not None and best_assignments is not None:
+        v_count = sum(1 for p in voicing_assignments.values() if p is not None)
+        r_count = sum(1 for p in best_assignments.values() if p is not None)
+        # Prefer voicing if it covers at least as many notes
+        if v_count >= r_count:
+            best_assignments = voicing_assignments
 
     if best_assignments is None:
         # Fallback: greedy with simple selection
@@ -680,6 +979,7 @@ def _create_tab_note(
         video_matched=video_matched,
         audio_confidence=audio_confidence,
         video_confidence=video_confidence,
+        pitch_bend=note.pitch_bend,
     )
 
 
@@ -744,6 +1044,17 @@ def _correct_slide_positions(
             best_string = min(common_strings, key=_string_score)
             prev_pos = prev_by_string[best_string]
             curr_pos = curr_by_string[best_string]
+
+            # Guard: don't merge if a note at a low fret (0-4) would be pushed
+            # to a much higher fret. This indicates a string crossing, not a slide.
+            prev_fret_val = prev.fret if isinstance(prev.fret, int) else 0
+            curr_fret_val = curr.fret if isinstance(curr.fret, int) else 0
+            prev_fret_jump = abs(prev_pos.fret - prev_fret_val)
+            curr_fret_jump = abs(curr_pos.fret - curr_fret_val)
+            if (prev_fret_val <= 4 and prev_fret_jump > 3) or \
+               (curr_fret_val <= 4 and curr_fret_jump > 3):
+                continue  # Skip: string crossing, not a slide
+
             prev.string = prev_pos.string
             prev.fret = prev_pos.fret
             curr.string = curr_pos.string
@@ -775,6 +1086,10 @@ def _correct_slide_positions(
                 # Only reassign if the fret follows the direction of the run
                 prev_fret = prev1.fret
                 if isinstance(prev_fret, int) and isinstance(new_pos.fret, int):
+                    # Guard: don't move low-fret notes to high frets
+                    curr_fret = curr.fret if isinstance(curr.fret, int) else 0
+                    if curr_fret <= 4 and abs(new_pos.fret - curr_fret) > 3:
+                        continue
                     # Check ascending run (fret increases)
                     if prev1.fret > prev2.fret and new_pos.fret > prev1.fret:
                         curr.string = new_pos.string
@@ -821,10 +1136,207 @@ def _correct_slide_positions(
             best_string = min(common_strings, key=_string_score)
             prev_pos = prev_by_string[best_string]
             curr_pos = curr_by_string[best_string]
+
+            # Guard: don't merge if a low-fret note would be pushed high
+            prev_fret_val = prev.fret if isinstance(prev.fret, int) else 0
+            curr_fret_val = curr.fret if isinstance(curr.fret, int) else 0
+            prev_fret_jump = abs(prev_pos.fret - prev_fret_val)
+            curr_fret_jump = abs(curr_pos.fret - curr_fret_val)
+            if (prev_fret_val <= 4 and prev_fret_jump > 3) or \
+               (curr_fret_val <= 4 and curr_fret_jump > 3):
+                continue
+
             prev.string = prev_pos.string
             prev.fret = prev_pos.fret
             curr.string = curr_pos.string
             curr.fret = curr_pos.fret
+
+    # Pass 4: Re-assign consecutive single notes when a recent chord suggests a different string
+    # When two consecutive non-chord notes are on the same string, and both could be
+    # on a string that was active in a recent chord, prefer the chord string.
+    # This catches slides following a bass line (e.g., A string open → A string fret 8).
+    for i in range(1, len(sorted_notes)):
+        curr = sorted_notes[i]
+        prev = sorted_notes[i - 1]
+
+        # Both must be non-chord, same string, close in time
+        if curr.is_part_of_chord or prev.is_part_of_chord:
+            continue
+        if curr.string != prev.string:
+            continue
+        if curr.timestamp - prev.timestamp > 0.5:
+            continue
+
+        # Look for a recent chord (within 1.5s) with a member on a different string
+        # that both notes could be placed on
+        prev_candidates = get_candidate_positions(prev.midi_note, capo_fret)
+        curr_candidates = get_candidate_positions(curr.midi_note, capo_fret)
+        prev_by_string = {p.string: p for p in prev_candidates}
+        curr_by_string = {p.string: p for p in curr_candidates}
+        common_alt_strings = (set(prev_by_string.keys()) & set(curr_by_string.keys())) - {curr.string}
+
+        if not common_alt_strings:
+            continue
+
+        # Check recent chord members
+        best_alt_string = None
+        for j in range(i - 2, max(-1, i - 8), -1):
+            earlier = sorted_notes[j]
+            if prev.timestamp - earlier.timestamp > 1.5:
+                break
+            if earlier.is_part_of_chord and earlier.string in common_alt_strings:
+                best_alt_string = earlier.string
+                break
+
+        if best_alt_string is not None:
+            prev_pos = prev_by_string[best_alt_string]
+            curr_pos = curr_by_string[best_alt_string]
+            prev.string = prev_pos.string
+            prev.fret = prev_pos.fret
+            curr.string = curr_pos.string
+            curr.fret = curr_pos.fret
+
+    return sorted_notes
+
+
+def _correct_melodic_segments(
+    tab_notes: list[TabNote],
+    capo_fret: int = 0,
+    config: Optional[FusionConfig] = None
+) -> list[TabNote]:
+    """Correct string assignments for melodic segments.
+
+    Identifies segments of consecutive non-chord notes and determines
+    the optimal single string for the segment. Melodic passages (scales,
+    runs) typically stay on one string — this corrects cases where the
+    position selector scattered notes across multiple strings.
+
+    Also uses scale box pattern awareness to prefer strings/frets that
+    align with recognized scale patterns.
+
+    Only applies when:
+    - Segment has 3+ notes
+    - A single string can accommodate 90%+ of notes
+    - Fret range on that string is <= 14 (playable in 1-2 positions)
+
+    Args:
+        tab_notes: List of tab notes
+        capo_fret: Capo position
+        config: Fusion configuration (for scale pattern scoring)
+
+    Returns:
+        Tab notes with corrected string assignments
+    """
+    if len(tab_notes) < 3:
+        return tab_notes
+
+    sorted_notes = sorted(tab_notes, key=lambda n: n.timestamp)
+
+    # Build segments of consecutive non-chord notes with < 1s gaps
+    segments: list[list[int]] = []  # list of index lists
+    current_segment: list[int] = []
+
+    for idx, note in enumerate(sorted_notes):
+        if note.is_part_of_chord:
+            if len(current_segment) >= 3:
+                segments.append(current_segment)
+            current_segment = []
+            continue
+        if current_segment:
+            prev_idx = current_segment[-1]
+            if note.timestamp - sorted_notes[prev_idx].timestamp > 1.5:
+                if len(current_segment) >= 3:
+                    segments.append(current_segment)
+                current_segment = []
+        current_segment.append(idx)
+
+    if len(current_segment) >= 3:
+        segments.append(current_segment)
+
+    # For each segment, find the best single string
+    for seg_indices in segments:
+        seg_notes = [sorted_notes[i] for i in seg_indices]
+        midi_notes = [n.midi_note for n in seg_notes]
+
+        # Guard 1: Only correct segments that use 2-3 distinct strings.
+        # 1 string = already correct, 4+ strings = arpeggio/fingerpicking.
+        current_strings = set(n.string for n in seg_notes)
+        if len(current_strings) < 2 or len(current_strings) > 3:
+            continue
+
+        # Guard 2: Check for scale-like motion (small pitch intervals).
+        # Arpeggios have large intervals; scales have small ones.
+        intervals = [abs(midi_notes[i] - midi_notes[i-1])
+                     for i in range(1, len(midi_notes))]
+        if intervals:
+            median_interval = sorted(intervals)[len(intervals) // 2]
+            if median_interval > 4:  # More than a major third = not scalar
+                continue
+
+        best_string = None
+        best_score = float('-inf')
+        best_frets: list[Optional[int]] = []
+
+        for string_num in range(1, 7):
+            open_midi = STANDARD_TUNING[string_num]
+            frets: list[Optional[int]] = []
+            for midi in midi_notes:
+                fret = midi - open_midi
+                if capo_fret <= fret <= MAX_FRET:
+                    frets.append(fret)
+                else:
+                    frets.append(None)
+
+            valid_frets = [f for f in frets if f is not None]
+            if not valid_frets:
+                continue
+
+            coverage = len(valid_frets) / len(midi_notes)
+            if coverage < 0.9:
+                continue
+
+            fret_range = max(valid_frets) - min(valid_frets)
+            if fret_range > 14:
+                continue
+
+            avg_fret = sum(valid_frets) / len(valid_frets)
+
+            # Score: full coverage strongly preferred, then minimize range,
+            # then prefer lower average fret position
+            score = coverage * 100 - fret_range * 1.0 - avg_fret * 0.1
+
+            # Scale pattern bonus: if the frets align with a recognized
+            # scale pattern at the average position, boost the score
+            if (config is not None
+                    and config.chord_shape_config.scale_pattern_enabled):
+                positions = [
+                    Position(string=string_num, fret=f)
+                    for f in valid_frets
+                ]
+                scale_score = score_positions_against_scale(
+                    positions, round(avg_fret), config.playing_style
+                )
+                score += scale_score * 5.0  # Scale pattern fit bonus
+
+            if score > best_score:
+                best_score = score
+                best_string = string_num
+                best_frets = frets
+
+        if best_string is None:
+            continue
+
+        # Check how many notes are already on the best string
+        already_correct = sum(1 for n in seg_notes if n.string == best_string)
+        if already_correct == len(seg_notes):
+            continue  # All notes already on best string
+
+        # Reassign notes to the best string
+        for i, idx in enumerate(seg_indices):
+            fret = best_frets[i]
+            if fret is not None:
+                sorted_notes[idx].string = best_string
+                sorted_notes[idx].fret = fret
 
     return sorted_notes
 
@@ -966,7 +1478,8 @@ def fuse_audio_video(
     video_observations: dict[float, HandObservation],
     fretboard: FretboardGeometry | None,
     capo_fret: int = 0,
-    config: Optional[FusionConfig] = None
+    config: Optional[FusionConfig] = None,
+    muted_notes: list[MutedNote] | None = None
 ) -> list[TabNote]:
     """Combine audio and video signals for tab generation.
 
@@ -1217,6 +1730,14 @@ def fuse_audio_video(
 
     # Detect techniques
     tab_notes = _detect_techniques(tab_notes, config)
+
+    # Add muted notes as "X" fret TabNotes
+    if muted_notes:
+        muted_tab = _create_muted_tab_notes(
+            muted_notes, video_observations=video_observations, config=config
+        )
+        tab_notes.extend(muted_tab)
+        tab_notes.sort(key=lambda n: n.timestamp)
 
     return tab_notes
 
