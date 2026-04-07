@@ -1,0 +1,6 @@
+{
+  "rootDirectory": "web-client",
+  "framework": "vite",
+  "buildCommand": "tsc && vite build",
+  "outputDirectory": "dist"
+}
