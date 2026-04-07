@@ -1,4 +1,3 @@
-// tabvision-client/src/App.tsx
 import React, { useRef } from 'react';
 import { UploadPanel } from './components/UploadPanel';
 import { VideoPlayer } from './components/VideoPlayer';
@@ -17,39 +16,35 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)' }}>
-      {/* Accent gradient bar */}
-      <div
-        className="h-[2px] shrink-0"
-        style={{ background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary), var(--accent-primary))' }}
-      />
-
       {/* Header */}
       <header
-        className="shrink-0 flex items-center justify-between px-5 py-3 glass-strong"
+        className="shrink-0 flex items-center justify-between px-5 py-2.5 glass-strong"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         <div className="flex items-center gap-3">
           {/* Logo */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
             style={{
               background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-              boxShadow: '0 0 12px var(--accent-glow)',
+              boxShadow: '0 0 16px var(--accent-glow)',
             }}
           >
-            TV
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
+            </svg>
           </div>
           <div>
-            <h1 className="text-[15px] font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               TabVision
             </h1>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-[10px] -mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {showEditor ? 'Editor' : isProcessing ? 'Processing...' : 'Guitar Tab Transcription'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Keyboard shortcuts */}
           <button
             className="btn btn-ghost btn-icon"
@@ -66,6 +61,7 @@ function App() {
             <button
               className="btn btn-secondary text-xs"
               onClick={reset}
+              style={{ padding: '6px 12px' }}
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -80,14 +76,14 @@ function App() {
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Upload view */}
         {!showEditor && !isProcessing && jobStatus !== 'failed' && (
-          <div className="flex-1 flex items-center justify-center p-8 animate-fade-in">
+          <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 animate-fade-in">
             <UploadPanel />
           </div>
         )}
 
-        {/* Processing / error view (shows within UploadPanel) */}
+        {/* Processing / error view */}
         {(isProcessing || jobStatus === 'failed') && (
-          <div className="flex-1 flex items-center justify-center p-8 animate-fade-in">
+          <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 animate-fade-in">
             <UploadPanel />
           </div>
         )}
@@ -98,19 +94,16 @@ function App() {
             {/* Video + Toolbar row */}
             <div className="shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <div className="flex items-stretch">
-                {/* Video player */}
                 <div className="shrink-0">
                   {videoUrl && <VideoPlayer videoRef={videoRef} />}
                 </div>
-
-                {/* Toolbar (fills remaining space) */}
                 <div className="flex-1 min-w-0">
                   <TabToolbar />
                 </div>
               </div>
             </div>
 
-            {/* Tab canvas (takes all remaining space) */}
+            {/* Tab canvas */}
             <div className="flex-1 min-h-0">
               <TabCanvas videoRef={videoRef} />
             </div>
