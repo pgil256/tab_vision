@@ -1,6 +1,6 @@
 {
-  "rootDirectory": "web-client",
+  "buildCommand": "cd web-client && npm install && tsc && vite build",
+  "outputDirectory": "web-client/dist",
   "framework": "vite",
-  "buildCommand": "tsc && vite build",
-  "outputDirectory": "dist"
+  "installCommand": "echo 'install handled in buildCommand'"
 }
