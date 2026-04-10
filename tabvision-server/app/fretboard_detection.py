@@ -160,19 +160,13 @@ def identify_fret_numbers(
 ) -> tuple[int, list[int]]:
     """Identify actual fret numbers from detected normalized positions.
 
-    Uses theoretical fret spacing ratios to determine which frets are visible
-    in the detected region. Returns the starting fret number and a list mapping
-    each detected position to its actual fret number.
-
-    The key insight is that guitar fret spacing decreases exponentially up the neck.
-    By analyzing the spacing pattern, we can identify which frets are visible.
-
-    IMPORTANT: In typical guitar video footage, the camera shows from the nut
-    (open strings / fret 0) toward the body. Unless we have strong evidence
-    otherwise, we should assume starting_fret = 0.
+    Uses RANSAC-style matching against 12-TET theoretical fret spacing ratios
+    to determine which frets are visible. The key insight is that the ratio
+    between consecutive fret spacings is constant (~0.9439), independent of
+    scale length or camera zoom.
 
     Args:
-        detected_positions: List of normalized fret positions (0-1)
+        detected_positions: List of normalized fret positions (0-1), sorted
         max_visible_frets: Maximum number of frets expected to be visible
 
     Returns:
@@ -180,115 +174,100 @@ def identify_fret_numbers(
         - starting_fret: The actual fret number of the first detected fret
         - fret_number_map: List mapping each detected index to actual fret number
     """
-    if not detected_positions or len(detected_positions) < 3:
-        # Not enough data, assume starting from nut
+    if not detected_positions or len(detected_positions) < 2:
         return 0, list(range(len(detected_positions)))
 
-    # Default to starting from nut (fret 0) - this is by far the most common case
-    # in guitar tutorial videos. Only override if we have strong evidence otherwise.
-    # For now, always assume starting from fret 0 since line detection is noisy
-    # and the spacing-based identification is unreliable.
-
-    # Simple approach: assume detected positions correspond to frets 0, 1, 2, 3...
-    # but filter out noise positions first
-    starting_fret = 0
-    fret_number_map = list(range(len(detected_positions)))
-    return starting_fret, fret_number_map
-
-    # Calculate spacing between detected positions
+    # Step 1: Filter noise from detected positions
     detected_spacings = []
     for i in range(len(detected_positions) - 1):
-        detected_spacings.append(detected_positions[i+1] - detected_positions[i])
+        detected_spacings.append(detected_positions[i + 1] - detected_positions[i])
 
-    # Filter out likely noise (spacings too different from median)
-    if detected_spacings:
-        sorted_spacings = sorted(detected_spacings)
-        median_spacing = sorted_spacings[len(sorted_spacings)//2]
+    if not detected_spacings:
+        return 0, list(range(len(detected_positions)))
 
-        # Keep positions with reasonable spacing
-        filtered_indices = [0]
-        for i, spacing in enumerate(detected_spacings):
-            if 0.4 * median_spacing <= spacing <= 2.0 * median_spacing:
-                filtered_indices.append(i + 1)
+    sorted_spacings = sorted(detected_spacings)
+    median_spacing = sorted_spacings[len(sorted_spacings) // 2]
 
-        filtered_positions = [detected_positions[i] for i in filtered_indices]
-    else:
-        filtered_positions = detected_positions
+    # Keep positions with reasonable spacing (filter noise lines)
+    filtered_indices = [0]
+    for i, spacing in enumerate(detected_spacings):
+        if 0.3 * median_spacing <= spacing <= 2.5 * median_spacing:
+            filtered_indices.append(i + 1)
+
+    filtered_positions = [detected_positions[i] for i in filtered_indices]
 
     if len(filtered_positions) < 3:
         return 0, list(range(len(detected_positions)))
 
-    # Look at spacing ratios to identify fret positions
-    # Guitar frets have a consistent ratio: each fret is 2^(1/12) = 1.0595 times
-    # the distance from nut as the previous fret.
-    # So spacing_n / spacing_(n+1) ≈ 0.9439 (spacing decreases by ~5.6% each fret)
-
-    # Calculate spacing ratios from detected positions
+    # Step 2: Calculate spacing ratios between consecutive filtered positions
     filtered_spacings = []
     for i in range(len(filtered_positions) - 1):
-        filtered_spacings.append(filtered_positions[i+1] - filtered_positions[i])
+        filtered_spacings.append(filtered_positions[i + 1] - filtered_positions[i])
 
-    # The first few detected spacings can help identify starting fret
-    # Compare the first spacing to theoretical first few fret spacings
+    # Step 3: RANSAC-style matching against 12-TET theory
+    # Try each possible starting fret and score how well the detected spacing
+    # pattern matches the theoretical pattern
+    best_start_fret = 0
+    best_score = -1.0
+    num_detected = len(filtered_positions)
 
-    # Theoretical spacing for frets 1-12 (normalized to fret 12 = 0.5)
-    # Fret n spacing = 2^(-n/12) - 2^(-(n+1)/12)
-    theoretical_first_spacings = []
-    for n in range(13):
-        spacing = STANDARD_FRET_RATIOS[n+1] - STANDARD_FRET_RATIOS[n]
-        theoretical_first_spacings.append(spacing)
+    # Precompute theoretical spacings for all possible starting frets
+    for start_fret in range(0, 20):
+        end_fret = start_fret + num_detected - 1
+        if end_fret > 24:
+            break
 
-    # Use ratio of first to second spacing to identify position
-    if len(filtered_spacings) >= 2:
-        first_spacing = filtered_spacings[0]
-        second_spacing = filtered_spacings[1]
+        # Get theoretical spacings for this starting fret
+        theoretical_spacings = []
+        for n in range(start_fret, start_fret + num_detected - 1):
+            if n + 1 < len(STANDARD_FRET_RATIOS):
+                theoretical_spacings.append(
+                    STANDARD_FRET_RATIOS[n + 1] - STANDARD_FRET_RATIOS[n]
+                )
 
-        # Spacing ratio - should be close to 0.9439 if consecutive frets
-        if first_spacing > 0:
-            detected_ratio = second_spacing / first_spacing
+        if len(theoretical_spacings) != len(filtered_spacings):
+            continue
 
-            # Find theoretical spacing ratio that best matches
-            best_start_fret = 0
-            best_match = float('inf')
+        # Normalize both spacing vectors to sum to 1 for scale-invariant comparison
+        theo_sum = sum(theoretical_spacings)
+        det_sum = sum(filtered_spacings)
+        if theo_sum <= 0 or det_sum <= 0:
+            continue
 
-            for start in range(12):
-                if start + 1 < len(theoretical_first_spacings):
-                    theoretical_ratio = theoretical_first_spacings[start + 1] / theoretical_first_spacings[start]
-                    diff = abs(detected_ratio - theoretical_ratio)
-                    if diff < best_match:
-                        best_match = diff
-                        best_start_fret = start
+        theo_norm = [s / theo_sum for s in theoretical_spacings]
+        det_norm = [s / det_sum for s in filtered_spacings]
 
-            # Verify by checking spacing magnitude
-            # Normalize first detected spacing and compare to theoretical
-            if len(filtered_positions) > 1:
-                # Scale detected spacing to match theoretical total range
-                detected_range = filtered_positions[-1] - filtered_positions[0]
-                num_frets = len(filtered_positions) - 1
+        # Score: 1 - mean absolute difference of normalized spacings
+        diffs = [abs(t - d) for t, d in zip(theo_norm, det_norm)]
+        score = 1.0 - sum(diffs) / len(diffs)
 
-                # Try the identified starting fret
-                end_fret = best_start_fret + num_frets
-                if end_fret <= 24:
-                    theoretical_range = STANDARD_FRET_RATIOS[end_fret] - STANDARD_FRET_RATIOS[best_start_fret]
-                    if theoretical_range > 0:
-                        scale = theoretical_range / detected_range
-                        scaled_first = filtered_spacings[0] * scale
-                        theoretical_first = theoretical_first_spacings[best_start_fret]
+        if score > best_score:
+            best_score = score
+            best_start_fret = start_fret
 
-                        # If they're close, we have a good match
-                        # Otherwise, the noise in detected spacings is throwing us off
-                        ratio_diff = abs(scaled_first - theoretical_first) / theoretical_first if theoretical_first > 0 else 1.0
+    # Step 4: Require reasonable confidence to override fret 0 assumption
+    # If the score difference between best and fret-0 is small, prefer fret 0
+    # (most common in guitar videos)
+    if best_start_fret != 0 and best_score < 0.85:
+        # Check score for start_fret=0
+        end_fret_0 = num_detected - 1
+        if end_fret_0 < len(STANDARD_FRET_RATIOS):
+            theo_0 = []
+            for n in range(num_detected - 1):
+                if n + 1 < len(STANDARD_FRET_RATIOS):
+                    theo_0.append(STANDARD_FRET_RATIOS[n + 1] - STANDARD_FRET_RATIOS[n])
+            if len(theo_0) == len(filtered_spacings):
+                t_sum = sum(theo_0)
+                d_sum = sum(filtered_spacings)
+                if t_sum > 0 and d_sum > 0:
+                    tn = [s / t_sum for s in theo_0]
+                    dn = [s / d_sum for s in filtered_spacings]
+                    score_0 = 1.0 - sum(abs(t - d) for t, d in zip(tn, dn)) / len(tn)
+                    # Only use non-zero start if significantly better
+                    if best_score - score_0 < 0.1:
+                        best_start_fret = 0
 
-                        # If way off, fall back to assuming we see from nut (fret 0)
-                        if ratio_diff > 0.5:
-                            best_start_fret = 0
-        else:
-            best_start_fret = 0
-    else:
-        best_start_fret = 0
-
-    # Create mapping from detected indices to actual fret numbers
-    # For each original position, find which filtered position it's closest to
+    # Step 5: Build mapping from detected indices to actual fret numbers
     fret_number_map = []
     for i, det_pos in enumerate(detected_positions):
         # Find closest filtered position
@@ -300,7 +279,6 @@ def identify_fret_numbers(
                 min_dist = dist
                 closest_filtered_idx = j
 
-        # Map to actual fret number
         actual_fret = best_start_fret + closest_filtered_idx
         fret_number_map.append(actual_fret)
 
@@ -1175,29 +1153,33 @@ def _find_nearest_fret_smart(
             prev_pos = pos
 
     # If we have good detected fret positions, use them directly
-    # Assume the first detected position is near fret 0/1 and count from there
     if len(filtered_positions) >= 4:
         # Find which detected fret position the finger is before
         for i, fret_pos in enumerate(filtered_positions):
             if rel_x < fret_pos:
-                # Finger is before this detected fret line
                 if i == 0:
-                    # Before first detected fret (open string)
-                    return 0
+                    # Before first detected fret
+                    if starting_fret == 0:
+                        return 0  # Open string
+                    else:
+                        return starting_fret
                 else:
                     # Between detected fret i-1 and i
-                    # Use simple index as fret number (assumes starting from nut)
                     prev_pos = filtered_positions[i - 1]
                     fret_space = fret_pos - prev_pos
                     # Finger in latter 60% of fret space = pressing this fret
                     threshold = prev_pos + fret_space * 0.4
+                    # Use actual_fret_numbers if available, else offset from starting_fret
+                    fret_at_i = actual_fret_numbers[i] if actual_fret_numbers and i < len(actual_fret_numbers) else starting_fret + i
+                    fret_at_prev = actual_fret_numbers[i - 1] if actual_fret_numbers and (i - 1) < len(actual_fret_numbers) else starting_fret + i - 1
                     if rel_x >= threshold:
-                        return min(i, 12)  # Cap at fret 12
+                        return fret_at_i
                     else:
-                        return min(i - 1, 12)
+                        return fret_at_prev
 
         # Finger is past all detected frets
-        return min(len(filtered_positions) - 1, 12)
+        last_fret = actual_fret_numbers[-1] if actual_fret_numbers else starting_fret + len(filtered_positions) - 1
+        return last_fret
 
     # Fall back to theoretical mapping if not enough detected positions
     # Use a conservative scale factor
@@ -1305,7 +1287,8 @@ def _calculate_proximity_confidence(
 
 def detect_fretboard_from_video(
     video_path: str,
-    num_sample_frames: int = 5
+    num_sample_frames: int = 5,
+    roi: dict = None
 ) -> FretboardGeometry | None:
     """Detect fretboard geometry from video using multiple frames.
 
@@ -1314,6 +1297,7 @@ def detect_fretboard_from_video(
     Args:
         video_path: Path to video file
         num_sample_frames: Number of frames to sample
+        roi: Optional ROI dict with x1, y1, x2, y2 (normalized 0-1)
 
     Returns:
         FretboardGeometry with highest confidence, or None
@@ -1344,6 +1328,15 @@ def detect_fretboard_from_video(
         ret, frame = cap.read()
         if not ret or frame is None:
             continue
+
+        # Apply ROI cropping if provided
+        if roi is not None:
+            h, w = frame.shape[:2]
+            x1 = int(roi['x1'] * w)
+            y1 = int(roi['y1'] * h)
+            x2 = int(roi['x2'] * w)
+            y2 = int(roi['y2'] * h)
+            frame = frame[y1:y2, x1:x2]
 
         geometry = detect_fretboard(frame)
         if geometry and geometry.detection_confidence > best_confidence:

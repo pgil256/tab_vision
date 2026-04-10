@@ -1,0 +1,9 @@
+Title: Chromatic Exercise - All Frets 1-4
+Category: Single-Note Passages
+BPM: 80
+Duration: ~25 seconds
+Tests: 1-2-3-4 chromatic exercise on each string, low E through high e.
+This is the classic finger independence exercise. Every fret from 1-4 on
+every string. Tests accurate detection of half-step intervals and
+string-by-string tracking. Known difficulty: cross-string transitions
+can confuse the slide correction algorithm.

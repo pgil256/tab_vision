@@ -1,0 +1,8 @@
+Title: Mixed Chord Types - Open to Barre Transitions
+Category: Chord Varieties
+BPM: 84
+Duration: ~20 seconds
+Tests: Transitioning between open chords and barre chords in the same
+progression. Am (open) - F (barre) - C (open) - G (open) - Bb (barre) -
+Am (open). Tests the system's ability to handle anchor switching between
+open position and barred positions within a single sequence.

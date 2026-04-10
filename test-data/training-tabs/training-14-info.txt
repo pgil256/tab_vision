@@ -1,0 +1,8 @@
+Title: Fast Scale Run - E Minor 3-Note-Per-String
+Category: Single-Note Passages
+BPM: 140
+Duration: ~15 seconds
+Tests: E minor scale using 3-note-per-string pattern (frets 7-10 region),
+played at a fast tempo. Tests whether Basic Pitch can separate rapid notes
+and whether the fusion engine handles fast sequences without dropping notes
+or mis-assigning strings. Ascending only, one pass through.

@@ -1,0 +1,7 @@
+Title: A Minor Melody - Two Positions
+Category: Position Ambiguity
+BPM: 80
+Duration: ~20 seconds
+Tests: Same melody played entirely in open position (frets 0-3), then
+repeated at 5th position (frets 5-8). The pitch detection should produce
+identical MIDI notes but the position detection must resolve differently.

@@ -1,0 +1,8 @@
+Title: Same Pitch, Three Positions
+Category: Position Ambiguity
+BPM: 66
+Duration: ~25 seconds
+Tests: Notes that can be played at 3 different string/fret combos.
+For example, the note A4 (MIDI 69) can be played at e-string fret 5,
+B-string fret 10, or G-string fret 14. Plays each option with pauses.
+Extremely hard for audio-only; video hand position is the tiebreaker.

@@ -1,0 +1,8 @@
+Title: Open Chord Progression
+Category: Chord Varieties
+BPM: 80
+Duration: ~20 seconds
+Tests: Standard open chords strummed cleanly, one strum per chord.
+G - C - D - Em - Am - D - G. These are the most common chords and
+should be high-confidence detections. Tests chord detection with all
+6 strings ringing, including open strings (fret 0).

@@ -1,0 +1,8 @@
+Title: Power Chords - Root 6 and Root 5
+Category: Chord Varieties
+BPM: 100
+Duration: ~15 seconds
+Tests: 2-note and 3-note power chords (root + fifth, optionally + octave).
+Played on low E root and A root. These are partial chords (not all 6 strings)
+so tests the chord size limiting and muted string detection. Mute unused
+strings with fretting hand. Faster tempo tests detection under quicker changes.

@@ -1,0 +1,8 @@
+Title: Open vs Fretted Equivalent Notes
+Category: Position Ambiguity
+BPM: 72
+Duration: ~20 seconds
+Tests: Whether the system correctly identifies the SAME pitch played at two
+different positions. Each note is played first open, then fretted equivalent.
+E.g., open B string vs G string fret 4, open G vs D string fret 5.
+This directly targets the position ambiguity weakness.

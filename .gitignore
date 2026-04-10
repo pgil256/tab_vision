@@ -26,6 +26,23 @@ __pycache__/
 .claude_agent_farm_backups/
 agent_farm_report_*.html
 
+# Test data - video files (large binaries)
+test-data/**/*.mp4
+
+# Debug images
+debug_*.jpg
+debug_*.png
+detection_visualization.png
+guitar_region.jpg
+sample_frame.jpg
+frame_*.png
+tab_comparison.png
+
+# Local tool configs
+.claude/
+.playwright-mcp/
+sample_frames/
+
 # Auto Claude generated files
 .auto-claude/
 .auto-claude-security.json
@@ -33,3 +50,4 @@ agent_farm_report_*.html
 .claude_settings.json
 .security-key
 logs/security/
+.vercel

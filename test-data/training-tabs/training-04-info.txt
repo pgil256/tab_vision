@@ -1,0 +1,8 @@
+Title: G Major Scale - Three Octaves
+Category: Position Ambiguity
+BPM: 80
+Duration: ~25 seconds
+Tests: G major scale ascending through three octaves, each in a fixed
+position on the neck. Position 2 (frets 2-5), position 7 (frets 7-10),
+position 12 (frets 12-15). Tests whether the system tracks hand position
+shifts and resolves each note to the correct region.

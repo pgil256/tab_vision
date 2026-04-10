@@ -36,10 +36,15 @@ class HandObservation:
     hand_confidence: float = 1.0
     # Derived analysis
     pressing_fingers: list[int] = field(default_factory=list)  # finger_ids that appear to be pressing
+    muting_fingers: list[int] = field(default_factory=list)   # finger_ids that appear to be muting (light contact)
 
     def get_pressing_finger_positions(self) -> list[FingerPosition]:
         """Get only fingers that appear to be pressing on the fretboard."""
         return [f for f in self.fingers if f.finger_id in self.pressing_fingers]
+
+    def get_muting_finger_positions(self) -> list[FingerPosition]:
+        """Get only fingers that appear to be muting strings (light contact)."""
+        return [f for f in self.fingers if f.finger_id in self.muting_fingers]
 
 
 @dataclass
@@ -48,19 +53,22 @@ class VideoAnalysisConfig:
     # MediaPipe detection confidence thresholds
     min_detection_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
-    # Number of hands to detect
-    max_num_hands: int = 1
+    # Number of hands to detect (2 = detect both, then filter to fretting hand)
+    max_num_hands: int = 2
     # Static vs video mode
     static_image_mode: bool = False  # Use False for better temporal tracking
     # Frame extraction settings
-    frame_buffer_before: float = 0.05  # Seconds before onset to analyze
-    frame_buffer_after: float = 0.05   # Seconds after onset to analyze
-    frames_per_onset: int = 3          # Number of frames to sample per onset
+    frame_buffer_before: float = 0.066  # Seconds before onset to analyze (~2 frames at 30fps)
+    frame_buffer_after: float = 0.066   # Seconds after onset to analyze
+    frames_per_onset: int = 5           # Number of frames to sample per onset
     # Finger state detection
     finger_curl_threshold: float = 0.6  # Ratio threshold for curled fingers
     pressing_z_threshold: float = -0.02  # Z value threshold for pressing detection
+    muting_z_threshold: float = -0.005   # Z threshold for muting (light contact, between 0 and pressing)
     # Model path for MediaPipe Tasks API
     model_path: Optional[str] = None  # None = use default path
+    # Region of interest (normalized 0-1 coordinates)
+    roi: Optional[dict] = None  # {'x1': float, 'y1': float, 'x2': float, 'y2': float}
 
 
 # MediaPipe landmark indices
@@ -229,9 +237,10 @@ def detect_hand_landmarks(
         if not results.hand_landmarks or not results.handedness:
             return None
 
-        # Get the first hand
-        hand_landmarks = results.hand_landmarks[0]
-        hand_info = results.handedness[0]
+        # Select the fretting hand from detected hands
+        hand_landmarks, hand_info = _select_fretting_hand(
+            results.hand_landmarks, results.handedness
+        )
 
         # Determine if left or right hand
         # MediaPipe labels are from the camera's perspective (mirrored)
@@ -245,6 +254,7 @@ def detect_hand_landmarks(
         # Extract finger positions with extended state analysis
         fingers = []
         pressing_fingers = []
+        muting_fingers = []
 
         for i, tip_idx in enumerate(FINGERTIP_INDICES):
             tip = hand_landmarks[tip_idx]
@@ -260,11 +270,18 @@ def detect_hand_landmarks(
             # Calculate finger angle (useful for detecting press direction)
             angle = _calculate_finger_angle(tip, base)
 
-            # Determine if finger appears to be pressing
-            # Based on z-depth and extension state
+            # Determine if finger appears to be pressing (firm contact)
             is_pressing = (
                 is_extended and
                 tip.z < config.pressing_z_threshold
+            )
+
+            # Determine if finger appears to be muting (light contact)
+            # Muting: z between muting_z_threshold and pressing_z_threshold
+            is_muting = (
+                is_extended and
+                not is_pressing and
+                tip.z < config.muting_z_threshold
             )
 
             finger_pos = FingerPosition(
@@ -278,8 +295,11 @@ def detect_hand_landmarks(
             )
             fingers.append(finger_pos)
 
-            if is_pressing and i > 0:  # Exclude thumb for fretting (usually)
-                pressing_fingers.append(i)
+            if i > 0:  # Exclude thumb
+                if is_pressing:
+                    pressing_fingers.append(i)
+                elif is_muting:
+                    muting_fingers.append(i)
 
         return HandObservation(
             timestamp=0.0,  # Caller should set this
@@ -288,10 +308,62 @@ def detect_hand_landmarks(
             wrist_position=wrist_position,
             hand_confidence=hand_confidence,
             pressing_fingers=pressing_fingers,
+            muting_fingers=muting_fingers,
         )
     finally:
         if close_landmarker and landmarker:
             landmarker.close()
+
+
+def _select_fretting_hand(
+    hand_landmarks_list: list,
+    handedness_list: list,
+) -> tuple:
+    """Select the fretting hand from detected hands.
+
+    For right-handed players, the fretting hand is the left hand (labeled
+    "Right" by MediaPipe since it mirrors). We prefer the fretting hand
+    because its finger positions map to fret/string coordinates. If only
+    one hand is detected, we use that hand.
+
+    Heuristics when handedness is ambiguous:
+    - Fretting hand fingers tend to be more spread (wider x-range)
+    - Fretting hand is typically on the left side of frame (right-handed player)
+
+    Args:
+        hand_landmarks_list: List of hand landmarks from MediaPipe
+        handedness_list: List of handedness info from MediaPipe
+
+    Returns:
+        Tuple of (hand_landmarks, hand_info) for the selected hand
+    """
+    if len(hand_landmarks_list) == 1:
+        return hand_landmarks_list[0], handedness_list[0]
+
+    # With 2 hands detected, prefer the fretting hand
+    # For right-handed player: fretting hand = player's left = MediaPipe "Right"
+    fretting_idx = None
+    for i, hand_info in enumerate(handedness_list):
+        label = hand_info[0].category_name
+        if label == "Right":  # Player's left (fretting) hand
+            fretting_idx = i
+            break
+
+    if fretting_idx is not None:
+        return hand_landmarks_list[fretting_idx], handedness_list[fretting_idx]
+
+    # Fallback: pick hand with more finger spread (fretting hand has spread fingers)
+    best_idx = 0
+    best_spread = 0.0
+    for i, landmarks in enumerate(hand_landmarks_list):
+        tips = [landmarks[idx] for idx in FINGERTIP_INDICES]
+        xs = [t.x for t in tips]
+        spread = max(xs) - min(xs)
+        if spread > best_spread:
+            best_spread = spread
+            best_idx = i
+
+    return hand_landmarks_list[best_idx], handedness_list[best_idx]
 
 
 def _get_landmark_coords(landmark):
@@ -418,18 +490,22 @@ def analyze_video_at_timestamps(
         # Process each timestamp
         for ts in timestamps:
             best_observation = None
-            best_confidence = 0.0
+            best_score = 0.0
 
-            # Sample multiple frames around the onset
+            # Sample multiple frames around the onset with onset-biased weighting
+            total_span = config.frame_buffer_before + config.frame_buffer_after
             for i in range(config.frames_per_onset):
                 offset = (i - config.frames_per_onset // 2) * (
-                    (config.frame_buffer_before + config.frame_buffer_after) /
-                    config.frames_per_onset
+                    total_span / config.frames_per_onset
                 )
                 sample_ts = ts + offset
 
                 if sample_ts < 0:
                     continue
+
+                # Onset-biased weighting: frames closer to onset time are weighted higher
+                # onset=1.0, ±33ms≈0.7, ±66ms≈0.4
+                proximity_weight = max(0.1, 1.0 - abs(offset) / total_span)
 
                 frame_idx = int(sample_ts * fps)
                 cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
@@ -438,12 +514,22 @@ def analyze_video_at_timestamps(
                 if not ret or frame is None:
                     continue
 
+                # Apply ROI cropping if configured
+                if config.roi is not None:
+                    h, w = frame.shape[:2]
+                    x1 = int(config.roi['x1'] * w)
+                    y1 = int(config.roi['y1'] * h)
+                    x2 = int(config.roi['x2'] * w)
+                    y2 = int(config.roi['y2'] * h)
+                    frame = frame[y1:y2, x1:x2]
+
                 observation = detect_hand_landmarks(frame, config, landmarker)
                 if observation is not None:
-                    # Keep the observation with highest hand confidence
-                    if observation.hand_confidence > best_confidence:
+                    # Score = detection confidence * temporal proximity weight
+                    score = observation.hand_confidence * proximity_weight
+                    if score > best_score:
                         best_observation = observation
-                        best_confidence = observation.hand_confidence
+                        best_score = score
 
             if best_observation is not None:
                 # Update timestamp to the original onset time
@@ -454,6 +540,7 @@ def analyze_video_at_timestamps(
                     wrist_position=best_observation.wrist_position,
                     hand_confidence=best_observation.hand_confidence,
                     pressing_fingers=best_observation.pressing_fingers,
+                    muting_fingers=best_observation.muting_fingers,
                 )
                 observations[ts] = best_observation
     finally:
@@ -578,6 +665,7 @@ def _create_observation_from_landmarks(
 
     fingers = []
     pressing_fingers = []
+    muting_fingers = []
 
     for i, tip_idx in enumerate(FINGERTIP_INDICES):
         tip = hand_landmarks[tip_idx]
@@ -595,6 +683,12 @@ def _create_observation_from_landmarks(
             tip.z < config.pressing_z_threshold
         )
 
+        is_muting = (
+            is_extended and
+            not is_pressing and
+            tip.z < config.muting_z_threshold
+        )
+
         finger_pos = FingerPosition(
             finger_id=i,
             x=tip.x,
@@ -606,8 +700,11 @@ def _create_observation_from_landmarks(
         )
         fingers.append(finger_pos)
 
-        if is_pressing and i > 0:
-            pressing_fingers.append(i)
+        if i > 0:
+            if is_pressing:
+                pressing_fingers.append(i)
+            elif is_muting:
+                muting_fingers.append(i)
 
     return HandObservation(
         timestamp=timestamp,
@@ -616,4 +713,5 @@ def _create_observation_from_landmarks(
         wrist_position=wrist_position,
         hand_confidence=hand_confidence,
         pressing_fingers=pressing_fingers,
+        muting_fingers=muting_fingers,
     )

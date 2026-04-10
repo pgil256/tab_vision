@@ -1,0 +1,9 @@
+Title: Arpeggio Patterns - Am, C, G, Em
+Category: Single-Note Passages
+BPM: 72
+Duration: ~25 seconds
+Tests: Fingerpicked arpeggios of common chords. Each chord is arpeggiated
+low-to-high (p-i-m-a pattern). This is a KNOWN WEAKNESS - the system
+struggles to distinguish arpeggiated chords from scalar runs. The audio
+hears sequential notes; the video should show the chord hand shape held
+while individual strings are plucked.

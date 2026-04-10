@@ -1,0 +1,8 @@
+Title: High Fret Melody (Frets 12-17)
+Category: Edge Cases
+BPM: 72
+Duration: ~20 seconds
+Tests: Melody played entirely above the 12th fret on strings 1-3.
+This is difficult for the video pipeline because frets are closer together
+at the high end, making finger position harder to resolve. Also tests
+whether the system handles 2-digit fret numbers correctly in tabs.

@@ -1,0 +1,10 @@
+Title: Hammer-Ons and Pull-Offs
+Category: Edge Cases
+BPM: 90
+Duration: ~20 seconds
+Tests: Legato passages with hammer-ons (h) and pull-offs (p). The audio
+will detect all notes but hammer-ons/pull-offs have different attack
+characteristics than picked notes (softer onset). Tests whether the pitch
+detector catches these weaker onsets. Play each hammer-on and pull-off
+with enough force to be heard clearly.
+Note: Tab notation uses h and p but ground truth only tracks fret numbers.

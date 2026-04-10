@@ -1,0 +1,9 @@
+Title: String Skipping Melody
+Category: Single-Note Passages
+BPM: 84
+Duration: ~20 seconds
+Tests: Single notes that skip strings (e.g., low E then G, then B, then D).
+This is NOT scalar motion - the intervals are wide and unpredictable.
+Tests whether the system correctly handles non-adjacent string assignments
+without the melodic segment correction incorrectly "fixing" them onto
+one string.

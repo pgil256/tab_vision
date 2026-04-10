@@ -1,0 +1,8 @@
+Title: Octave Shapes Across the Neck
+Category: Position Ambiguity
+BPM: 72
+Duration: ~20 seconds
+Tests: Octave pairs (same note, different octave) played on adjacent string
+groups. E.g., E2 on low E open + E3 on D string fret 2. This targets the
+known octave harmonic filter issue - the system must NOT filter real octaves
+as harmonics. Also tests whether 2-note "chords" get correct positions.

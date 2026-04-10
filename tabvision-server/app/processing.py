@@ -3,21 +3,33 @@ import json
 import logging
 import os
 import tempfile
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from dataclasses import asdict
+from typing import Optional
 
 from app.models import Job
 from app.storage import JobStorage
 from app.audio_pipeline import (
-    extract_audio, analyze_pitch, AudioAnalysisConfig, detect_note_onsets
+    extract_audio, analyze_pitch, AudioAnalysisConfig, AudioPreprocessConfig,
+    detect_note_onsets, preprocess_audio, detect_muted_notes,
 )
 from app.fusion_engine import fuse_audio_only, fuse_audio_video, TabNote, FusionConfig
 from app.video_pipeline import analyze_video_at_timestamps, VideoAnalysisConfig
 from app.fretboard_detection import (
     detect_fretboard_from_video, track_fretboard_temporal, FretboardDetectionConfig
 )
+from app.secondary_pitch_detector import EnsembleConfig, detect_with_ensemble
+from app.spectral_residual import SpectralResidualConfig, analyze_spectral_residual
+from app.beat_quantization import QuantizationConfig, quantize_notes
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EnhancedAudioConfig:
+    """Configuration for enhanced audio processing (ensemble + spectral)."""
+    ensemble: Optional[EnsembleConfig] = None
+    spectral_residual: Optional[SpectralResidualConfig] = None
 
 
 def update_job(job: Job, stage: str, progress: float) -> None:
@@ -62,6 +74,8 @@ def save_result(job: Job, tab_notes: list[TabNote], output_dir: str) -> str:
             note_data["chordId"] = note.chord_id
         if note.video_matched:
             note_data["videoMatched"] = True
+        if note.pitch_bend:
+            note_data["pitchBend"] = note.pitch_bend
 
         notes_data.append(note_data)
 
@@ -131,9 +145,12 @@ def process_job(
     storage: JobStorage,
     output_dir: str = None,
     audio_config: AudioAnalysisConfig = None,
+    preprocess_config: AudioPreprocessConfig = None,
     video_config: VideoAnalysisConfig = None,
     fretboard_config: FretboardDetectionConfig = None,
-    fusion_config: FusionConfig = None
+    fusion_config: FusionConfig = None,
+    enhanced_audio_config: EnhancedAudioConfig = None,
+    quantization_config: QuantizationConfig = None,
 ) -> None:
     """Process a job through the audio and video analysis pipelines.
 
@@ -142,9 +159,11 @@ def process_job(
         storage: JobStorage instance
         output_dir: Directory for temp files and results
         audio_config: Audio analysis configuration
+        preprocess_config: Audio preprocessing configuration (normalization, filtering)
         video_config: Video analysis configuration
         fretboard_config: Fretboard detection configuration
         fusion_config: Fusion engine configuration
+        enhanced_audio_config: Enhanced audio processing (ensemble + spectral)
     """
     job = storage.get(job_id)
     if job is None:
@@ -161,16 +180,67 @@ def process_job(
     if fusion_config is None:
         fusion_config = FusionConfig()
 
+    # Wire ROI from job to video pipeline configs
+    roi = None
+    if job.roi_x1 is not None:
+        roi = {
+            'x1': job.roi_x1, 'y1': job.roi_y1,
+            'x2': job.roi_x2, 'y2': job.roi_y2,
+        }
+        video_config.roi = roi
+
     try:
         # Stage 1: Extract audio
         update_job(job, "extracting_audio", 0.1)
         audio_path = os.path.join(output_dir, f"{job.id}_audio.wav")
         extract_audio(job.video_path, audio_path)
 
+        # Stage 1b: Preprocess audio (normalize, filter, noise gate)
+        if preprocess_config is None:
+            preprocess_config = AudioPreprocessConfig()
+        preprocessed_path = os.path.join(output_dir, f"{job.id}_audio_preprocessed.wav")
+        preprocess_audio(audio_path, preprocessed_path, preprocess_config)
+        analysis_audio_path = preprocessed_path
+
         # Stage 2: Analyze with pitch detector
         update_job(job, "analyzing_audio", 0.3)
-        detected_notes = analyze_pitch(audio_path, audio_config)
+        detected_notes = analyze_pitch(analysis_audio_path, audio_config)
         logger.info(f"Audio analysis: detected {len(detected_notes)} notes")
+
+        # Stage 2b: Enhanced audio (ensemble + spectral residual)
+        if enhanced_audio_config is None:
+            enhanced_audio_config = EnhancedAudioConfig(
+                ensemble=EnsembleConfig(),
+            )
+        if enhanced_audio_config:
+            if enhanced_audio_config.ensemble and enhanced_audio_config.ensemble.enabled:
+                pre_count = len(detected_notes)
+                detected_notes = detect_with_ensemble(
+                    analysis_audio_path, detected_notes, enhanced_audio_config.ensemble
+                )
+                logger.info(
+                    f"Ensemble: {pre_count} -> {len(detected_notes)} notes "
+                    f"(+{len(detected_notes) - pre_count})"
+                )
+
+            if enhanced_audio_config.spectral_residual and enhanced_audio_config.spectral_residual.enabled:
+                pre_count = len(detected_notes)
+                detected_notes = analyze_spectral_residual(
+                    analysis_audio_path, detected_notes, enhanced_audio_config.spectral_residual
+                )
+                logger.info(
+                    f"Spectral residual: {pre_count} -> {len(detected_notes)} notes "
+                    f"(+{len(detected_notes) - pre_count})"
+                )
+
+        # Stage 2c: Detect muted notes (percussive transients without pitch)
+        muted_notes = []
+        try:
+            muted_notes = detect_muted_notes(analysis_audio_path, detected_notes)
+            if muted_notes:
+                logger.info(f"Detected {len(muted_notes)} potential muted notes")
+        except Exception as muted_err:
+            logger.warning(f"Muted note detection failed: {muted_err}")
 
         # Stage 3: Analyze video (optional - graceful fallback if fails)
         update_job(job, "analyzing_video", 0.5)
@@ -186,7 +256,8 @@ def process_job(
                 # Detect fretboard geometry using multiple frames for robustness
                 fretboard = detect_fretboard_from_video(
                     job.video_path,
-                    num_sample_frames=5
+                    num_sample_frames=5,
+                    roi=roi
                 )
 
                 if fretboard:
@@ -257,7 +328,8 @@ def process_job(
                 video_observations,
                 fretboard,
                 job.capo_fret,
-                fusion_config
+                fusion_config,
+                muted_notes=muted_notes,
             )
             logger.info(
                 f"Fusion complete: {len(tab_notes)} tab notes, "
@@ -265,7 +337,9 @@ def process_job(
             )
         else:
             # Fall back to audio-only
-            tab_notes = fuse_audio_only(detected_notes, job.capo_fret, fusion_config)
+            tab_notes = fuse_audio_only(
+                detected_notes, job.capo_fret, fusion_config, muted_notes=muted_notes
+            )
             logger.info(f"Audio-only fusion: {len(tab_notes)} tab notes")
 
         # Log confidence distribution
@@ -276,6 +350,15 @@ def process_job(
             logger.info(
                 f"Confidence distribution: high={high_conf}, medium={med_conf}, low={low_conf}"
             )
+
+        # Stage 4b: Beat quantization
+        if quantization_config is None:
+            quantization_config = QuantizationConfig()
+        if quantization_config.enabled and tab_notes:
+            try:
+                tab_notes = quantize_notes(tab_notes, analysis_audio_path, quantization_config)
+            except Exception as quant_err:
+                logger.warning(f"Beat quantization failed: {quant_err}, using unquantized notes")
 
         # Stage 5: Save result
         update_job(job, "saving", 0.9)
@@ -288,12 +371,15 @@ def process_job(
         job.progress = 1.0
         job.updated_at = datetime.now(timezone.utc)
 
-        # Cleanup temp audio file
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
+        # Cleanup temp audio files
+        for path in [audio_path, preprocessed_path]:
+            if os.path.exists(path):
+                os.remove(path)
 
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
         logger.exception(f"Job {job_id} failed")
         job.status = "failed"
-        job.error_message = str(e)
+        job.error_message = f"{e}\n\nTraceback:\n{tb}"
         job.updated_at = datetime.now(timezone.utc)

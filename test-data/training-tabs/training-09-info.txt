@@ -1,0 +1,8 @@
+Title: Jazz Voicings - Drop 2 and Shell Chords
+Category: Chord Varieties
+BPM: 66
+Duration: ~25 seconds
+Tests: 3-4 note jazz chord voicings on middle strings (D/G/B/e). These use
+unusual intervals and spread-out fingerings. Cmaj7, Dm7, G7, Cmaj7 in
+drop-2 voicing. Tests chord detection with notes on non-adjacent strings
+and higher frets. Slow tempo for clean articulation.

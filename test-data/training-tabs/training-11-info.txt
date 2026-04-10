@@ -1,0 +1,9 @@
+Title: Pentatonic Scale - Box 1 (Am)
+Category: Single-Note Passages
+BPM: 90
+Duration: ~15 seconds
+Tests: A minor pentatonic in the classic box 1 position (frets 5-8).
+All notes on one position, ascending then descending. This is a
+fundamental pattern that should produce very high accuracy. Tests
+whether the melodic segment correction works properly on a single-box
+scale run.

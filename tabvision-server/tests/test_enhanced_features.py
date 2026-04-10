@@ -163,10 +163,14 @@ class TestFilterHarmonics:
     """Tests for harmonic filtering."""
 
     def test_filters_octave_harmonic(self):
-        """Octave above with lower confidence is filtered."""
+        """Octave above with much lower amplitude is filtered.
+
+        Octaves use a stricter threshold (0.35) because octave intervals
+        are common in real guitar music (same note on different strings).
+        """
         notes = [
             DetectedNote(1.0, 2.0, 60, 0.9, 0.9, 0.0),  # C4
-            DetectedNote(1.0, 2.0, 72, 0.5, 0.5, 0.0),  # C5 - octave
+            DetectedNote(1.0, 2.0, 72, 0.3, 0.3, 0.0),  # C5 - octave, very low amp
         ]
         filtered = _filter_harmonics(notes)
         assert len(filtered) == 1
@@ -339,7 +343,8 @@ class TestVideoAnalysisConfig:
         """Default config has sensible values."""
         config = VideoAnalysisConfig()
         assert config.min_detection_confidence == 0.5
-        assert config.frames_per_onset == 3
+        assert config.frames_per_onset == 5
+        assert config.max_num_hands == 2
 
 
 class TestFingerPositionEnhancements:

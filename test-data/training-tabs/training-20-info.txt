@@ -1,0 +1,9 @@
+Title: Open Strings and Muted Notes
+Category: Edge Cases
+BPM: 72
+Duration: ~20 seconds
+Tests: Mix of open strings (fret 0) and muted/dead notes (X). Open strings
+are common in real playing but have no finger on the fretboard - the video
+pipeline must recognize the absence of a finger. Muted notes produce a
+percussive sound with no pitch. Both are edge cases for the fusion engine.
+Pattern: play open string, play fretted note, play muted strum.

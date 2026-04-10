@@ -1,0 +1,9 @@
+Title: Wide Position Jumps
+Category: Edge Cases
+BPM: 66
+Duration: ~25 seconds
+Tests: Notes that jump from low frets to high frets within a few beats.
+Fret 2 -> fret 12, fret 1 -> fret 9, etc. Tests the hand position anchor
+system's ability to handle abrupt shifts. The slide correction algorithm
+must NOT merge these into slides - they are discrete jumps.
+Play each note cleanly with a brief pause for the hand shift.

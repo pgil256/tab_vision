@@ -1,0 +1,9 @@
+Title: Chord-to-Single-Note Transition
+Category: Edge Cases
+BPM: 84
+Duration: ~20 seconds
+Tests: Alternating between strummed chords and single-note fills.
+Strum Am chord, play a 4-note fill, strum C chord, play a fill, etc.
+This tests the system's ability to switch between chord mode and single-note
+mode. The pre-filter and post-filter must correctly separate chord events
+from single-note events.

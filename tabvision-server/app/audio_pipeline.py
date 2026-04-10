@@ -1,8 +1,13 @@
 """Audio pipeline for extracting audio and detecting pitch from video."""
 import os
 import subprocess
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
+
+import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -19,6 +24,14 @@ class DetectedNote:
     def duration(self) -> float:
         """Note duration in seconds."""
         return self.end_time - self.start_time
+
+
+@dataclass
+class MutedNote:
+    """A muted/dead note detected from audio (percussive transient without pitch)."""
+    timestamp: float      # onset time in seconds
+    onset_strength: float  # strength of the percussive transient
+    confidence: float     # detection confidence 0.0-1.0
 
 
 @dataclass
@@ -51,6 +64,117 @@ class AudioAnalysisConfig:
 # Guitar MIDI note range (E2 = 40 to about E6 = 88 for 24 frets on high E)
 GUITAR_MIDI_MIN = 40  # E2 (low E string open)
 GUITAR_MIDI_MAX = 88  # E6 (24th fret on high E string)
+
+
+@dataclass
+class AudioPreprocessConfig:
+    """Configuration for audio preprocessing before pitch detection."""
+    # RMS normalization target in dBFS
+    target_dbfs: float = -20.0
+    # High-pass filter cutoff (Hz) — removes rumble below guitar range
+    highpass_cutoff: float = 70.0
+    # High-pass filter order
+    highpass_order: int = 4
+    # Spectral noise gate threshold (dB below peak to consider noise)
+    noise_gate_db: float = -40.0
+    # Whether to apply each step
+    normalize: bool = True
+    highpass: bool = True
+    noise_gate: bool = True
+
+
+def preprocess_audio(
+    audio_path: str,
+    output_path: str,
+    config: Optional[AudioPreprocessConfig] = None,
+) -> str:
+    """Preprocess audio for more consistent pitch detection.
+
+    Applies RMS normalization, high-pass filtering, and spectral noise gating
+    so that Basic Pitch thresholds behave consistently across different
+    recording volumes and noise floors.
+
+    Args:
+        audio_path: Path to input WAV file (mono, 22050 Hz)
+        output_path: Path for preprocessed WAV output
+        config: Preprocessing configuration
+
+    Returns:
+        Path to preprocessed WAV file
+    """
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    if config is None:
+        config = AudioPreprocessConfig()
+
+    import librosa
+    import soundfile as sf
+    from scipy.signal import butter, sosfilt
+
+    # Load audio
+    y, sr = librosa.load(audio_path, sr=22050, mono=True)
+
+    if len(y) == 0:
+        raise RuntimeError("Audio file is empty")
+
+    # 1. High-pass filter to remove low-frequency rumble
+    if config.highpass:
+        nyquist = sr / 2.0
+        normalized_cutoff = config.highpass_cutoff / nyquist
+        if normalized_cutoff < 1.0:
+            sos = butter(config.highpass_order, normalized_cutoff, btype='high', output='sos')
+            y = sosfilt(sos, y).astype(np.float32)
+            logger.debug(f"Applied {config.highpass_cutoff}Hz high-pass filter")
+
+    # 2. RMS normalization to target dBFS
+    if config.normalize:
+        rms = np.sqrt(np.mean(y ** 2))
+        if rms > 1e-8:  # avoid div by zero on silence
+            current_dbfs = 20 * np.log10(rms)
+            gain_db = config.target_dbfs - current_dbfs
+            gain_linear = 10 ** (gain_db / 20)
+            y = y * gain_linear
+            # Clip to prevent clipping distortion
+            y = np.clip(y, -1.0, 1.0)
+            logger.debug(
+                f"Normalized audio: {current_dbfs:.1f} dBFS -> {config.target_dbfs:.1f} dBFS "
+                f"(gain: {gain_db:+.1f} dB)"
+            )
+
+    # 3. Spectral noise gate
+    if config.noise_gate:
+        # Compute STFT
+        n_fft = 2048
+        hop_length = 512
+        S = librosa.stft(y, n_fft=n_fft, hop_length=hop_length)
+        magnitude = np.abs(S)
+
+        # Estimate noise floor from quietest 10% of frames
+        frame_energy = np.sum(magnitude ** 2, axis=0)
+        noise_frame_count = max(1, int(len(frame_energy) * 0.1))
+        noise_frame_indices = np.argsort(frame_energy)[:noise_frame_count]
+        noise_profile = np.mean(magnitude[:, noise_frame_indices], axis=1, keepdims=True)
+
+        # Convert threshold from dB
+        threshold_linear = 10 ** (config.noise_gate_db / 20)
+        gate_threshold = noise_profile * (1.0 / threshold_linear) if threshold_linear > 0 else noise_profile
+
+        # Soft gate: attenuate bins below threshold rather than hard zeroing
+        mask = np.minimum(magnitude / (gate_threshold + 1e-10), 1.0)
+        # Smooth the mask to avoid artifacts
+        mask = np.maximum(mask, 0.05)  # keep at least 5% to avoid dead silence artifacts
+
+        S_gated = S * mask
+        y = librosa.istft(S_gated, hop_length=hop_length, length=len(y))
+        y = y.astype(np.float32)
+        logger.debug("Applied spectral noise gate")
+
+    # Write preprocessed audio
+    sf.write(output_path, y, sr, subtype='PCM_16')
+    logger.info(f"Preprocessed audio saved to {output_path}")
+
+    return output_path
 
 
 def extract_audio(video_path: str, output_path: str) -> str:
@@ -133,7 +257,6 @@ def analyze_pitch(
         )
 
     # Run Basic Pitch inference with optimized parameters for guitar
-    # Using lower onset/frame thresholds to catch quieter notes
     model_output, midi_data, note_events = predict(
         audio_path,
         onset_threshold=0.4,  # Lower for better onset detection
@@ -346,6 +469,9 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
 
     # Harmonic intervals in semitones (octave, octave+fifth, 2 octaves)
     harmonic_intervals = [12, 19, 24, 28, 31]  # 1st through 5th harmonics
+    # Pure octaves (12 semitones) are very common in real guitar music
+    # (same note on different strings), so use a stricter threshold
+    octave_amp_ratio = 0.35  # Much stricter for octaves
 
     filtered = []
 
@@ -363,7 +489,8 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
             # Check if this note is a harmonic ABOVE the other
             interval = note.midi_note - other.midi_note
             if interval in harmonic_intervals:
-                if note.amplitude < other.amplitude * amp_ratio:
+                threshold = octave_amp_ratio if interval == 12 else amp_ratio
+                if note.amplitude < other.amplitude * threshold:
                     is_harmonic = True
                     break
 
@@ -371,7 +498,8 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
             if check_sub:
                 interval = other.midi_note - note.midi_note
                 if interval in harmonic_intervals:
-                    if note.amplitude < other.amplitude * amp_ratio:
+                    threshold = octave_amp_ratio if interval == 12 else amp_ratio
+                    if note.amplitude < other.amplitude * threshold:
                         is_harmonic = True
                         break
 
@@ -445,9 +573,16 @@ def group_notes_into_chords(
 ) -> list[list[DetectedNote]]:
     """Group simultaneous notes into chords.
 
+    Uses a sliding window: each new note is compared to the previous note
+    in the chord rather than anchored to the first note. This correctly
+    groups strummed chords where the full strum spans > tolerance but
+    each adjacent note pair is within tolerance.
+
+    A maximum chord span of 3x tolerance prevents runaway grouping.
+
     Args:
         notes: List of detected notes
-        tolerance: Maximum time difference for notes to be in same chord
+        tolerance: Maximum time difference between adjacent notes in a chord
 
     Returns:
         List of chord groups (each group is a list of notes)
@@ -455,12 +590,18 @@ def group_notes_into_chords(
     if not notes:
         return []
 
+    max_chord_span = tolerance * 3  # absolute cap on chord width
+
     sorted_notes = sorted(notes, key=lambda n: n.start_time)
     chords = []
     current_chord = [sorted_notes[0]]
 
     for note in sorted_notes[1:]:
-        if note.start_time - current_chord[0].start_time <= tolerance:
+        prev_time = current_chord[-1].start_time
+        chord_start = current_chord[0].start_time
+        # Adjacent note within tolerance AND total span within cap
+        if (note.start_time - prev_time <= tolerance and
+                note.start_time - chord_start <= max_chord_span):
             current_chord.append(note)
         else:
             chords.append(current_chord)
@@ -470,3 +611,71 @@ def group_notes_into_chords(
         chords.append(current_chord)
 
     return chords
+
+
+def detect_muted_notes(
+    audio_path: str,
+    detected_notes: list[DetectedNote],
+    min_onset_strength: float = 0.3,
+    note_match_tolerance: float = 0.05,
+) -> list[MutedNote]:
+    """Detect muted/dead notes (percussive transients without clear pitch).
+
+    Finds onset events in the audio that don't correspond to any pitched note.
+    These are candidate muted string hits (X notation in tablature).
+
+    Args:
+        audio_path: Path to WAV audio file
+        detected_notes: Already-detected pitched notes (to exclude)
+        min_onset_strength: Minimum normalized onset strength to consider
+        note_match_tolerance: Time window to match onsets to pitched notes
+
+    Returns:
+        List of MutedNote objects for unpitched percussive transients
+    """
+    if not os.path.exists(audio_path):
+        return []
+
+    import librosa
+
+    y, sr = librosa.load(audio_path, sr=22050)
+
+    # Detect all onsets using librosa
+    onset_frames = librosa.onset.onset_detect(
+        y=y, sr=sr, backtrack=True, units='frames'
+    )
+    onset_times = librosa.frames_to_time(onset_frames, sr=sr)
+
+    # Get onset strength envelope for confidence scoring
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    # Normalize onset strengths
+    max_env = onset_env.max() if onset_env.max() > 0 else 1.0
+    onset_strengths = onset_env[onset_frames] / max_env if len(onset_frames) > 0 else np.array([])
+
+    # Filter: keep onsets that DON'T match any detected pitched note
+    muted_notes = []
+    for i, onset_time in enumerate(onset_times):
+        strength = float(onset_strengths[i]) if i < len(onset_strengths) else 0.0
+
+        if strength < min_onset_strength:
+            continue
+
+        # Check if any pitched note starts near this onset
+        has_pitch = any(
+            abs(note.start_time - onset_time) < note_match_tolerance
+            for note in detected_notes
+        )
+
+        if not has_pitch:
+            muted_notes.append(MutedNote(
+                timestamp=onset_time,
+                onset_strength=strength,
+                confidence=min(1.0, strength),
+            ))
+
+    logger.info(
+        f"Muted note detection: {len(onset_times)} onsets, "
+        f"{len(muted_notes)} unpitched (potential muted strings)"
+    )
+
+    return muted_notes

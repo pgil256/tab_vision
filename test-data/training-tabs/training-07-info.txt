@@ -1,0 +1,8 @@
+Title: Barre Chord Progression
+Category: Chord Varieties
+BPM: 72
+Duration: ~20 seconds
+Tests: Full 6-string barre chords at various positions. F major (fret 1),
+Bb major (fret 1 A-shape), B minor (fret 2), F# minor (fret 2 E-shape).
+No open strings at all. Tests whether the system handles barre positions
+where multiple strings share the same fret (the barre finger).
