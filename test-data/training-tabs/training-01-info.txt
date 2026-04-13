@@ -1,5 +1,6 @@
 Title: Open vs Fretted Equivalent Notes
 Category: Position Ambiguity
+Instrument: acoustic or electric
 BPM: 72
 Duration: ~20 seconds
 Tests: Whether the system correctly identifies the SAME pitch played at two

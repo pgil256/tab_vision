@@ -1,5 +1,6 @@
 Title: Same Pitch, Three Positions
 Category: Position Ambiguity
+Instrument: electric
 BPM: 66
 Duration: ~25 seconds
 Tests: Notes that can be played at 3 different string/fret combos.

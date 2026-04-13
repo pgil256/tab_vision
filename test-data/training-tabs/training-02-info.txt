@@ -1,5 +1,6 @@
 Title: A Minor Melody - Two Positions
 Category: Position Ambiguity
+Instrument: acoustic or electric
 BPM: 80
 Duration: ~20 seconds
 Tests: Same melody played entirely in open position (frets 0-3), then

@@ -1,5 +1,6 @@
 Title: Fast Scale Run - E Minor 3-Note-Per-String
 Category: Single-Note Passages
+Instrument: acoustic or electric
 BPM: 140
 Duration: ~15 seconds
 Tests: E minor scale using 3-note-per-string pattern (frets 7-10 region),

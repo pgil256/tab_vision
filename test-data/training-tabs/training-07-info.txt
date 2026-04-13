@@ -1,5 +1,6 @@
 Title: Barre Chord Progression
 Category: Chord Varieties
+Instrument: acoustic or electric
 BPM: 72
 Duration: ~20 seconds
 Tests: Full 6-string barre chords at various positions. F major (fret 1),

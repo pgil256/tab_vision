@@ -1,5 +1,6 @@
 Title: Pentatonic Scale - Box 1 (Am)
 Category: Single-Note Passages
+Instrument: acoustic or electric
 BPM: 90
 Duration: ~15 seconds
 Tests: A minor pentatonic in the classic box 1 position (frets 5-8).

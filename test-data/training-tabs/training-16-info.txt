@@ -1,5 +1,6 @@
 Title: Wide Position Jumps
 Category: Edge Cases
+Instrument: electric
 BPM: 66
 Duration: ~25 seconds
 Tests: Notes that jump from low frets to high frets within a few beats.

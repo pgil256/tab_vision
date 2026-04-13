@@ -1,5 +1,6 @@
 Title: Hammer-Ons and Pull-Offs
 Category: Edge Cases
+Instrument: acoustic or electric
 BPM: 90
 Duration: ~20 seconds
 Tests: Legato passages with hammer-ons (h) and pull-offs (p). The audio

@@ -1,5 +1,6 @@
 Title: Power Chords - Root 6 and Root 5
 Category: Chord Varieties
+Instrument: acoustic or electric
 BPM: 100
 Duration: ~15 seconds
 Tests: 2-note and 3-note power chords (root + fifth, optionally + octave).

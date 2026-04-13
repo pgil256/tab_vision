@@ -1,5 +1,6 @@
 Title: Jazz Voicings - Drop 2 and Shell Chords
 Category: Chord Varieties
+Instrument: acoustic or electric
 BPM: 66
 Duration: ~25 seconds
 Tests: 3-4 note jazz chord voicings on middle strings (D/G/B/e). These use

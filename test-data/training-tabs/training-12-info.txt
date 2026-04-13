@@ -1,5 +1,6 @@
 Title: Chromatic Exercise - All Frets 1-4
 Category: Single-Note Passages
+Instrument: acoustic or electric
 BPM: 80
 Duration: ~25 seconds
 Tests: 1-2-3-4 chromatic exercise on each string, low E through high e.

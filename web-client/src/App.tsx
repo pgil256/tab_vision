@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { UploadPanel } from './components/UploadPanel';
+import { RecordPanel } from './components/RecordPanel';
 import { VideoPlayer } from './components/VideoPlayer';
 import { TabCanvas } from './components/TabCanvas';
 import { TabToolbar } from './components/TabToolbar';
@@ -7,8 +8,11 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { useAppStore } from './store/appStore';
 import './index.css';
 
+type InputMode = 'upload' | 'record';
+
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [inputMode, setInputMode] = useState<InputMode>('upload');
   const { jobStatus, videoUrl, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
 
   const showEditor = jobStatus === 'completed';
@@ -74,10 +78,31 @@ function App() {
 
       {/* Main content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* Upload view */}
+        {/* Upload / Record view */}
         {!showEditor && !isProcessing && jobStatus !== 'failed' && (
-          <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 animate-fade-in">
-            <UploadPanel />
+          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div
+              className="inline-flex rounded-lg p-1 mb-6"
+              style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              {(['upload', 'record'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setInputMode(mode)}
+                  className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
+                  style={{
+                    background: inputMode === mode ? 'var(--accent-glow)' : 'transparent',
+                    color: inputMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+                  }}
+                >
+                  {mode === 'upload' ? 'Upload video' : 'Record now'}
+                </button>
+              ))}
+            </div>
+            {inputMode === 'upload' ? <UploadPanel /> : <RecordPanel />}
           </div>
         )}
 

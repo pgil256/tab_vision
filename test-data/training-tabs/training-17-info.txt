@@ -1,5 +1,6 @@
 Title: High Fret Melody (Frets 12-17)
 Category: Edge Cases
+Instrument: electric
 BPM: 72
 Duration: ~20 seconds
 Tests: Melody played entirely above the 12th fret on strings 1-3.

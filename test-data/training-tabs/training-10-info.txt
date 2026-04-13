@@ -1,5 +1,6 @@
 Title: Mixed Chord Types - Open to Barre Transitions
 Category: Chord Varieties
+Instrument: acoustic or electric
 BPM: 84
 Duration: ~20 seconds
 Tests: Transitioning between open chords and barre chords in the same

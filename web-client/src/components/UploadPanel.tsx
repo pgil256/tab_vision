@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
-import { uploadVideo, getJobStatus, getJobResult } from '../api/client';
+import { useProcessVideo } from '../utils/useProcessVideo';
 
 const ALLOWED_TYPES = ['video/mp4', 'video/quicktime'];
 
@@ -94,50 +94,18 @@ export function UploadPanel() {
   const [fileName, setFileName] = useState<string | null>(null);
   const {
     jobStatus, progress, currentStage, errorMessage, capoFretInput,
-    setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl,
-    setCapoFretInput, reset,
+    setError, setCapoFretInput, reset,
   } = useAppStore();
+  const processVideo = useProcessVideo();
 
   const processFile = useCallback(async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError('Please upload an MP4 or MOV file');
       return;
     }
-
     setFileName(file.name);
-    reset();
-    setStatus('uploading');
-
-    const videoUrl = URL.createObjectURL(file);
-    setVideoUrl(videoUrl);
-
-    try {
-      const jobId = await uploadVideo(file, capoFretInput);
-      setJobId(jobId);
-      setStatus('processing');
-
-      const pollInterval = setInterval(async () => {
-        try {
-          const status = await getJobStatus(jobId);
-          setProgress(status.progress, status.current_stage);
-
-          if (status.status === 'completed') {
-            clearInterval(pollInterval);
-            const result = await getJobResult(jobId);
-            setTabDocument(result);
-          } else if (status.status === 'failed') {
-            clearInterval(pollInterval);
-            setError(status.error_message || 'Processing failed');
-          }
-        } catch (err) {
-          clearInterval(pollInterval);
-          setError(err instanceof Error ? err.message : 'Unknown error');
-        }
-      }, 1000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    }
-  }, [reset, setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl, capoFretInput]);
+    await processVideo(file);
+  }, [processVideo, setError]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

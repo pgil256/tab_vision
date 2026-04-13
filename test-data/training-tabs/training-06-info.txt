@@ -1,5 +1,6 @@
 Title: Open Chord Progression
 Category: Chord Varieties
+Instrument: acoustic or electric
 BPM: 80
 Duration: ~20 seconds
 Tests: Standard open chords strummed cleanly, one strum per chord.

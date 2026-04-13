@@ -1,7 +1,9 @@
 # Training Tabs for TabVision
 
-These tabs are designed to be recorded on both acoustic and electric guitar
-for training and fine-tuning the TabVision transcription pipeline.
+These tabs are designed to be recorded on acoustic and/or electric guitar
+for training and fine-tuning the TabVision transcription pipeline. See the
+**Instrument** section below — a few tabs reach past the 12th fret and are
+marked electric-only.
 
 ## Recording Instructions
 
@@ -23,8 +25,17 @@ for training and fine-tuning the TabVision transcription pipeline.
 | 11-15 | Single-Note Passages | 5 | Scales, arpeggios, chromatic runs |
 | 16-20 | Edge Cases | 5 | Jumps, high frets, mixed techniques |
 
+## Instrument
+
+Each `-info.txt` has an `Instrument:` line indicating which guitars the tab
+is playable on. Any tab reaching past fret 12 is marked **electric** (acoustic
+necks typically join the body at fret 12, making higher positions impractical
+without a cutaway). All other tabs are **acoustic or electric**.
+
+Electric-only tabs: **03, 04, 16, 17** (max frets 14, 14, 15, 17).
+
 ## Tab File Format
 
 Each `-tabs.txt` file is the ground truth in standard ASCII tab format,
 compatible with `evaluate_transcription.py`. The companion `-info.txt` has
-BPM, description, and what the tab tests.
+BPM, description, instrument, and what the tab tests.

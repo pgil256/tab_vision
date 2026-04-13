@@ -1,5 +1,6 @@
 Title: G Major Scale - Three Octaves
 Category: Position Ambiguity
+Instrument: electric
 BPM: 80
 Duration: ~25 seconds
 Tests: G major scale ascending through three octaves, each in a fixed

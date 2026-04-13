@@ -1,5 +1,6 @@
 Title: Octave Shapes Across the Neck
 Category: Position Ambiguity
+Instrument: acoustic or electric
 BPM: 72
 Duration: ~20 seconds
 Tests: Octave pairs (same note, different octave) played on adjacent string

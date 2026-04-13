@@ -1,5 +1,6 @@
 Title: String Skipping Melody
 Category: Single-Note Passages
+Instrument: acoustic or electric
 BPM: 84
 Duration: ~20 seconds
 Tests: Single notes that skip strings (e.g., low E then G, then B, then D).

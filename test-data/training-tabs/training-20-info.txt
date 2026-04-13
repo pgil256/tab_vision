@@ -1,5 +1,6 @@
 Title: Open Strings and Muted Notes
 Category: Edge Cases
+Instrument: acoustic or electric
 BPM: 72
 Duration: ~20 seconds
 Tests: Mix of open strings (fret 0) and muted/dead notes (X). Open strings

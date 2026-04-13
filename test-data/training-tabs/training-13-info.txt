@@ -1,5 +1,6 @@
 Title: Arpeggio Patterns - Am, C, G, Em
 Category: Single-Note Passages
+Instrument: acoustic or electric
 BPM: 72
 Duration: ~25 seconds
 Tests: Fingerpicked arpeggios of common chords. Each chord is arpeggiated

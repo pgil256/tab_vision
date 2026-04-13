@@ -1,5 +1,6 @@
 Title: Chord-to-Single-Note Transition
 Category: Edge Cases
+Instrument: acoustic or electric
 BPM: 84
 Duration: ~20 seconds
 Tests: Alternating between strummed chords and single-note fills.
