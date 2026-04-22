@@ -598,6 +598,15 @@ def _detect_fretboard_single_scale(
         min_distance=config.string_cluster_distance * 2
     )
 
+    # Fallback: if clustering collapsed all string lines into one group
+    # (can happen when the fretboard is small in the frame and strings are
+    # close together), use the full spread (min/max) of the raw projections.
+    if len(edge_y_positions) < 2 and string_projections:
+        all_string_projs = [p for p, _ in string_projections]
+        span = max(all_string_projs) - min(all_string_projs)
+        if span > 10:  # Only if there is meaningful spread
+            edge_y_positions = [min(all_string_projs), max(all_string_projs)]
+
     if len(fret_x_positions) < 2 or len(edge_y_positions) < 2:
         return None
 
