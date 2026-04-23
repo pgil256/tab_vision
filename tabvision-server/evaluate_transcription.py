@@ -292,9 +292,82 @@ def _group_tab_notes_by_time(tab_notes: list[TabNote], tolerance: float = 0.05) 
     return groups
 
 
+def _find_best_time_offset(
+    detected_notes: list[TabNote],
+    gt_beats: list[float],
+    gt_midis: list[Optional[int]],
+    beat_to_time: float,
+    video_duration: float,
+    time_tolerance: float,
+) -> float:
+    """Search for the time offset that best aligns GT beats to detected timestamps.
+
+    Videos often have a count-in or dead time before playing starts, so the
+    detected note timestamps don't start at t=0 even if the first GT beat is 0.
+    This function sweeps candidate offsets and returns the one that maximises
+    pitch-level matches (MIDI note + timing, ignoring string/fret position).
+
+    Args:
+        detected_notes: Detected TabNote list.
+        gt_beats: Ground-truth beat positions (parallel to gt_midis).
+        gt_midis: Ground-truth MIDI note numbers (None = muted/unknown).
+        beat_to_time: Seconds per beat (from BPM).
+        video_duration: Total video length in seconds.
+        time_tolerance: Matching window in seconds.
+
+    Returns:
+        Best time offset in seconds (add to GT times).
+    """
+    if not detected_notes or not gt_beats:
+        return 0.0
+
+    # Compute the span of GT notes at the given beat_to_time
+    first_gt_time = min(gt_beats) * beat_to_time
+    last_gt_time = max(gt_beats) * beat_to_time
+    gt_span = last_gt_time - first_gt_time
+
+    # Search offsets: from 0 to (video_duration - gt_span), step 0.1 s
+    max_offset = max(0.0, video_duration - gt_span)
+    step = 0.1
+    candidate_offsets = [i * step for i in range(int(max_offset / step) + 1)]
+    if not candidate_offsets:
+        candidate_offsets = [0.0]
+
+    det_times = [n.timestamp for n in detected_notes]
+    det_midis = [n.midi_note for n in detected_notes]
+
+    best_offset = 0.0
+    best_matches = -1
+
+    for offset in candidate_offsets:
+        gt_times_shifted = [b * beat_to_time + offset for b in gt_beats]
+
+        # Count pitch matches at this offset
+        matched_gt = set()
+        matches = 0
+        for det_t, det_m in zip(det_times, det_midis):
+            if det_m is None:
+                continue
+            for gi, (gt_t, gt_m) in enumerate(zip(gt_times_shifted, gt_midis)):
+                if gi in matched_gt or gt_m is None:
+                    continue
+                if abs(det_t - gt_t) <= time_tolerance and det_m == gt_m:
+                    matched_gt.add(gi)
+                    matches += 1
+                    break
+
+        if matches > best_matches:
+            best_matches = matches
+            best_offset = offset
+
+    return best_offset
+
+
 def evaluate_accuracy(detected_notes: list[TabNote], ground_truth: list[dict],
                      time_tolerance: float = 0.5,
-                     video_duration: float = 13.28) -> EvalMetrics:
+                     video_duration: float = 13.28,
+                     bpm: Optional[float] = None,
+                     auto_align: bool = True) -> EvalMetrics:
     """Evaluate detection accuracy against ground truth with multi-dimensional metrics.
 
     Args:
@@ -302,6 +375,12 @@ def evaluate_accuracy(detected_notes: list[TabNote], ground_truth: list[dict],
         ground_truth: List of parsed ground truth notes
         time_tolerance: Allowed timing difference in seconds
         video_duration: Total video duration for beat-to-time conversion
+        bpm: Tempo in beats per minute. If provided, uses 60/bpm as the
+             beat-to-time conversion instead of video_duration/total_beats.
+             This is more accurate when the video has dead time before/after
+             the actual playing.
+        auto_align: If True and bpm is provided, automatically searches for
+                    the best time offset to compensate for count-in/dead time.
 
     Returns:
         EvalMetrics with all accuracy dimensions
@@ -316,15 +395,30 @@ def evaluate_accuracy(detected_notes: list[TabNote], ground_truth: list[dict],
         return metrics
 
     total_beats = max(n['beat'] for n in ground_truth) if ground_truth else 16
-    beat_to_time = video_duration / total_beats if total_beats > 0 else 1
 
-    # Convert ground truth to time-based
+    # Beat-to-time conversion: prefer BPM-based (exact) over duration-based (approximate)
+    if bpm and bpm > 0:
+        beat_to_time = 60.0 / bpm
+    else:
+        beat_to_time = video_duration / total_beats if total_beats > 0 else 1
+
+    # Auto-align: search for best time offset when BPM is known
+    time_offset = 0.0
+    if bpm and bpm > 0 and auto_align and detected_notes:
+        gt_beats_list = [n['beat'] for n in ground_truth]
+        gt_midis_list = [n.get('midi_note') for n in ground_truth]
+        time_offset = _find_best_time_offset(
+            detected_notes, gt_beats_list, gt_midis_list,
+            beat_to_time, video_duration, time_tolerance,
+        )
+
+    # Convert ground truth to time-based with alignment offset
     gt_with_time = []
     for note in ground_truth:
         gt_with_time.append({
             'string': note['string'],
             'fret': note['fret'],
-            'time': note['beat'] * beat_to_time,
+            'time': note['beat'] * beat_to_time + time_offset,
             'beat': note['beat'],
             'midi_note': note.get('midi_note'),
         })

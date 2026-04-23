@@ -3,8 +3,7 @@
     {
       "id": "sample-video",
       "video_path": "sample-video.mp4",
-      "ground_truth_path": "tests/fixtures/benchmarks/sample-video-tabs.txt",
-      "video_duration": 13.28,
+      "ground_truth_path": "tabvision-server/tests/fixtures/benchmarks/sample-video-tabs.txt",
       "description": "Simple fingerpicking passage, open chords and barre shapes",
       "baselines": {
         "f1_min": 0.70,
@@ -14,6 +13,166 @@
         "max_detected_notes": 55,
         "min_detected_notes": 30
       }
+    },
+    {
+      "id": "training-01",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4043.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-01-tabs.txt",
+      "description": "Position Ambiguity: same pitch at open vs fretted positions",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-02",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4045.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-02-tabs.txt",
+      "description": "Position Ambiguity: adjacent string equivalents",
+      "bpm": 80,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-03",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4047.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-03-tabs.txt",
+      "description": "Position Ambiguity: high frets (electric only)",
+      "bpm": 66,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-04",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4048.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-04-tabs.txt",
+      "description": "Position Ambiguity: upper neck positions (electric only)",
+      "bpm": 80,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-05",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4049.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-05-tabs.txt",
+      "description": "Position Ambiguity: capo-free vs equivalent positions",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-06",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4050.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-06-tabs.txt",
+      "description": "Chord Varieties: open chords",
+      "bpm": 80,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-07",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4051.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-07-tabs.txt",
+      "description": "Chord Varieties: barre chords",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-08",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4052.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-08-tabs.txt",
+      "description": "Chord Varieties: power chords",
+      "bpm": 100,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-09",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4054.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-09-tabs.txt",
+      "description": "Chord Varieties: jazz/partial chords",
+      "bpm": 66,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-10",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4055.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-10-tabs.txt",
+      "description": "Chord Varieties: mixed chord types",
+      "bpm": 84,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-11",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4056.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-11-tabs.txt",
+      "description": "Single-Note Passages: pentatonic scale run",
+      "bpm": 90,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-12",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4057.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-12-tabs.txt",
+      "description": "Single-Note Passages: arpeggios",
+      "bpm": 80,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-13",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4058.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-13-tabs.txt",
+      "description": "Single-Note Passages: chromatic run",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-14",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4059.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-14-tabs.txt",
+      "description": "Single-Note Passages: hammer-ons and pull-offs",
+      "bpm": 140,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-15",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4060.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-15-tabs.txt",
+      "description": "Single-Note Passages: mixed melodic pattern",
+      "bpm": 84,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-16",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4061.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-16-tabs.txt",
+      "description": "Edge Cases: position jumps (electric only)",
+      "bpm": 66,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-17",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4062.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-17-tabs.txt",
+      "description": "Edge Cases: very high frets (electric only)",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-18",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4063.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-18-tabs.txt",
+      "description": "Edge Cases: open string ringing with fretting",
+      "bpm": 90,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-19",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4064.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-19-tabs.txt",
+      "description": "Edge Cases: wide interval leaps",
+      "bpm": 84,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
+    },
+    {
+      "id": "training-20",
+      "video_path": "test-data/training-tabs/training-tabs-video/IMG_4065.MOV",
+      "ground_truth_path": "test-data/training-tabs/training-20-tabs.txt",
+      "description": "Edge Cases: mixed techniques and positions",
+      "bpm": 72,
+      "baselines": { "f1_min": 0.0, "pitch_f1_min": 0.0 }
     }
   ],
   "defaults": {

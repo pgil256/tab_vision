@@ -457,51 +457,73 @@ def _estimate_initial_position(
 ) -> Optional[float]:
     """Estimate the initial hand position from the note content.
 
-    Analyzes all detected notes to determine the most likely playing position
-    on the neck. This helps set the correct initial hand position before
-    processing individual notes.
+    Sweeps candidate hand positions (fret centres) from 0 to 15 and picks
+    the one where the most notes have at least one candidate within a
+    playable 4-fret reach.  Ties are broken by favouring lower positions.
 
-    Strategy:
-    1. For each note, find its minimum fret (lowest position option)
-    2. Cluster these minimum frets to find the most common playing region
-    3. If most notes fit in open position (frets 0-4), return low position
-    4. If notes cluster around a higher position, return that
+    The fitness score for each candidate position P is the sum of
+    ``max(0, 5 - min_distance(note, P))`` across all notes, where
+    ``min_distance`` is the minimum |fret - P| over all candidate fret
+    positions for that note.  This rewards positions where many notes
+    fall close to P and penalises positions where notes must stretch far.
 
     Args:
         notes: All detected notes
         capo_fret: Capo position
 
     Returns:
-        Estimated hand position fret, or None if can't determine
+        Estimated hand position fret, or None if fewer than 3 notes
     """
-    if not notes:
+    if len(notes) < 3:
         return None
 
-    # Get minimum fret for each note (the lowest possible position)
-    min_frets = []
-    open_string_count = 0
+    # Pre-compute candidate frets for every note.  Notes whose minimum
+    # candidate fret exceeds high_only_threshold are "high-only" notes
+    # (can only be played in very high positions, usually false pitch
+    # detections of overtones).  They're excluded from the sweep so they
+    # don't drag the hand position estimate to fret 14+.
+    high_only_threshold = 7
+    note_candidate_frets: list[list[int]] = []
     for note in notes:
         candidates = get_candidate_positions(note.midi_note, capo_fret)
-        if candidates:
-            min_fret = candidates[0].fret  # Sorted by fret ascending
-            min_frets.append(min_fret)
-            if min_fret == 0:
-                open_string_count += 1
+        if not candidates:
+            continue
+        frets = [c.fret for c in candidates]
+        if min(frets) >= high_only_threshold:
+            continue
+        note_candidate_frets.append(frets)
 
-    if not min_frets:
+    if not note_candidate_frets:
         return None
 
-    # Only set initial position for clear open-position playing:
-    # Many notes can be open strings AND most notes fit in low frets
-    open_ratio = open_string_count / len(min_frets)
-    low_fret_count = sum(1 for f in min_frets if f <= 4)
-    low_fret_ratio = low_fret_count / len(min_frets)
+    reach = 4        # frets reachable from hand position centre
+    open_bonus = 3   # extra reward for a note whose best candidate is an open string
 
-    if open_ratio > 0.25 and low_fret_ratio > 0.7:
-        return 1.0  # Open position (frets 0-3)
+    best_pos: Optional[float] = None
+    best_score: float = -1.0
 
-    # Otherwise let the first note establish position naturally
-    return None
+    # Sweep integer fret centres; cap at 12 since most guitar playing
+    # stays at or below the 12th fret and higher positions are rarely the
+    # right answer for ambiguous note sets.
+    for hand_pos in range(capo_fret, 13):
+        score = 0.0
+        for frets in note_candidate_frets:
+            # For each candidate fret, compute reward = proximity bonus + open-string bonus
+            best_reward = 0.0
+            for f in frets:
+                proximity = max(0, reach + 1 - abs(f - hand_pos))
+                extra = open_bonus if f == 0 else 0
+                reward = proximity + extra
+                if reward > best_reward:
+                    best_reward = reward
+            score += best_reward
+
+        # Keep best; ties go to lower position (earlier condition wins)
+        if score > best_score:
+            best_score = score
+            best_pos = float(hand_pos)
+
+    return best_pos
 
 
 def fuse_audio_only(
@@ -630,11 +652,7 @@ def fuse_audio_only(
                     hand_position_fret = hand_position_fret * 0.7 + position.fret * 0.3
         else:
             # Multiple notes - optimize as chord
-            # For small chords (2 notes), reduce hand position influence
-            # since they may represent position transitions
             chord_hand_pos = effective_hand_pos
-            if len(chord_candidates) <= 2 and chord_hand_pos is not None:
-                chord_hand_pos = None  # Let small chords self-determine position
             selected_positions = _optimize_chord_positions(
                 chord_candidates, previous_position, config,
                 hand_position_fret=chord_hand_pos
@@ -919,12 +937,27 @@ def _optimize_chord_positions(
             best_assignments = assignments
 
     # If we have a strong voicing match, compare it against the region-based
-    # result and use whichever is better
+    # result and use whichever is better — but only if the voicing is
+    # consistent with the current hand position.  If the voicing positions
+    # are far from hand_position_fret (> 5 frets), the region-based result
+    # is more trustworthy and the voicing override is skipped.
     if voicing_assignments is not None and best_assignments is not None:
         v_count = sum(1 for p in voicing_assignments.values() if p is not None)
         r_count = sum(1 for p in best_assignments.values() if p is not None)
-        # Prefer voicing if it covers at least as many notes
-        if v_count >= r_count:
+
+        voicing_ok = True
+        if hand_position_fret is not None:
+            v_frets = [
+                p.fret for p in voicing_assignments.values()
+                if p is not None and p.fret > 0
+            ]
+            if v_frets:
+                v_avg = sum(v_frets) / len(v_frets)
+                if abs(v_avg - hand_position_fret) > 3:
+                    voicing_ok = False  # voicing is far from hand position
+
+        # Prefer voicing if it covers at least as many notes and is consistent
+        if voicing_ok and v_count >= r_count:
             best_assignments = voicing_assignments
 
     if best_assignments is None:
@@ -1671,8 +1704,6 @@ def fuse_audio_video(
         else:
             # Multiple notes - optimize as chord
             chord_hand_pos = effective_hand_pos
-            if len(chord_candidates) <= 2 and chord_hand_pos is not None:
-                chord_hand_pos = None  # Let small chords self-determine
 
             selected_positions = _optimize_chord_positions(
                 chord_candidates, previous_position, config,
