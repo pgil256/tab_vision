@@ -1232,6 +1232,178 @@ def _correct_slide_positions(
     return sorted_notes
 
 
+def _try_single_string_correction(
+    sorted_notes: list[TabNote],
+    seg_indices: list[int],
+    midi_notes: list[int],
+    capo_fret: int,
+    config: Optional[FusionConfig],
+) -> bool:
+    """Try to place all notes in a segment on a single string.
+
+    Returns True if correction was applied, False otherwise.
+    """
+    seg_notes = [sorted_notes[i] for i in seg_indices]
+    best_string = None
+    best_score = float('-inf')
+    best_frets: list[Optional[int]] = []
+
+    for string_num in range(1, 7):
+        open_midi = STANDARD_TUNING[string_num]
+        frets: list[Optional[int]] = []
+        for midi in midi_notes:
+            fret = midi - open_midi
+            if capo_fret <= fret <= MAX_FRET:
+                frets.append(fret)
+            else:
+                frets.append(None)
+
+        valid_frets = [f for f in frets if f is not None]
+        if not valid_frets:
+            continue
+
+        coverage = len(valid_frets) / len(midi_notes)
+        if coverage < 0.9:
+            continue
+
+        fret_range = max(valid_frets) - min(valid_frets)
+        if fret_range > 14:
+            continue
+
+        avg_fret = sum(valid_frets) / len(valid_frets)
+        score = coverage * 100 - fret_range * 1.0 - avg_fret * 0.1
+
+        if (config is not None
+                and config.chord_shape_config.scale_pattern_enabled):
+            positions = [
+                Position(string=string_num, fret=f)
+                for f in valid_frets
+            ]
+            scale_score = score_positions_against_scale(
+                positions, round(avg_fret), config.playing_style
+            )
+            score += scale_score * 5.0
+
+        if score > best_score:
+            best_score = score
+            best_string = string_num
+            best_frets = frets
+
+    if best_string is None:
+        return False
+
+    already_correct = sum(1 for n in seg_notes if n.string == best_string)
+    if already_correct == len(seg_notes):
+        return True  # Already correct, no change needed
+
+    for i, idx in enumerate(seg_indices):
+        fret = best_frets[i]
+        if fret is not None:
+            sorted_notes[idx].string = best_string
+            sorted_notes[idx].fret = fret
+    return True
+
+
+def _try_position_based_correction(
+    sorted_notes: list[TabNote],
+    seg_indices: list[int],
+    midi_notes: list[int],
+    capo_fret: int,
+) -> bool:
+    """Reassign notes to candidates near the best hand position.
+
+    For multi-string scales that span too many semitones for one string,
+    find the hand position (target fret) that minimizes total fret spread,
+    then place each note on the candidate closest to that position.
+
+    Returns True if correction was applied.
+    """
+    seg_notes = [sorted_notes[i] for i in seg_indices]
+
+    # Guard: if current fret spread is already compact (<= 5 frets),
+    # don't reposition — the notes are already in a reasonable position.
+    current_frets = [n.fret for n in seg_notes if isinstance(n.fret, int)]
+    if current_frets:
+        current_span = max(current_frets) - min(current_frets)
+        if current_span <= 5:
+            return False
+
+    # Collect all candidate positions for each note
+    note_candidates = []
+    for midi in midi_notes:
+        cands = get_candidate_positions(midi, capo_fret)
+        if not cands:
+            note_candidates.append([])
+        else:
+            note_candidates.append(cands)
+
+    if not any(note_candidates):
+        return False
+
+    # Try each possible target fret position (0 through 17)
+    best_target = None
+    best_score = float('-inf')
+    best_assignments: list[Optional[Position]] = []
+
+    for target_fret in range(0, 18):
+        assignments: list[Optional[Position]] = []
+        total_dist = 0
+        covered = 0
+
+        for cands in note_candidates:
+            if not cands:
+                assignments.append(None)
+                continue
+            # Pick candidate with fret closest to target
+            best_cand = min(cands, key=lambda c: abs(c.fret - target_fret))
+            assignments.append(best_cand)
+            total_dist += abs(best_cand.fret - target_fret)
+            covered += 1
+
+        if covered < len(midi_notes) * 0.9:
+            continue
+
+        # Score: maximize coverage, minimize total distance from target
+        frets_used = [a.fret for a in assignments if a is not None]
+        fret_span = max(frets_used) - min(frets_used) if frets_used else 0
+        score = covered * 10 - total_dist * 0.5 - fret_span * 0.3
+
+        if score > best_score:
+            best_score = score
+            best_target = target_fret
+            best_assignments = assignments
+
+    if best_target is None:
+        return False
+
+    # Only apply if the new assignment is more compact than current
+    new_frets = [a.fret for a in best_assignments if a is not None]
+    new_span = max(new_frets) - min(new_frets) if new_frets else 0
+    if new_span >= current_span:
+        return False
+
+    # Check if this actually changes anything
+    changes = 0
+    for i, idx in enumerate(seg_indices):
+        pos = best_assignments[i]
+        if pos is not None:
+            note = sorted_notes[idx]
+            if note.string != pos.string or note.fret != pos.fret:
+                changes += 1
+
+    if changes == 0:
+        return False
+
+    # Apply reassignment
+    for i, idx in enumerate(seg_indices):
+        pos = best_assignments[i]
+        if pos is not None:
+            sorted_notes[idx].string = pos.string
+            sorted_notes[idx].fret = pos.fret
+
+    return True
+
+
 def _correct_melodic_segments(
     tab_notes: list[TabNote],
     capo_fret: int = 0,
@@ -1286,90 +1458,42 @@ def _correct_melodic_segments(
     if len(current_segment) >= 3:
         segments.append(current_segment)
 
-    # For each segment, find the best single string
+    # For each segment, find the best single string or position
     for seg_indices in segments:
         seg_notes = [sorted_notes[i] for i in seg_indices]
         midi_notes = [n.midi_note for n in seg_notes]
 
-        # Guard 1: Only correct segments that use 2-3 distinct strings.
-        # 1 string = already correct, 4+ strings = arpeggio/fingerpicking.
         current_strings = set(n.string for n in seg_notes)
-        if len(current_strings) < 2 or len(current_strings) > 3:
-            continue
+        if len(current_strings) < 2:
+            continue  # Already on one string
 
-        # Guard 2: Check for scale-like motion (small pitch intervals).
+        # Check for scale-like motion (small pitch intervals).
         # Arpeggios have large intervals; scales have small ones.
         intervals = [abs(midi_notes[i] - midi_notes[i-1])
                      for i in range(1, len(midi_notes))]
-        if intervals:
-            median_interval = sorted(intervals)[len(intervals) // 2]
-            if median_interval > 4:  # More than a major third = not scalar
-                continue
-
-        best_string = None
-        best_score = float('-inf')
-        best_frets: list[Optional[int]] = []
-
-        for string_num in range(1, 7):
-            open_midi = STANDARD_TUNING[string_num]
-            frets: list[Optional[int]] = []
-            for midi in midi_notes:
-                fret = midi - open_midi
-                if capo_fret <= fret <= MAX_FRET:
-                    frets.append(fret)
-                else:
-                    frets.append(None)
-
-            valid_frets = [f for f in frets if f is not None]
-            if not valid_frets:
-                continue
-
-            coverage = len(valid_frets) / len(midi_notes)
-            if coverage < 0.9:
-                continue
-
-            fret_range = max(valid_frets) - min(valid_frets)
-            if fret_range > 14:
-                continue
-
-            avg_fret = sum(valid_frets) / len(valid_frets)
-
-            # Score: full coverage strongly preferred, then minimize range,
-            # then prefer lower average fret position
-            score = coverage * 100 - fret_range * 1.0 - avg_fret * 0.1
-
-            # Scale pattern bonus: if the frets align with a recognized
-            # scale pattern at the average position, boost the score
-            if (config is not None
-                    and config.chord_shape_config.scale_pattern_enabled):
-                positions = [
-                    Position(string=string_num, fret=f)
-                    for f in valid_frets
-                ]
-                scale_score = score_positions_against_scale(
-                    positions, round(avg_fret), config.playing_style
-                )
-                score += scale_score * 5.0  # Scale pattern fit bonus
-
-            if score > best_score:
-                best_score = score
-                best_string = string_num
-                best_frets = frets
-
-        if best_string is None:
+        if not intervals:
+            continue
+        median_interval = sorted(intervals)[len(intervals) // 2]
+        if median_interval > 4:  # More than a major third = not scalar
             continue
 
-        # Check how many notes are already on the best string
-        already_correct = sum(1 for n in seg_notes if n.string == best_string)
-        if already_correct == len(seg_notes):
-            continue  # All notes already on best string
+        # For segments on 2-3 strings, try single-string correction first.
+        # For 4+ strings with scalar motion (median <= 3), skip to
+        # position-based correction — the lower-fret bias scattered notes
+        # across open strings and a single string can't cover the range.
+        corrected = False
+        if len(current_strings) <= 3:
+            corrected = _try_single_string_correction(
+                sorted_notes, seg_indices, midi_notes, capo_fret, config
+            )
 
-        # Reassign notes to the best string
-        for i, idx in enumerate(seg_indices):
-            fret = best_frets[i]
-            if fret is not None:
-                sorted_notes[idx].string = best_string
-                sorted_notes[idx].fret = fret
+        # Position-based correction: find the best hand position and
+        # reassign each note to its candidate nearest that position.
+        # Used when single-string correction failed or wasn't attempted.
+        if not corrected:
+            _try_position_based_correction(
+                sorted_notes, seg_indices, midi_notes, capo_fret
+            )
 
     return sorted_notes
 
