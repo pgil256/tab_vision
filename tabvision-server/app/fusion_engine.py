@@ -1742,6 +1742,7 @@ def fuse_audio_video(
                 effective_hand_pos = effective_hand_pos * 0.3 + anchor * 0.7
 
         # Try video matching first for each note
+        # Only use video matches with sufficient confidence (>0.3)
         video_matches = {}  # note_index -> (Position, video_confidence)
         used_strings_video = set()
         if video_obs and fretboard:
@@ -1749,7 +1750,7 @@ def fuse_audio_video(
                 match, v_conf = match_video_to_candidates_enhanced(
                     video_obs, fretboard, candidates, used_strings_video
                 )
-                if match:
+                if match and v_conf > 0.3:
                     video_matches[idx] = (match, v_conf)
                     used_strings_video.add(match.string)
 
@@ -1879,6 +1880,9 @@ def fuse_audio_video(
 
     # Post-processing: correct slide/legato positions
     tab_notes = _correct_slide_positions(tab_notes, capo_fret)
+
+    # Post-processing: correct melodic segment string assignments
+    tab_notes = _correct_melodic_segments(tab_notes, capo_fret, config)
 
     # Post-filter: remove duplicate positions and low-confidence strays
     tab_notes = _postfilter_tab_notes(tab_notes, config)
