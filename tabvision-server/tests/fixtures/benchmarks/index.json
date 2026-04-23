@@ -236,7 +236,7 @@
     }
   ],
   "defaults": {
-    "time_tolerance": 0.6,
+    "time_tolerance": 1.0,
     "audio_only": true
   }
 }
