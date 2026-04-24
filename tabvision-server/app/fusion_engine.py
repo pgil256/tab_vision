@@ -6,6 +6,7 @@ from app.audio_pipeline import DetectedNote, MutedNote, group_notes_into_chords
 from app.guitar_mapping import get_candidate_positions, pick_lowest_fret, Position, STANDARD_TUNING, MAX_FRET
 from app.video_pipeline import HandObservation, FingerPosition
 from app.fretboard_detection import FretboardGeometry, map_finger_to_position
+from app.hand_anchor import build_hand_position_timeline, get_hand_anchor_at
 from app.chord_shapes import (
     ChordShapeConfig, PlayingStyle, StyleWeights, STYLE_WEIGHTS,
     find_best_voicing_for_chord, get_voicing_positions,
@@ -95,6 +96,12 @@ class FusionConfig:
     # Chord shape and style heuristics
     chord_shape_config: ChordShapeConfig = field(default_factory=ChordShapeConfig)
     playing_style: PlayingStyle = PlayingStyle.DEFAULT
+
+    # Video-driven hand anchor (replaces retrospective audio-pick-derived anchor)
+    use_video_hand_anchor: bool = False
+    video_anchor_authoritative_threshold: float = 0.6   # v_conf ≥ this → video wins
+    video_anchor_blend_threshold: float = 0.4           # v_conf ≥ this (and < auth) → blend
+    video_anchor_max_gap: float = 0.3                   # query gap tolerance (seconds)
 
 
 def _create_muted_tab_notes(
@@ -1709,6 +1716,23 @@ def fuse_audio_video(
                 best_anchor = avg_fret
         return best_anchor
 
+    # Build video-derived hand anchor timeline (replaces retrospective audio anchor
+    # when available). Empty list when flag is off or projection failed on all frames.
+    if config.use_video_hand_anchor:
+        hand_timeline = build_hand_position_timeline(video_observations, fretboard)
+        # Plausibility gate: if the fretboard detector misidentified the visible region
+        # (e.g., localized frets 16-24 when the passage is actually at frets 0-5), the
+        # anchor timeline will be far from any realistic audio candidate. Reject the
+        # timeline when the median anchor sits > 8 frets above ALL candidate frets.
+        if hand_timeline and chord_anchors:
+            median_anchor = sorted(p.anchor_fret for p in hand_timeline)[len(hand_timeline) // 2]
+            audio_frets = [avg for avg, _ in chord_anchors.values()]
+            median_audio = sorted(audio_frets)[len(audio_frets) // 2] if audio_frets else 0.0
+            if abs(median_anchor - median_audio) > 8.0:
+                hand_timeline = []
+    else:
+        hand_timeline = []
+
     tab_notes = []
     previous_position = None
     hand_position_fret = None
@@ -1732,14 +1756,35 @@ def fuse_audio_video(
         if not chord_candidates:
             continue
 
-        # Use anchor-based hand position
-        anchor = _get_nearest_anchor(i)
-        effective_hand_pos = hand_position_fret
-        if anchor is not None:
-            if effective_hand_pos is None:
-                effective_hand_pos = anchor
+        # Determine hand anchor for this chord. Preference order:
+        #   1. Video-derived anchor (when config flag is on and v_conf ≥ authoritative)
+        #   2. Blend of video and audio-derived anchor (authoritative > v_conf ≥ blend)
+        #   3. Existing audio-derived anchor (blend threshold not met / no video)
+        audio_anchor = _get_nearest_anchor(i)
+        fallback_hand_pos = hand_position_fret
+        if audio_anchor is not None:
+            fallback_hand_pos = (
+                audio_anchor if fallback_hand_pos is None
+                else fallback_hand_pos * 0.3 + audio_anchor * 0.7
+            )
+
+        video_anchor, v_conf = (
+            get_hand_anchor_at(hand_timeline, chord_timestamp, config.video_anchor_max_gap)
+            if hand_timeline else (None, 0.0)
+        )
+
+        if video_anchor is not None and v_conf >= config.video_anchor_authoritative_threshold:
+            effective_hand_pos = video_anchor
+            anchor_source = "video"
+        elif video_anchor is not None and v_conf >= config.video_anchor_blend_threshold:
+            if fallback_hand_pos is None:
+                effective_hand_pos = video_anchor
             else:
-                effective_hand_pos = effective_hand_pos * 0.3 + anchor * 0.7
+                effective_hand_pos = v_conf * video_anchor + (1 - v_conf) * fallback_hand_pos
+            anchor_source = "blend"
+        else:
+            effective_hand_pos = fallback_hand_pos
+            anchor_source = "audio"
 
         # Try video matching first for each note
         # Only use video matches with sufficient confidence (>0.3)
@@ -1821,7 +1866,11 @@ def fuse_audio_video(
             )
             tab_notes.append(tab_note)
             previous_position = position
-            if hand_position_fret is None:
+            if anchor_source == "video":
+                # Track video anchor directly — don't let picks drag the anchor back
+                # toward audio-only heuristics for the next chord.
+                hand_position_fret = effective_hand_pos
+            elif hand_position_fret is None:
                 hand_position_fret = float(position.fret)
             else:
                 hand_position_fret = hand_position_fret * 0.7 + position.fret * 0.3
@@ -1873,7 +1922,9 @@ def fuse_audio_video(
             if valid_positions:
                 avg_fret = sum(p.fret for p in valid_positions) / len(valid_positions)
                 previous_position = min(valid_positions, key=lambda p: abs(p.fret - avg_fret))
-                if hand_position_fret is None:
+                if anchor_source == "video":
+                    hand_position_fret = effective_hand_pos
+                elif hand_position_fret is None:
                     hand_position_fret = avg_fret
                 else:
                     hand_position_fret = hand_position_fret * 0.4 + avg_fret * 0.6

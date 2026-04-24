@@ -27,6 +27,7 @@ from evaluate_transcription import (
     print_metrics,
     EvalMetrics,
 )
+from app.fusion_engine import FusionConfig
 
 BENCHMARKS_DIR = os.path.join('tests', 'fixtures', 'benchmarks')
 RESULTS_DIR = os.path.join('tests', 'fixtures', 'benchmarks', 'results')
@@ -41,7 +42,8 @@ def load_index():
 
 def run_single_benchmark(bm: dict, defaults: dict,
                          audio_only_override=None,
-                         verbose=False) -> dict | None:
+                         verbose=False,
+                         fusion_config: FusionConfig | None = None) -> dict | None:
     """Run one benchmark entry. Returns result dict or None if video missing."""
     video_path = os.path.join(REPO_ROOT, bm['video_path'])
     gt_path = bm['ground_truth_path']
@@ -64,7 +66,8 @@ def run_single_benchmark(bm: dict, defaults: dict,
     audio_only = audio_only_override if audio_only_override is not None else \
         bm.get('audio_only', defaults.get('audio_only', True))
 
-    tab_notes = run_transcription(video_path, audio_only=audio_only)
+    tab_notes = run_transcription(video_path, audio_only=audio_only,
+                                  fusion_config=fusion_config)
 
     video_duration = bm.get('video_duration') or get_video_duration(video_path)
     time_tolerance = bm.get('time_tolerance', defaults.get('time_tolerance', 0.6))
@@ -90,7 +93,8 @@ def run_single_benchmark(bm: dict, defaults: dict,
 
 
 def run_all_benchmarks(audio_only_override=None, verbose=False,
-                       filter_id=None) -> dict:
+                       filter_id=None,
+                       fusion_config: FusionConfig | None = None) -> dict:
     """Run all benchmarks, return results dict keyed by benchmark id."""
     benchmarks, defaults = load_index()
     results = {}
@@ -101,7 +105,8 @@ def run_all_benchmarks(audio_only_override=None, verbose=False,
         print(f"\n--- {bm['id']} ({bm.get('description', '')}) ---")
         result = run_single_benchmark(bm, defaults,
                                       audio_only_override=audio_only_override,
-                                      verbose=verbose)
+                                      verbose=verbose,
+                                      fusion_config=fusion_config)
         if result:
             results[bm['id']] = result
 
@@ -187,16 +192,27 @@ def main():
                         help='Diff against saved results with this label')
     parser.add_argument('--audio-only', action='store_true',
                         help='Force audio-only mode')
+    parser.add_argument('--with-video', action='store_true',
+                        help='Force video-enabled mode (overrides benchmark defaults)')
     parser.add_argument('--verbose', action='store_true',
                         help='Print detailed metrics per benchmark')
     parser.add_argument('--id', type=str,
                         help='Run only a specific benchmark by id')
+    parser.add_argument('--use-video-hand-anchor', action='store_true',
+                        help='Enable video-driven hand anchor in fusion')
     args = parser.parse_args()
 
-    audio_only = True if args.audio_only else None
+    if args.audio_only and args.with_video:
+        parser.error('--audio-only and --with-video are mutually exclusive')
+    audio_only = True if args.audio_only else (False if args.with_video else None)
+    fusion_config = None
+    if args.use_video_hand_anchor:
+        fusion_config = FusionConfig(use_video_hand_anchor=True)
+        print("Video-driven hand anchor: ENABLED")
     results = run_all_benchmarks(
         audio_only_override=audio_only,
         verbose=args.verbose,
+        fusion_config=fusion_config,
         filter_id=args.id,
     )
     print_summary_table(results)
