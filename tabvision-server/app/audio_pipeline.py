@@ -41,7 +41,9 @@ class AudioAnalysisConfig:
     min_confidence: float = 0.3
     # Minimum note duration in seconds (filter out spurious detections)
     min_note_duration: float = 0.03
-    # Maximum gap between notes to merge (for legato playing)
+    # Maximum gap between notes to merge (for legato playing). A negative
+    # value here also means "overlapping" — Basic Pitch sometimes splits a
+    # single held note into multiple events, and the merge collapses those.
     merge_gap_threshold: float = 0.02
     # Minimum amplitude threshold
     min_amplitude: float = 0.1
@@ -55,10 +57,21 @@ class AudioAnalysisConfig:
     # Sustain re-detection filtering
     sustain_redetection_window: float = 0.6  # seconds
     sustain_amplitude_ratio: float = 0.95    # remove if amp < this * original
+    # Same-pitch re-detections within this window are always treated as
+    # sustain artifacts regardless of amplitude (catches Basic Pitch splitting
+    # a held note into multiple events with similar amplitude).
+    sustain_force_merge_window: float = 0.12  # seconds
     # Harmonics filtering (improved)
     harmonic_time_tolerance: float = 0.15    # seconds (wider than old 0.05)
     harmonic_amplitude_ratio: float = 0.7    # use amplitude, not confidence
     filter_sub_harmonics: bool = True        # also remove octave-below artifacts
+    # Stricter threshold for intervals that are also common musical intervals
+    # (octave=12, octave+5th=19). Real harmonics at these intervals are typically
+    # very quiet relative to the fundamental, while musical voicings are not.
+    musical_interval_amp_ratio: float = 0.35
+    # Notes louder than this absolute amplitude are protected from harmonic filtering
+    # (real notes are rarely this loud as harmonics).
+    harmonic_protect_amplitude: float = 0.45
 
 
 # Guitar MIDI note range (E2 = 40 to about E6 = 88 for 24 frets on high E)
@@ -356,46 +369,49 @@ def _merge_consecutive_notes(
     notes: list[DetectedNote],
     config: AudioAnalysisConfig
 ) -> list[DetectedNote]:
-    """Merge consecutive notes of the same pitch that are close together.
+    """Merge consecutive (or overlapping) notes of the same pitch.
 
-    This handles legato playing and minor detection gaps.
+    Group by MIDI pitch, then within each pitch, walk events in time order
+    and combine those whose gap to the active event is within the merge
+    threshold (a negative gap means the events overlap, which is even more
+    obviously the same sustained note). This handles legato, minor detection
+    gaps, and Basic Pitch splitting one held note into multiple events.
 
     Args:
         notes: Filtered notes
         config: Analysis configuration
 
     Returns:
-        List with consecutive same-pitch notes merged
+        List with same-pitch overlapping/consecutive notes merged
     """
     if not notes:
         return []
 
-    # Sort by start time then pitch
-    sorted_notes = sorted(notes, key=lambda n: (n.start_time, n.midi_note))
-    merged = []
-    current = sorted_notes[0]
+    by_pitch: dict[int, list[DetectedNote]] = {}
+    for n in notes:
+        by_pitch.setdefault(n.midi_note, []).append(n)
 
-    for note in sorted_notes[1:]:
-        # Check if same pitch and close enough to merge
-        if (note.midi_note == current.midi_note and
-            note.start_time - current.end_time <= config.merge_gap_threshold):
-            # Merge: extend current note, average confidence
-            avg_confidence = (current.confidence + note.confidence) / 2
-            max_amplitude = max(current.amplitude, note.amplitude)
-            max_bend = max(current.pitch_bend, note.pitch_bend)
-            current = DetectedNote(
-                start_time=current.start_time,
-                end_time=note.end_time,
-                midi_note=current.midi_note,
-                confidence=avg_confidence,
-                amplitude=max_amplitude,
-                pitch_bend=max_bend,
-            )
-        else:
-            merged.append(current)
-            current = note
+    merged: list[DetectedNote] = []
+    for pitch, group in by_pitch.items():
+        group.sort(key=lambda n: n.start_time)
+        current = group[0]
+        for note in group[1:]:
+            gap = note.start_time - current.end_time
+            if gap <= config.merge_gap_threshold:
+                current = DetectedNote(
+                    start_time=current.start_time,
+                    end_time=max(current.end_time, note.end_time),
+                    midi_note=pitch,
+                    confidence=max(current.confidence, note.confidence),
+                    amplitude=max(current.amplitude, note.amplitude),
+                    pitch_bend=max(current.pitch_bend, note.pitch_bend),
+                )
+            else:
+                merged.append(current)
+                current = note
+        merged.append(current)
 
-    merged.append(current)
+    merged.sort(key=lambda n: n.start_time)
     return merged
 
 
@@ -466,16 +482,24 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
     time_tolerance = config.harmonic_time_tolerance if config else 0.15
     amp_ratio = config.harmonic_amplitude_ratio if config else 0.7
     check_sub = config.filter_sub_harmonics if config else True
+    musical_ratio = config.musical_interval_amp_ratio if config else 0.35
+    protect_amp = config.harmonic_protect_amplitude if config else 0.45
 
-    # Harmonic intervals in semitones (octave, octave+fifth, 2 octaves)
+    # Harmonic intervals in semitones
     harmonic_intervals = [12, 19, 24, 28, 31]  # 1st through 5th harmonics
-    # Pure octaves (12 semitones) are very common in real guitar music
-    # (same note on different strings), so use a stricter threshold
-    octave_amp_ratio = 0.35  # Much stricter for octaves
+    # Octave (12) and octave+5th (19) are also common musical voicings
+    # (e.g., bass + melody an octave+5th up). Use stricter threshold so we
+    # only flag as harmonics when amplitude ratio strongly suggests overtone.
+    musical_intervals = {12, 19}
 
     filtered = []
 
     for note in notes:
+        # Loud notes are very rarely harmonics — protect them outright.
+        if note.amplitude >= protect_amp:
+            filtered.append(note)
+            continue
+
         is_harmonic = False
 
         for other in notes:
@@ -489,7 +513,7 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
             # Check if this note is a harmonic ABOVE the other
             interval = note.midi_note - other.midi_note
             if interval in harmonic_intervals:
-                threshold = octave_amp_ratio if interval == 12 else amp_ratio
+                threshold = musical_ratio if interval in musical_intervals else amp_ratio
                 if note.amplitude < other.amplitude * threshold:
                     is_harmonic = True
                     break
@@ -498,7 +522,7 @@ def _filter_harmonics(notes: list[DetectedNote], config: Optional[AudioAnalysisC
             if check_sub:
                 interval = other.midi_note - note.midi_note
                 if interval in harmonic_intervals:
-                    threshold = octave_amp_ratio if interval == 12 else amp_ratio
+                    threshold = musical_ratio if interval in musical_intervals else amp_ratio
                     if note.amplitude < other.amplitude * threshold:
                         is_harmonic = True
                         break

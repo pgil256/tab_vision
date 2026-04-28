@@ -99,17 +99,37 @@ class TestImprovedHarmonicsFilter:
         assert result[0].midi_note == 60
 
     def test_wider_time_tolerance(self):
-        """Harmonics with slight time offset are still caught within tolerance."""
+        """Harmonics with slight time offset are still caught within tolerance.
+
+        Interval 19 (octave+5th) is also a common musical voicing, so the
+        filter applies a stricter amplitude ratio (musical_interval_amp_ratio).
+        Only clearly quiet notes — well below the musical-voicing threshold —
+        are filtered as harmonics.
+        """
         config = AudioAnalysisConfig(
-            harmonic_time_tolerance=0.15, harmonic_amplitude_ratio=0.7
+            harmonic_time_tolerance=0.15, harmonic_amplitude_ratio=0.7,
+            musical_interval_amp_ratio=0.35, harmonic_protect_amplitude=0.45,
         )
         notes = [
             make_note(0.0, 0.5, 60, amp=0.8),
-            make_note(0.10, 0.5, 79, amp=0.3),  # octave+5th (19 semitones), 100ms offset
+            make_note(0.10, 0.5, 79, amp=0.2),  # octave+5th (19 semitones), 100ms offset, very quiet
         ]
         result = _filter_harmonics(notes, config)
         assert len(result) == 1
         assert result[0].midi_note == 60
+
+    def test_keeps_musical_octave_plus_fifth(self):
+        """Interval 19 at musically reasonable amplitude is a voicing, not a harmonic."""
+        config = AudioAnalysisConfig(
+            harmonic_time_tolerance=0.15, harmonic_amplitude_ratio=0.7,
+            musical_interval_amp_ratio=0.35, harmonic_protect_amplitude=0.45,
+        )
+        notes = [
+            make_note(0.0, 0.5, 60, amp=0.8),
+            make_note(0.10, 0.5, 79, amp=0.30),  # 0.30 > 0.8 * 0.35 = 0.28 → kept
+        ]
+        result = _filter_harmonics(notes, config)
+        assert len(result) == 2
 
     def test_keeps_when_sub_harmonics_disabled(self):
         config = AudioAnalysisConfig(
