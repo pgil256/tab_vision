@@ -28,6 +28,11 @@ agent_farm_report_*.html
 
 # Test data - video files (large binaries)
 test-data/**/*.mp4
+test-data/**/*.MOV
+test-data/**/*.mov
+
+# Windows alternate-data-stream metadata
+*:Zone.Identifier
 
 # Debug images
 debug_*.jpg
