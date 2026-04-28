@@ -42,7 +42,7 @@ def load_index():
         return json.load(f)['benchmarks']
 
 
-def diagnose_one(bm: dict, verbose: bool = False) -> dict | None:
+def diagnose_one(bm: dict, verbose: bool = False, dump_frames: bool = False) -> dict | None:
     """Run the diagnostic for one benchmark, returning per-video stats."""
     video_path = os.path.join(REPO_ROOT, bm['video_path'])
     gt_path = bm['ground_truth_path']
@@ -93,9 +93,29 @@ def diagnose_one(bm: dict, verbose: bool = False) -> dict | None:
               f"frets_detected={len(fretboard.fret_positions)} "
               f"actual_fret_numbers={fretboard.actual_fret_numbers} "
               f"conf={fretboard.detection_confidence:.2f}")
+        print(f"  fretboard corners: TL={fretboard.top_left} TR={fretboard.top_right} "
+              f"BL={fretboard.bottom_left} BR={fretboard.bottom_right}")
+        print(f"  frame: {fretboard.frame_width}x{fretboard.frame_height}")
         print(f"  timeline head:")
         for p in timeline[:5]:
             print(f"    t={p.timestamp:.2f} fret={p.anchor_fret:.2f} conf={p.confidence:.2f}")
+
+    if dump_frames:
+        from app.hand_anchor import _compute_palm_xy, project_palm_to_fret
+        print(f"\n  --- per-frame dump (first 10) ---")
+        print(f"  {'t':>6} {'is_lh':>6} {'ext':>4} {'palm_xn':>8} {'palm_yn':>8} "
+              f"{'wrist_xn':>8} {'wrist_yn':>8} {'fret':>8} {'conf':>6}")
+        for t in sorted(video_observations)[:10]:
+            obs = video_observations[t]
+            extended = [f for f in obs.fingers if f.finger_id != 0 and f.is_extended]
+            palm = _compute_palm_xy(obs)
+            palm_str = f"{palm[0]:.3f} {palm[1]:.3f}" if palm else "  None  "
+            wrist_str = (f"{obs.wrist_position[0]:.3f} {obs.wrist_position[1]:.3f}"
+                         if obs.wrist_position else "  None  ")
+            fret, conf = project_palm_to_fret(obs, fretboard)
+            fret_str = f"{fret:.2f}" if fret is not None else "None"
+            print(f"  {t:>6.2f} {str(obs.is_left_hand):>6} {len(extended):>4} "
+                  f"{palm_str:>17} {wrist_str:>17} {fret_str:>8} {conf:>6.2f}")
 
     # GT notes are dicts with `beat` — convert to timestamps via bpm + auto-align.
     bpm = bm.get('bpm')
@@ -164,6 +184,8 @@ def main():
     parser.add_argument('--id-prefix', type=str,
                         help='Run benchmarks whose id starts with this prefix')
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--dump-frames', action='store_true',
+                        help='Per-frame dump of palm/fret computation')
     args = parser.parse_args()
 
     benchmarks = load_index()
@@ -176,7 +198,7 @@ def main():
     for bm in benchmarks:
         print(f"\n--- {bm['id']} ---")
         try:
-            r = diagnose_one(bm, verbose=args.verbose)
+            r = diagnose_one(bm, verbose=args.verbose, dump_frames=args.dump_frames)
         except Exception as e:
             print(f"  ERROR: {e}")
             results[bm['id']] = {'error': str(e)}

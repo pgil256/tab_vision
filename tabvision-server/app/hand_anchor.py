@@ -201,6 +201,7 @@ def _median(values: list[float]) -> float:
 def build_hand_position_timeline(
     video_observations: dict[float, HandObservation],
     fretboard: Optional[FretboardGeometry],
+    require_fretting_hand: bool = False,
 ) -> list[HandAnchorPoint]:
     """Project every observation to a fret anchor, reject outliers, smooth over time.
 
@@ -208,6 +209,15 @@ def build_hand_position_timeline(
     MIN_FRAME_CONFIDENCE are dropped. Samples more than OUTLIER_FRET_THRESHOLD
     frets from the local median AND below OUTLIER_CONF_THRESHOLD are dropped.
     Retained samples are EMA-smoothed; gaps > GAP_RESET_SEC restart the filter.
+
+    Args:
+        video_observations: Frame-indexed hand detections.
+        fretboard: Detected fretboard geometry (None → empty timeline).
+        require_fretting_hand: When True, drop observations whose selected hand
+            is NOT the fretting hand (is_left_hand=False under MediaPipe's
+            mirrored labeling for a right-handed player). Prevents the anchor
+            from tracking the picking hand when MediaPipe only detected one
+            hand and picked the wrong one.
     """
     if not video_observations or fretboard is None:
         return []
@@ -216,6 +226,8 @@ def build_hand_position_timeline(
     raw: list[tuple[float, float, float]] = []  # (t, fret, conf)
     for t in sorted(video_observations):
         obs = video_observations[t]
+        if require_fretting_hand and not obs.is_left_hand:
+            continue
         fret, conf = project_palm_to_fret(obs, fretboard)
         if fret is None or conf < MIN_FRAME_CONFIDENCE:
             continue
