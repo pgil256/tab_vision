@@ -56,3 +56,8 @@ sample_frames/
 .security-key
 logs/security/
 .vercel
+
+# basic_pitch fine-tune artifacts (large; regenerate from sideloaded data)
+tabvision-server/tools/outputs/tfrecords/
+tabvision-server/tools/outputs/finetune_smoke/
+tabvision-server/validation_set_cache_*
