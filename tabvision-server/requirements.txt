@@ -14,3 +14,7 @@ gunicorn>=21.2.0
 # Used by tools/build_position_dataset.py; not needed by the runtime server.
 pandas>=2.0.0
 pyarrow>=15.0.0
+# Used by tools/train_position_selector.py; not needed by the runtime server.
+lightgbm>=4.0.0
+# Used by app/training/guitarset_dataset.py; not needed by the runtime server.
+mirdata>=0.3.0
