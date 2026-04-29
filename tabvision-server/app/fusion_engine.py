@@ -37,6 +37,37 @@ class TabNote:
 
 
 @dataclass
+class PositionDecision:
+    """One position-selection event for the learned-fusion training set.
+
+    Per-event header + per-candidate rows. Emitted by fusion when
+    `FusionConfig.emit_position_features` is True. See
+    docs/plans/2026-04-24-learned-fusion-design.md §4.2.
+    """
+    event_id: str
+    onset_time: float
+    midi_note: int
+    amplitude: float
+    basicpitch_confidence: float
+    is_chord: bool
+    chord_size: int
+    num_candidates: int
+    prev_position_string: Optional[int]
+    prev_position_fret: Optional[int]
+    seconds_since_prev: Optional[float]
+    hand_anchor_fret: Optional[float]
+    video_hand_anchor_fret: Optional[float]
+    selected_string: Optional[int]   # What fusion actually emitted (post video override)
+    selected_fret: Optional[int]
+    candidates: list[dict]
+    # Each candidate dict has:
+    #   cand_string, cand_fret,
+    #   dist_anchor_fret, dist_anchor_string,
+    #   dist_prev_fret, dist_prev_string,
+    #   heuristic_score, is_heuristic_pick (argmax of heuristic_score).
+
+
+@dataclass
 class Chord:
     """A group of simultaneous notes."""
     id: str
@@ -102,6 +133,13 @@ class FusionConfig:
     video_anchor_authoritative_threshold: float = 0.6   # v_conf ≥ this → video wins
     video_anchor_blend_threshold: float = 0.4           # v_conf ≥ this (and < auth) → blend
     video_anchor_max_gap: float = 0.3                   # query gap tolerance (seconds)
+
+    # Position-selector feature instrumentation (Step 1 of learned-fusion plan).
+    # When True, every single-note position-selection decision in
+    # fuse_audio_only / fuse_audio_video appends a PositionDecision to
+    # _feature_events. Default off → zero runtime cost.
+    emit_position_features: bool = False
+    _feature_events: Optional[list] = None  # caller initializes to [] before fuse
 
 
 def _create_muted_tab_notes(
@@ -572,6 +610,7 @@ def fuse_audio_only(
 
     tab_notes = []
     previous_position = None
+    previous_note_time: Optional[float] = None
 
     # Estimate initial hand position from note content
     all_notes = [n for chord in chords for n in chord]
@@ -646,12 +685,23 @@ def fuse_audio_only(
                 candidates, previous_position, config,
                 hand_position_fret=effective_hand_pos
             )
+            seconds_since_prev = (
+                (note.start_time - previous_note_time)
+                if previous_note_time is not None else None
+            )
+            _record_position_decision(
+                config, note, candidates, position,
+                previous_position, effective_hand_pos,
+                seconds_since_prev=seconds_since_prev,
+                is_chord=False, chord_size=1,
+            )
             if position:
                 tab_note = _create_tab_note(
                     note, position, chord_id, audio_confidence=note.confidence
                 )
                 tab_notes.append(tab_note)
                 previous_position = position
+                previous_note_time = note.start_time
                 # Update hand position with smoothing
                 if hand_position_fret is None:
                     hand_position_fret = float(position.fret)
@@ -680,6 +730,9 @@ def fuse_audio_only(
                         valid_positions,
                         key=lambda p: abs(p.fret - avg_fret)
                     )
+                    # Use earliest chord-note onset to advance the
+                    # seconds_since_prev clock for the next single-note event.
+                    previous_note_time = min(n.start_time for n, _ in chord_candidates)
                     # Chords update hand position more aggressively
                     if hand_position_fret is None:
                         hand_position_fret = avg_fret
@@ -707,6 +760,137 @@ def fuse_audio_only(
         tab_notes.sort(key=lambda n: n.timestamp)
 
     return tab_notes
+
+
+def _score_position_heuristic(
+    pos: Position,
+    config: FusionConfig,
+    previous_position: Optional[Position],
+    hand_position_fret: Optional[float],
+    style_weights: Optional[StyleWeights] = None,
+) -> float:
+    """Heuristic score the existing engine assigns to a candidate.
+
+    Module-level so the feature emitter can replay it without duplicating
+    branches. Behavior matches the original closure inside _select_best_position.
+    """
+    if style_weights is None:
+        style_weights = STYLE_WEIGHTS.get(
+            config.playing_style, STYLE_WEIGHTS[PlayingStyle.DEFAULT]
+        )
+
+    score = 0.0
+
+    if config.prefer_lower_frets:
+        score -= pos.fret * style_weights.lower_fret_weight
+
+    if pos.fret == 0:
+        if hand_position_fret is None or hand_position_fret <= 4:
+            score += 0.3
+
+    if config.prefer_same_position and hand_position_fret is not None:
+        fret_distance = abs(pos.fret - hand_position_fret)
+        score -= fret_distance * style_weights.position_stay_weight
+        if fret_distance > 4 and pos.fret > 0:
+            score -= (fret_distance - 4) * 0.3
+
+    if config.prefer_same_position and previous_position:
+        fret_distance = abs(pos.fret - previous_position.fret)
+        string_distance = abs(pos.string - previous_position.string)
+        score -= fret_distance * 0.15
+        score -= string_distance * 0.05
+
+    if 2 <= pos.string <= 5:
+        score += 0.03
+
+    if (config.chord_shape_config.position_awareness_enabled
+            and hand_position_fret is not None):
+        guitar_pos = get_position_for_fret(round(hand_position_fret))
+        if guitar_pos and guitar_pos.contains_fret(pos.fret):
+            score += 0.1
+        elif pos.fret > 0:
+            score -= 0.05
+
+    if (config.chord_shape_config.scale_pattern_enabled
+            and hand_position_fret is not None):
+        scale_score = score_positions_against_scale(
+            [pos], round(hand_position_fret), config.playing_style
+        )
+        score += scale_score * 0.1
+
+    return score
+
+
+def _record_position_decision(
+    config: FusionConfig,
+    note: DetectedNote,
+    candidates: list[Position],
+    selected: Optional[Position],
+    previous_position: Optional[Position],
+    hand_position_fret: Optional[float],
+    seconds_since_prev: Optional[float] = None,
+    is_chord: bool = False,
+    chord_size: int = 1,
+    video_hand_anchor_fret: Optional[float] = None,
+) -> None:
+    """Append a PositionDecision to config._feature_events when emit flag is on.
+
+    No-op if the flag is off or the events list is None. Caller is responsible
+    for initializing config._feature_events to an empty list before fuse.
+    """
+    if not config.emit_position_features or config._feature_events is None:
+        return
+    if not candidates:
+        return
+
+    style_weights = STYLE_WEIGHTS.get(
+        config.playing_style, STYLE_WEIGHTS[PlayingStyle.DEFAULT]
+    )
+
+    cand_rows: list[dict] = []
+    best_score = float('-inf')
+    best_idx = -1
+    for i, c in enumerate(candidates):
+        score = _score_position_heuristic(
+            c, config, previous_position, hand_position_fret, style_weights,
+        )
+        if score > best_score:
+            best_score = score
+            best_idx = i
+        cand_rows.append({
+            'cand_string': c.string,
+            'cand_fret': c.fret,
+            'dist_anchor_fret': (c.fret - hand_position_fret)
+                if hand_position_fret is not None else None,
+            'dist_anchor_string': None,  # anchor has no string component
+            'dist_prev_fret': (c.fret - previous_position.fret)
+                if previous_position is not None else None,
+            'dist_prev_string': (c.string - previous_position.string)
+                if previous_position is not None else None,
+            'heuristic_score': score,
+            'is_heuristic_pick': False,
+        })
+    if best_idx >= 0:
+        cand_rows[best_idx]['is_heuristic_pick'] = True
+
+    config._feature_events.append(PositionDecision(
+        event_id=str(uuid4()),
+        onset_time=note.start_time,
+        midi_note=note.midi_note,
+        amplitude=note.amplitude,
+        basicpitch_confidence=note.confidence,
+        is_chord=is_chord,
+        chord_size=chord_size,
+        num_candidates=len(candidates),
+        prev_position_string=previous_position.string if previous_position else None,
+        prev_position_fret=previous_position.fret if previous_position else None,
+        seconds_since_prev=seconds_since_prev,
+        hand_anchor_fret=hand_position_fret,
+        video_hand_anchor_fret=video_hand_anchor_fret,
+        selected_string=selected.string if selected else None,
+        selected_fret=selected.fret if selected else None,
+        candidates=cand_rows,
+    ))
 
 
 def _select_best_position(
@@ -741,62 +925,12 @@ def _select_best_position(
         config.playing_style, STYLE_WEIGHTS[PlayingStyle.DEFAULT]
     )
 
-    # Score each candidate
-    def score_position(pos: Position) -> float:
-        score = 0.0
-
-        # Prefer lower frets (weight from style)
-        if config.prefer_lower_frets:
-            score -= pos.fret * style_weights.lower_fret_weight
-
-        # Open string bonus in low position: open strings are ergonomically
-        # easy and help the algorithm cross strings correctly in scales
-        if pos.fret == 0:
-            if hand_position_fret is None or hand_position_fret <= 4:
-                score += 0.3
-
-        # Strong preference for staying near hand position
-        if config.prefer_same_position and hand_position_fret is not None:
-            fret_distance = abs(pos.fret - hand_position_fret)
-            score -= fret_distance * style_weights.position_stay_weight
-            # Extra stretch penalty beyond a 4-fret span from hand position
-            if fret_distance > 4 and pos.fret > 0:
-                score -= (fret_distance - 4) * 0.3
-
-        # Prefer staying near previous position
-        if config.prefer_same_position and previous_position:
-            fret_distance = abs(pos.fret - previous_position.fret)
-            string_distance = abs(pos.string - previous_position.string)
-            score -= fret_distance * 0.15
-            score -= string_distance * 0.05
-
-        # Slight preference for middle strings (2-5)
-        if 2 <= pos.string <= 5:
-            score += 0.03
-
-        # Positional pattern awareness: bonus for frets within the current
-        # guitar position's expected range
-        if (config.chord_shape_config.position_awareness_enabled
-                and hand_position_fret is not None):
-            guitar_pos = get_position_for_fret(round(hand_position_fret))
-            if guitar_pos and guitar_pos.contains_fret(pos.fret):
-                score += 0.1
-            elif pos.fret > 0:
-                # Penalty for notes outside the position range
-                score -= 0.05
-
-        # Scale pattern bonus: if this note fits within a recognized scale
-        # pattern at the current position
-        if (config.chord_shape_config.scale_pattern_enabled
-                and hand_position_fret is not None):
-            scale_score = score_positions_against_scale(
-                [pos], round(hand_position_fret), config.playing_style
-            )
-            score += scale_score * 0.1
-
-        return score
-
-    return max(candidates, key=score_position)
+    return max(
+        candidates,
+        key=lambda p: _score_position_heuristic(
+            p, config, previous_position, hand_position_fret, style_weights,
+        ),
+    )
 
 
 def _optimize_chord_positions(
@@ -1735,6 +1869,7 @@ def fuse_audio_video(
 
     tab_notes = []
     previous_position = None
+    previous_note_time: Optional[float] = None
     hand_position_fret = None
 
     for i, chord_notes_group in enumerate(chords):
@@ -1849,6 +1984,17 @@ def fuse_audio_video(
                 video_matched = False
                 v_conf = 0.0
 
+            seconds_since_prev = (
+                (note.start_time - previous_note_time)
+                if previous_note_time is not None else None
+            )
+            _record_position_decision(
+                config, note, candidates, position,
+                previous_position, effective_hand_pos,
+                seconds_since_prev=seconds_since_prev,
+                is_chord=False, chord_size=1,
+                video_hand_anchor_fret=video_anchor,
+            )
             tab_note = TabNote(
                 id=str(uuid4()),
                 timestamp=note.start_time,
@@ -1866,6 +2012,7 @@ def fuse_audio_video(
             )
             tab_notes.append(tab_note)
             previous_position = position
+            previous_note_time = note.start_time
             if anchor_source == "video":
                 # Track video anchor directly — don't let picks drag the anchor back
                 # toward audio-only heuristics for the next chord.
@@ -1922,6 +2069,7 @@ def fuse_audio_video(
             if valid_positions:
                 avg_fret = sum(p.fret for p in valid_positions) / len(valid_positions)
                 previous_position = min(valid_positions, key=lambda p: abs(p.fret - avg_fret))
+                previous_note_time = min(n.start_time for n, _ in chord_candidates)
                 if anchor_source == "video":
                     hand_position_fret = effective_hand_pos
                 elif hand_position_fret is None:
