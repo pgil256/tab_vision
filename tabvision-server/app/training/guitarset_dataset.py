@@ -1,14 +1,18 @@
 """GuitarSet dataset loader for the audio-finetune Phase 1.
 
 Phase 1 Week 1 deliverable per
-docs/plans/2026-04-24-audio-backbone-finetune-design.md §7. Uses mirdata
-to handle download + caching, exposes a thin per-track parser that returns
-mono audio + (onset, midi, string, fret, end) annotations from JAMS.
+docs/plans/2026-04-24-audio-backbone-finetune-design.md §7. Reads JAMS
+files directly from disk and returns (onset, duration, midi, string, fret)
+notes — no mirdata dependency at parse time, so the parser works equally
+well whether the data was sideloaded from HuggingFace
+(`tools/sideload_guitarset_from_hf.py`) or downloaded from Zenodo via
+mirdata.
 
-Not a full PyTorch Dataset yet — that arrives once the Basic Pitch training
-loop is forked and its expected tensor shapes are known. This file is the
-data-side de-risk: confirm the JAMS schema is what we think it is and that
-mirdata reliably loads it before we commit to the training-loop fork.
+Not a full PyTorch / TF Dataset yet — Spotify's basic_pitch ships its own
+TFRecord pipeline + training loop (see `basic_pitch.data.datasets.guitarset`
+and `basic_pitch.train`), so we'll feed those rather than build our own
+training loop. This module stays useful for evaluation, debugging, and
+sanity-checking the JAMS schema.
 
 Usage:
     python -m app.training.guitarset_dataset --download
@@ -40,27 +44,35 @@ class GuitarSetNote:
     fret: int          # rounded from JAMS fret
 
 
-def _initialize(data_home: str = DEFAULT_DATA_HOME):
-    import mirdata
-    return mirdata.initialize('guitarset', data_home=data_home)
+_OPEN_STRING_MIDI_BY_DATA_SOURCE = {
+    # GuitarSet JAMS convention (matches mirdata's
+    # _GUITAR_STRINGS = ["E", "A", "D", "G", "B", "e"]): data_source "0"
+    # is the low-E string, "5" is the high-E string.
+    '0': 40,  # low E
+    '1': 45,  # A
+    '2': 50,  # D
+    '3': 55,  # G
+    '4': 59,  # B
+    '5': 64,  # high E
+}
+# Tab convention used by the rest of the pipeline: string 1 = high E,
+# string 6 = low E.
+_STRING_ID_BY_DATA_SOURCE = {
+    '0': 6, '1': 5, '2': 4, '3': 3, '4': 2, '5': 1,
+}
 
 
 def download_partition(partition: str = 'audio_mic',
                        data_home: str = DEFAULT_DATA_HOME,
                        force_overwrite: bool = False) -> None:
-    """Download a GuitarSet partition (audio + annotations).
+    """Download a GuitarSet partition via mirdata (Zenodo).
 
-    Partitions:
-      annotations         — JAMS files only (~6 MB)
-      audio_mic           — mono mic recording (~580 MB)
-      audio_hex_debleeded — hex pickup, per-string (~1.4 GB)
-      audio_hex_original  — hex pickup, raw (~1.4 GB)
-      audio_mix           — mono mixed pickup (~580 MB)
-
-    For Basic Pitch fine-tuning the audio_mic + annotations partitions are
-    sufficient (Basic Pitch is mono-input).
+    For environments where Zenodo is unreachable, use
+    `tools/sideload_guitarset_from_hf.py` to pull from the
+    `taohu/guitarset` HuggingFace mirror instead.
     """
-    gs = _initialize(data_home)
+    import mirdata
+    gs = mirdata.initialize('guitarset', data_home=data_home)
     print(f'Downloading partitions: annotations + {partition} -> {data_home}',
           file=sys.stderr)
     gs.download(
@@ -71,53 +83,55 @@ def download_partition(partition: str = 'audio_mic',
 
 
 def list_track_ids(data_home: str = DEFAULT_DATA_HOME) -> list[str]:
-    """Return all GuitarSet track_ids (e.g., '00_BN1-129-Eb_solo')."""
-    gs = _initialize(data_home)
-    return sorted(gs.track_ids)
+    """List track_ids by globbing the annotation directory."""
+    annotation_dir = os.path.join(data_home, 'annotation')
+    if not os.path.isdir(annotation_dir):
+        return []
+    track_ids = []
+    for name in os.listdir(annotation_dir):
+        if name.endswith('.jams'):
+            track_ids.append(name[:-len('.jams')])
+    return sorted(track_ids)
 
 
 def load_track_notes(track_id: str,
                      data_home: str = DEFAULT_DATA_HOME) -> list[GuitarSetNote]:
-    """Parse one track's JAMS annotation into a list of GuitarSetNote.
+    """Parse one track's JAMS annotation directly into GuitarSetNote rows.
 
-    GuitarSet JAMS schema: each track has 6 `note_midi` annotations (one per
-    string). Each annotation contains intervals + labeled MIDI pitch values.
-    Fret is derived from the MIDI - open-string MIDI for that string.
+    GuitarSet JAMS schema: 6 `note_midi` annotations per track, one per
+    string, distinguished by `annotation_metadata.data_source` ("0" = high
+    E ... "5" = low E). Fret = round(MIDI) - open-string MIDI.
     """
-    gs = _initialize(data_home)
-    track = gs.track(track_id)
+    import json
 
-    # mirdata exposes `notes_all` which merges all 6 string annotations.
-    notes_all = track.notes_all
-    if notes_all is None:
+    jams_path = os.path.join(data_home, 'annotation', f'{track_id}.jams')
+    if not os.path.exists(jams_path):
         return []
+    with open(jams_path) as f:
+        jams = json.load(f)
 
-    # Per-string: mirdata exposes `notes` as dict[string_idx, notes_obj] with
-    # string indices 0-5 (1=high E in mirdata convention; we'll re-map).
-    # Use that to recover string + fret per note.
-    per_string = track.notes
     out: list[GuitarSetNote] = []
-    if per_string is None:
-        return []
-    open_string_midi_by_idx = {0: 64, 1: 59, 2: 55, 3: 50, 4: 45, 5: 40}
-    string_id_by_idx = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6}
-    for s_idx, ns in per_string.items():
-        if ns is None:
+    for ann in jams.get('annotations', []):
+        if ann.get('namespace') != 'note_midi':
             continue
-        intervals = ns.intervals
-        pitches = ns.pitches  # MIDI numbers (may be float)
-        for (start, end), midi in zip(intervals, pitches):
-            midi_int = int(round(midi))
-            fret = midi_int - open_string_midi_by_idx[s_idx]
+        ds = ann.get('annotation_metadata', {}).get('data_source')
+        if ds not in _OPEN_STRING_MIDI_BY_DATA_SOURCE:
+            continue
+        open_midi = _OPEN_STRING_MIDI_BY_DATA_SOURCE[ds]
+        string_id = _STRING_ID_BY_DATA_SOURCE[ds]
+        for d in ann.get('data', []) or []:
+            try:
+                onset = float(d['time'])
+                duration = float(d['duration'])
+                midi_int = int(round(float(d['value'])))
+            except (KeyError, TypeError, ValueError):
+                continue
+            fret = midi_int - open_midi
             if fret < 0 or fret > 24:
-                # Skip clearly impossible mapping (likely string-index mismatch)
                 continue
             out.append(GuitarSetNote(
-                onset=float(start),
-                duration=float(end - start),
-                midi_note=midi_int,
-                string=string_id_by_idx[s_idx],
-                fret=fret,
+                onset=onset, duration=duration, midi_note=midi_int,
+                string=string_id, fret=fret,
             ))
     out.sort(key=lambda n: (n.onset, n.string))
     return out
