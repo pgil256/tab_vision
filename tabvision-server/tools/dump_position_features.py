@@ -123,8 +123,7 @@ def summarize(per_video: dict[str, list[dict]]) -> str:
             f'max={max(cand_per_event)} '
             f'mean={sum(cand_per_event) / len(cand_per_event):.1f}'
         )
-    lines.append(f'Chord events: {chord_count} '
-                 '(expected 0 — chord path not instrumented yet)')
+    lines.append(f'Chord events: {chord_count} (is_chord=True)')
     lines.append(f'Events with video_hand_anchor: {video_anchor_count}')
     lines.append(f'Events with seconds_since_prev set: {seconds_since_seen}')
     if selected_total:

@@ -108,3 +108,50 @@ class TestEventSchema:
         picked = next(c for c in evt.candidates if c['is_heuristic_pick'])
         assert evt.selected_string == picked['cand_string']
         assert evt.selected_fret == picked['cand_fret']
+
+
+class TestChordEmission:
+    def test_chord_notes_emit_with_chord_context(self):
+        config = FusionConfig()
+        config.enable_prefiltering = False
+        config.emit_position_features = True
+        config._feature_events = []
+
+        # Two notes at the same time form a chord (within chord_time_tolerance=0.05s).
+        fuse_audio_only(
+            [_make_note(1.0, 60), _make_note(1.01, 64)],
+            capo_fret=0, config=config,
+        )
+
+        # Two chord-note events. No single-note events.
+        assert len(config._feature_events) == 2
+        for evt in config._feature_events:
+            assert evt.is_chord is True
+            assert evt.chord_size == 2
+
+        # chord_string_span is set when at least 2 positions are assigned.
+        spans = [evt.chord_string_span for evt in config._feature_events]
+        assert spans[0] is not None
+        assert spans[0] == spans[1]  # all chord notes share the span
+        assert spans[0] >= 0
+
+    def test_anchor_pass_does_not_double_emit(self):
+        # 3+ note chords trigger the anchor establishment pass which calls
+        # _optimize_chord_positions a second time. emit_features=False there
+        # ensures we don't double-count.
+        config = FusionConfig()
+        config.enable_prefiltering = False
+        config.emit_position_features = True
+        config._feature_events = []
+
+        fuse_audio_only(
+            [_make_note(1.0, 60), _make_note(1.01, 64), _make_note(1.02, 67)],
+            capo_fret=0, config=config,
+        )
+
+        # Exactly 3 events — one per chord note from the main loop, not
+        # 6 (3 from anchor pass + 3 from main loop).
+        assert len(config._feature_events) == 3
+        for evt in config._feature_events:
+            assert evt.is_chord is True
+            assert evt.chord_size == 3

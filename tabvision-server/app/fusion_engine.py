@@ -51,6 +51,7 @@ class PositionDecision:
     basicpitch_confidence: float
     is_chord: bool
     chord_size: int
+    chord_string_span: Optional[int]  # max - min string in final chord assignment
     num_candidates: int
     prev_position_string: Optional[int]
     prev_position_fret: Optional[int]
@@ -629,7 +630,8 @@ def fuse_audio_only(
                     chord_candidates.append((note, candidates))
             if len(chord_candidates) >= 3:
                 positions = _optimize_chord_positions(
-                    chord_candidates, None, config, hand_position_fret=None
+                    chord_candidates, None, config, hand_position_fret=None,
+                    emit_features=False,
                 )
                 valid = [p for p in positions if p]
                 if valid:
@@ -712,7 +714,8 @@ def fuse_audio_only(
             chord_hand_pos = effective_hand_pos
             selected_positions = _optimize_chord_positions(
                 chord_candidates, previous_position, config,
-                hand_position_fret=chord_hand_pos
+                hand_position_fret=chord_hand_pos,
+                previous_note_time=previous_note_time,
             )
             for (note, _), position in zip(chord_candidates, selected_positions):
                 if position:
@@ -831,6 +834,7 @@ def _record_position_decision(
     seconds_since_prev: Optional[float] = None,
     is_chord: bool = False,
     chord_size: int = 1,
+    chord_string_span: Optional[int] = None,
     video_hand_anchor_fret: Optional[float] = None,
 ) -> None:
     """Append a PositionDecision to config._feature_events when emit flag is on.
@@ -881,6 +885,7 @@ def _record_position_decision(
         basicpitch_confidence=note.confidence,
         is_chord=is_chord,
         chord_size=chord_size,
+        chord_string_span=chord_string_span,
         num_candidates=len(candidates),
         prev_position_string=previous_position.string if previous_position else None,
         prev_position_fret=previous_position.fret if previous_position else None,
@@ -937,7 +942,9 @@ def _optimize_chord_positions(
     chord_candidates: list[tuple[DetectedNote, list[Position]]],
     previous_position: Optional[Position],
     config: FusionConfig,
-    hand_position_fret: Optional[float] = None
+    hand_position_fret: Optional[float] = None,
+    emit_features: bool = True,
+    previous_note_time: Optional[float] = None,
 ) -> list[Optional[Position]]:
     """Optimize positions for a chord (multiple simultaneous notes).
 
@@ -1119,6 +1126,31 @@ def _optimize_chord_positions(
                     best_assignments[orig_idx] = position
             else:
                 best_assignments[orig_idx] = None
+
+    # Emit one PositionDecision per chord note when feature flag is on.
+    if emit_features and config.emit_position_features and config._feature_events is not None:
+        final_positions = [
+            best_assignments.get(i) for i in range(len(chord_candidates))
+        ]
+        valid = [p for p in final_positions if p]
+        chord_string_span = (
+            max(p.string for p in valid) - min(p.string for p in valid)
+            if len(valid) >= 2 else None
+        )
+        chord_onset = chord_candidates[0][0].start_time
+        seconds_since_prev = (
+            (chord_onset - previous_note_time)
+            if previous_note_time is not None else None
+        )
+        for idx, (note, cand_list) in enumerate(chord_candidates):
+            _record_position_decision(
+                config, note, cand_list, final_positions[idx],
+                previous_position, hand_position_fret,
+                seconds_since_prev=seconds_since_prev,
+                is_chord=True,
+                chord_size=len(chord_candidates),
+                chord_string_span=chord_string_span,
+            )
 
     # Return in original order
     return [best_assignments.get(i) for i in range(len(chord_candidates))]
@@ -1828,7 +1860,10 @@ def fuse_audio_video(
                 if candidates:
                     cc.append((note, candidates))
             if len(cc) >= 3:
-                positions = _optimize_chord_positions(cc, None, config, hand_position_fret=None)
+                positions = _optimize_chord_positions(
+                    cc, None, config, hand_position_fret=None,
+                    emit_features=False,
+                )
                 valid = [p for p in positions if p]
                 if valid:
                     frets = [p.fret for p in valid if p.fret > 0]
@@ -2028,7 +2063,8 @@ def fuse_audio_video(
 
             selected_positions = _optimize_chord_positions(
                 chord_candidates, previous_position, config,
-                hand_position_fret=chord_hand_pos
+                hand_position_fret=chord_hand_pos,
+                previous_note_time=previous_note_time,
             )
 
             for idx, ((note, _), position) in enumerate(zip(chord_candidates, selected_positions)):
