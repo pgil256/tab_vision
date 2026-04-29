@@ -113,10 +113,22 @@ These also clean up the baseline we measure fine-tuning against. Ship them behin
 
 ### Week 2 — baseline + first fine-tune
 
-- Split GuitarSet 80/20 by player.
-- Evaluate vanilla Basic Pitch on the held-out 20% — record note F1, frame F1, onset P/R. This is our research baseline.
-- First fine-tune: unfreeze all weights, lr=1e-4, batch=8, 20 epochs, Adam, standard Basic Pitch losses (BCE on onset + CE on pitch). Rent an A10G (~8 hours, $3–5).
-- Evaluate on the held-out split. First Δ vs vanilla.
+- Split GuitarSet 80/20 by player. **Done 2026-04-29:** TFRecords at `tabvision-server/tools/outputs/tfrecords/guitarset/splits/` — 5 players (300 clips) train, 1 player (60 clips) validation. Built by `tools/build_guitarset_tfrecords.py`.
+
+- **Vanilla baseline on the held-out player(s).** Research-baseline reference point for the fine-tune Δ. Plan §0 ship gate is exact-F1 on our 20-video set, *not* on GuitarSet held-out — but we still measure GuitarSet held-out so we know whether the fine-tune is moving the right needle in-distribution before we look at OOD.
+  - Tooling: load the shipped Basic Pitch into a Keras model via `app.training.load_pretrained.load_pretrained_basic_pitch_weights` (verified equivalent to the SavedModel within float32 noise, 2026-04-29). Iterate the validation TFRecord through `parse_transcription_tfexample`, run forward, threshold the output, compute metrics.
+  - Metrics:
+    - **Frame note F1** at thresholds {0.3, 0.5, 0.7} on the `note` head (binary per-frame pitch activation against the `note_indices`/`note_values` sparse target densified to (T, 88)).
+    - **Onset P/R/F1** at thresholds {0.3, 0.5, 0.7} on the `onset` head against `onsets_indices` (single-frame events; allow ±1 frame tolerance ≈ ±12ms before declaring a miss).
+    - **Note-event F1** via `mir_eval.transcription.precision_recall_f1_overlap` after running `basic_pitch.note_creation.model_output_to_notes` (the same code path `predict.py` uses) — apples-to-apples to what the fine-tune output will produce. Default thresholds first, then sweep onset/frame thresholds at 0.05 stride.
+  - Output: a markdown report at `tabvision-server/tools/outputs/finetune_baseline-YYYY-MM-DD.md` matching the format of `position_selector_report-2026-04-29.md`. Commit it.
+  - Acceptance: report exists, numbers are consistent (frame F1 ≥ note-event F1 ≥ 0 — sanity), reproduce within 0.5pp on a re-run.
+
+- **First fine-tune.** Unfreeze all weights, lr=1e-4, batch=8, 20 epochs, Adam, standard Basic Pitch losses (BCE on onset + CE on pitch). Rent an A10G (~8 hours, $3–5).
+  - Initialize from pretrained: monkey-patch `basic_pitch.train.models.model` to call `load_pretrained_basic_pitch_weights` after construction, **before** calling `train.main`. Without this we'd train from scratch.
+  - Use `tools/finetune_basic_pitch_smoke.py` as the runner shape, but bumped to the full hparams above and pointed at the full TFRecord set.
+
+- **Evaluate the fine-tuned checkpoint** on the held-out split with the same harness used for the vanilla baseline. First Δ vs vanilla.
 
 ### Week 3 — OOD evaluation + augmentation
 
