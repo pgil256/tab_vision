@@ -60,4 +60,5 @@ logs/security/
 # basic_pitch fine-tune artifacts (large; regenerate from sideloaded data)
 tabvision-server/tools/outputs/tfrecords/
 tabvision-server/tools/outputs/finetune_smoke/
+tabvision-server/tools/outputs/finetune/
 tabvision-server/validation_set_cache_*

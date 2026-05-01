@@ -281,14 +281,17 @@ def _eval_one_track(
     audio_path: str,
     jams_path: str,
     note_thresh_sweep: Iterable[tuple[float, float]],
+    model_path: str | None = None,
 ) -> _PerTrackResult:
     """Run inference.run_inference on the audio file (overlap+unwrap-correct),
     then compute frame / onset / note-event metrics."""
     from basic_pitch.inference import run_inference, Model
     from basic_pitch import ICASSP_2022_MODEL_PATH
-    if not hasattr(_eval_one_track, '_cached_model'):
-        _eval_one_track._cached_model = Model(str(ICASSP_2022_MODEL_PATH))
-    out = run_inference(audio_path, model_or_model_path=_eval_one_track._cached_model)
+    resolved = model_path or str(ICASSP_2022_MODEL_PATH)
+    cache_key = f'_cached_model_{resolved}'
+    if not hasattr(_eval_one_track, cache_key):
+        setattr(_eval_one_track, cache_key, Model(resolved))
+    out = run_inference(audio_path, model_or_model_path=getattr(_eval_one_track, cache_key))
     n_frames = out['note'].shape[0]
     target_note, target_onset = _frame_targets_from_jams(jams_path, n_frames)
 
@@ -500,6 +503,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     help='evaluate only the first N tracks (for smoke runs)')
     ap.add_argument('--coarse-sweep', action='store_true',
                     help='use a smaller threshold sweep — 0.1 stride instead of 0.05 — for speed')
+    ap.add_argument('--model-path', default=None,
+                    help='path to a Basic Pitch SavedModel directory (defaults to '
+                         'the shipped ICASSP_2022 weights — pass a fine-tune output to '
+                         'evaluate that instead)')
+    ap.add_argument('--label', default='baseline',
+                    help='filename suffix for the report — output goes to '
+                         'tools/outputs/finetune_{label}-{date}.{md,csv}')
     args = ap.parse_args(argv)
 
     # Determine threshold sweep.
@@ -527,7 +537,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f'  ! {tid}: missing audio or JAMS', file=sys.stderr)
             continue
         try:
-            r = _eval_one_track(tid, audio_path, jams_path, note_thresh_sweep=sweep)
+            r = _eval_one_track(
+                tid, audio_path, jams_path, note_thresh_sweep=sweep,
+                model_path=args.model_path,
+            )
         except Exception as exc:  # noqa: BLE001
             print(f'  ! {tid}: {exc}', file=sys.stderr)
             continue
@@ -548,8 +561,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     summary = _aggregate(results)
     today = dt.date.today().isoformat()
-    md_path = os.path.join(args.output_dir, f'finetune_baseline-{today}.md')
-    csv_path = os.path.join(args.output_dir, f'finetune_baseline-{today}.csv')
+    md_path = os.path.join(args.output_dir, f'finetune_{args.label}-{today}.md')
+    csv_path = os.path.join(args.output_dir, f'finetune_{args.label}-{today}.csv')
     _write_report(md_path, csv_path, results, summary, split_label=args.split)
     print(f'wrote {md_path}', file=sys.stderr)
     print(f'wrote {csv_path}', file=sys.stderr)
