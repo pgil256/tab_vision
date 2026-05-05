@@ -27,6 +27,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--videos", nargs="+", type=Path, required=True)
     parser.add_argument("--gt-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument(
+        "--no-filters",
+        action="store_true",
+        help="disable Phase-1-polish filter pipeline (raw Basic Pitch only)",
+    )
     args = parser.parse_args(argv)
 
     from tabvision.audio.basicpitch import BasicPitchBackend
@@ -36,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cfg = GuitarConfig()
     session = SessionConfig()
-    backend = BasicPitchBackend()
+    backend = BasicPitchBackend(filter_config=not args.no_filters)
 
     rows: list[dict] = []
     for video in args.videos:

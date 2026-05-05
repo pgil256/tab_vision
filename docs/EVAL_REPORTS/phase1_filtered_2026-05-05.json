@@ -1,0 +1,33 @@
+{
+  "n_clips": 3,
+  "n_succeeded": 3,
+  "rows": [
+    {
+      "clip": "training-01",
+      "duration_s": 18.97,
+      "audio_events": 41,
+      "tab_events": 41,
+      "gt_notes": 16,
+      "ratio_detected_to_gt": 2.562,
+      "error": null
+    },
+    {
+      "clip": "training-03",
+      "duration_s": 18.63,
+      "audio_events": 25,
+      "tab_events": 25,
+      "gt_notes": 13,
+      "ratio_detected_to_gt": 1.923,
+      "error": null
+    },
+    {
+      "clip": "training-06",
+      "duration_s": 16.03,
+      "audio_events": 50,
+      "tab_events": 50,
+      "gt_notes": 36,
+      "ratio_detected_to_gt": 1.389,
+      "error": null
+    }
+  ]
+}

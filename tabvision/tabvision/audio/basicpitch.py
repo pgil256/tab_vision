@@ -16,6 +16,7 @@ from typing import Sequence
 import numpy as np
 import soundfile as sf
 
+from tabvision.audio.filters import AudioFilterConfig, apply_default_filters
 from tabvision.errors import BackendError, InvalidInputError
 from tabvision.types import AudioEvent, SessionConfig
 
@@ -47,12 +48,28 @@ class BasicPitchBackend:
         min_note_length_ms: int = DEFAULT_MIN_NOTE_LENGTH_MS,
         min_pitch_midi: int = GUITAR_MIDI_MIN,
         max_pitch_midi: int = GUITAR_MIDI_MAX,
+        filter_config: AudioFilterConfig | None | bool = True,
     ) -> None:
+        """Construct the backend.
+
+        Args:
+            filter_config: Post-detection filter configuration. ``True``
+                (default) applies the v0-equivalent defaults; ``False`` or
+                ``None`` disables filtering entirely (Phase 1 raw mode);
+                an ``AudioFilterConfig`` instance for explicit control.
+        """
         self.onset_threshold = onset_threshold
         self.frame_threshold = frame_threshold
         self.min_note_length_ms = min_note_length_ms
         self.min_pitch_midi = min_pitch_midi
         self.max_pitch_midi = max_pitch_midi
+
+        if filter_config is True:
+            self.filter_config: AudioFilterConfig | None = AudioFilterConfig()
+        elif filter_config in (False, None):
+            self.filter_config = None
+        else:
+            self.filter_config = filter_config  # type: ignore[assignment]
 
     def transcribe(
         self, wav: np.ndarray, sr: int, session: SessionConfig
@@ -91,6 +108,10 @@ class BasicPitchBackend:
 
         events = self._note_events_to_audio_events(note_events)
         events.sort(key=lambda e: e.onset_s)
+
+        if self.filter_config is not None:
+            events = apply_default_filters(events, self.filter_config)
+
         return events
 
     def _note_events_to_audio_events(
