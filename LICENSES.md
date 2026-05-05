@@ -60,7 +60,7 @@ verifies.
 | EGDB | 1.5 / 7 | TBD | ⚠️ | https://github.com/ss12f32v/GuitarTranscription — multi-amp distorted electric. Verify before relying on it for distorted-electric tier eval. |
 | DadaGP | 7 | TBD | ⚠️ | https://github.com/dada-bots/dadaGP — GuitarPro tabs as synthetic-data substrate. |
 | User clips (existing 11/20 self-recorded) | 1.5 (bonus) | self-owned | ✅ | iPhone OOD bonus tier per design doc §6. Owned by Patrick. |
-| Roboflow `b101/guitar-3` | 3 (training) | TBD — verify via SDK + per Roboflow Universe ToS | ⚠️ | Source: https://universe.roboflow.com/b101/guitar-3. Used to fine-tune the YOLO-OBB guitar detector. Attribution: workspace `b101`, project `guitar-3`, version 3, accessed 2026-05-05 via Roboflow Universe. Specific license auto-detected at acquire time (`scripts/acquire/datasets.py guitar` reads the dataset's `license` field via the Roboflow SDK and refuses to download non-redistributable variants for our default pipeline). |
+| Roboflow `b101/guitar-3` | 3 (training) | **CC BY 4.0** | ✅ | **Verified 2026-05-05.** Source: https://universe.roboflow.com/b101/guitar-3. Forked into Patrick's workspace as `patricks-workspace-vozcg/guitar-3-4efcd` v2; YOLOv8-OBB export downloaded (926 images, 710/144/72 split, classes: fret / neck / nut). License declared in the dataset's README.dataset.txt: "License: CC BY 4.0". Attribution: "guitar 3" by b101 on Roboflow Universe (https://universe.roboflow.com/b101/guitar-3), CC BY 4.0; export downloaded May 5, 2026 via the Roboflow SDK. **Required attribution must appear in the public README and any blog post.** |
 
 ## Library dependencies (default pipeline)
 

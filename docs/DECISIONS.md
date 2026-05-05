@@ -148,6 +148,45 @@ trail.
 
 ---
 
+## 2026-05-05 — Phase 3 dataset reveals 3-class fretboard-parts annotation (not whole-guitar bbox)
+
+**Phase:** 3 (training)
+**Decision tree:** SPEC §7 Phase 3 — assumes one detector emits a single
+"guitar" class bbox. The actual Roboflow dataset emits three classes:
+fret / neck / nut.
+**Branch taken:** **Treat the YOLO-OBB model as a unified guitar-region
++ fretboard-keypoint detector.** Use the `neck` class as the proxy for
+GuitarBBox (preflight + cropping), and the `fret` + `nut` classes as
+fretboard-rectification keypoints (replacing v0's Hough-line geometric
+detection as the primary fretboard path).
+**Evidence:**
+- README.dataset.txt: 926 images, classes [fret, neck, nut], CC BY 4.0,
+  YOLOv8-OBB format.
+- Roboflow API: project type = "instance-segmentation"; OBB export
+  converts polygons → oriented bboxes per class. 36k frets / 1.8k nuts /
+  1.8k necks across the corpus.
+**Reasoning:** This is *more* useful than the spec's two-stage
+(guitar-bbox → fretboard-Hough) approach because (a) the same model
+provides both signals in one pass and (b) per-fret OBBs give us
+geometric anchors for the homography that are far more reliable than
+edge detection. v0's `fretboard_detection.py` becomes the fallback path
+for clips where the YOLO model fails. `tabvision.video.fretboard.keypoint`
+(name from SPEC §7 Phase 3 deliverable list) gets implemented as the
+new primary; `tabvision.video.fretboard.geometric` (the existing thin
+v0 wrapper) stays as the fallback.
+**Effect on prior decisions:**
+- The Phase 3 detector path entry ("Option A — fine-tune YOLO-OBB on
+  Roboflow guitar dataset") still stands. The change is interpretive:
+  what gets emitted is fretboard parts, not a guitar-body bbox.
+- `YoloOBBBackend` needs a small refactor to support multi-class output
+  (per-class detection lookup), exposed as `detect_neck` /
+  `detect_frets` / `detect_nut` accessors.
+- Spec §7 Phase 3 acceptance "guitar IoU ≥ 0.95 vs hand-labeled GT" gets
+  re-interpreted as "neck IoU ≥ 0.95" since that's our proxy for the
+  guitar region.
+
+---
+
 ## 2026-05-05 — Phase 3 detector path: fine-tune YOLO-OBB (AGPL accepted)
 
 **Phase:** 3 (entry)
