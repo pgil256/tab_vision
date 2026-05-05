@@ -62,9 +62,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--audio-backend",
-        choices=["basicpitch"],
+        choices=["basicpitch", "highres", "highres-fl"],
         default="basicpitch",
-        help="audio transcription backend (Phase 2 will add highres/tabcnn)",
+        help=(
+            "audio transcription backend. 'basicpitch' (Phase 1, Apache-2.0) "
+            "is fast/CPU-only. 'highres' (Phase 2) wraps Riley/Edwards + "
+            "Cwitkowitz GAPS via hf-midi-transcription (MIT) — needs torch + "
+            "extras. 'highres-fl' uses the Francois Leduc checkpoint."
+        ),
     )
     t.add_argument("--capo", type=int, default=0, help="capo fret (0-7)")
     t.add_argument(
@@ -83,8 +88,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_transcribe(args: argparse.Namespace) -> int:
-    """Phase 1 audio-only end-to-end."""
-    from tabvision.audio.basicpitch import BasicPitchBackend
+    """Phase 1 audio-only end-to-end (extends in Phase 2 with highres backend)."""
     from tabvision.demux import demux
     from tabvision.fusion import fuse
     from tabvision.render.ascii import render
@@ -127,11 +131,9 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
 
 
 def _make_audio_backend(name: str):
-    if name == "basicpitch":
-        from tabvision.audio.basicpitch import BasicPitchBackend
+    from tabvision.audio.backend import make
 
-        return BasicPitchBackend()
-    raise TabVisionError(f"unknown audio backend: {name}")
+    return make(name)
 
 
 if __name__ == "__main__":

@@ -23,25 +23,34 @@ FRET_RE = re.compile(r"\d+")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Phase 1 smoke eval")
+    parser = argparse.ArgumentParser(description="Phase 1/2 smoke eval — runs an audio backend over a list of clips")
     parser.add_argument("--videos", nargs="+", type=Path, required=True)
     parser.add_argument("--gt-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument(
+        "--audio-backend",
+        choices=["basicpitch", "highres", "highres-fl"],
+        default="basicpitch",
+    )
+    parser.add_argument(
         "--no-filters",
         action="store_true",
-        help="disable Phase-1-polish filter pipeline (raw Basic Pitch only)",
+        help="(basicpitch only) disable v0 filter pipeline (raw Basic Pitch).",
     )
     args = parser.parse_args(argv)
 
-    from tabvision.audio.basicpitch import BasicPitchBackend
+    from tabvision.audio import backend as backend_module
     from tabvision.demux import demux
     from tabvision.fusion import fuse
     from tabvision.types import GuitarConfig, SessionConfig
 
     cfg = GuitarConfig()
     session = SessionConfig()
-    backend = BasicPitchBackend(filter_config=not args.no_filters)
+
+    backend_kwargs: dict = {}
+    if args.audio_backend == "basicpitch" and args.no_filters:
+        backend_kwargs["filter_config"] = False
+    backend = backend_module.make(args.audio_backend, **backend_kwargs)
 
     rows: list[dict] = []
     for video in args.videos:
@@ -76,6 +85,8 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(row, indent=2))
 
     summary = {
+        "audio_backend": args.audio_backend,
+        "filters_enabled": not (args.audio_backend == "basicpitch" and args.no_filters),
         "n_clips": len(rows),
         "n_succeeded": sum(1 for r in rows if r["error"] is None),
         "rows": rows,
