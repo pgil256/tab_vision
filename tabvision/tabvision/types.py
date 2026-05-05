@@ -53,6 +53,22 @@ class AudioEvent:
 
 
 @dataclass
+class DemuxResult:
+    """Output of ``demux(video_path)`` — see SPEC.md §8.
+
+    ``wav`` is mono float32 audio at ``sample_rate`` Hz. ``frame_iterator``
+    yields ``(timestamp_s, frame_bgr)`` tuples on demand; iteration is
+    one-pass and not seekable.
+    """
+
+    wav: np.ndarray
+    sample_rate: int
+    duration_s: float
+    fps: float
+    frame_iterator: Iterator[tuple[float, np.ndarray]] = field(default_factory=iter)
+
+
+@dataclass
 class GuitarBBox:
     """Axis-aligned bounding box of the guitar in image coords."""
 
