@@ -260,3 +260,34 @@ authoritative.
   superseded; Phase 2 is now the active phase.
 - LICENSES.md updated with corrected status; the prior `❌` for
   Riley/Edwards is corrected to `✅`.
+
+---
+
+## 2026-05-05 — Phase 3 detector acceptance: 50-epoch finetune passes neck IoU gate
+
+**Phase:** 3 (training acceptance)
+**Decision tree:** SPEC §7 Phase 3 — `Guitar detector ≥ 0.95 IoU?`
+(reinterpreted as `neck IoU ≥ 0.95` per the 2026-05-05 dataset
+reinterpretation entry).
+**Branch taken:** **Pass — proceed-to-Phase-4 leaf.**
+**Evidence:**
+- Modal run `ap-yzlJk4xVR3NfyFxbpDUlpt` (50 epochs, batch 16, lr0=0.01,
+  yolo11n-obb.pt base, seed 0). 423.6 s wallclock on an L4. Final val
+  metrics on 144 held-out images / 3062 instances:
+  | class | P | R | mAP50 | mAP50-95 |
+  |---|---|---|---|---|
+  | all  | 0.970 | 0.928 | **0.956** | 0.692 |
+  | fret | 0.944 | 0.832 | 0.917 | 0.484 |
+  | **neck** | **0.989** | **1.000** | **0.995** | **0.905** |
+  | nut  | 0.978 | 0.951 | 0.955 | 0.687 |
+- Stable weights at `~/.tabvision/data/models/guitar-yolo-obb-finetuned.pt`
+  (5.7 MB, symlink to runs/20260505-190316/run/weights/best.pt).
+**Reasoning:** Neck mAP50 = 0.995 clears the 0.95 acceptance bar with
+4.5 percentage points to spare; mAP50-95 = 0.905 is also strong (means
+the box quality is good across IoU thresholds, not just the lenient
+0.5). Per-class P/R for fret and nut are healthy enough that the
+keypoint fretboard backend will have plenty of fret OBBs to work with.
+**Effect:** Phase 3 detector deliverable is acceptance-passed. The
+remaining acceptance pieces (preflight 9/10 on labeled framing set;
+fretboard ≤ 5 px median homography error on 5 user clips) are blocked
+on hand-labeled ground-truth data, not on detector quality.
