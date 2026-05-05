@@ -48,6 +48,11 @@ tab_comparison.png
 .playwright-mcp/
 sample_frames/
 
+# Local credentials — never commit
+.env
+.env.*
+!.env.example
+
 # Auto Claude generated files
 .auto-claude/
 .auto-claude-security.json

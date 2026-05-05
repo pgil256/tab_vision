@@ -16,6 +16,7 @@ dynamic = ["version"]
 # See SPEC.md §6.1 for the full model + library inventory.
 dependencies = [
     "numpy>=1.24",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

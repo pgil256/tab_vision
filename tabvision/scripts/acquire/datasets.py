@@ -4,10 +4,15 @@ Each subcommand fetches one dataset, verifies a checksum where possible,
 and places it under ``$TABVISION_DATA_ROOT`` (defaults to
 ``~/.tabvision/data``). Idempotent — skips if already present.
 
+Credentials are read from a ``.env`` at the repo root (gitignored). See
+``.env.example`` for the expected variable names.
+
 Usage::
 
+    # Set up credentials once:
+    cp .env.example .env  # then edit .env to fill in ROBOFLOW_API_KEY
+
     # Download the YOLO-OBB guitar detector training set (Phase 3).
-    # Requires ROBOFLOW_API_KEY env var.
     python -m scripts.acquire.datasets roboflow-guitar
 
     # List supported datasets.
@@ -24,11 +29,24 @@ from pathlib import Path
 DEFAULT_DATA_ROOT = Path.home() / ".tabvision" / "data"
 
 
+def _load_dotenv() -> None:
+    """Load .env from the repo root. Best-effort; missing dotenv is fine."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    repo_root = Path(__file__).resolve().parents[3]
+    env_path = repo_root / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+
+
 def _data_root() -> Path:
     return Path(os.environ.get("TABVISION_DATA_ROOT", DEFAULT_DATA_ROOT))
 
 
 def main(argv: list[str] | None = None) -> int:
+    _load_dotenv()
     parser = argparse.ArgumentParser(prog="acquire-datasets")
     sub = parser.add_subparsers(dest="dataset", required=True)
 
@@ -40,11 +58,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     rb.add_argument("--workspace", default="b101")
     rb.add_argument("--project", default="guitar-3")
-    rb.add_argument("--version", type=int, default=3)
+    rb.add_argument(
+        "--version",
+        type=int,
+        default=None,
+        help="dataset version. Defaults to the latest available; pass an "
+        "integer to pin to a specific version.",
+    )
     rb.add_argument(
         "--format",
         default="yolov8-obb",
         help="export format; yolov8-obb is what we train on (oriented bboxes)",
+    )
+    rb.add_argument(
+        "--list-versions",
+        action="store_true",
+        help="just print available versions for this project and exit",
     )
 
     args = parser.parse_args(argv)
@@ -60,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
             project=args.project,
             version=args.version,
             export_format=args.format,
+            list_versions=args.list_versions,
         )
 
     parser.error(f"unknown dataset: {args.dataset}")
@@ -70,23 +100,19 @@ def _acquire_roboflow_guitar(
     *,
     workspace: str,
     project: str,
-    version: int,
+    version: int | None,
     export_format: str,
+    list_versions: bool = False,
 ) -> int:
-    target = _data_root() / "datasets" / f"roboflow-{workspace}-{project}-v{version}"
-    if target.exists() and any(target.iterdir()):
-        print(f"already present: {target}")
-        print("(delete the directory to force re-download)")
-        return 0
-
     api_key = os.environ.get("ROBOFLOW_API_KEY")
     if not api_key:
         print(
-            "error: ROBOFLOW_API_KEY env var is required.\n\n"
-            "How to get one:\n"
-            "  1. Sign up free at https://roboflow.com\n"
-            "  2. Settings → API → 'Private API Key'\n"
-            "  3. export ROBOFLOW_API_KEY=...\n",
+            "error: ROBOFLOW_API_KEY missing.\n\n"
+            "How to provide it:\n"
+            "  cp .env.example .env\n"
+            "  # then edit .env and set ROBOFLOW_API_KEY=...\n"
+            "  # (.env is gitignored; never commit it)\n\n"
+            "Get a key at https://roboflow.com → Settings → API.\n",
             file=sys.stderr,
         )
         return 2
@@ -96,20 +122,48 @@ def _acquire_roboflow_guitar(
     except ImportError:
         print(
             "error: roboflow package not installed. "
-            "Install with: pip install '.[vision]'",
+            "Install with: pip install roboflow (or the full vision extras).",
             file=sys.stderr,
         )
         return 2
 
+    rf = Roboflow(api_key=api_key)
+    proj = rf.workspace(workspace).project(project)
+
+    versions = _list_project_versions(proj)
+    if list_versions:
+        print(f"versions for {workspace}/{project}:")
+        for v_num, v_name in versions:
+            print(f"  v{v_num}  {v_name}")
+        return 0
+    if not versions:
+        print(f"error: no versions found for {workspace}/{project}", file=sys.stderr)
+        return 2
+
+    if version is None:
+        version = max(v for v, _ in versions)
+        print(f"defaulting to latest version: v{version}")
+
+    if version not in {v for v, _ in versions}:
+        print(
+            f"error: version {version} not found. Available: "
+            f"{', '.join(f'v{v}' for v, _ in versions)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    target = _data_root() / "datasets" / f"roboflow-{workspace}-{project}-v{version}"
+    if target.exists() and any(target.iterdir()):
+        print(f"already present: {target}")
+        print("(delete the directory to force re-download)")
+        return 0
     target.parent.mkdir(parents=True, exist_ok=True)
 
     print(f"downloading roboflow {workspace}/{project} v{version} → {target}")
-    rf = Roboflow(api_key=api_key)
-    proj = rf.workspace(workspace).project(project)
     ver = proj.version(version)
     dataset = ver.download(export_format, location=str(target))
 
-    license_info = getattr(ver, "license", None) or "unknown"
+    license_info = getattr(ver, "license", None) or "unknown (check Roboflow page)"
     citation = (
         f"Roboflow Universe project {workspace}/{project} v{version}, "
         f"accessed {dataset.location}"
@@ -120,6 +174,22 @@ def _acquire_roboflow_guitar(
         "before merging Phase 3."
     )
     return 0
+
+
+def _list_project_versions(proj) -> list[tuple[int, str]]:  # type: ignore[no-untyped-def]
+    """Return [(version_number, name), ...] sorted by number ascending."""
+    out: list[tuple[int, str]] = []
+    for v in getattr(proj, "versions", lambda: [])():
+        # roboflow's Version objects expose a `.id` like "workspace/project/3"
+        # and a `.name`. Number is the trailing integer.
+        vid = str(getattr(v, "id", ""))
+        try:
+            num = int(vid.rsplit("/", 1)[-1])
+        except ValueError:
+            continue
+        out.append((num, getattr(v, "name", f"v{num}") or f"v{num}"))
+    out.sort()
+    return out
 
 
 if __name__ == "__main__":
