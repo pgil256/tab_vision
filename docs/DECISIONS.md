@@ -101,3 +101,47 @@ bonus tier).
 historical self-recordings preserve iPhone-domain ground truth without new
 recording effort. Acknowledged blind spot: distorted-electric tier is
 measured on EGDB studio data, not iPhone-recorded distortion.
+
+---
+
+## 2026-05-05 — Phase 2 spec gap: Riley/Edwards SOTA model unavailable
+
+**Phase:** 2 (entry)
+**Decision tree:** SPEC §7 Phase 2 acceptance — decision tree assumes the
+Riley/Edwards model can be installed and run; outcome paths cover model
+errors, version issues, recall vs precision lag, etc. **The tree does not
+cover "the model code/weights aren't publicly available at all."** Per
+SPEC §0.8 this is a "stop and ask" condition.
+**Branch taken:** **Pause Phase 2 implementation; verify license posture
+of every spec-named candidate; document findings; ask the user.**
+**Evidence:** Verified 2026-05-05 via `gh api`:
+- `xavriley/HighResolutionGuitarTranscription` is a fork of the Nerfies
+  paper-website template. README is verbatim Nerfies. **No model code,
+  no weights, no LICENSE file.** xavriley has no separate
+  guitar-transcription-model repo (searched all 30+ repos).
+- `trimplexx/music-transcription` README badge claims MIT, but the repo
+  has **no LICENSE file** — under copyright default ("no license = all
+  rights reserved"), README claims aren't binding.
+- GAPS (Cwitkowitz) has no public GitHub repo; only the arXiv paper.
+- `cwitkowitz/guitar-transcription-continuous` (FretNet) is **MIT** but
+  has **no pretrained weights or releases** — training from scratch on
+  GuitarSet is required.
+- `cwitkowitz/guitar-transcription-with-inhibition` is **MIT** but same
+  caveat (no pretrained weights).
+
+**Conclusion:** No permissively-licensed *pretrained* guitar transcription
+SOTA model exists today. Scenario Y from design doc §8 ("Phase 2
+underwhelms or licensing blocks default-pipeline use → fall back to Basic
+Pitch + fine-tune as v1 audio backbone") is the operative path.
+**Reasoning:** The spec's Phase 2 plan was written assuming Riley/Edwards
+could be picked off the shelf. Since it can't, the choice is between (a)
+training a Cwitkowitz model from scratch (~weeks of GPU work — same shape
+as the v0 finetune already in flight on `feature/audio-finetune-phase1`),
+(b) staying on Basic Pitch and treating Phase 7's augmentation/fine-tune
+as the only audio-quality lever, or (c) a smaller "Phase 2′" that ports
+v0's heuristic filters (sustain redetection, harmonic, ghost-note) into
+the spec-compliant pipeline as a Basic-Pitch *post-processing* layer
+(narrows the 3× over-detection observed in Phase 1 acceptance numbers).
+
+User decision pending. LICENSES.md updated; this entry is the audit
+trail.
