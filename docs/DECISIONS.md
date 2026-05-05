@@ -291,3 +291,69 @@ keypoint fretboard backend will have plenty of fret OBBs to work with.
 remaining acceptance pieces (preflight 9/10 on labeled framing set;
 fretboard ≤ 5 px median homography error on 5 user clips) are blocked
 on hand-labeled ground-truth data, not on detector quality.
+
+---
+
+## 2026-05-05 — Phase 3 remaining acceptance gates deferred to a labeling pass
+
+**Phase:** 3 (acceptance) → 4 (entry)
+**Decision tree:** SPEC §7 Phase 3 acceptance checklist (preflight ≥ 9/10
+on labeled good/bad framing set; fretboard ≤ 5 px median homography
+error on 5 user clips).
+**Branch taken:** **Defer the two label-dependent gates; advance to
+Phase 4.** The detector gate (the one capacity-limited deliverable)
+already passed at `neck mAP50 = 0.995`. The remaining gates are
+data-collection tasks, not engineering tasks.
+**Reasoning:** Engineering Phase 4 in parallel with the hand-labeling
+work is strictly faster than blocking on it. Pat will come back and
+collect the ground truth (5 clips × 4 fret-intersection clicks; ~10
+clips of intentionally good vs bad framing) before Phase 9 hardening.
+The Phase 3 code is stable and won't drift while the labels are being
+collected — re-running the eval is a one-line pytest invocation when
+the fixtures arrive.
+**Outstanding work to schedule:**
+- Build the labeling harness (a small click-to-mark-fret-intersections
+  tool — tkinter or web — saving JSON; plus a "framing: good/bad"
+  classifier doc).
+- Collect 5 user clips × 4 fret-intersection clicks each (frets 5 + 12,
+  top + bottom edges) for the fretboard gate.
+- Collect ~10 clips intentionally framed well and badly (off-centre,
+  partially occluded, dim lighting, oblique angle) for the preflight gate.
+- Wire the two pytest harnesses (`-m fretboard_eval`, `-m preflight_eval`)
+  to read the fixtures dir.
+**Effect on prior decisions:** The 2026-05-05 detector-acceptance entry
+remains valid; this entry records the deferral of the data-bound gates
+so a later reader doesn't read "Proceed to Phase 4" as implying those
+two acceptance items also passed.
+
+---
+
+## 2026-05-05 — Phase 4 entry: port v0 MediaPipe pipeline + add §8 contract layer
+
+**Phase:** 4 (entry)
+**Decision tree:** N/A — entry decision, no failure-mode branch yet.
+**Branch taken:** **Hybrid port.** v0's
+`tabvision-server/app/video_pipeline.py` already runs MediaPipe Tasks
+API HandLandmarker on full frames and returns a `HandObservation` with
+extended/pressing/muting flags per finger. v1 wraps that logic to fit
+the §8 `HandBackend` and `FrameFingering` contracts: (a) per-frame
+`detect(frame, H, cfg)` signature, (b) output is
+`(n_fingers, n_strings, max_fret+1)` logits projected through the
+homography rather than raw landmark coords, and (c) per-finger
+posteriors built from distance-to-fret-cell + curl prior + z-depth
+prior per spec §7 Phase 4.
+**Reasoning:** Per CLAUDE.md operating rule 1 (audit before refactor),
+v0's MediaPipe wrapper is reusable: it already (i) loads the Tasks API,
+(ii) selects the fretting hand by handedness label with a finger-spread
+fallback, and (iii) extracts the 21 landmarks per hand. What v1 needs
+that v0 lacks is the canonical-coordinate projection (needs the
+homography that didn't exist in v0's coupled Hough pipeline) and the
+per-cell posterior over (string, fret). Net new code is the projection
++ posterior layer; v0's MediaPipe plumbing is wrapped, not rewritten.
+**Open questions (will be resolved by acceptance run):**
+- Distance kernel σ for the fingertip-to-cell prior; default = 0.5
+  fret-widths, will calibrate against the 100-frame labeled set.
+- Whether the curl prior helps or hurts; ablation will tell us.
+- Fretting-hand identification — start with v0's handedness logic;
+  switch to wrist-near-nut (now possible because we have the
+  homography) only if the eval shows misidentification.

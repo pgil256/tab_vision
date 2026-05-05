@@ -8,8 +8,9 @@ corresponding update to SPEC.md.
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Iterator, Literal, Protocol, Sequence
+from typing import Literal, Protocol
 
 import numpy as np
 
@@ -130,8 +131,14 @@ class FrameFingering:
     homography_confidence: float
 
     def marginal_string_fret(self) -> np.ndarray:
-        """Marginalize over fingers → shape (n_strings, max_fret+1) softmax."""
-        raise NotImplementedError
+        """Marginalize over fingers → shape (n_strings, max_fret+1) softmax.
+
+        Aggregates each finger's per-cell logits via log-sum-exp ("any
+        finger here?"), then softmax-normalises so the output sums to 1.
+        Backed by ``video.hand.fingertip_to_fret.marginal_string_fret``.
+        """
+        from tabvision.video.hand.fingertip_to_fret import marginal_string_fret
+        return marginal_string_fret(self.finger_pos_logits)
 
 
 @dataclass
@@ -175,6 +182,9 @@ class HandBackend(Protocol):
     name: str
 
     def detect(
-        self, frame: np.ndarray, H: Homography, cfg: GuitarConfig
+        self,
+        frame: np.ndarray,
+        H: Homography,  # noqa: N803 — math-convention name baked into the §8 contract
+        cfg: GuitarConfig,
     ) -> FrameFingering:
         ...
