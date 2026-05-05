@@ -7,12 +7,26 @@
 
 TabVision is a **portfolio project** (SPEC §1.5). The **shipping default**
 end-to-end pipeline must use only weights, models, and dependencies with
-permissive licenses (Apache-2.0, MIT, BSD, CC-BY, or compatible). Non-commercial
-or research-only artifacts may be used in optional fine-tune *experiments* but
-**must not be required by the default backend**.
+licenses that permit demonstration in a portfolio context (public repo,
+public README, blog post, recorded demo). Default preference is permissive
+(Apache-2.0, MIT, BSD, CC-BY); **AGPL-3.0 is accepted by deliberate
+deviation for the YOLO guitar detector** because no permissively-licensed
+pretrained guitar detector exists and the user explicitly authorized this
+trade-off (see DECISIONS.md 2026-05-05 entry "Phase 3 detector path").
+
+Non-commercial-only research weights remain banned from the default pipeline
+(per SPEC §1.5).
+
+**Effect of AGPL acceptance:** the entire TabVision pipeline becomes a
+"work based on" ultralytics under AGPL §1, so distribution requires we
+also distribute the source under AGPL. That is fine for a public-portfolio
+repo. It does mean any future commercial / proprietary-SaaS use of
+TabVision would either need an ultralytics enterprise license or a swap
+to a permissive detector path (e.g., fine-tune YOLOS / DETR / RT-DETR).
 
 **Phase 9 acceptance** includes a CI check verifying default-pipeline artifacts
-match this list. Phase 0 (this document) produces the initial map; Phase 9
+match this list and that AGPL contagion is documented prominently in the
+public README. Phase 0 (this document) produces the initial map; Phase 9
 verifies.
 
 ## Status legend
@@ -34,8 +48,8 @@ verifies.
 | Cwitkowitz lhvqt | 2 (filterbank) | MIT | ✅ | `cwitkowitz/lhvqt`, 21★, MIT. HVQT-initialized filterbank used by FretNet input. |
 | Cwitkowitz with-inhibition (TabCNN+inhibition) | 2/5 (alt) | MIT | ⚠️ pretrained weights | `cwitkowitz/guitar-transcription-with-inhibition`, 19★, MIT. Same caveat as FretNet — code is MIT but pretrained weights aren't published; training is required. |
 | MediaPipe Hands | 4 | Apache-2.0 | ✅ | `pip install mediapipe` — current v0 hand tracker |
-| YOLOv8n / ultralytics | 3 | AGPL-3.0 (code) + CC weights | ⚠️ | **AGPL is contagious for derivative code.** Verify whether weights-only usage avoids AGPL obligation. If not, find alternative detector (e.g., Faster R-CNN, or fine-tune our own from a permissive base). |
-| YOLOv8-pose (fretboard keypoint fallback) | 3 | same as above | ⚠️ | Same AGPL question as YOLOv8n. |
+| YOLO (ultralytics) — incl. YOLOv8/v10/11 detect + OBB + pose | 3 | AGPL-3.0 | ⚠️ accepted | **Verified 2026-05-05.** ultralytics LICENSE is the full GNU AGPL v3 (no permissive carve-out). Using it taints the whole TabVision pipeline as AGPL. Accepted by user 2026-05-05 ("do A") because no permissive pretrained guitar detector exists; see DECISIONS.md 2026-05-05 entry. Phase 3 trains YOLO-OBB on Roboflow `b101/guitar-3` for guitar bbox + rotation. |
+| YOLO-OBB pretrained backbone (`yolov8n-obb.pt` / `yolo11n-obb.pt`) | 3 | weights distributed under AGPL alongside the code | ⚠️ accepted | Pretrained on DOTA (aerial); fine-tuned on Roboflow guitar dataset. Inherits AGPL contagion. |
 
 ## Datasets
 
@@ -46,6 +60,7 @@ verifies.
 | EGDB | 1.5 / 7 | TBD | ⚠️ | https://github.com/ss12f32v/GuitarTranscription — multi-amp distorted electric. Verify before relying on it for distorted-electric tier eval. |
 | DadaGP | 7 | TBD | ⚠️ | https://github.com/dada-bots/dadaGP — GuitarPro tabs as synthetic-data substrate. |
 | User clips (existing 11/20 self-recorded) | 1.5 (bonus) | self-owned | ✅ | iPhone OOD bonus tier per design doc §6. Owned by Patrick. |
+| Roboflow `b101/guitar-3` | 3 (training) | TBD — verify via SDK + per Roboflow Universe ToS | ⚠️ | Source: https://universe.roboflow.com/b101/guitar-3. Used to fine-tune the YOLO-OBB guitar detector. Attribution: workspace `b101`, project `guitar-3`, version 3, accessed 2026-05-05 via Roboflow Universe. Specific license auto-detected at acquire time (`scripts/acquire/datasets.py guitar` reads the dataset's `license` field via the Roboflow SDK and refuses to download non-redistributable variants for our default pipeline). |
 
 ## Library dependencies (default pipeline)
 

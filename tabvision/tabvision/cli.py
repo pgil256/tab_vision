@@ -37,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "transcribe":
             return _cmd_transcribe(args)
+        if args.command == "check":
+            return _cmd_check(args)
     except TabVisionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -83,12 +85,35 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["fingerstyle", "strumming", "mixed"],
         default="mixed",
     )
+    pf = t.add_mutually_exclusive_group()
+    pf.add_argument(
+        "--strict",
+        action="store_true",
+        help="abort on any preflight warn/fail finding (default: lenient — abort only on fail)",
+    )
+    pf.add_argument(
+        "--no-preflight",
+        action="store_true",
+        help="skip preflight entirely (Phase 3 escape hatch)",
+    )
+
+    c = sub.add_parser(
+        "check",
+        help="run preflight on a clip and print the report (Phase 3)",
+    )
+    c.add_argument("input", type=Path, help="input video file")
+    c.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero on any warn finding (default: only fail-severity exits non-zero)",
+    )
 
     return parser
 
 
 def _cmd_transcribe(args: argparse.Namespace) -> int:
-    """Phase 1 audio-only end-to-end (extends in Phase 2 with highres backend)."""
+    """Phase 1 audio-only end-to-end (extends in Phase 2 with highres backend,
+    and adds preflight gate in Phase 3)."""
     from tabvision.demux import demux
     from tabvision.fusion import fuse
     from tabvision.render.ascii import render
@@ -98,6 +123,11 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     session = SessionConfig(
         instrument=args.instrument, tone=args.tone, style=args.style
     )
+
+    if not args.no_preflight:
+        rc = _run_preflight_gate(args)
+        if rc != 0:
+            return rc
 
     logger.info("demuxing %s", args.input)
     demuxed = demux(args.input)
@@ -134,6 +164,40 @@ def _make_audio_backend(name: str):
     from tabvision.audio.backend import make
 
     return make(name)
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    """`tabvision check input.mov` — Phase 3 preflight only."""
+    from tabvision.preflight import check, render
+
+    report = check(args.input, strict=args.strict)
+    sys.stdout.write(render(report))
+    if not report.passed:
+        return 1
+    return 0
+
+
+def _run_preflight_gate(args: argparse.Namespace) -> int:
+    """Run preflight before transcription. Lenient by default."""
+    from tabvision.preflight import check, render
+
+    try:
+        report = check(args.input, strict=args.strict)
+    except Exception as exc:  # noqa: BLE001 — preflight should not block transcribe in degraded environments
+        logger.warning("preflight skipped due to error: %s", exc)
+        return 0
+
+    has_fail = any(f.severity == "fail" for f in report.findings)
+    if has_fail or (args.strict and not report.passed):
+        sys.stderr.write(render(report))
+        sys.stderr.write(
+            "Aborting transcription. Re-run with --no-preflight to bypass.\n"
+        )
+        return 1
+    if not report.passed:
+        sys.stderr.write(render(report))
+        sys.stderr.write("Continuing in lenient mode despite warnings.\n")
+    return 0
 
 
 if __name__ == "__main__":

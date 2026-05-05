@@ -70,13 +70,25 @@ class DemuxResult:
 
 @dataclass
 class GuitarBBox:
-    """Axis-aligned bounding box of the guitar in image coords."""
+    """Bounding box of the guitar in image coords.
+
+    Default is axis-aligned (``rotation_deg=0``). YOLO-OBB backends emit
+    rotated boxes; consumers that don't care about rotation can read
+    (x, y, w, h) as the enclosing axis-aligned box per backend convention
+    and ignore ``rotation_deg``. Rotation is in degrees, counter-clockwise
+    from the +x axis, in the same image coordinate system.
+
+    Spec extension recorded 2026-05-05 (Phase 3 entry): ``rotation_deg``
+    added to support the YOLO-OBB detector path. Backward-compatible —
+    default 0.0 keeps the axis-aligned semantics.
+    """
 
     x: float
     y: float
     w: float
     h: float
     confidence: float
+    rotation_deg: float = 0.0
 
 
 @dataclass

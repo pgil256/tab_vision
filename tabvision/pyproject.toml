@@ -37,9 +37,14 @@ audio-highres = [
     "safetensors>=0.3.0",
 ]
 # Added in Phase 3-4 (vision).
+# WARNING: ultralytics is AGPL-3.0 — installing this extras makes the
+# combined TabVision distribution AGPL-tainted. See LICENSES.md and
+# docs/DECISIONS.md (2026-05-05 "Phase 3 detector path").
 vision = [
     "opencv-python>=4.8.0",
     "mediapipe>=0.10.0",
+    "ultralytics>=8.3",
+    "roboflow>=1.1",
 ]
 # Added in Phase 6 (render formats other than ASCII).
 render = [

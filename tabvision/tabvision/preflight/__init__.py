@@ -3,6 +3,9 @@
 Public entrypoint: ``check(video_path) -> PreflightReport``.
 
 Validates camera framing on a clip and emits actionable feedback.
-
-Implementation deferred to Phase 3.
 """
+
+from tabvision.preflight.check import check
+from tabvision.preflight.feedback import render
+
+__all__ = ["check", "render"]

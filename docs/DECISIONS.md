@@ -148,6 +148,38 @@ trail.
 
 ---
 
+## 2026-05-05 — Phase 3 detector path: fine-tune YOLO-OBB (AGPL accepted)
+
+**Phase:** 3 (entry)
+**Decision tree:** SPEC §7 Phase 3 acceptance — assumes ultralytics YOLOv8
+is usable. **Constraint not in the tree:** ultralytics is AGPL-3.0
+(verified — full GNU AGPL v3 LICENSE file in their repo). SPEC §1.5 prefers
+permissive licensing for default pipeline.
+**Branch taken:** **Option A (fine-tune YOLO-OBB on Roboflow guitar
+dataset).** Accept AGPL contagion for the entire TabVision pipeline.
+**Evidence:**
+- `gh api repos/ultralytics/ultralytics`: license = AGPL-3.0, full GNU AGPL
+  v3 in LICENSE file, README explicitly mentions Enterprise License for
+  non-AGPL commercial use.
+- HF search: zero pretrained guitar-detection models. Closest permissive
+  alternatives are general-purpose detectors (YOLOS, DETR, RT-DETR) which
+  would need fine-tuning anyway.
+- User explicitly chose option A: "Do A. Fork the data from
+  https://universe.roboflow.com/b101/guitar-3 and attribute it. Finetune
+  Yolo OBB with it."
+**Effect:** Per AGPL §1, our combined work is a "covered work" and any
+distribution must include source under AGPL. For a portfolio project on
+public GitHub this is fine — the demo-purpose is unaffected. For any
+future closed-source / SaaS use of TabVision, swap-out paths must exist
+(YOLOS or DETR fine-tune; documented in LICENSES.md Phase 9 deferral list).
+**Reasoning:** No spec-compliant alternative exists today. Spec's "permissive
+default" preference vs the practical reality that guitar detection requires
+either AGPL ultralytics (with weights and tooling) or significantly more
+work (label + train a permissive detector from scratch). User sized the
+trade-off against portfolio-project goals and accepted AGPL.
+
+---
+
 ## 2026-05-05 — REVERSAL: Phase 2 reopened; Riley/Edwards model IS available
 
 **Phase:** 2 (entry — reversing the prior "spec gap" entry)
