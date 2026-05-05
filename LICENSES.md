@@ -26,8 +26,8 @@ verifies.
 | Component | Phase | License | Status | Notes |
 |---|---|---|---|---|
 | Spotify Basic Pitch | 1 | Apache-2.0 | ✅ | `pip install basic-pitch` — current v0 default backend |
-| Riley/Edwards High-Res Guitar | 2 | **none — paper website only** | ❌ | Verified 2026-05-05: `xavriley/HighResolutionGuitarTranscription` is just the Nerfies-template paper companion site. **No model code, no weights, no LICENSE file.** xavriley has no separate guitar-transcription-model repo. Phase 2's spec-prescribed SOTA path is broken. See DECISIONS.md 2026-05-05. |
-| GAPS benchmark model | 2 (alt) | unknown — no public repo | ⚠️ | No `cwitkowitz/gaps` repo. May exist on HF/Zenodo via paper supplementary (https://arxiv.org/abs/2408.08653). |
+| Riley/Edwards High-Res Guitar | 2 | **MIT** | ✅ | **Corrected 2026-05-05.** The actual implementation is at `xavriley/hf_midi_transcription` (multi-instrument: sax/bass/guitar/piano, original repo description "solo saxophone" was misleading). Pip-installable as `hf-midi-transcription`. Pretrained weights on HF: https://huggingface.co/xavriley/midi-transcription-models. License declared MIT in three places: pyproject.toml `License :: OSI Approved :: MIT License` classifier, HF model card YAML frontmatter `license: mit`, README. The earlier ❌ for `xavriley/HighResolutionGuitarTranscription` (paper-companion website only) stands — that repo is *not* the implementation. |
+| GAPS benchmark model | 2 (alt) | **MIT — same package** | ✅ | **Corrected 2026-05-05.** GAPS-trained checkpoint is `guitar-gaps.pth` inside the same `hf-midi-transcription` package. `instruments.json` exposes it as `guitar` (default) or `guitar_gaps`. No separate repo needed. |
 | trimplexx tab CRNN | 2/5 | **README claims MIT, no LICENSE file** | ❌ | Verified 2026-05-05: `trimplexx/music-transcription` README badge says MIT but the repo has no `LICENSE` file. Under copyright default ("no license = all rights reserved"), README claims aren't binding. Cannot ship as default. Could open issue requesting LICENSE addition; deferred for now. |
 | Cwitkowitz FretNet | 2 (alt) | MIT | ⚠️ pretrained weights | `cwitkowitz/guitar-transcription-continuous`, 34★, MIT-licensed code. **No pretrained weights or releases** — training from scratch on GuitarSet is required. Same author as GAPS / amt-tools / lhvqt (all MIT). |
 | Cwitkowitz amt-tools | 2 (framework) | MIT | ✅ | `cwitkowitz/amt-tools`, 38★, MIT. Underlying framework for FretNet and other Cwitkowitz transcription work. |
@@ -76,13 +76,13 @@ will be needed.
 ## Phase-by-phase verification gates
 
 - **Phase 0 (this document):** initial map exists. ⚠️ items flagged.
-- **Phase 2 (verified 2026-05-05):** Riley/Edwards is unavailable (no code,
-  no weights, no LICENSE). trimplexx has no LICENSE file. **Cwitkowitz
-  FretNet / with-inhibition are MIT-licensed but lack pretrained weights —
-  training from scratch is required.** Conclusion: no permissively-licensed
-  pretrained guitar-SOTA model exists today; Scenario Y of design doc §8
-  (Basic Pitch + fine-tune as v1 default audio backbone) is the operative
-  path. See DECISIONS.md 2026-05-05 entry for the strategic pivot.
+- **Phase 2 (verified 2026-05-05, then corrected same day):** initial pass
+  found only the Nerfies-template companion website (`xavriley/HighResolutionGuitarTranscription`)
+  and assumed Phase 2 was blocked. **Correction:** the real implementation
+  is `xavriley/hf_midi_transcription` (pip-installable as `hf-midi-transcription`),
+  hosting MIT-licensed pretrained guitar checkpoints (gaps + fl) on HF. Both
+  Riley/Edwards High-Res and GAPS ship in this single package. Phase 2 path
+  is open. See DECISIONS.md 2026-05-05 reversal entry.
 - **Phase 3:** YOLOv8 AGPL question resolved. If unresolvable for portfolio,
   pick alternative detector path (Faster R-CNN, DETR, or self-trained from
   permissive base).
@@ -92,11 +92,10 @@ will be needed.
 
 ## Action items (resolve before respective phase)
 
-- [x] **Phase 2:** Verified Riley/Edwards weights license (2026-05-05) — none; repo is paper website only.
-- [x] **Phase 2:** Verified trimplexx CRNN license (2026-05-05) — README claims MIT, no LICENSE file in repo; cannot ship as default.
-- [ ] **Phase 2 (revised):** If user agrees to Scenario Y pivot, no further license action needed for Phase 2; Basic Pitch (Apache-2.0) remains the default. Phase 7 fine-tune work uses GuitarSet (CC-BY-4.0) — already cleared.
-- [ ] **Phase 2 (alternative):** If user wants to train FretNet from scratch as v1 default, verify GuitarSet derivative-work licensing implications (CC-BY-4.0 attribution requirements for the resulting model).
-- [ ] **Phase 2 (deferred):** Search HuggingFace + Zenodo for any other permissively-licensed guitar transcription model with pretrained weights (e.g., GAPS supplementary, paper-released models).
+- [x] **Phase 2:** Verified Riley/Edwards weights license (2026-05-05, corrected same day) — `hf-midi-transcription` is MIT-licensed and bundles pretrained guitar weights. ✅
+- [x] **Phase 2:** Verified trimplexx CRNN license (2026-05-05) — README claims MIT, no LICENSE file in repo; ❌ as default. Not needed since hf-midi-transcription supersedes.
+- [ ] **Phase 2 (open):** Add `hf-midi-transcription` to dependencies and verify it runs on Python 3.11 / our platform.
+- [ ] **Phase 2 (open):** Confirm the `guitar-gaps.pth` checkpoint covers our acoustic + electric clean tier (per the GAPS paper, GAPS = "Classical Guitar Dataset" so it's mostly classical). May need `guitar-fl.pth` (Francois Leduc, electric/jazz) as a complementary backbone for some clips.
 - [ ] **Phase 3:** Resolve ultralytics AGPL applicability to weights-only consumption.
 - [ ] **Phase 7:** Verify EGDB license for distorted-electric eval/training.
 - [ ] **Phase 7:** Verify DadaGP license for synthetic-data rendering.

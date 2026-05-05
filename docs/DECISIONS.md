@@ -145,3 +145,47 @@ the spec-compliant pipeline as a Basic-Pitch *post-processing* layer
 
 User decision pending. LICENSES.md updated; this entry is the audit
 trail.
+
+---
+
+## 2026-05-05 — REVERSAL: Phase 2 reopened; Riley/Edwards model IS available
+
+**Phase:** 2 (entry — reversing the prior "spec gap" entry)
+**Decision tree:** Phase 2 acceptance.
+**Branch taken:** **Reopen Phase 2 with `xavriley/hf_midi_transcription`
+as the highres backend.** User pointed out the actual implementation
+that I missed during license verification.
+**Evidence:**
+- `https://github.com/xavriley/hf_midi_transcription` (description says
+  "Audio-to-MIDI for solo saxophone" — misleading; the README confirms
+  multi-instrument: saxophone, bass, **guitar**, piano).
+- `instruments.json` exposes `guitar` (default = `guitar-gaps.pth`),
+  `guitar_gaps`, and `guitar_fl` (Francois Leduc dataset) checkpoints.
+- License declared MIT in three places:
+  1. `pyproject.toml`: `License :: OSI Approved :: MIT License` classifier.
+  2. HuggingFace model card YAML frontmatter `license: mit`.
+  3. README "License: MIT" in Model Details.
+- Pretrained weights hosted on HF: https://huggingface.co/xavriley/midi-transcription-models.
+- Pip-installable: `pip install hf-midi-transcription`.
+- The HF model card explicitly cites both source papers: Riley/Edwards
+  Domain-Adaptation paper (https://arxiv.org/pdf/2402.15258) and the
+  Cwitkowitz GAPS paper (https://arxiv.org/abs/2408.08653). So the
+  spec's two separately-listed SOTA candidates are both shipped as
+  checkpoints in this single package.
+**Reasoning for the missed verification:** I searched xavriley's repos
+for the keyword "guitar" in name/description and only found the
+companion-website repo. `hf_midi_transcription` was filed under
+"saxophone" in its description and didn't match my filter. Had I read
+the README of every multi-instrument repo (or searched for
+"transcription" instead of "guitar"), I'd have caught it. Lesson:
+description-keyword filters miss multi-instrument hosts; READMEs are
+authoritative.
+
+**Effect on prior decisions:**
+- Phase 2 is **back on**, not skipped.
+- The Phase 1 polish work (commit 7856c4f) **still stands** and is
+  still useful: it gives Basic Pitch as a fallback / comparison baseline.
+- The Phase 1 polish addendum's "Phase 2 disposition: skipped" claim is
+  superseded; Phase 2 is now the active phase.
+- LICENSES.md updated with corrected status; the prior `❌` for
+  Riley/Edwards is corrected to `✅`.
