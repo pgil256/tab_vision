@@ -51,19 +51,13 @@ def _peaked_fingering(
     """Marginal sharply peaked at ``(target_string, target_fret)``."""
     logits = np.zeros((4, n_strings, max_fret + 1), dtype=np.float64)
     logits[0, target_string, target_fret] = 10.0
-    return FrameFingering(
-        t=t, finger_pos_logits=logits, homography_confidence=0.9
-    )
+    return FrameFingering(t=t, finger_pos_logits=logits, homography_confidence=0.9)
 
 
-def _uniform_fingering(
-    t: float, n_strings: int = 6, max_fret: int = 24
-) -> FrameFingering:
+def _uniform_fingering(t: float, n_strings: int = 6, max_fret: int = 24) -> FrameFingering:
     """Marginal ≈ uniform across (string, fret) cells."""
     logits = np.ones((4, n_strings, max_fret + 1), dtype=np.float64)
-    return FrameFingering(
-        t=t, finger_pos_logits=logits, homography_confidence=0.9
-    )
+    return FrameFingering(t=t, finger_pos_logits=logits, homography_confidence=0.9)
 
 
 # ---------- emission ----------
@@ -131,9 +125,7 @@ def test_emission_uniform_vision_does_not_change_ranking():
     ev = _ev(69)
     fing = _uniform_fingering(t=0.0)
     cands = candidate_positions(69, cfg)
-    pure_audio = sorted(
-        cands, key=lambda c: emission_cost(c, ev, None, cfg)
-    )
+    pure_audio = sorted(cands, key=lambda c: emission_cost(c, ev, None, cfg))
     with_uniform = sorted(
         cands,
         key=lambda c: emission_cost(c, ev, fing, cfg, lambda_vision=1.0),
@@ -150,10 +142,7 @@ def test_transition_same_string_is_cheaper_than_string_jump():
     prev = Candidate(string_idx=5, fret=5)
     same_string = Candidate(string_idx=5, fret=7)  # 2 frets up, same string
     string_jump = Candidate(string_idx=4, fret=5)  # different string, same fret
-    assert (
-        transition_cost(prev, same_string, cfg)
-        < transition_cost(prev, string_jump, cfg)
-    )
+    assert transition_cost(prev, same_string, cfg) < transition_cost(prev, string_jump, cfg)
 
 
 def test_transition_hand_span_barrier_only_past_threshold():

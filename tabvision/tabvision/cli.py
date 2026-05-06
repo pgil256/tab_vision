@@ -132,9 +132,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     from tabvision.types import GuitarConfig, SessionConfig
 
     cfg = GuitarConfig(capo=args.capo)
-    session = SessionConfig(
-        instrument=args.instrument, tone=args.tone, style=args.style
-    )
+    session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
 
     if not args.no_preflight:
         rc = _run_preflight_gate(args)
@@ -212,9 +210,7 @@ def _run_preflight_gate(args: argparse.Namespace) -> int:
     has_fail = any(f.severity == "fail" for f in report.findings)
     if has_fail or (args.strict and not report.passed):
         sys.stderr.write(render(report))
-        sys.stderr.write(
-            "Aborting transcription. Re-run with --no-preflight to bypass.\n"
-        )
+        sys.stderr.write("Aborting transcription. Re-run with --no-preflight to bypass.\n")
         return 1
     if not report.passed:
         sys.stderr.write(render(report))

@@ -25,17 +25,13 @@ def _peaked_fingering(t: float, string_idx: int, fret: int) -> FrameFingering:
     """Marginal sharply peaked at ``(string_idx, fret)``."""
     logits = np.zeros((4, 6, 25), dtype=np.float64)
     logits[0, string_idx, fret] = 10.0
-    return FrameFingering(
-        t=t, finger_pos_logits=logits, homography_confidence=0.9
-    )
+    return FrameFingering(t=t, finger_pos_logits=logits, homography_confidence=0.9)
 
 
 def _uniform_fingering(t: float) -> FrameFingering:
     """Marginal ≈ uniform across (string, fret) cells."""
     logits = np.ones((4, 6, 25), dtype=np.float64)
-    return FrameFingering(
-        t=t, finger_pos_logits=logits, homography_confidence=0.9
-    )
+    return FrameFingering(t=t, finger_pos_logits=logits, homography_confidence=0.9)
 
 
 # ---------- audio-only regression ----------
