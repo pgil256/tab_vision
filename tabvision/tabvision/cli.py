@@ -75,6 +75,18 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument("--capo", type=int, default=0, help="capo fret (0-7)")
     t.add_argument(
+        "--fusion-lambda-vision",
+        type=float,
+        default=1.0,
+        metavar="FLOAT",
+        help=(
+            "weight on vision evidence in fusion (default 1.0). 0.0 "
+            "disables vision entirely (audio-only Viterbi); values >1 "
+            "lean more heavily on the fingertip-to-fret posterior. "
+            "See SPEC §5 / Phase-5 design doc §2."
+        ),
+    )
+    t.add_argument(
         "--instrument",
         choices=["acoustic", "classical", "electric"],
         default="acoustic",
@@ -147,8 +159,18 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
 
     # Phase 1: video stubbed; pass empty fingerings → fusion takes audio-only path.
     fingerings: list = []
-    tab_events = fuse(audio_events, fingerings, cfg, session)
-    logger.info("fusion produced %d tab events", len(tab_events))
+    tab_events = fuse(
+        audio_events,
+        fingerings,
+        cfg,
+        session,
+        lambda_vision=args.fusion_lambda_vision,
+    )
+    logger.info(
+        "fusion produced %d tab events (lambda_vision=%.2f)",
+        len(tab_events),
+        args.fusion_lambda_vision,
+    )
 
     output = render(tab_events, cfg)
     if args.output:
