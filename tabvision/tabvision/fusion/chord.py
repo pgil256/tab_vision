@@ -18,7 +18,7 @@ See ``docs/plans/2026-05-06-phase5-fusion-design.md`` §3.2 and SPEC.md §5.
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from tabvision.fusion.candidates import Candidate, candidate_positions
 from tabvision.fusion.playability import MAX_HAND_SPAN
@@ -67,15 +67,11 @@ def enumerate_chord_states(
     if not events:
         return []
 
-    per_event_candidates = [
-        candidate_positions(ev.pitch_midi, cfg) for ev in events
-    ]
+    per_event_candidates = [candidate_positions(ev.pitch_midi, cfg) for ev in events]
     if any(not cands for cands in per_event_candidates):
         return []
 
-    states: list[tuple[Candidate, ...]] = [
-        (c,) for c in per_event_candidates[0]
-    ]
+    states: list[tuple[Candidate, ...]] = [(c,) for c in per_event_candidates[0]]
     for k in range(1, len(events)):
         next_states: list[tuple[Candidate, ...]] = []
         for state in states:

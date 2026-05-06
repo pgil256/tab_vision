@@ -22,9 +22,7 @@ class Candidate:
     fret: int  # 0 = open (or capo), max_fret inclusive
 
 
-def candidate_positions(
-    pitch_midi: int, cfg: GuitarConfig | None = None
-) -> list[Candidate]:
+def candidate_positions(pitch_midi: int, cfg: GuitarConfig | None = None) -> list[Candidate]:
     """All valid positions for ``pitch_midi`` under ``cfg``.
 
     Capo handling: open strings effectively start at ``cfg.capo``. A pitch

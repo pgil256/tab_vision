@@ -109,12 +109,16 @@ def test_chord_accuracy_size_mismatch_misses():
 def test_chord_accuracy_separates_clusters_by_gap():
     """Two well-separated gold chords should both score independently."""
     gold = [
-        _t(0.0, 5, 0), _t(0.0, 4, 1),
-        _t(2.0, 5, 7), _t(2.0, 4, 8),
+        _t(0.0, 5, 0),
+        _t(0.0, 4, 1),
+        _t(2.0, 5, 7),
+        _t(2.0, 4, 8),
     ]
     pred = [
-        _t(0.0, 5, 0), _t(0.0, 4, 1),
-        _t(2.0, 5, 7), _t(2.0, 4, 8),
+        _t(0.0, 5, 0),
+        _t(0.0, 4, 1),
+        _t(2.0, 5, 7),
+        _t(2.0, 4, 8),
     ]
     r = chord_instance_accuracy(pred, gold)
     assert r.total_chords == 2

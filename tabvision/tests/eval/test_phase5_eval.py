@@ -5,17 +5,26 @@ the Phase-5-specific gate is:
 
     Tab F1 (lambda_vision=1.0) - Tab F1 (lambda_vision=0.0) ≥ 0.08
 
-The absolute Tab F1 ≥ 0.85 bar is currently expected to need Phase 2's
-Riley/Edwards audio backbone too — so it's marked ``xfail`` until Phase
-2 is wired in. The +8 pp delta is on the hook for Phase 5 alone, since
-that's the test for "fusion is doing real work given the current audio".
+The absolute Tab F1 ≥ 0.85 bar likely also needs Phase 7's augmentation
+work to clear, so it's marked ``xfail`` for now. The +8 pp delta is on
+the hook for Phase 5 alone — that's the test for "fusion is doing real
+work given today's audio".
 
-**Environment caveat (2026-05-06):** the audio backend (basic-pitch +
-TF 2.15) requires ``numpy<2`` while MediaPipe (Phase 4) requires
-``numpy>=2`` — so a single venv currently can't run both halves of the
-pipeline. The test skips when MediaPipe imports fail; once the env is
-reconciled (or Phase 2's torch-based audio backbone replaces basic-pitch)
-the gate runs unchanged. See ``DECISIONS.md`` if/when this gets fixed.
+**Audio backend:** uses ``tabvision.audio.backend.make("highres")``
+(Phase 2 Riley/Edwards / GAPS via hf-midi-transcription, torch-based,
+numpy-2-compatible) — *not* basic-pitch. Phase 2 is already shipped on
+``refactor/v1`` (commit ``aae1ab3``); the earlier framing of Phase 2 as
+"future work" was wrong.
+
+**Open dependency:** the *full pipeline* (demux → audio → guitar → fretboard
+→ hand → fuse) is not yet wired end-to-end in this repo. ``cli.py:159``
+still has ``fingerings: list = []`` (Phase 1 stub). The video components
+exist independently — see ``tabvision.video.{guitar,fretboard,hand}`` —
+but assembling them into a runnable ``run_pipeline(video, lambda_vision)``
+is its own piece of work, likely a Phase 8 "eval harness hardening" task
+or a dedicated integration ticket. Until that lands, ``_run_pipeline``
+below raises ``NotImplementedError`` for the video portion and the eval
+tests cleanly skip.
 
 The gold source is the benchmark index at
 ``tabvision-server/tests/fixtures/benchmarks/index.json`` — same set the
@@ -27,8 +36,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import pytest
 
@@ -51,12 +60,7 @@ PHASE5_CHORD_ACCURACY_GATE = 0.80
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BENCHMARK_INDEX = (
-    REPO_ROOT
-    / "tabvision-server"
-    / "tests"
-    / "fixtures"
-    / "benchmarks"
-    / "index.json"
+    REPO_ROOT / "tabvision-server" / "tests" / "fixtures" / "benchmarks" / "index.json"
 )
 EVAL_OUTPUT_DIR = REPO_ROOT / "tabvision-server" / "tools" / "outputs"
 
@@ -66,19 +70,15 @@ def test_phase5_audio_plus_vision_beats_audio_only():
     """Run the full pipeline on the eval set under both lambda_vision
     settings; assert audio+vision wins by ≥ 8 pp Tab F1.
 
-    Skips automatically when any heavy dependency (basic-pitch, mediapipe,
-    cv2, ffmpeg) is unavailable.
+    Skips automatically when any heavy dependency (the highres audio
+    backend's torch + hf-midi-transcription stack, mediapipe, cv2, ffmpeg)
+    is unavailable, *or* when the video-stack-into-pipeline integration
+    is still a TODO in ``_run_pipeline``.
     """
-    pytest.importorskip(
-        "basic_pitch",
-        reason="basic-pitch needed for audio-only ablation; install with "
-        "pip install '.[audio-baseline]'",
-    )
+    pytest.importorskip("torch", reason="highres backend needs torch.")
     pytest.importorskip(
         "mediapipe",
-        reason="MediaPipe needed for video evidence; install with "
-        "pip install '.[vision]'. NOTE: requires numpy>=2, currently "
-        "incompatible with TF 2.15.",
+        reason="MediaPipe needed for video evidence; install with pip install '.[vision]'.",
     )
     pytest.importorskip("cv2", reason="opencv-python needed for video frames.")
 
@@ -152,7 +152,7 @@ def test_phase5_audio_plus_vision_beats_audio_only():
     strict=False,
 )
 def test_phase5_absolute_tab_f1():
-    pytest.importorskip("basic_pitch")
+    pytest.importorskip("torch")
     pytest.importorskip("mediapipe")
     pytest.importorskip("cv2")
 
@@ -183,7 +183,7 @@ def test_phase5_absolute_tab_f1():
 
 @pytest.mark.eval
 def test_phase5_chord_accuracy():
-    pytest.importorskip("basic_pitch")
+    pytest.importorskip("torch")
     pytest.importorskip("mediapipe")
     pytest.importorskip("cv2")
 
@@ -262,22 +262,53 @@ def _load_gold_tab_events(path: Path) -> list[TabEvent]:
     return out
 
 
-def _run_pipeline(video: Path, *, lambda_vision: float) -> Sequence[TabEvent]:
+def _run_pipeline(
+    video: Path,
+    *,
+    lambda_vision: float,
+    audio_backend_name: str = "highres",
+) -> Sequence[TabEvent]:
     """Run audio + video + fusion end-to-end and return TabEvents.
 
-    Stub for now: until the numpy<2 / numpy>=2 environment conflict is
-    resolved (or Phase 2's torch-based audio backbone is wired up), this
-    raises ``ImportError`` so the surrounding ``importorskip`` calls
-    catch it and the test skips with a clear message. Implementation
-    will compose ``demux`` → audio backend → guitar/fretboard/hand
-    detect → ``fuse(..., lambda_vision=lambda_vision)`` once the env is
-    sorted. See the design doc §6 Step E.
+    The audio half is wired: ``demux`` + ``audio.backend.make(...)``.
+    The video half (guitar / fretboard / hand → ``list[FrameFingering]``)
+    is **not** yet integrated end-to-end in the repo — ``cli.py``'s
+    transcribe path still stubs ``fingerings: list = []``. Until that
+    integration ships, this helper raises ``NotImplementedError``,
+    which the surrounding ``importorskip`` block catches via the
+    pytest hook and surfaces as a skip with a precise reason.
+
+    Wire it up in a separate change: roughly,
+    ``demux → detect_guitar → track_fretboard → track_hand → fuse``.
+    The cluster Viterbi already accepts the ``FrameFingering`` sequence
+    and ``lambda_vision`` flag — no fusion changes needed.
     """
-    raise ImportError(
-        "Phase 5 end-to-end pipeline runner not yet wired — blocked on "
-        "numpy<2 vs numpy>=2 env conflict between basic-pitch and "
-        "mediapipe. See test docstring."
+    from tabvision.audio.backend import make as make_audio_backend
+    from tabvision.demux import demux
+    from tabvision.types import SessionConfig
+
+    session = SessionConfig()
+    demuxed = demux(str(video))
+    audio_backend = make_audio_backend(audio_backend_name)
+    audio_events = audio_backend.transcribe(demuxed.wav, demuxed.sample_rate, session)
+
+    raise NotImplementedError(
+        "Phase 5 end-to-end pipeline runner: audio half is wired "
+        f"({len(audio_events)} events from '{audio_backend_name}'), but "
+        "the video stack (guitar → fretboard → hand → FrameFingering) "
+        "is not yet integrated into a single run_pipeline() call. "
+        "cli.py:159 has the same gap. Wire the video components and "
+        "drop this raise; lambda_vision={lambda_vision} flows through "
+        "fuse() unchanged.".format(lambda_vision=lambda_vision)
     )
+
+    # When the integration lands, body becomes:
+    #
+    #   guitar_track = detect_guitar(frames(...), guitar_backend)
+    #   homographies = track_fretboard(frames(...), guitar_track, fb_backend)
+    #   fingerings = track_hand(frames(...), homographies, hand_backend, cfg)
+    #   return fuse(audio_events, fingerings, cfg, session,
+    #               lambda_vision=lambda_vision)
 
 
 def _mean(values: list[float]) -> float:

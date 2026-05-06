@@ -20,7 +20,7 @@ spaces and §2 for the cost decomposition.
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 from tabvision.fusion import chord, playability
 from tabvision.fusion.candidates import Candidate, candidate_positions
@@ -75,16 +75,12 @@ def fuse(
 
     # Drop out-of-range pitches before clustering so the cluster shape
     # reflects what's actually decodable.
-    valid_events = [
-        ev for ev in events if candidate_positions(ev.pitch_midi, cfg)
-    ]
+    valid_events = [ev for ev in events if candidate_positions(ev.pitch_midi, cfg)]
     if not valid_events:
         return []
 
     clusters = chord.cluster_events(valid_events)
-    cluster_data: list[
-        tuple[list[AudioEvent], list[tuple[Candidate, ...]]]
-    ] = []
+    cluster_data: list[tuple[list[AudioEvent], list[tuple[Candidate, ...]]]] = []
     for cluster in clusters:
         states = chord.enumerate_chord_states(cluster, cfg)
         if states:
@@ -97,9 +93,7 @@ def fuse(
 
 
 def _viterbi_clusters(
-    cluster_data: list[
-        tuple[list[AudioEvent], list[tuple[Candidate, ...]]]
-    ],
+    cluster_data: list[tuple[list[AudioEvent], list[tuple[Candidate, ...]]]],
     fingerings: Sequence[FrameFingering],
     cfg: GuitarConfig,
     lambda_vision: float,
@@ -107,15 +101,11 @@ def _viterbi_clusters(
     """Cluster-level Viterbi DP. Worst case ``O(N · S^2)`` for ``N``
     clusters with ``S`` states each."""
 
-    def state_emission(
-        cluster: list[AudioEvent], state: tuple[Candidate, ...]
-    ) -> float:
+    def state_emission(cluster: list[AudioEvent], state: tuple[Candidate, ...]) -> float:
         total = 0.0
-        for ev, c in zip(cluster, state):
+        for ev, c in zip(cluster, state, strict=True):
             f = playability.find_fingering_at(ev.onset_s, fingerings)
-            total += playability.emission_cost(
-                c, ev, f, cfg, lambda_vision=lambda_vision
-            )
+            total += playability.emission_cost(c, ev, f, cfg, lambda_vision=lambda_vision)
         return total
 
     n = len(cluster_data)
@@ -136,9 +126,7 @@ def _viterbi_clusters(
             anchor_curr = chord.chord_anchor(state)
             for pi, prev_state in enumerate(prev_states):
                 anchor_prev = chord.chord_anchor(prev_state)
-                trans = playability.transition_cost(
-                    anchor_prev, anchor_curr, cfg
-                )
+                trans = playability.transition_cost(anchor_prev, anchor_curr, cfg)
                 total = cost[i - 1][pi] + trans + emit
                 if total < cost[i][si]:
                     cost[i][si] = total
@@ -155,7 +143,7 @@ def _viterbi_clusters(
     out: list[TabEvent] = []
     for i, (cluster, states) in enumerate(cluster_data):
         state = states[picks_idx[i]]
-        for ev, c in zip(cluster, state):
+        for ev, c in zip(cluster, state, strict=True):
             out.append(
                 TabEvent(
                     onset_s=ev.onset_s,

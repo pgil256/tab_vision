@@ -16,7 +16,7 @@ hand-anchor/position-shift logic.
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 from tabvision.fusion.candidates import Candidate
 from tabvision.types import AudioEvent, FrameFingering, GuitarConfig
@@ -65,9 +65,7 @@ when audio + vision agree strongly."""
 EPS = 1e-9
 
 
-def find_fingering_at(
-    t: float, fingerings: Sequence[FrameFingering]
-) -> FrameFingering | None:
+def find_fingering_at(t: float, fingerings: Sequence[FrameFingering]) -> FrameFingering | None:
     """Return the ``FrameFingering`` whose ``.t`` is closest to ``t``.
 
     Returns ``None`` when ``fingerings`` is empty or no entry carries
@@ -128,9 +126,7 @@ def emission_cost(
     return cost
 
 
-def transition_cost(
-    prev: Candidate, curr: Candidate, cfg: GuitarConfig
-) -> float:
+def transition_cost(prev: Candidate, curr: Candidate, cfg: GuitarConfig) -> float:
     """Transition cost from ``prev`` to ``curr``.
 
     - String continuity: ``-SAME_STRING_BONUS`` when on the same string.

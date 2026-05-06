@@ -19,8 +19,8 @@ they can score the output of :func:`tabvision.fusion.fuse` directly.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from tabvision.fusion.chord import CHORD_MAX_GAP_S
 from tabvision.types import TabEvent
@@ -78,11 +78,7 @@ def tab_f1(
     fn = sum(1 for used in gold_used if not used)
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
     return TabF1Result(
         precision=precision,
         recall=recall,
@@ -115,12 +111,8 @@ def chord_instance_accuracy(
     grouping rule). Single-event clusters count toward the metric — a
     correctly transcribed isolated note is a "size-1 chord" instance.
     """
-    pred_clusters = _cluster_by_gap(
-        sorted(predicted, key=lambda t: t.onset_s), cluster_gap_s
-    )
-    gold_clusters = _cluster_by_gap(
-        sorted(gold, key=lambda t: t.onset_s), cluster_gap_s
-    )
+    pred_clusters = _cluster_by_gap(sorted(predicted, key=lambda t: t.onset_s), cluster_gap_s)
+    gold_clusters = _cluster_by_gap(sorted(gold, key=lambda t: t.onset_s), cluster_gap_s)
 
     if not gold_clusters:
         return ChordAccuracyResult(accuracy=0.0, matched_chords=0, total_chords=0)
@@ -157,9 +149,7 @@ def chord_instance_accuracy(
     )
 
 
-def _cluster_by_gap(
-    events: Sequence[TabEvent], gap_s: float
-) -> list[list[TabEvent]]:
+def _cluster_by_gap(events: Sequence[TabEvent], gap_s: float) -> list[list[TabEvent]]:
     """Same chain semantics as :func:`tabvision.fusion.chord.cluster_events`,
     but on :class:`TabEvent` (which carries an ``onset_s``). Inlined to
     avoid a sequence-type adapter."""

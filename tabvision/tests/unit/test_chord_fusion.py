@@ -39,9 +39,7 @@ def _ev(midi: int, t: float, confidence: float = 0.8) -> AudioEvent:
 def _peaked_fingering(t: float, string_idx: int, fret: int) -> FrameFingering:
     logits = np.zeros((4, 6, 25), dtype=np.float64)
     logits[0, string_idx, fret] = 10.0
-    return FrameFingering(
-        t=t, finger_pos_logits=logits, homography_confidence=0.9
-    )
+    return FrameFingering(t=t, finger_pos_logits=logits, homography_confidence=0.9)
 
 
 # ---------- cluster_events ----------
@@ -103,9 +101,7 @@ def test_enumerate_chord_states_enforces_monophony():
     assert states  # non-empty
     for state in states:
         strings = [c.string_idx for c in state]
-        assert len(strings) == len(set(strings)), (
-            f"per-string monophony violated: {state}"
-        )
+        assert len(strings) == len(set(strings)), f"per-string monophony violated: {state}"
 
 
 def test_enumerate_chord_states_enforces_hand_span():
