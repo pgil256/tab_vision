@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import numpy as np
 
@@ -22,9 +22,7 @@ from tabvision.types import DemuxResult
 DEFAULT_SAMPLE_RATE = 22050  # Basic Pitch's native rate
 
 
-def demux(
-    video_path: str | Path, *, sample_rate: int = DEFAULT_SAMPLE_RATE
-) -> DemuxResult:
+def demux(video_path: str | Path, *, sample_rate: int = DEFAULT_SAMPLE_RATE) -> DemuxResult:
     """Extract audio + frames from a video file.
 
     Args:
@@ -116,12 +114,39 @@ def _extract_audio(path: Path, sample_rate: int) -> np.ndarray:
 
 
 def _frame_iterator(path: Path, fps: float) -> Iterator[tuple[float, np.ndarray]]:
-    """Lazy frame iterator. Yields nothing in Phase 1 (video stubbed)."""
-    # Phase 1: video module returns uniform posteriors; no frames needed.
-    # Phase 3 will replace this with an OpenCV/ffmpeg-pipe implementation.
-    if False:  # pragma: no cover - placeholder for Phase 3
-        yield 0.0, np.zeros((1, 1, 3), dtype=np.uint8)
-    return
+    """Lazy frame iterator yielding ``(timestamp_s, frame_bgr)`` tuples.
+
+    Decodes via :class:`cv2.VideoCapture`. Timestamps are computed as
+    ``frame_index / fps`` rather than ``CAP_PROP_POS_MSEC`` because the
+    latter is unreliable on variable-frame-rate sources (notably iPhone
+    HEVC). The caller passed the ffprobe-derived ``fps`` to
+    :func:`demux`, so it's the source of truth here.
+
+    Releases the underlying capture when the generator is exhausted or
+    garbage-collected.
+    """
+    try:
+        import cv2  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise BackendError(
+            "frame iteration requires opencv-python; install with pip install '.[vision]'"
+        ) from exc
+
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise BackendError(f"cv2.VideoCapture could not open {path}")
+
+    try:
+        frame_idx = 0
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            t = frame_idx / fps if fps > 0 else 0.0
+            yield t, frame
+            frame_idx += 1
+    finally:
+        cap.release()
 
 
 __all__ = ["demux", "DEFAULT_SAMPLE_RATE"]
