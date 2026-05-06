@@ -87,6 +87,26 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--no-video",
+        action="store_true",
+        help=(
+            "disable the video stack entirely; transcribe audio-only. "
+            "Equivalent to --fusion-lambda-vision 0 plus skipping the "
+            "guitar / fretboard / hand backends."
+        ),
+    )
+    t.add_argument(
+        "--video-stride",
+        type=int,
+        default=3,
+        metavar="N",
+        help=(
+            "run video backends on every Nth frame (default 3 — about "
+            "10 fps effective from a 30 fps source). Lower = more "
+            "vision evidence + slower; higher = faster + more sparse."
+        ),
+    )
+    t.add_argument(
         "--instrument",
         choices=["acoustic", "classical", "electric"],
         default="acoustic",
@@ -124,10 +144,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_transcribe(args: argparse.Namespace) -> int:
-    """Phase 1 audio-only end-to-end (extends in Phase 2 with highres backend,
-    and adds preflight gate in Phase 3)."""
-    from tabvision.demux import demux
-    from tabvision.fusion import fuse
+    """Run the full transcription pipeline (demux → audio + video → fuse → render).
+
+    Phase 5 onward: video stack is wired through ``tabvision.pipeline.run_pipeline``.
+    See SPEC.md §3.1 and ``docs/plans/2026-05-06-video-pipeline-integration-design.md``.
+    """
+    from tabvision.pipeline import run_pipeline
     from tabvision.render.ascii import render
     from tabvision.types import GuitarConfig, SessionConfig
 
@@ -139,36 +161,16 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         if rc != 0:
             return rc
 
-    logger.info("demuxing %s", args.input)
-    demuxed = demux(args.input)
-    logger.info(
-        "audio: %d samples @ %d Hz (%.1fs); video: %.1f fps (%.1fs total)",
-        demuxed.wav.size,
-        demuxed.sample_rate,
-        demuxed.wav.size / demuxed.sample_rate,
-        demuxed.fps,
-        demuxed.duration_s,
-    )
-
-    backend = _make_audio_backend(args.audio_backend)
-    logger.info("transcribing audio with %s", backend.name)
-    audio_events = backend.transcribe(demuxed.wav, demuxed.sample_rate, session)
-    logger.info("audio backend produced %d events", len(audio_events))
-
-    # Phase 1: video stubbed; pass empty fingerings → fusion takes audio-only path.
-    fingerings: list = []
-    tab_events = fuse(
-        audio_events,
-        fingerings,
-        cfg,
-        session,
+    tab_events = run_pipeline(
+        args.input,
+        audio_backend_name=args.audio_backend,
         lambda_vision=args.fusion_lambda_vision,
+        video_stride=args.video_stride,
+        video_enabled=not args.no_video,
+        cfg=cfg,
+        session=session,
     )
-    logger.info(
-        "fusion produced %d tab events (lambda_vision=%.2f)",
-        len(tab_events),
-        args.fusion_lambda_vision,
-    )
+    logger.info("pipeline produced %d tab events", len(tab_events))
 
     output = render(tab_events, cfg)
     if args.output:
