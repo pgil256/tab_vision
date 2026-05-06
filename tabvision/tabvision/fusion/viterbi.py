@@ -1,20 +1,28 @@
-"""Single-line Viterbi decode + audio-only fallback.
+"""Cluster-level Viterbi decode — Phase 5 deliverable.
 
 Public entrypoint: ``fuse(events, fingerings, cfg, session, lambda_vision)``.
 
-Phase 1: when ``fingerings`` is empty (video stubs), degenerate to a
-greedy "lowest-fret with continuity bonus" decoder per SPEC.md §7 Phase 1.
+Each "step" in the DP is a chord cluster (often a singleton — an isolated
+event). For each cluster, :func:`tabvision.fusion.chord.enumerate_chord_states`
+produces the per-string-monophony + hand-span-feasible ordered tuples of
+candidates. Emission for a state is the sum of per-event emission costs
+(:func:`tabvision.fusion.playability.emission_cost`); transitions between
+clusters use :func:`tabvision.fusion.chord.chord_anchor` to pick a
+representative position for the playability transition cost.
 
-Phase 5 replaces the body with a proper Viterbi over candidate states
-using ``tabvision.fusion.playability`` transition costs. The public
-signature stays stable.
+The single-line Viterbi behaviour is the size-1-cluster degenerate case
+of this same DP — no separate code path.
+
+See ``docs/plans/2026-05-06-phase5-fusion-design.md`` §3 for the state
+spaces and §2 for the cost decomposition.
 """
 
 from __future__ import annotations
 
+import math
 from typing import Sequence
 
-from tabvision.errors import FusionError
+from tabvision.fusion import chord, playability
 from tabvision.fusion.candidates import Candidate, candidate_positions
 from tabvision.types import (
     AudioEvent,
@@ -24,16 +32,6 @@ from tabvision.types import (
     TabEvent,
 )
 
-# Continuity bonus: amount subtracted from a candidate's "cost" when its
-# string matches the previous note's string. A small constant; Phase 5
-# will calibrate.
-STRING_CONTINUITY_BONUS = 0.5
-# Penalty per fret of distance from the previous note's fret. Small
-# enough that the lowest-fret bias still wins for distant pitches.
-FRET_DISTANCE_PENALTY = 0.05
-# Penalty per fret position (lower-fret preference).
-LOWER_FRET_BIAS = 0.10
-
 
 def fuse(
     events: Sequence[AudioEvent],
@@ -42,78 +40,134 @@ def fuse(
     session: SessionConfig | None = None,
     lambda_vision: float = 1.0,
 ) -> list[TabEvent]:
-    """Decode AudioEvents into TabEvents.
+    """Decode ``AudioEvent``s into ``TabEvent``s via cluster Viterbi.
 
-    Phase 1: ``fingerings`` is empty / uniform; falls back to greedy
-    audio-only decode. The ``lambda_vision`` weight is accepted for
-    interface stability but ignored until Phase 5.
+    Parameters
+    ----------
+    events:
+        Audio events. Out-of-range pitches (no playable candidate under
+        ``cfg``) are dropped — no phantom notes emitted.
+    fingerings:
+        Per-frame fingerings from Phase 4. Empty / all-zero is treated
+        as audio-only.
+    cfg:
+        Instrument config (tuning, capo, max_fret).
+    session:
+        Recording session metadata; reserved for future use.
+    lambda_vision:
+        Mixing weight for the vision-evidence term. ``0.0`` disables
+        vision entirely; ``1.0`` is the default; higher values lean more
+        heavily on the fingertip-to-fret posterior.
+
+    Returns
+    -------
+    list[TabEvent]
+        One ``TabEvent`` per surviving event, ordered by ``onset_s``.
     """
     if cfg is None:
         cfg = GuitarConfig()
     if session is None:
         session = SessionConfig()
+    del session  # not consumed by Phase 5; preserves signature for callers.
 
-    has_video = any(_has_evidence(f) for f in fingerings)
-    if has_video:
-        # Phase 5 deliverable: Viterbi over (string, fret) states with
-        # vision-evidence + playability costs. Not yet implemented.
-        raise FusionError(
-            "video-aware fusion not implemented in Phase 1 — "
-            "this is a Phase 5 deliverable"
-        )
+    if not events:
+        return []
 
-    return _greedy_audio_only(events, cfg)
+    # Drop out-of-range pitches before clustering so the cluster shape
+    # reflects what's actually decodable.
+    valid_events = [
+        ev for ev in events if candidate_positions(ev.pitch_midi, cfg)
+    ]
+    if not valid_events:
+        return []
+
+    clusters = chord.cluster_events(valid_events)
+    cluster_data: list[
+        tuple[list[AudioEvent], list[tuple[Candidate, ...]]]
+    ] = []
+    for cluster in clusters:
+        states = chord.enumerate_chord_states(cluster, cfg)
+        if states:
+            cluster_data.append((cluster, states))
+
+    if not cluster_data:
+        return []
+
+    return _viterbi_clusters(cluster_data, fingerings, cfg, lambda_vision)
 
 
-def _has_evidence(f: FrameFingering) -> bool:
-    """A FrameFingering carries info if its logits are not all-zero."""
-    arr = f.finger_pos_logits
-    return arr is not None and bool(arr.size) and bool((arr != 0).any())
-
-
-def _greedy_audio_only(
-    events: Sequence[AudioEvent], cfg: GuitarConfig
+def _viterbi_clusters(
+    cluster_data: list[
+        tuple[list[AudioEvent], list[tuple[Candidate, ...]]]
+    ],
+    fingerings: Sequence[FrameFingering],
+    cfg: GuitarConfig,
+    lambda_vision: float,
 ) -> list[TabEvent]:
-    """Pick (string, fret) per event by lowest-fret + continuity."""
-    out: list[TabEvent] = []
-    prev: Candidate | None = None
+    """Cluster-level Viterbi DP. Worst case ``O(N · S^2)`` for ``N``
+    clusters with ``S`` states each."""
 
-    for ev in events:
-        candidates = candidate_positions(ev.pitch_midi, cfg)
-        if not candidates:
-            # Out-of-range pitch; skip rather than emit a phantom note.
-            continue
-        pick = _pick_candidate(candidates, prev)
-        out.append(
-            TabEvent(
-                onset_s=ev.onset_s,
-                duration_s=max(0.0, ev.offset_s - ev.onset_s),
-                string_idx=pick.string_idx,
-                fret=pick.fret,
-                pitch_midi=ev.pitch_midi,
-                confidence=ev.confidence,
-                techniques=ev.tags,
+    def state_emission(
+        cluster: list[AudioEvent], state: tuple[Candidate, ...]
+    ) -> float:
+        total = 0.0
+        for ev, c in zip(cluster, state):
+            f = playability.find_fingering_at(ev.onset_s, fingerings)
+            total += playability.emission_cost(
+                c, ev, f, cfg, lambda_vision=lambda_vision
             )
-        )
-        prev = pick
+        return total
 
+    n = len(cluster_data)
+    cost: list[list[float]] = [[] for _ in range(n)]
+    backptr: list[list[int]] = [[] for _ in range(n)]
+
+    cluster0, states0 = cluster_data[0]
+    cost[0] = [state_emission(cluster0, st) for st in states0]
+    backptr[0] = [-1] * len(states0)
+
+    for i in range(1, n):
+        cluster_i, states_i = cluster_data[i]
+        prev_states = cluster_data[i - 1][1]
+        cost[i] = [math.inf] * len(states_i)
+        backptr[i] = [-1] * len(states_i)
+        for si, state in enumerate(states_i):
+            emit = state_emission(cluster_i, state)
+            anchor_curr = chord.chord_anchor(state)
+            for pi, prev_state in enumerate(prev_states):
+                anchor_prev = chord.chord_anchor(prev_state)
+                trans = playability.transition_cost(
+                    anchor_prev, anchor_curr, cfg
+                )
+                total = cost[i - 1][pi] + trans + emit
+                if total < cost[i][si]:
+                    cost[i][si] = total
+                    backptr[i][si] = pi
+
+    # Backtrack from the cheapest terminal state.
+    final = cost[n - 1]
+    last_idx = min(range(len(final)), key=lambda j: final[j])
+    picks_idx = [0] * n
+    picks_idx[n - 1] = last_idx
+    for i in range(n - 1, 0, -1):
+        picks_idx[i - 1] = backptr[i][picks_idx[i]]
+
+    out: list[TabEvent] = []
+    for i, (cluster, states) in enumerate(cluster_data):
+        state = states[picks_idx[i]]
+        for ev, c in zip(cluster, state):
+            out.append(
+                TabEvent(
+                    onset_s=ev.onset_s,
+                    duration_s=max(0.0, ev.offset_s - ev.onset_s),
+                    string_idx=c.string_idx,
+                    fret=c.fret,
+                    pitch_midi=ev.pitch_midi,
+                    confidence=ev.confidence,
+                    techniques=ev.tags,
+                )
+            )
     return out
-
-
-def _pick_candidate(
-    candidates: list[Candidate], prev: Candidate | None
-) -> Candidate:
-    """Score each candidate; lower cost wins."""
-
-    def cost(c: Candidate) -> float:
-        score = LOWER_FRET_BIAS * c.fret
-        if prev is not None:
-            score += FRET_DISTANCE_PENALTY * abs(c.fret - prev.fret)
-            if c.string_idx == prev.string_idx:
-                score -= STRING_CONTINUITY_BONUS
-        return score
-
-    return min(candidates, key=cost)
 
 
 __all__ = ["fuse"]
