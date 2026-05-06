@@ -56,6 +56,17 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
     if len(clip_index) != len(clips):
         dups = [c for c in clips if list(clip_index.values()).count(c) == 0]
         raise SystemExit(f"two clips resolve to the same clip_id; rename one of: {dups}")
+    sorted_cids: list[str] = sorted(clip_index.keys())
+
+    def _neighbours(cid: str) -> tuple[str | None, str | None]:
+        """Return ``(prev_cid, next_cid)`` in the sorted clip order."""
+        try:
+            i = sorted_cids.index(cid)
+        except ValueError:
+            return None, None
+        prev_cid = sorted_cids[i - 1] if i > 0 else None
+        next_cid = sorted_cids[i + 1] if i < len(sorted_cids) - 1 else None
+        return prev_cid, next_cid
 
     # ----- routes -----
 
@@ -88,6 +99,7 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
         meta = probe_clip(path)
         frame_idx = representative_frame_idx(meta)
         existing = storage.load_framing(path, eval_root=eval_root)
+        prev_cid, next_cid = _neighbours(cid)
         return render_template_string(
             _TPL_FRAMING,
             cid=cid,
@@ -95,6 +107,8 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
             frame_idx=frame_idx,
             tags=storage.FRAMING_TAGS,
             existing=existing.to_json() if existing else None,
+            prev_cid=prev_cid,
+            next_cid=next_cid,
         )
 
     @app.route("/framing/<cid>", methods=["POST"])
@@ -120,6 +134,7 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
         existing = storage.load_fretboard(path, eval_root=eval_root)
         if existing:
             frame_idx = existing.frame_idx
+        prev_cid, next_cid = _neighbours(cid)
         return render_template_string(
             _TPL_FRETBOARD,
             cid=cid,
@@ -127,6 +142,8 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
             frame_idx=frame_idx,
             n_frames=meta.n_frames,
             existing=existing.to_json() if existing else None,
+            prev_cid=prev_cid,
+            next_cid=next_cid,
         )
 
     @app.route("/fretboard/<cid>", methods=["POST"])
@@ -167,6 +184,7 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
                     {"finger": fl.finger, "string": fl.string, "fret": fl.fret}
                     for fl in fr.fingers
                 ]
+        prev_cid, next_cid = _neighbours(cid)
         return render_template_string(
             _TPL_FINGERING,
             cid=cid,
@@ -176,6 +194,8 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
             max_fret=12,
             fingers=storage.FINGER_NAMES,
             existing_by_idx=existing_by_idx,
+            prev_cid=prev_cid,
+            next_cid=next_cid,
         )
 
     @app.route("/fingering/<cid>", methods=["POST"])
@@ -328,7 +348,16 @@ _TPL_FRAMING = (
     _BASE_CSS
     + """
 <h1>Framing — <code>{{ cid }}</code></h1>
-<p><a href="{{ url_for('index') }}">&larr; back</a> &middot; {{ clip_path }}</p>
+<p>
+  {% if prev_cid %}
+    <a href="{{ url_for('framing_get', cid=prev_cid) }}">&larr; prev</a> &middot;
+  {% endif %}
+  <a href="{{ url_for('index') }}">back to index</a>
+  {% if next_cid %}
+    &middot; <a href="{{ url_for('framing_get', cid=next_cid) }}">next &rarr;</a>
+  {% endif %}
+  <br><span style="color:#888;font-size:0.85em;">{{ clip_path }}</span>
+</p>
 <img src="{{ url_for('clip_frame', cid=cid, frame_idx=frame_idx) }}" style="max-width: 90%;">
 <div class="toolbar">
   <button onclick="setLabel('good')" id="btn-good">Good (g)</button>
@@ -342,9 +371,11 @@ _TPL_FRAMING = (
 </div>
 <p><textarea id="notes" rows="2" cols="60" placeholder="Notes (optional)"></textarea></p>
 <button id="save" onclick="save()" disabled>Save</button>
+<button id="save-next" onclick="saveNext()" disabled>Save &amp; Next &rarr; (Enter)</button>
 <span id="status" class="footer"></span>
 
 <script>
+const NEXT_CID = {{ next_cid | tojson }};
 let chosen = null;
 const existing = {{ existing | tojson }};
 if (existing) {
@@ -357,7 +388,12 @@ if (existing) {
   }
 }
 
-function setLabel(l) { chosen = l; highlight(); document.getElementById('save').disabled = false; }
+function setLabel(l) {
+  chosen = l;
+  highlight();
+  document.getElementById('save').disabled = false;
+  document.getElementById('save-next').disabled = false;
+}
 function highlight() {
   document.getElementById('btn-good').style.outline = chosen === 'good' ? '2px solid #6ed68a' : '';
   document.getElementById('btn-bad').style.outline = chosen === 'bad' ? '2px solid #ff7575' : '';
@@ -368,12 +404,22 @@ async function save() {
   const r = await fetch('', { method: 'POST', headers: {'Content-Type': 'application/json'},
                               body: JSON.stringify({label: chosen, tags, notes}) });
   document.getElementById('status').textContent = r.ok ? 'saved.' : `error: ${r.status}`;
+  return r.ok;
+}
+async function saveNext() {
+  if (!chosen) return;
+  if (!(await save())) return;
+  window.location = NEXT_CID
+    ? `/framing/${NEXT_CID}`
+    : '{{ url_for("index") }}';
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'g') setLabel('good');
-  if (e.key === 'b') setLabel('bad');
+  const inText = ['TEXTAREA', 'INPUT'].includes(document.activeElement.tagName);
+  if (e.key === 'g' && !inText) setLabel('good');
+  if (e.key === 'b' && !inText) setLabel('bad');
   if (e.key === 's' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save(); }
+  if (e.key === 'Enter' && !inText && chosen) { e.preventDefault(); saveNext(); }
 });
 </script>
 """
@@ -383,9 +429,18 @@ _TPL_FRETBOARD = (
     _BASE_CSS
     + """
 <h1>Fretboard — <code>{{ cid }}</code></h1>
-<p><a href="{{ url_for('index') }}">&larr; back</a> &middot; {{ clip_path }}</p>
+<p>
+  {% if prev_cid %}
+    <a href="{{ url_for('fretboard_get', cid=prev_cid) }}">&larr; prev</a> &middot;
+  {% endif %}
+  <a href="{{ url_for('index') }}">back to index</a>
+  {% if next_cid %}
+    &middot; <a href="{{ url_for('fretboard_get', cid=next_cid) }}">next &rarr;</a>
+  {% endif %}
+  <br><span style="color:#888;font-size:0.85em;">{{ clip_path }}</span>
+</p>
 <p>Click in this order: <strong>fret 5 top, fret 5 bottom, fret 12 top, fret 12 bottom</strong>.
-"top" = high-E side (top of frame), "bottom" = low-E side.</p>
+"top" / "bottom" = top / bottom of the image you see on screen.</p>
 <div class="toolbar">
   Frame:
   <input type="number" id="frame-idx" value="{{ frame_idx }}"
@@ -401,10 +456,12 @@ _TPL_FRETBOARD = (
   <textarea id="notes" rows="2" cols="60" placeholder="Notes (optional)"></textarea>
 </p>
 <button id="save" onclick="save()" disabled>Save (need 4 points)</button>
+<button id="save-next" onclick="saveNext()" disabled>Save &amp; Next &rarr; (Enter)</button>
 <span id="status" class="footer"></span>
 
 <script>
 const cid = {{ cid | tojson }};
+const NEXT_CID = {{ next_cid | tojson }};
 const order = [
   {fret: 5,  edge: 'top'},
   {fret: 5,  edge: 'bottom'},
@@ -465,6 +522,7 @@ function redraw() {
     wrap.appendChild(lbl);
   }
   document.getElementById('save').disabled = points.length !== 4;
+  document.getElementById('save-next').disabled = points.length !== 4;
   document.getElementById('save').textContent = points.length === 4
     ? 'Save' : `Save (need ${4 - points.length} more)`;
 }
@@ -477,6 +535,14 @@ async function save() {
       notes: document.getElementById('notes').value,
     })});
   document.getElementById('status').textContent = r.ok ? 'saved.' : `error: ${r.status}`;
+  return r.ok;
+}
+async function saveNext() {
+  if (points.length !== 4) return;
+  if (!(await save())) return;
+  window.location = NEXT_CID
+    ? `/fretboard/${NEXT_CID}`
+    : '{{ url_for("index") }}';
 }
 
 if (existing) {
@@ -486,6 +552,12 @@ if (existing) {
 }
 loadFrame();
 window.addEventListener('resize', redraw);
+
+document.addEventListener('keydown', (e) => {
+  const inText = ['TEXTAREA', 'INPUT'].includes(document.activeElement.tagName);
+  if (e.key === 'Enter' && !inText && points.length === 4) { e.preventDefault(); saveNext(); }
+  if (e.key === 's' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save(); }
+});
 </script>
 """
 )
@@ -494,7 +566,16 @@ _TPL_FINGERING = (
     _BASE_CSS
     + """
 <h1>Fingering — <code>{{ cid }}</code></h1>
-<p><a href="{{ url_for('index') }}">&larr; back</a> &middot; {{ clip_path }}</p>
+<p>
+  {% if prev_cid %}
+    <a href="{{ url_for('fingering_get', cid=prev_cid) }}">&larr; prev</a> &middot;
+  {% endif %}
+  <a href="{{ url_for('index') }}">back to index</a>
+  {% if next_cid %}
+    &middot; <a href="{{ url_for('fingering_get', cid=next_cid) }}">next &rarr;</a>
+  {% endif %}
+  <br><span style="color:#888;font-size:0.85em;">{{ clip_path }}</span>
+</p>
 <p>For each sampled frame, label which (string, fret) each fretting finger is on.
 Strings: 1 = high E, 6 = low E. Use <code>0</code> for an open string.
 Set "string" to <em>—</em> for a finger that isn't fretting in this frame.</p>
@@ -524,10 +605,12 @@ Set "string" to <em>—</em> for a finger that isn't fretting in this frame.</p>
 {% endfor %}
 </div>
 <button id="save" onclick="save()">Save all</button>
+<button id="save-next" onclick="saveNext()">Save &amp; Next &rarr;</button>
 <span id="status" class="footer"></span>
 
 <script>
 const existing_by_idx = {{ existing_by_idx | tojson }};
+const NEXT_CID = {{ next_cid | tojson }};
 
 function loadExisting() {
   for (const card of document.querySelectorAll('.frame-card')) {
@@ -560,6 +643,13 @@ async function save() {
   const r = await fetch('', { method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({frames}) });
   document.getElementById('status').textContent = r.ok ? 'saved.' : `error: ${r.status}`;
+  return r.ok;
+}
+async function saveNext() {
+  if (!(await save())) return;
+  window.location = NEXT_CID
+    ? `/fingering/${NEXT_CID}`
+    : '{{ url_for("index") }}';
 }
 
 loadExisting();
