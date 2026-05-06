@@ -1,14 +1,17 @@
 // tabvision-client/src/components/TabToolbar.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../store/appStore';
+import { ExportPanel } from './ExportPanel';
 
 export function TabToolbar() {
+  const [exportOpen, setExportOpen] = useState(false);
   const {
     jobStatus,
     isFollowingPlayback,
     editHistoryIndex,
     editHistory,
     setFollowingPlayback,
+    reset,
     undo,
     redo,
   } = useAppStore();
@@ -83,11 +86,18 @@ export function TabToolbar() {
           {isFollowingPlayback ? 'Following playback' : 'Follow playback'}
         </button>
 
-        {/* Placeholder for future export button */}
         <button
-          disabled
-          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-gray-800 text-gray-600 cursor-not-allowed"
-          title="Export (coming soon)"
+          onClick={reset}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+          title="Process another video"
+        >
+          New video
+        </button>
+
+        <button
+          onClick={() => setExportOpen(true)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+          title="Export tab"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -95,6 +105,8 @@ export function TabToolbar() {
           Export
         </button>
       </div>
+
+      {exportOpen && <ExportPanel onClose={() => setExportOpen(false)} />}
     </div>
   );
 }

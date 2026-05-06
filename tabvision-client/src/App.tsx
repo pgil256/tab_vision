@@ -39,7 +39,7 @@ function App() {
       </main>
 
       <footer className="border-t border-gray-800 px-6 py-4 text-center text-sm text-gray-500">
-        Phase 4: Editor UI
+        Phase 5: Recording & Export
       </footer>
     </div>
   );

@@ -3,11 +3,47 @@ import { create } from 'zustand';
 import { TabDocument, TabNote } from '../types/tab';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
+type InputMode = 'upload' | 'record';
 
 interface EditAction {
   noteId: string;
   previousFret: number | "X";
   newFret: number | "X";
+}
+
+const SETTINGS_KEY = 'tabvision.settings.v1';
+
+interface PersistedSettings {
+  capoFret: number;
+  inputMode: InputMode;
+  selectedCameraId: string | null;
+}
+
+function loadSettings(): PersistedSettings {
+  if (typeof localStorage === 'undefined') {
+    return { capoFret: 0, inputMode: 'upload', selectedCameraId: null };
+  }
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return { capoFret: 0, inputMode: 'upload', selectedCameraId: null };
+    const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
+    return {
+      capoFret: typeof parsed.capoFret === 'number' ? parsed.capoFret : 0,
+      inputMode: parsed.inputMode === 'record' ? 'record' : 'upload',
+      selectedCameraId: parsed.selectedCameraId ?? null,
+    };
+  } catch {
+    return { capoFret: 0, inputMode: 'upload', selectedCameraId: null };
+  }
+}
+
+function saveSettings(settings: PersistedSettings): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // ignore quota / disabled storage
+  }
 }
 
 interface AppState {
@@ -19,6 +55,11 @@ interface AppState {
   tabDocument: TabDocument | null;
   errorMessage: string | null;
   videoUrl: string | null;
+
+  // Input settings (persisted)
+  capoFret: number;
+  inputMode: InputMode;
+  selectedCameraId: string | null;
 
   // Playback state
   currentTime: number;
@@ -42,6 +83,11 @@ interface AppState {
   setError: (message: string) => void;
   setVideoUrl: (url: string | null) => void;
   reset: () => void;
+
+  // Settings actions
+  setCapoFret: (fret: number) => void;
+  setInputMode: (mode: InputMode) => void;
+  setSelectedCameraId: (id: string | null) => void;
 
   // Playback actions
   setCurrentTime: (time: number) => void;
@@ -67,6 +113,8 @@ interface AppState {
   setFollowingPlayback: (following: boolean) => void;
 }
 
+const persistedDefaults = loadSettings();
+
 const initialState = {
   // Job state
   currentJobId: null,
@@ -76,6 +124,11 @@ const initialState = {
   tabDocument: null,
   errorMessage: null,
   videoUrl: null,
+
+  // Input settings (persisted)
+  capoFret: persistedDefaults.capoFret,
+  inputMode: persistedDefaults.inputMode,
+  selectedCameraId: persistedDefaults.selectedCameraId,
 
   // Playback state
   currentTime: 0,
@@ -108,7 +161,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setVideoUrl: (url) => set({ videoUrl: url }),
 
-  reset: () => set(initialState),
+  reset: () => {
+    const current = get();
+    set({
+      ...initialState,
+      capoFret: current.capoFret,
+      inputMode: current.inputMode,
+      selectedCameraId: current.selectedCameraId,
+    });
+  },
+
+  // Settings actions
+  setCapoFret: (fret) => {
+    const clamped = Math.max(0, Math.min(12, Math.floor(fret)));
+    set({ capoFret: clamped });
+    const s = get();
+    saveSettings({ capoFret: clamped, inputMode: s.inputMode, selectedCameraId: s.selectedCameraId });
+  },
+
+  setInputMode: (mode) => {
+    set({ inputMode: mode });
+    const s = get();
+    saveSettings({ capoFret: s.capoFret, inputMode: mode, selectedCameraId: s.selectedCameraId });
+  },
+
+  setSelectedCameraId: (id) => {
+    set({ selectedCameraId: id });
+    const s = get();
+    saveSettings({ capoFret: s.capoFret, inputMode: s.inputMode, selectedCameraId: id });
+  },
 
   // Playback actions
   setCurrentTime: (time) => set({ currentTime: time }),
