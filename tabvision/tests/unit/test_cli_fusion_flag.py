@@ -1,9 +1,6 @@
-"""CLI parser smoke for ``--fusion-lambda-vision``.
+"""CLI parser smoke for the transcribe-subcommand flags.
 
-Verifies the flag parses with the right default, accepts user-supplied
-values, and surfaces zero (the audio-only-equivalent setting). The
-actual pass-through to ``fuse()`` is one line of code in
-``_cmd_transcribe`` — see ``tabvision/cli.py``.
+Covers ``--fusion-lambda-vision``, ``--no-video``, ``--video-stride``.
 """
 
 from __future__ import annotations
@@ -11,6 +8,8 @@ from __future__ import annotations
 import pytest
 
 from tabvision.cli import _build_parser
+
+# ---------- --fusion-lambda-vision ----------
 
 
 def test_default_lambda_vision_is_one():
@@ -38,3 +37,39 @@ def test_lambda_vision_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--fusion-lambda-vision", "1.0"])
+
+
+# ---------- --no-video ----------
+
+
+def test_no_video_default_false():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.no_video is False
+
+
+def test_no_video_flag_sets_true():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--no-video"])
+    assert args.no_video is True
+
+
+# ---------- --video-stride ----------
+
+
+def test_video_stride_default_three():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.video_stride == 3
+
+
+def test_video_stride_explicit_value():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--video-stride", "1"])
+    assert args.video_stride == 1
+
+
+def test_video_stride_only_on_transcribe():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--video-stride", "5"])
