@@ -12,19 +12,13 @@ work given today's audio".
 
 **Audio backend:** uses ``tabvision.audio.backend.make("highres")``
 (Phase 2 Riley/Edwards / GAPS via hf-midi-transcription, torch-based,
-numpy-2-compatible) — *not* basic-pitch. Phase 2 is already shipped on
-``refactor/v1`` (commit ``aae1ab3``); the earlier framing of Phase 2 as
-"future work" was wrong.
+numpy-2-compatible) — *not* basic-pitch.
 
-**Open dependency:** the *full pipeline* (demux → audio → guitar → fretboard
-→ hand → fuse) is not yet wired end-to-end in this repo. ``cli.py:159``
-still has ``fingerings: list = []`` (Phase 1 stub). The video components
-exist independently — see ``tabvision.video.{guitar,fretboard,hand}`` —
-but assembling them into a runnable ``run_pipeline(video, lambda_vision)``
-is its own piece of work, likely a Phase 8 "eval harness hardening" task
-or a dedicated integration ticket. Until that lands, ``_run_pipeline``
-below raises ``NotImplementedError`` for the video portion and the eval
-tests cleanly skip.
+**Pipeline:** the full demux → audio + video → fuse chain runs through
+:func:`tabvision.pipeline.run_pipeline`. The eval tests skip cleanly
+when MediaPipe / cv2 / a YOLO checkpoint aren't available; the gate
+runs unchanged once the [vision] extras are installed and the YOLO
+weights have been acquired.
 
 The gold source is the benchmark index at
 ``tabvision-server/tests/fixtures/benchmarks/index.json`` — same set the
@@ -268,47 +262,18 @@ def _run_pipeline(
     lambda_vision: float,
     audio_backend_name: str = "highres",
 ) -> Sequence[TabEvent]:
-    """Run audio + video + fusion end-to-end and return TabEvents.
+    """Run audio + video + fusion end-to-end via :func:`tabvision.pipeline.run_pipeline`.
 
-    The audio half is wired: ``demux`` + ``audio.backend.make(...)``.
-    The video half (guitar / fretboard / hand → ``list[FrameFingering]``)
-    is **not** yet integrated end-to-end in the repo — ``cli.py``'s
-    transcribe path still stubs ``fingerings: list = []``. Until that
-    integration ships, this helper raises ``NotImplementedError``,
-    which the surrounding ``importorskip`` block catches via the
-    pytest hook and surfaces as a skip with a precise reason.
-
-    Wire it up in a separate change: roughly,
-    ``demux → detect_guitar → track_fretboard → track_hand → fuse``.
-    The cluster Viterbi already accepts the ``FrameFingering`` sequence
-    and ``lambda_vision`` flag — no fusion changes needed.
+    Returns :class:`TabEvent` sequence directly comparable against
+    :func:`_load_gold_tab_events` output.
     """
-    from tabvision.audio.backend import make as make_audio_backend
-    from tabvision.demux import demux
-    from tabvision.types import SessionConfig
+    from tabvision.pipeline import run_pipeline
 
-    session = SessionConfig()
-    demuxed = demux(str(video))
-    audio_backend = make_audio_backend(audio_backend_name)
-    audio_events = audio_backend.transcribe(demuxed.wav, demuxed.sample_rate, session)
-
-    raise NotImplementedError(
-        "Phase 5 end-to-end pipeline runner: audio half is wired "
-        f"({len(audio_events)} events from '{audio_backend_name}'), but "
-        "the video stack (guitar → fretboard → hand → FrameFingering) "
-        "is not yet integrated into a single run_pipeline() call. "
-        "cli.py:159 has the same gap. Wire the video components and "
-        "drop this raise; lambda_vision={lambda_vision} flows through "
-        "fuse() unchanged.".format(lambda_vision=lambda_vision)
+    return run_pipeline(
+        video,
+        audio_backend_name=audio_backend_name,
+        lambda_vision=lambda_vision,
     )
-
-    # When the integration lands, body becomes:
-    #
-    #   guitar_track = detect_guitar(frames(...), guitar_backend)
-    #   homographies = track_fretboard(frames(...), guitar_track, fb_backend)
-    #   fingerings = track_hand(frames(...), homographies, hand_backend, cfg)
-    #   return fuse(audio_events, fingerings, cfg, session,
-    #               lambda_vision=lambda_vision)
 
 
 def _mean(values: list[float]) -> float:
