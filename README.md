@@ -101,4 +101,6 @@ current_stage: "uploading" | "extracting_audio" | "analyzing_audio" |
 
 ## Status
 
-Active development. Full project specification lives in [`tabvision_specification.md`](./tabvision_specification.md).
+End-to-end pipeline (audio → video → fusion) and the editor UI are working. Webcam capture, capo input, and text/PDF export are wired in via the desktop app. First-time users see a welcome screen with camera-positioning tips, accessible later via the **Tips** button in the header.
+
+Remaining polish (app icon, demo video, performance pass) is tracked in [`tabvision_specification.md`](./tabvision_specification.md) under Phase 6.
