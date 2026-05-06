@@ -11,19 +11,70 @@ TabVision spec.
 | **fretboard** | 4 fret-intersections per clip (frets 5 + 12, top + bottom edges) | Phase 3 keypoint-fretboard gate (≤ 5 px median error) |
 | **fingering** | Per-finger (string, fret) on N evenly-spaced frames per clip | Phase 4 gate (top-1 ≥ 0.75 over 100 frames) |
 
-## Setup
+## Run it
 
-The labeler is browser-based (Flask) so it works the same way under WSL
-as under native Windows / macOS / Linux — point any browser at the
-URL it prints.
+From anywhere on the box:
 
 ```bash
-pip install flask  # one-time; not in the default extras
+bash tabvision/scripts/annotate/launch.sh
+# → opens http://127.0.0.1:5005/
 ```
 
-Collect 5–10 clips for the eval set under a single directory (e.g. a
-mix of clips you already plan to test on, plus a few intentionally
-badly framed takes for the preflight set):
+That's the whole setup.  The launcher:
+
+1. Finds an existing venv that has flask + cv2 (checks
+   `$TABVISION_VENV`, then `./venv`, then `./tabvision-server/venv`).
+2. `cd`s into the v1 package directory so `python -m scripts.annotate.label_clips`
+   resolves correctly.
+3. Defaults `--clips` to
+   `test-data/training-tabs/training-tabs-video` (the existing 20
+   training clips) — pass an explicit dir to override.
+
+If no suitable venv exists, the script tells you the exact command to
+prepare one:
+
+```bash
+source venv/bin/activate           # or wherever your venv is
+pip install flask opencv-python
+```
+
+(Don't `pip install` against system Python on Ubuntu 24.04 — PEP 668
+will refuse.  Always go through a venv.)
+
+### CLI flags
+
+```bash
+bash tabvision/scripts/annotate/launch.sh /path/to/clips 5005
+```
+
+Position 1 = clip directory (default = the training-tabs videos).
+Position 2 = port (default 5005).  For more control invoke the module
+directly:
+
+```bash
+source venv/bin/activate
+cd tabvision
+python -m scripts.annotate.label_clips \
+    --clips ../test-data/eval-clips \
+    --fingering-frames 20 \
+    --host 0.0.0.0 \
+    --port 5005
+```
+
+Flags:
+- `--clips <dir>` — directory of `.mp4`/`.mov`/`.m4v`/`.avi`/`.mkv` files
+- `--eval-root <dir>` — output JSON root. Default `tabvision/data/eval/`,
+  override via `TABVISION_EVAL_ROOT`
+- `--fingering-frames N` — frames per clip for fingering (default 20;
+  spec calls for 100 total, so 5 clips × 20 ≈ that)
+- `--host 127.0.0.1` / `--port 5005` — bind address. Use `0.0.0.0` to
+  expose on the LAN (e.g. for labeling from a tablet).
+
+### Picking your eval set
+
+Collect 5–10 clips for the eval set under a single directory.  A mix
+of clean takes you already plan to test on, plus a few intentionally
+badly framed ones for the preflight set:
 
 ```
 test-data/eval-clips/
@@ -33,25 +84,6 @@ test-data/eval-clips/
 ├── bad_dim.mov
 └── ...
 ```
-
-## Run it
-
-```bash
-cd tabvision
-python -m scripts.annotate.label_clips \
-    --clips ../test-data/eval-clips \
-    --fingering-frames 20
-
-# then open http://localhost:5005 in any browser
-```
-
-Flags:
-- `--clips <dir>` — directory of `.mp4`/`.mov`/`.m4v`/`.avi`/`.mkv` files
-- `--eval-root <dir>` — output JSON root. Default `tabvision/data/eval/`,
-  override via `TABVISION_EVAL_ROOT`
-- `--fingering-frames N` — frames per clip for fingering (default 20;
-  spec calls for 100 total, so 5 clips × 20 ≈ that)
-- `--host 127.0.0.1` / `--port 5005` — bind address
 
 ## Workflow
 
