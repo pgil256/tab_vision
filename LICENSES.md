@@ -26,8 +26,10 @@ to a permissive detector path (e.g., fine-tune YOLOS / DETR / RT-DETR).
 
 **Phase 9 acceptance** includes a CI check verifying default-pipeline artifacts
 match this list and that AGPL contagion is documented prominently in the
-public README. Phase 0 (this document) produces the initial map; Phase 9
-verifies.
+public README. The current scaffold is
+`tabvision/scripts/check_default_licenses.py`, which verifies that
+`[project].dependencies` remains free of opt-in render/model/AGPL packages.
+Phase 0 (this document) produces the initial map; Phase 9 verifies.
 
 ## Status legend
 
@@ -104,6 +106,7 @@ will be needed.
 - **Phase 6:** PyGuitarPro LGPL implications resolved.
 - **Phase 9:** CI check verifies all loaded model identifiers in default
   pipeline match the ✅ list above. Any ⚠️ that bled through fails the check.
+  Current scaffold: `cd tabvision && python scripts/check_default_licenses.py`.
 
 ## Action items (resolve before respective phase)
 
@@ -115,4 +118,4 @@ will be needed.
 - [ ] **Phase 7:** Verify EGDB license for distorted-electric eval/training.
 - [ ] **Phase 7:** Verify DadaGP license for synthetic-data rendering.
 - [ ] **Phase 6:** Verify PyGuitarPro LGPL implications for portfolio distribution.
-- [ ] **Phase 9:** Implement license-check CI step that compares loaded model artifacts against the ✅ list.
+- [ ] **Phase 9:** Expand the license-check scaffold to compare loaded model artifacts against the ✅ list.
