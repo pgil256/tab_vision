@@ -10,6 +10,8 @@ do not make new recordings or hand annotation a v1 prerequisite.
 - `tier-clean-electric/`: automated/public-data output example.
 - `tier-distorted-electric/`: automated/public-data output example.
 - `architecture-brief.md`: one-page overview for portfolio publication.
+- `release-evidence.md`: links to the automated reports and release checks
+  that can be cited in the portfolio narrative.
 
 Do not commit large raw clips here. Keep source media under
 `$TABVISION_DATA_ROOT` and commit only small, publication-ready derivatives.
