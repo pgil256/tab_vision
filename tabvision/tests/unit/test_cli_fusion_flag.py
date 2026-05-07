@@ -73,3 +73,24 @@ def test_video_stride_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--video-stride", "5"])
+
+
+# ---------- --position-prior ----------
+
+
+def test_position_prior_default_none():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.position_prior == "none"
+
+
+def test_position_prior_explicit_guitarset_v1():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--position-prior", "guitarset-v1"])
+    assert args.position_prior == "guitarset-v1"
+
+
+def test_position_prior_only_on_transcribe():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--position-prior", "guitarset-v1"])

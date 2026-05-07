@@ -26,6 +26,7 @@ from tabvision.fusion.position_prior import (
     PitchPositionPrior,
     apply_pitch_position_prior,
     learn_pitch_position_prior,
+    load_pitch_position_prior,
 )
 from tabvision.types import AudioBackend, AudioEvent, GuitarConfig, SessionConfig, TabEvent
 
@@ -436,9 +437,12 @@ def run_eval(
             data_home,
             validation_player=validation_player,
         )
+    elif position_prior_name == "guitarset-v1":
+        position_prior = load_pitch_position_prior("guitarset-v1")
     elif position_prior_name != "none":
         raise ValueError(
-            f"unknown position prior: {position_prior_name!r}; expected none or guitarset-train"
+            f"unknown position prior: {position_prior_name!r}; "
+            "expected none, guitarset-v1, or guitarset-train"
         )
 
     from tabvision.audio.backend import make
@@ -569,7 +573,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--position-prior",
         default="none",
-        choices=["none", "guitarset-train"],
+        choices=["none", "guitarset-v1", "guitarset-train"],
         help="optional pitch-to-string/fret prior attached before audio-only fusion",
     )
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
