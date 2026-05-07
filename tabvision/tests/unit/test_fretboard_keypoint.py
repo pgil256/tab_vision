@@ -13,9 +13,11 @@ import pytest
 
 from tabvision.types import Homography
 from tabvision.video.fretboard.keypoint import (
+    _extend_nut_edge_to_detection,
     _homography_from_quad,
     _obb_to_corners,
     _order_corners_by_neck_anatomy,
+    _orient_string_axis_for_lap_framing,
     predictions_to_homography,
 )
 from tabvision.video.guitar.yolo_backend import (
@@ -119,6 +121,83 @@ def test_order_corners_falls_back_to_smaller_x_when_nut_missing():
     # No nut: heuristic picks smaller-x short edge (=headstock at 50).
     assert ordered[0].tolist() == [50.0, 100.0]
     assert ordered[3].tolist() == [50.0, 140.0]
+
+
+def test_extend_nut_edge_to_external_nut_detection():
+    ordered = np.array(
+        [
+            [50.0, 100.0],
+            [450.0, 100.0],
+            [450.0, 140.0],
+            [50.0, 140.0],
+        ],
+        dtype=np.float64,
+    )
+
+    extended = _extend_nut_edge_to_detection(ordered, (-50.0, 120.0))
+
+    assert extended[0].tolist() == pytest.approx([-50.0, 100.0])
+    assert extended[3].tolist() == pytest.approx([-50.0, 140.0])
+    assert extended[1].tolist() == pytest.approx([450.0, 100.0])
+    assert extended[2].tolist() == pytest.approx([450.0, 140.0])
+
+
+def test_extend_nut_edge_leaves_internal_nut_detection_alone():
+    ordered = np.array(
+        [
+            [50.0, 100.0],
+            [450.0, 100.0],
+            [450.0, 140.0],
+            [50.0, 140.0],
+        ],
+        dtype=np.float64,
+    )
+
+    extended = _extend_nut_edge_to_detection(ordered, (55.0, 120.0))
+
+    assert np.allclose(extended, ordered)
+
+
+def test_orient_string_axis_flips_when_nut_is_right_of_body():
+    ordered = np.array(
+        [
+            [450.0, 100.0],
+            [50.0, 100.0],
+            [50.0, 140.0],
+            [450.0, 140.0],
+        ],
+        dtype=np.float64,
+    )
+
+    oriented = _orient_string_axis_for_lap_framing(ordered)
+
+    assert np.allclose(
+        oriented,
+        np.array(
+            [
+                [450.0, 140.0],
+                [50.0, 140.0],
+                [50.0, 100.0],
+                [450.0, 100.0],
+            ]
+        ),
+    )
+
+
+def test_orient_string_axis_keeps_left_nut_top_as_high_e():
+    ordered = np.array(
+        [
+            [50.0, 100.0],
+            [450.0, 100.0],
+            [450.0, 140.0],
+            [50.0, 140.0],
+        ],
+        dtype=np.float64,
+    )
+
+    oriented = _orient_string_axis_for_lap_framing(ordered)
+
+    assert np.allclose(oriented, ordered)
 
 
 # ----- homography construction -----
@@ -225,6 +304,22 @@ def test_predictions_canonical_origin_maps_to_nut_when_nut_detected():
     assert proj[0, 1] == pytest.approx(200.0, abs=1.0)
 
 
+def test_predictions_canonical_origin_extends_to_external_nut_detection():
+    """When the nut lies beyond the neck OBB edge, canonical x=0 follows it."""
+    preds = OBBPredictions(
+        neck=[_neck(250, 200, 400, 60, conf=0.8)],
+        nut=[_nut(-50, 200, conf=0.5)],
+    )
+    homog = predictions_to_homography(preds)
+
+    pt = np.array([[0.0, 0.5, 1.0]])
+    proj = (homog.H @ pt.T).T
+    proj = proj[:, :2] / proj[:, 2:]
+
+    assert proj[0, 0] == pytest.approx(-50.0, abs=1.0)
+    assert proj[0, 1] == pytest.approx(200.0, abs=1.0)
+
+
 def test_predictions_canonical_top_maps_to_smaller_image_y():
     """Canonical y=0 (top, high-E) maps to the smaller image-y edge."""
     preds = OBBPredictions(
@@ -240,3 +335,21 @@ def test_predictions_canonical_top_maps_to_smaller_image_y():
     proj_bot = (homog.H @ pt_bot.T).T
     proj_bot = proj_bot[:, :2] / proj_bot[:, 2:]
     assert proj_top[0, 1] < proj_bot[0, 1]
+
+
+def test_predictions_canonical_top_maps_to_lower_edge_when_nut_on_right():
+    """For common lap framing with headstock right, high-E is lower in image."""
+    preds = OBBPredictions(
+        neck=[_neck(250, 200, 400, 60, conf=0.8)],
+        nut=[_nut(450, 200, conf=0.5)],
+    )
+    homog = predictions_to_homography(preds)
+
+    pt_top = np.array([[0.0, 0.0, 1.0]])
+    pt_bot = np.array([[0.0, 1.0, 1.0]])
+    proj_top = (homog.H @ pt_top.T).T
+    proj_top = proj_top[:, :2] / proj_top[:, 2:]
+    proj_bot = (homog.H @ pt_bot.T).T
+    proj_bot = proj_bot[:, :2] / proj_bot[:, 2:]
+
+    assert proj_top[0, 1] > proj_bot[0, 1]

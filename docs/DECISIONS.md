@@ -380,3 +380,45 @@ to validate; "the hand is around frets 3-6" is a stronger, more stable
 visual prior for resolving audio's same-pitch string/fret ambiguity. Keeping
 the signal as a prior lets audio and playability override it when the visual
 evidence is weak or wrong.
+
+---
+
+## 2026-05-07 — Phase 5 GuitarSet pitch-to-tab bottleneck
+
+**Phase:** 5 (audio-to-tab mapping)
+**Decision tree:** GuitarSet audio-only diagnostic — if pitch F1 is good
+but Tab F1 is bad, fix string/fret candidate selection before tuning video
+calibration or `lambda_vision`.
+**Branch taken:** **Add an optional learned pitch-position prior.** Raw
+GuitarSet JAMS provide held-out string/fret labels; the evaluator now learns
+`P(string,fret | pitch)` from train players and attaches it via the existing
+2D `AudioEvent.fret_prior` path before audio-only Viterbi decode.
+**Evidence:** On full validation, oracle gold-onset/gold-pitch events scored
+only `0.4335` Tab F1 with the default decoder, proving the mapping is bad even
+when audio extraction is perfect. On the first 10 validation tracks, about
+two-thirds of same-pitch events landed on the wrong adjacent string/fret. Most
+errors were low-fret equivalents such as G-string notes decoded on B or B-string
+notes decoded on high E. A GuitarSet train-split prior raised oracle
+full-validation Tab F1 to `0.6802`. On the 3-track highres smoke, Tab F1 moved
+from `0.3356` to `0.7260` while onset F1 (`0.9692`) and pitch F1 (`0.9555`)
+stayed unchanged.
+**Reasoning:** This confirms the immediate bottleneck is pitch-to-position
+ambiguity, not highres onset/pitch extraction and not Phase 5 vision weighting.
+The prior is optional for now; it does not change public fusion APIs or the
+default production decode until a full validation run and home-video check
+justify promoting it.
+
+**Follow-up evidence:** A Modal L4 full-validation highres run completed on
+2026-05-07. With no position prior: onset F1 `0.9218`, pitch F1 `0.9022`,
+Tab F1 `0.3878`. With the GuitarSet train-split prior: onset F1 `0.9218`,
+pitch F1 `0.9022`, Tab F1 `0.6104` (`+22.26 pp`). Per-track, 51/60 improved,
+8/60 regressed, and 1/60 was unchanged. Mean track Tab F1 moved from `0.347`
+to `0.589`.
+**Promotion decision:** **Do not make this an unconditional production default
+yet.** Promote the prior next as a versioned/configured production option, then
+make it the default only after (a) a checked-in prior artifact is available
+without requiring raw GuitarSet at runtime, (b) same-pitch regressions are
+classified and reduced or accepted, and (c) the home-video Phase 5 benchmark
+shows no regression. The full GuitarSet result is strong enough to justify the
+production integration path, but the 8 regressed validation clips make a silent
+global default premature.
