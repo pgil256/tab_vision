@@ -101,8 +101,9 @@ def emission_cost(
 
     - ``-log(event.confidence)`` — per-event constant (does not affect
       ranking within a single event but matters across events).
-    - ``-log(event.fret_prior[s, f])`` — only when the audio backend
-      provides a per-position prior (e.g. Phase 2 ``tabcnn``).
+    - ``-log(event.fret_prior[s, f])`` — only when the audio backend or
+      video neck-anchor path provides a prior. A one-dimensional fret-only
+      prior is also accepted and read as ``event.fret_prior[f]``.
     - ``lambda_vision * -log(P_vision[s, f])`` — vision marginal at
       ``event.onset_s``. Skipped when ``fingering is None``.
     - ``LOW_FRET_BIAS * fret`` — gentle low-fret preference.
@@ -111,7 +112,7 @@ def emission_cost(
     cost = -math.log(max(event.confidence, EPS))
 
     if event.fret_prior is not None:
-        prior = float(event.fret_prior[candidate.string_idx, candidate.fret])
+        prior = _candidate_prior(event.fret_prior, candidate)
         cost += -math.log(max(prior, EPS))
 
     if fingering is not None:
@@ -124,6 +125,20 @@ def emission_cost(
         cost -= OPEN_STRING_BONUS
 
     return cost
+
+
+def _candidate_prior(prior: object, candidate: Candidate) -> float:
+    """Read a candidate prior from either a 2D position prior or 1D fret prior."""
+    try:
+        arr = prior  # keep mypy's object handling local to this helper
+        shape = getattr(arr, "shape", ())
+        if len(shape) == 2:
+            return float(arr[candidate.string_idx, candidate.fret])  # type: ignore[index]
+        if len(shape) == 1:
+            return float(arr[candidate.fret])  # type: ignore[index]
+    except (IndexError, TypeError, ValueError):
+        return 0.0
+    return 0.0
 
 
 def transition_cost(prev: Candidate, curr: Candidate, cfg: GuitarConfig) -> float:

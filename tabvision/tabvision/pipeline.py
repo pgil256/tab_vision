@@ -23,13 +23,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable, Iterator
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 
 from tabvision.demux import demux
-from tabvision.fusion import fuse
+from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
+from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
@@ -38,6 +40,7 @@ from tabvision.types import (
     GuitarBackend,
     GuitarConfig,
     HandBackend,
+    Homography,
     SessionConfig,
     TabEvent,
 )
@@ -47,6 +50,12 @@ logger = logging.getLogger(__name__)
 
 class _VideoImportError(RuntimeError):
     """Internal signal: a soft-optional video dep failed to import."""
+
+
+@dataclass(frozen=True)
+class _VideoStackResult:
+    fingerings: list[FrameFingering]
+    neck_anchors: list[TimedNeckAnchor]
 
 
 def run_pipeline(
@@ -80,9 +89,10 @@ def run_pipeline(
     logger.info("audio backend produced %d events", len(audio_events))
 
     fingerings: list[FrameFingering] = []
+    neck_anchors: list[TimedNeckAnchor] = []
     if video_enabled:
         try:
-            fingerings = _run_video_stack(
+            video_result = _run_video_stack(
                 demuxed.frame_iterator,
                 stride=video_stride,
                 cfg=cfg,
@@ -90,11 +100,17 @@ def run_pipeline(
                 fretboard_backend=fretboard_backend,
                 hand_backend=hand_backend,
             )
+            fingerings = video_result.fingerings
+            neck_anchors = video_result.neck_anchors
         except _VideoImportError as exc:
             logger.warning(
                 "video stack unavailable, falling back to audio-only: %s",
                 exc,
             )
+
+    if lambda_vision > 0.0 and neck_anchors:
+        audio_events = apply_neck_anchor_priors(audio_events, neck_anchors, cfg)
+        logger.info("attached %d hand-neck anchors as audio fret priors", len(neck_anchors))
 
     logger.info(
         "running fuse() with %d audio events, %d fingerings, lambda_vision=%.2f",
@@ -118,7 +134,7 @@ def _run_video_stack(
     guitar_backend: GuitarBackend | None,
     fretboard_backend: FretboardBackend | None,
     hand_backend: HandBackend | None,
-) -> list[FrameFingering]:
+) -> _VideoStackResult:
     """Single-pass walk producing one ``FrameFingering`` per sampled frame.
 
     Skipped-by-stride frames produce nothing; sampled frames produce
@@ -138,6 +154,7 @@ def _run_video_stack(
         hand_backend = _make_hand_backend()
 
     fingerings: list[FrameFingering] = []
+    neck_anchors: list[TimedNeckAnchor] = []
     n_fingers = 4  # fretting fingers; matches Phase 4 convention.
     empty_logits = np.zeros((n_fingers, cfg.n_strings, cfg.max_fret + 1), dtype=np.float64)
 
@@ -167,8 +184,28 @@ def _run_video_stack(
         ff = hand_backend.detect(frame, H, cfg)
         # Backends produce a degenerate t=0.0; stamp the real timestamp here.
         fingerings.append(replace(ff, t=t))
+        anchor = _detect_neck_anchor(hand_backend, frame, H, cfg)
+        if anchor is not None and anchor.confidence > 0.0:
+            neck_anchors.append((t, anchor))
 
-    return fingerings
+    return _VideoStackResult(fingerings=fingerings, neck_anchors=neck_anchors)
+
+
+def _detect_neck_anchor(
+    hand_backend: HandBackend,
+    frame: np.ndarray,
+    H: Homography,  # noqa: N803 — optional extension outside the §8 protocol
+    cfg: GuitarConfig,
+) -> NeckAnchorLike | None:
+    """Use a backend's optional coarse neck-anchor hook when available."""
+    detect_anchor = getattr(hand_backend, "detect_anchor", None)
+    if detect_anchor is None:
+        return None
+    try:
+        return cast(NeckAnchorLike | None, detect_anchor(frame, H, cfg))
+    except Exception as exc:  # noqa: BLE001 — optional evidence must degrade softly
+        logger.debug("hand-neck anchor unavailable on frame: %s", exc)
+        return None
 
 
 # ---------------------------------------------------------------------------

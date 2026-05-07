@@ -17,6 +17,7 @@ from tabvision.types import (
     GuitarBBox,
     Homography,
 )
+from tabvision.video.hand.neck_anchor import HandNeckAnchor
 
 # ---------- fakes ----------
 
@@ -80,8 +81,10 @@ class _FakeFretboardBackend:
 class _FakeHandBackend:
     name = "fake_hand"
 
-    def __init__(self):
+    def __init__(self, *, anchor: HandNeckAnchor | None = None):
         self.calls = []
+        self.anchor_calls = []
+        self.anchor = anchor
 
     def detect(self, frame, H, cfg):  # noqa: N803 — math name
         self.calls.append((frame, H, cfg))
@@ -90,6 +93,10 @@ class _FakeHandBackend:
             finger_pos_logits=np.ones((4, 6, 25), dtype=np.float64),
             homography_confidence=0.9,
         )
+
+    def detect_anchor(self, frame, H, cfg):  # noqa: N803 — math name
+        self.anchor_calls.append((frame, H, cfg))
+        return self.anchor
 
 
 # ---------- tests ----------
@@ -217,6 +224,61 @@ def test_run_pipeline_propagates_lambda_vision(monkeypatch):
         lambda_vision=2.5,
     )
     assert captured["lambda_vision"] == 2.5
+
+
+def test_run_pipeline_attaches_neck_anchor_prior_before_fusion(monkeypatch):
+    """Coarse hand-neck anchors become ``AudioEvent.fret_prior`` evidence."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=3))
+    captured: dict = {}
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+    hand = _FakeHandBackend(anchor=HandNeckAnchor(10.0, 9.0, 11.0, 0.9))
+
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=audio,
+        guitar_backend=_FakeGuitarBackend(),
+        fretboard_backend=_FakeFretboardBackend(),
+        hand_backend=hand,
+        video_stride=1,
+    )
+
+    event = captured["events"][0]
+    assert event.fret_prior is not None
+    assert int(event.fret_prior.sum(axis=0).argmax()) == 10
+    assert len(hand.anchor_calls) == 3
+
+
+def test_run_pipeline_skips_neck_anchor_prior_when_vision_weight_zero(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    captured: dict = {}
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=audio,
+        guitar_backend=_FakeGuitarBackend(),
+        fretboard_backend=_FakeFretboardBackend(),
+        hand_backend=_FakeHandBackend(anchor=HandNeckAnchor(10.0, 9.0, 11.0, 0.9)),
+        lambda_vision=0.0,
+    )
+
+    assert captured["events"][0].fret_prior is None
 
 
 def test_run_pipeline_falls_back_to_audio_only_on_video_import_failure(monkeypatch, caplog):

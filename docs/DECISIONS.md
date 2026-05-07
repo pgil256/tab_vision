@@ -357,3 +357,26 @@ per-cell posterior over (string, fret). Net new code is the projection
 - Fretting-hand identification — start with v0's handedness logic;
   switch to wrist-near-nut (now possible because we have the
   homography) only if the eval shows misidentification.
+
+---
+
+## 2026-05-07 — Phase 5 uses hand-neck anchors as first-class fusion priors
+
+**Phase:** 5 (vision-fusion integration)
+**Decision tree:** Phase 4/5 fusion contract — whether exact per-finger
+posteriors are the primary video signal, or whether coarser neck-region
+evidence should guide candidate selection first.
+**Branch taken:** **Use coarse hand-neck anchors as first-class Phase 5
+priors.** MediaPipe + fretboard homography estimate the fretting hand's
+center fret/span; the pipeline converts each timed anchor into an
+`AudioEvent.fret_prior` before calling Viterbi/chord fusion.
+**Evidence:** Phase 4 manual fingering labels proved too expensive for the
+near-term path, while the detector/fretboard stack is already good at
+identifying the neck coordinate system. Phase 5 fusion already accepts
+`AudioEvent.fret_prior` as emission evidence, so the anchor signal can be
+integrated without changing §8 public function signatures.
+**Reasoning:** Exact fingertip-to-string/fret labels are brittle and costly
+to validate; "the hand is around frets 3-6" is a stronger, more stable
+visual prior for resolving audio's same-pitch string/fret ambiguity. Keeping
+the signal as a prior lets audio and playability override it when the visual
+evidence is weak or wrong.

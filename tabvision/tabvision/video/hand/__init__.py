@@ -25,6 +25,7 @@ from tabvision.types import (
     HandBackend,
     Homography,
 )
+from tabvision.video.hand.neck_anchor import HandNeckAnchor, NeckAnchorConfig, compute_neck_anchor
 
 
 def track_hand(
@@ -52,4 +53,9 @@ def track_hand(
     return out
 
 
-__all__ = ["track_hand"]
+__all__ = [
+    "HandNeckAnchor",
+    "NeckAnchorConfig",
+    "compute_neck_anchor",
+    "track_hand",
+]

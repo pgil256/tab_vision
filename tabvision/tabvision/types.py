@@ -167,7 +167,7 @@ class AudioBackend(Protocol):
 class GuitarBackend(Protocol):
     name: str
 
-    def detect(self, frame: np.ndarray) -> GuitarBBox:
+    def detect(self, frame: np.ndarray) -> GuitarBBox | None:
         ...
 
 

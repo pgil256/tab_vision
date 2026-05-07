@@ -29,6 +29,7 @@ from tabvision.video.hand.fingertip_to_fret import (
     PosteriorConfig,
     compute_fingering,
 )
+from tabvision.video.hand.neck_anchor import HandNeckAnchor, compute_neck_anchor
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,21 @@ class MediaPipeHandBackend:
             cfg,
             self.config.posterior,
         )
+
+    def detect_anchor(
+        self, frame: np.ndarray, H: Homography, cfg: GuitarConfig  # noqa: N803
+    ) -> HandNeckAnchor:
+        """Return the coarse fretting-hand neck region for fusion.
+
+        This deliberately sits outside the §8 ``HandBackend`` protocol:
+        exact per-finger posteriors remain available through ``detect()``,
+        while Phase 5 fusion can use this more robust hand-region prior.
+        """
+        if frame.ndim != 3 or frame.shape[-1] != 3:
+            raise BackendError(f"expected BGR frame, got shape {frame.shape}")
+
+        landmarks = self._extract_fretting_hand(frame)
+        return compute_neck_anchor(landmarks, H, cfg)
 
     def close(self) -> None:
         if self._landmarker is not None:
