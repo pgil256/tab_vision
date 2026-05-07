@@ -281,6 +281,64 @@ def test_run_pipeline_skips_neck_anchor_prior_when_vision_weight_zero(monkeypatc
     assert captured["events"][0].fret_prior is None
 
 
+def test_run_pipeline_default_does_not_attach_pitch_position_prior(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    captured: dict = {}
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    monkeypatch.setattr(
+        pipeline,
+        "load_pitch_position_prior",
+        lambda _name, *, cfg=None: pytest.fail("position prior should be explicit"),
+        raising=False,
+    )
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+
+    pipeline.run_pipeline("ignored.mp4", audio_backend=audio, video_enabled=False)
+
+    assert captured["events"][0].fret_prior is None
+
+
+def test_run_pipeline_attaches_named_pitch_position_prior_when_explicit(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    captured: dict = {}
+    prior_matrix = np.ones((6, 25), dtype=np.float64) / 150.0
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    class _FakePrior:
+        def matrix_for_pitch(self, pitch_midi):
+            return prior_matrix if pitch_midi == 69 else None
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    monkeypatch.setattr(
+        pipeline,
+        "load_pitch_position_prior",
+        lambda name, *, cfg=None: _FakePrior(),
+        raising=False,
+    )
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=audio,
+        video_enabled=False,
+        position_prior="guitarset-v1",
+    )
+
+    assert captured["events"][0].fret_prior is prior_matrix
+
+
 def test_run_pipeline_falls_back_to_audio_only_on_video_import_failure(monkeypatch, caplog):
     """Soft import failure of any video backend → audio-only with a warning."""
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
