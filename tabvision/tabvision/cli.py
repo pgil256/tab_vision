@@ -39,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_transcribe(args)
         if args.command == "check":
             return _cmd_check(args)
+        if args.command == "diagnose":
+            return _cmd_diagnose(args)
     except TabVisionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -53,14 +55,20 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-v", "--verbose", action="store_true", help="DEBUG-level logging")
     sub = parser.add_subparsers(dest="command", required=False)
 
-    t = sub.add_parser("transcribe", help="transcribe a video to ASCII tab")
+    t = sub.add_parser("transcribe", help="transcribe a video to tab")
     t.add_argument("input", type=Path, help="input video file")
     t.add_argument(
         "-o",
         "--output",
         type=Path,
         default=None,
-        help="output .tab file; stdout if omitted",
+        help="output file; stdout if omitted",
+    )
+    t.add_argument(
+        "--format",
+        choices=["ascii", "gp5", "musicxml", "midi"],
+        default="ascii",
+        help="render format (default: ascii)",
     )
     t.add_argument(
         "--audio-backend",
@@ -140,6 +148,57 @@ def _build_parser() -> argparse.ArgumentParser:
         help="exit non-zero on any warn finding (default: only fail-severity exits non-zero)",
     )
 
+    d = sub.add_parser(
+        "diagnose",
+        help="write an HTML report with overlay/audio/tab/confidence sections",
+    )
+    d.add_argument("input", type=Path, help="input video file")
+    d.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
+        help="output .html report; defaults to <input>.diagnose.html",
+    )
+    d.add_argument(
+        "--audio-backend",
+        choices=["basicpitch", "highres", "highres-fl"],
+        default="basicpitch",
+        help="audio transcription backend used for the diagnostic decode",
+    )
+    d.add_argument("--capo", type=int, default=0, help="capo fret (0-7)")
+    d.add_argument(
+        "--fusion-lambda-vision",
+        type=float,
+        default=1.0,
+        metavar="FLOAT",
+        help="weight on vision evidence in fusion (default 1.0)",
+    )
+    d.add_argument(
+        "--no-video",
+        action="store_true",
+        help="disable the video stack for the diagnostic decode",
+    )
+    d.add_argument(
+        "--video-stride",
+        type=int,
+        default=3,
+        metavar="N",
+        help="run video backends on every Nth frame (default 3)",
+    )
+    d.add_argument(
+        "--instrument",
+        choices=["acoustic", "classical", "electric"],
+        default="acoustic",
+    )
+    d.add_argument("--tone", choices=["clean", "distorted"], default="clean")
+    d.add_argument("--style", choices=["fingerstyle", "strumming", "mixed"], default="mixed")
+    d.add_argument(
+        "--no-preflight",
+        action="store_true",
+        help="skip preflight section generation",
+    )
+
     return parser
 
 
@@ -150,7 +209,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     See SPEC.md §3.1 and ``docs/plans/2026-05-06-video-pipeline-integration-design.md``.
     """
     from tabvision.pipeline import run_pipeline
-    from tabvision.render.ascii import render
+    from tabvision.render import render
     from tabvision.types import GuitarConfig, SessionConfig
 
     cfg = GuitarConfig(capo=args.capo)
@@ -172,12 +231,14 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     )
     logger.info("pipeline produced %d tab events", len(tab_events))
 
-    output = render(tab_events, cfg)
+    output = render(tab_events, args.format, cfg)
     if args.output:
-        args.output.write_text(output)
+        args.output.write_bytes(output)
         logger.info("wrote %s", args.output)
+    elif args.format == "ascii":
+        sys.stdout.write(output.decode("utf-8"))
     else:
-        sys.stdout.write(output)
+        sys.stdout.buffer.write(output)
 
     return 0
 
@@ -196,6 +257,29 @@ def _cmd_check(args: argparse.Namespace) -> int:
     sys.stdout.write(render(report))
     if not report.passed:
         return 1
+    return 0
+
+
+def _cmd_diagnose(args: argparse.Namespace) -> int:
+    """`tabvision diagnose input.mov` — Phase 9 HTML report."""
+    from tabvision.diagnose import write_diagnose_report
+    from tabvision.types import GuitarConfig, SessionConfig
+
+    cfg = GuitarConfig(capo=args.capo)
+    session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
+    output_path = args.output or args.input.with_suffix(args.input.suffix + ".diagnose.html")
+    report_path = write_diagnose_report(
+        args.input,
+        output_path,
+        audio_backend_name=args.audio_backend,
+        lambda_vision=args.fusion_lambda_vision,
+        video_stride=args.video_stride,
+        video_enabled=not args.no_video,
+        preflight_enabled=not args.no_preflight,
+        cfg=cfg,
+        session=session,
+    )
+    print(f"wrote {report_path}")
     return 0
 
 
