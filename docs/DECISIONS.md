@@ -448,3 +448,24 @@ the target product is home iPhone video, not GuitarSet. A silent default would
 hide a dataset-specific learned bias inside every decode. Keeping it explicit
 preserves baseline behavior while allowing the coordinator to run the exact
 home-video ablation before deciding whether to promote it.
+
+---
+
+## 2026-05-07 — Phase 8 smoke eval is deterministic without external data
+
+**Phase:** 8 (eval harness hardening)
+**Decision tree:** Phase 8 determinism gate and deferred Phase 1.5/3/4 debt audit
+**Branch taken:** **Use a dependency-light synthetic smoke scope for CI, and
+emit explicit blockers for full model-backed eval until the manifest and labels
+exist.**
+**Evidence:** `docs/EVAL_REPORTS/eval_full_20260507T000000Z.json` and
+`.md` report 0 manifest clips, all four required tiers missing, Phase 3
+preflight/fretboard labels at 0/10 and 0/5, and Phase 4 hand labels at
+0/100. `python -m scripts.eval.run --scope smoke --twice-and-diff
+--timestamp 2026-05-07T00:00:00Z` reports `deterministic=true` with a
+180-second smoke budget.
+**Reasoning:** Full eval cannot honestly produce audio-only/audio+vision/prior
+or confidence-calibration metrics without the Phase 1.5 manifest and external
+media/annotations. The smoke scope still exercises the same report writer and
+fixed output format in CI, so Phase 8 hardening can progress without masking the
+remaining data-bound acceptance debt.
