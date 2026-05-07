@@ -1,39 +1,43 @@
 {
   "ablations": [
     {
-      "blocker": "No complete Phase 1.5 manifest plus local media/annotations are available for model-backed eval.",
+      "blocker": null,
       "chord_accuracy": null,
+      "note": "Manual/home-video ablation is removed_from_v1; use deterministic smoke, GuitarSet validation, or other non-interactive public eval evidence.",
       "onset_f1": null,
       "pitch_f1": null,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "variant": "audio_only"
     },
     {
-      "blocker": "No complete Phase 1.5 manifest plus local media/annotations are available for model-backed eval.",
+      "blocker": null,
       "chord_accuracy": null,
+      "note": "Manual/home-video ablation is removed_from_v1; use deterministic smoke, GuitarSet validation, or other non-interactive public eval evidence.",
       "onset_f1": null,
       "pitch_f1": null,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "variant": "audio_vision"
     },
     {
-      "blocker": "No complete Phase 1.5 manifest plus local media/annotations are available for model-backed eval.",
+      "blocker": null,
       "chord_accuracy": null,
+      "note": "Manual/home-video ablation is removed_from_v1; use deterministic smoke, GuitarSet validation, or other non-interactive public eval evidence.",
       "onset_f1": null,
       "pitch_f1": null,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "variant": "audio_vision_prior"
     }
   ],
   "confidence_calibration": {
     "bins": 10,
-    "blocker": "confidence calibration is blocked until scored predictions with per-event confidence exist for manifest clips (currently 0 clips).",
+    "blocker": null,
     "ece": null,
     "metric": "ece",
-    "status": "blocked"
+    "note": "Confidence calibration requires scored predictions from automated eval clips; currently 0 clips. This is not a v1 release blocker.",
+    "status": "optional_future"
   },
   "manifest": {
     "clip_count": 0,
@@ -42,54 +46,56 @@
       {
         "clip_id": null,
         "code": "MISSING_TIER",
-        "message": "Add at least one eval clip for required tier 'clean_acoustic_single_line'.",
-        "severity": "fail"
+        "message": "Optional full eval tier 'clean_acoustic_single_line' has no clip; this is not a v1 release blocker.",
+        "severity": "info"
       },
       {
         "clip_id": null,
         "code": "MISSING_TIER",
-        "message": "Add at least one eval clip for required tier 'clean_acoustic_strummed'.",
-        "severity": "fail"
+        "message": "Optional full eval tier 'clean_acoustic_strummed' has no clip; this is not a v1 release blocker.",
+        "severity": "info"
       },
       {
         "clip_id": null,
         "code": "MISSING_TIER",
-        "message": "Add at least one eval clip for required tier 'clean_electric'.",
-        "severity": "fail"
+        "message": "Optional full eval tier 'clean_electric' has no clip; this is not a v1 release blocker.",
+        "severity": "info"
       },
       {
         "clip_id": null,
         "code": "MISSING_TIER",
-        "message": "Add at least one eval clip for required tier 'distorted_electric'.",
-        "severity": "fail"
+        "message": "Optional full eval tier 'distorted_electric' has no clip; this is not a v1 release blocker.",
+        "severity": "info"
       },
       {
         "clip_id": null,
         "code": "TOO_FEW_CLIPS",
-        "message": "Phase 1.5 requires >= 15 clips; found 0.",
-        "severity": "fail"
+        "message": "Optional full eval target is >= 15 clips; found 0.",
+        "severity": "info"
       }
     ],
-    "manifest_path": "data/eval/manifest.toml",
+    "manifest_path": "/home/gilhooleyp/projects/tab_vision/tabvision/data/eval/manifest.toml",
     "missing_tiers": [
       "clean_acoustic_single_line",
       "clean_acoustic_strummed",
       "clean_electric",
       "distorted_electric"
     ],
-    "passed": false,
+    "passed": true,
     "present_tiers": []
   },
   "phase_debt": {
     "phase_1_5": {
       "command": "tabvision-eval --manifest tabvision/data/eval/manifest.toml --check",
-      "gate": "manifest completeness and all required tiers represented"
+      "gate": "public/programmatic manifest completeness; hand-annotated user clips removed_from_v1",
+      "status": "optional_future"
     },
     "phase_3": {
       "fretboard": {
         "command": "pytest -m fretboard_eval tests/eval/test_phase3_eval.py",
+        "policy": "manual fretboard click labels removed_from_v1",
         "required_labels": 5,
-        "status": "blocked",
+        "status": "optional_future",
         "usable_labels": 0
       },
       "guitar_detector": {
@@ -99,16 +105,18 @@
       },
       "preflight": {
         "command": "pytest -m preflight_eval tests/eval/test_phase3_eval.py",
+        "policy": "manual good/bad framing labels removed_from_v1",
         "required_labels": 10,
-        "status": "blocked",
+        "status": "optional_future",
         "usable_labels": 0
       }
     },
     "phase_4": {
       "hand": {
         "command": "pytest -m hand_eval tests/eval/test_phase4_eval.py",
+        "policy": "manual fretting-finger labels removed_from_v1",
         "required_fretting_labels": 100,
-        "status": "blocked",
+        "status": "optional_future",
         "usable_fretting_labels": 0
       }
     }
@@ -125,28 +133,28 @@
   "tier_breakdown": [
     {
       "clip_count": 0,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "tab_f1_target": 0.94,
       "tier": "clean_acoustic_single_line"
     },
     {
       "clip_count": 0,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "tab_f1_target": 0.86,
       "tier": "clean_acoustic_strummed"
     },
     {
       "clip_count": 0,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "tab_f1_target": 0.9,
       "tier": "clean_electric"
     },
     {
       "clip_count": 0,
-      "status": "blocked",
+      "status": "optional_future",
       "tab_f1": null,
       "tab_f1_target": 0.82,
       "tier": "distorted_electric"

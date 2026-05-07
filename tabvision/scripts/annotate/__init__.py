@@ -1,7 +1,5 @@
-"""Annotation tools — Phase 3 + Phase 4 acceptance-data labeling harness.
+"""Annotation tools for optional Phase 3 + Phase 4 manual validation.
 
-Closes the data-bound acceptance gates flagged in
-``docs/DECISIONS.md`` (2026-05-05 "Phase 3 remaining acceptance gates
-deferred").  See ``README.md`` in this directory for the user-facing
-flow.
+Manual labels are useful future evidence, but they are not v1 release
+blockers. See ``README.md`` in this directory for the user-facing flow.
 """

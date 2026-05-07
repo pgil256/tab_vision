@@ -1,4 +1,4 @@
-"""Phase 7 video augmentation scaffold."""
+"""Phase 7 video augmentation scaffold for automated/optional labeled data."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "phase": 7,
         "dry_run": bool(args.dry_run),
         "seed": int(args.seed),
-        "status": "ready" if args.dry_run else "blocked",
+        "status": "ready" if args.dry_run else "optional_future",
         "inputs": {
             "frame_manifest": str(args.frame_manifest),
             "label_manifest": str(args.label_manifest),
@@ -24,14 +24,14 @@ def build_plan(args: argparse.Namespace) -> dict:
             "report": str(args.output),
         },
         "steps": [
-            "load labeled hand/fretboard frames",
+            "load automated or optional hand/fretboard frame labels",
             "apply deterministic crop, perspective, blur, and exposure variants",
-            "transform labels through the same image-space operations",
+            "transform available labels through the same image-space operations",
             "write augmented frame manifest for hand fine-tuning",
         ],
         "blockers": []
         if args.dry_run
-        else ["full video augmentation requires labeled frame manifests"],
+        else ["full video augmentation requires non-interactive frame manifests"],
     }
 
 

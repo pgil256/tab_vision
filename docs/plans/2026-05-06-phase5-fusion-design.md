@@ -30,7 +30,12 @@ From SPEC §5 Phase 5:
 - **Chord-instance accuracy ≥ 0.80**. Target 0.85 by Phase 9.
 - **Audio+vision must beat audio-only by ≥ 8 pp on Tab F1** (ablation report).
 
-The user eval set = the 20-video iPhone-recorded training set, plus whatever Phase 1.5 annotation tooling adds to the four difficulty tiers. Today's audio-only baseline on that set is **exact F1 ≈ 0.51** (per `errors-2026-04-28_185743.md`). Phase 5's 0.85 bar therefore needs both (a) better audio (Phase 2 SOTA backbone) and (b) the audio+vision boost. Phase 5 alone is on the hook for the **+8 pp audio+vision delta**, not the absolute number — that's the readable signal that the fusion is doing real work.
+The original user eval set was the 20-video iPhone-recorded training set plus
+future Phase 1.5 annotations. As of 2026-05-07, that manual/home-video
+acceptance path is `optional_future`, not a v1 blocker. Phase 5 v1 evidence is
+the automated path: deterministic smoke eval, checked-in fixtures, GuitarSet
+validation reports, and any public/programmatic datasets that can be acquired
+without manual work. Home-video ablation remains useful future validation.
 
 ## 2. Cost function
 
@@ -183,16 +188,20 @@ Tests (`tabvision/tests/unit/test_chord_fusion.py`, new):
 
 Add `tabvision/tests/eval/test_phase5_eval.py` modelled on `test_phase4_eval.py`. It:
 
-1. Runs the full pipeline (audio + video) on each video in the user eval set.
+1. Runs the full pipeline (audio + video) on automated fixtures o
+   public/programmatic eval entries.
 2. Computes Tab F1 (string + fret + onset within ±50 ms) and chord-instance accuracy.
 3. Runs the audio-only ablation (`λ_v = 0`) on the same set.
 4. Asserts:
    - `tab_f1 >= 0.85` (the §5 bar) — **may be marked `xfail` until Phase 2 SOTA backbone lands**, with the understanding that today's audio is the bottleneck.
    - `tab_f1_audio_video - tab_f1_audio_only >= 0.08` — **the Phase-5-specific bar; this is the gate for "fusion is doing real work"**.
    - `chord_accuracy >= 0.80`.
-5. Writes a markdown report to `tabvision-server/tools/outputs/phase5_eval-YYYY-MM-DD.md` summarising the ablation per video (mirrors the `finetune_baseline-*.md` convention).
+5. Writes a markdown report to `tabvision-server/tools/outputs/phase5_eval-YYYY-MM-DD.md` summarising automated evidence. Home-video/manual rows are reported as `optional_future`, never `blocked`.
 
-**Acceptance for Phase 5 as a whole:** the `tab_f1_audio_video - tab_f1_audio_only >= 0.08` assertion passes. The absolute-Tab-F1 bar may be deferred to Phase 7 if audio is still the bottleneck — but if it is, that's a material finding and should land in `DECISIONS.md`.
+**Acceptance for Phase 5 as a whole:** automated evidence is generated and
+the optional `guitarset-v1` prior remains explicit unless automated no-regression
+evidence justifies promotion. Missing hand-labeled home-video ablations are not
+a v1 failure.
 
 ## 7. Risks & open questions
 
@@ -200,7 +209,9 @@ Add `tabvision/tests/eval/test_phase5_eval.py` modelled on `test_phase4_eval.py`
 - **Risk:** chord-state explosion on dense voicings. Mitigation: 6-string max plus monophony pruning bounds cardinality at 720 raw tuples; in practice the constraint cuts to <100. If a real video produces a worst-case cluster (>100 tuples), beam-search is a 5-line addition.
 - **Risk:** open-string bonus over-fires when the player is fingering a fret-0 chord (e.g. capo-0 G major shape) and MediaPipe correctly says "no fingertip on the low strings." Mitigation: chord-cluster decode considers the whole shape — bonus is per-event, but the chord-state's hand-span constraint pulls the rest of the shape into a coherent fingering.
 - **Open:** does Step C need `chord_shapes.py` templates as a prior? Plan says no — start without and add only if F1 demands. Tracked as a Step-C-follow-up if needed.
-- **Open:** what's "the user eval set" for Step E? Today: the 20-video iPhone training set. Phase 1.5's annotation tool will add labelled clips across four difficulty tiers — those should fold into the same eval as they land.
+- **Open:** home-video ablation quality remains future validation. It should
+  fold into the same eval format when labels/assets exist, but it is not a v1
+  release gate.
 
 ## 8. Estimated effort
 

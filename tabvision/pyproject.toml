@@ -119,8 +119,8 @@ markers = [
     "integration: end-to-end tests that run the full pipeline",
     "eval: opt-in eval suite (needs full eval dataset)",
     "guitar_eval: Phase 3 guitar-detector acceptance tests",
-    "preflight_eval: Phase 3 preflight-tool acceptance tests",
-    "fretboard_eval: Phase 3 fretboard-rectification tests",
-    "hand_eval: Phase 4 hand-tracking acceptance tests",
+    "preflight_eval: optional future Phase 3 manual-label preflight tests",
+    "fretboard_eval: optional future Phase 3 manual-label fretboard tests",
+    "hand_eval: optional future Phase 4 manual-label hand tests",
     "render: Phase 6 render-format tests",
 ]

@@ -9,15 +9,16 @@ from pathlib import Path
 from tabvision.eval.manifest import REQUIRED_TIERS, validate_manifest
 
 
-def test_missing_manifest_reports_required_file_and_tiers(tmp_path: Path) -> None:
+def test_missing_manifest_is_optional_for_v1_release(tmp_path: Path) -> None:
     missing = tmp_path / "manifest.toml"
 
     result = validate_manifest(missing)
 
-    assert not result.passed
+    assert result.passed
     assert result.clip_count == 0
     assert result.missing_tiers == list(REQUIRED_TIERS)
-    assert any(item.code == "MANIFEST_MISSING" for item in result.items)
+    assert any(item.code == "MANIFEST_MISSING" and item.severity == "warn" for item in result.items)
+    assert all(item.severity != "fail" for item in result.items)
 
 
 def test_manifest_reports_missing_required_clip_fields(tmp_path: Path) -> None:
@@ -75,4 +76,5 @@ annotation_path = "$TABVISION_DATA_ROOT/guitarset/a.jams"
     payload = json.loads(first)
     assert payload["clip_ids"] == ["a", "b"]
     assert payload["present_tiers"] == ["clean_acoustic_strummed", "distorted_electric"]
+    assert payload["passed"] is True
     assert tomllib.loads(manifest.read_text(encoding="utf-8"))["clips"][0]["id"] == "b"

@@ -14,7 +14,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "phase": 7,
         "dry_run": bool(args.dry_run),
         "seed": int(args.seed),
-        "status": "ready" if args.dry_run else "blocked",
+        "status": "ready" if args.dry_run else "optional_future",
         "inputs": {
             "train_manifest": str(args.train_manifest),
             "validation_manifest": str(args.validation_manifest),
@@ -37,7 +37,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         ],
         "blockers": []
         if args.dry_run
-        else ["full audio fine-tuning requires GPU-capable torch and training data"],
+        else ["full audio fine-tuning requires GPU-capable torch and automated training data"],
     }
 
 

@@ -1,12 +1,14 @@
-# Phase 1.5 eval manifest.
+# Optional automated eval manifest.
 #
-# This file is intentionally a checked-in placeholder until the external
-# datasets are registered under $TABVISION_DATA_ROOT. The validator reports
-# the concrete missing clips and tiers:
+# This file is intentionally a checked-in placeholder until public or otherwise
+# non-interactive datasets are registered under $TABVISION_DATA_ROOT. An empty
+# manifest is not a v1 release blocker; v1 gates use deterministic smoke,
+# checked-in fixtures, GuitarSet validation reports, license checks, and
+# fresh-install verification.
 #
 #   tabvision-eval --manifest tabvision/data/eval/manifest.toml --check
 #
-# Required clip schema:
+# Optional clip schema for automated/public eval entries:
 #
 # [[clips]]
 # id = "guitarset-05-example"

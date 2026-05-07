@@ -14,7 +14,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "phase": 7,
         "dry_run": bool(args.dry_run),
         "seed": int(args.seed),
-        "status": "ready" if args.dry_run else "blocked",
+        "status": "ready" if args.dry_run else "optional_future",
         "inputs": {
             "train_manifest": str(args.train_manifest),
             "validation_manifest": str(args.validation_manifest),
@@ -30,14 +30,14 @@ def build_plan(args: argparse.Namespace) -> dict:
             "batch_size": args.batch_size,
         },
         "steps": [
-            "load augmented labeled video frames",
+            "load augmented automated or optional labeled video frames",
             "initialize hand-position posterior backend",
             "fine-tune fingertip-to-string/fret classifier with fixed seeds",
             "write checkpoint metadata and held-out fingertip metrics",
         ],
         "blockers": []
         if args.dry_run
-        else ["full hand fine-tuning requires labeled frames and GPU-capable torch"],
+        else ["full hand fine-tuning requires non-interactive frame data and GPU-capable torch"],
     }
 
 

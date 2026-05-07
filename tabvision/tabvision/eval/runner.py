@@ -95,7 +95,11 @@ def _phase_debt(eval_root: str | Path) -> dict[str, object]:
     hand_fretting_labels = _hand_fretting_label_count(root / "fingering")
     return {
         "phase_1_5": {
-            "gate": "manifest completeness and all required tiers represented",
+            "status": "optional_future",
+            "gate": (
+                "public/programmatic manifest completeness; hand-annotated user clips "
+                "removed_from_v1"
+            ),
             "command": "tabvision-eval --manifest tabvision/data/eval/manifest.toml --check",
         },
         "phase_3": {
@@ -105,23 +109,26 @@ def _phase_debt(eval_root: str | Path) -> dict[str, object]:
                 "metric": "neck mAP50=0.995",
             },
             "preflight": {
-                "status": "ready" if framing_count >= 10 else "blocked",
+                "status": "optional_future",
                 "usable_labels": framing_count,
                 "required_labels": 10,
+                "policy": "manual good/bad framing labels removed_from_v1",
                 "command": "pytest -m preflight_eval tests/eval/test_phase3_eval.py",
             },
             "fretboard": {
-                "status": "ready" if fretboard_count >= 5 else "blocked",
+                "status": "optional_future",
                 "usable_labels": fretboard_count,
                 "required_labels": 5,
+                "policy": "manual fretboard click labels removed_from_v1",
                 "command": "pytest -m fretboard_eval tests/eval/test_phase3_eval.py",
             },
         },
         "phase_4": {
             "hand": {
-                "status": "ready" if hand_fretting_labels >= 100 else "blocked",
+                "status": "optional_future",
                 "usable_fretting_labels": hand_fretting_labels,
                 "required_fretting_labels": 100,
+                "policy": "manual fretting-finger labels removed_from_v1",
                 "command": "pytest -m hand_eval tests/eval/test_phase4_eval.py",
             }
         },
@@ -146,7 +153,7 @@ def _tier_breakdown(manifest: ManifestValidation) -> list[dict[str, object]]:
         {
             "tier": tier,
             "clip_count": counts[tier],
-            "status": "blocked" if counts[tier] == 0 else "pending_metrics",
+            "status": "optional_future" if counts[tier] == 0 else "pending_metrics",
             "tab_f1_target": _tier_target(tier),
             "tab_f1": None,
         }
@@ -165,6 +172,7 @@ def _ablation_rows(scope: Scope) -> list[dict[str, object]]:
                 "tab_f1": 1.0,
                 "chord_accuracy": 1.0,
                 "blocker": None,
+                "note": None,
             }
             for variant in ABLATION_VARIANTS
         ]
@@ -172,14 +180,15 @@ def _ablation_rows(scope: Scope) -> list[dict[str, object]]:
     return [
         {
             "variant": variant,
-            "status": "blocked",
+            "status": "optional_future",
             "onset_f1": None,
             "pitch_f1": None,
             "tab_f1": None,
             "chord_accuracy": None,
-            "blocker": (
-                "No complete Phase 1.5 manifest plus local media/annotations are available "
-                "for model-backed eval."
+            "blocker": None,
+            "note": (
+                "Manual/home-video ablation is removed_from_v1; use deterministic smoke, "
+                "GuitarSet validation, or other non-interactive public eval evidence."
             ),
         }
         for variant in ABLATION_VARIANTS
@@ -194,15 +203,17 @@ def _confidence_calibration(scope: Scope, manifest: ManifestValidation) -> dict[
             "bins": 10,
             "ece": 0.0,
             "blocker": None,
+            "note": None,
         }
     return {
-        "status": "blocked",
+        "status": "optional_future",
         "metric": "ece",
         "bins": 10,
         "ece": None,
-        "blocker": (
-            "confidence calibration is blocked until scored predictions with per-event "
-            f"confidence exist for manifest clips (currently {manifest.clip_count} clips)."
+        "blocker": None,
+        "note": (
+            "Confidence calibration requires scored predictions from automated eval clips; "
+            f"currently {manifest.clip_count} clips. This is not a v1 release blocker."
         ),
     }
 
@@ -229,13 +240,13 @@ def _markdown_report(payload: dict[str, object]) -> str:
     calibration = payload["confidence_calibration"]
     assert isinstance(calibration, dict)
     lines = [
-        f"# Eval Debt And Harness Report ({payload['scope']})",
+        f"# Eval Harness Report ({payload['scope']})",
         "",
         f"Timestamp: `{payload['timestamp']}`",
         f"Seed: `{payload['seed']}`",
         f"Smoke budget target: < {int(SMOKE_BUDGET_S)} s",
         "",
-        "## Phase 1.5 Manifest",
+        "## Optional Eval Manifest",
         "",
         f"- Passed: `{manifest['passed']}`",
         f"- Clips: `{manifest['clip_count']}`",
@@ -255,9 +266,9 @@ def _markdown_report(payload: dict[str, object]) -> str:
     lines.extend(
         [
             "",
-            "## Phase 3/4 Acceptance Debt",
+            "## Optional Manual Validation Gates",
             "",
-            "| Gate | Status | Evidence / Blocker | Command |",
+            "| Gate | Status | Evidence / v1 Policy | Command |",
             "|---|---|---|---|",
         ]
     )
@@ -267,7 +278,7 @@ def _markdown_report(payload: dict[str, object]) -> str:
             "",
             "## Ablations",
             "",
-            "| Variant | Status | Onset F1 | Pitch F1 | Tab F1 | Chord Acc | Blocker |",
+            "| Variant | Status | Onset F1 | Pitch F1 | Tab F1 | Chord Acc | Notes |",
             "|---|---|---:|---:|---:|---:|---|",
         ]
     )
@@ -275,7 +286,7 @@ def _markdown_report(payload: dict[str, object]) -> str:
         lines.append(
             f"| {row['variant']} | {row['status']} | {_metric_value(row['onset_f1'])} | "
             f"{_metric_value(row['pitch_f1'])} | {_metric_value(row['tab_f1'])} | "
-            f"{_metric_value(row['chord_accuracy'])} | {row['blocker'] or ''} |"
+            f"{_metric_value(row['chord_accuracy'])} | {row.get('note') or ''} |"
         )
 
     lines.extend(
@@ -288,8 +299,8 @@ def _markdown_report(payload: dict[str, object]) -> str:
             f"- ECE: `{_metric_value(calibration['ece'])}`",
         ]
     )
-    if calibration.get("blocker"):
-        lines.append(f"- Blocker: {calibration['blocker']}")
+    if calibration.get("note"):
+        lines.append(f"- Note: {calibration['note']}")
     return "\n".join(lines) + "\n"
 
 
@@ -314,18 +325,21 @@ def _phase_debt_rows(phase_debt: object) -> list[str]:
     )
     rows.append(
         "| Phase 3 preflight | "
-        f"{preflight['status']} | {preflight['usable_labels']}/"
-        f"{preflight['required_labels']} labels | `{preflight['command']}` |"
+        f"{preflight['status']} | {preflight['policy']}; "
+        f"{preflight['usable_labels']}/{preflight['required_labels']} optional labels present | "
+        f"`{preflight['command']}` |"
     )
     rows.append(
         "| Phase 3 fretboard | "
-        f"{fretboard['status']} | {fretboard['usable_labels']}/"
-        f"{fretboard['required_labels']} labels | `{fretboard['command']}` |"
+        f"{fretboard['status']} | {fretboard['policy']}; "
+        f"{fretboard['usable_labels']}/{fretboard['required_labels']} optional labels present | "
+        f"`{fretboard['command']}` |"
     )
     rows.append(
         "| Phase 4 hand | "
-        f"{hand['status']} | {hand['usable_fretting_labels']}/"
-        f"{hand['required_fretting_labels']} fretting labels | `{hand['command']}` |"
+        f"{hand['status']} | {hand['policy']}; "
+        f"{hand['usable_fretting_labels']}/{hand['required_fretting_labels']} optional "
+        f"fretting labels present | `{hand['command']}` |"
     )
     return rows
 

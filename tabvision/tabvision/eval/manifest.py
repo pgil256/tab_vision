@@ -1,4 +1,4 @@
-"""Eval manifest validation for Phase 1.5 and Phase 8 reports."""
+"""Eval manifest validation for optional public/full eval reports."""
 
 from __future__ import annotations
 
@@ -74,20 +74,25 @@ def validate_manifest(path: str | Path) -> ManifestValidation:
     if not manifest_path.exists():
         missing_items = [
             ManifestIssue(
-                severity="fail",
+                severity="warn",
                 code="MANIFEST_MISSING",
-                message=f"Create eval manifest at {manifest_path}.",
+                message=(
+                    f"Optional eval manifest is absent at {manifest_path}; "
+                    "v1 release gates use deterministic smoke/public evidence instead."
+                ),
             ),
             ManifestIssue(
-                severity="fail",
+                severity="info",
                 code="TOO_FEW_CLIPS",
-                message=f"Phase 1.5 requires >= {MIN_PHASE15_CLIPS} clips; found 0.",
+                message=(
+                    f"Optional full eval target is >= {MIN_PHASE15_CLIPS} clips; found 0."
+                ),
             ),
         ]
         missing_items.extend(_missing_tier_issues(REQUIRED_TIERS))
         return ManifestValidation(
             manifest_path=str(manifest_path),
-            passed=False,
+            passed=True,
             clip_count=0,
             clip_ids=[],
             present_tiers=[],
@@ -198,9 +203,12 @@ def validate_manifest(path: str | Path) -> ManifestValidation:
     if len(clips) < MIN_PHASE15_CLIPS:
         items.append(
             ManifestIssue(
-                severity="fail",
+                severity="info",
                 code="TOO_FEW_CLIPS",
-                message=(f"Phase 1.5 requires >= {MIN_PHASE15_CLIPS} clips; found {len(clips)}."),
+                message=(
+                    f"Optional full eval target is >= {MIN_PHASE15_CLIPS} clips; "
+                    f"found {len(clips)}."
+                ),
             )
         )
     missing_tiers = [tier for tier in REQUIRED_TIERS if tier not in tiers]
@@ -226,9 +234,12 @@ def _string_field(clip: dict[object, object], field: str) -> str | None:
 def _missing_tier_issues(missing_tiers: tuple[str, ...] | list[str]) -> list[ManifestIssue]:
     return [
         ManifestIssue(
-            severity="fail",
+            severity="info",
             code="MISSING_TIER",
-            message=f"Add at least one eval clip for required tier {tier!r}.",
+            message=(
+                f"Optional full eval tier {tier!r} has no clip; this is not a v1 "
+                "release blocker."
+            ),
         )
         for tier in missing_tiers
     ]

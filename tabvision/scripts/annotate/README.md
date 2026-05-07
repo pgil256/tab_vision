@@ -1,15 +1,16 @@
 # Labeling harness
 
-Closes the data-bound acceptance gates for Phase 3 and Phase 4 of the
-TabVision spec.
+Optional future validation harness for Phase 3 and Phase 4 manual labels.
+As of 2026-05-07 these labels are not v1 release blockers; automated/public
+evidence is the v1 gate.
 
 ## What it labels
 
 | Mode | What you click / type | Closes |
 |---|---|---|
-| **framing** | "good" or "bad" + reason tags (off-center, dim, oblique, …) | Phase 3 preflight gate (≥ 9/10) |
-| **fretboard** | 4 fret-intersections per clip (frets 5 + 12, top + bottom edges) | Phase 3 keypoint-fretboard gate (≤ 5 px median error) |
-| **fingering** | Per-finger (string, fret) on N evenly-spaced frames per clip | Phase 4 gate (top-1 ≥ 0.75 over 100 frames) |
+| **framing** | "good" or "bad" + reason tags (off-center, dim, oblique, ...) | Optional future Phase 3 preflight validation |
+| **fretboard** | 4 fret-intersections per clip (frets 5 + 12, top + bottom edges) | Optional future Phase 3 keypoint-fretboard validation |
+| **fingering** | Per-finger (string, fret) on N evenly-spaced frames per clip | Optional future Phase 4 hand validation |
 
 ## Run it
 
@@ -70,11 +71,10 @@ Flags:
 - `--host 127.0.0.1` / `--port 5005` — bind address. Use `0.0.0.0` to
   expose on the LAN (e.g. for labeling from a tablet).
 
-### Picking your eval set
+### Picking an optional eval set
 
-Collect 5–10 clips for the eval set under a single directory.  A mix
-of clean takes you already plan to test on, plus a few intentionally
-badly framed ones for the preflight set:
+If you choose to do future manual validation, collect 5–10 clips under a
+single directory. This is not required for v1:
 
 ```
 test-data/eval-clips/
@@ -135,7 +135,7 @@ tabvision/data/eval/
 replaced by hyphens. The JSON schema is the
 :class:`storage.{FramingLabel,FretboardLabel,FingeringLabel}` shape.
 
-## Run the gated acceptance tests
+## Run optional manual-validation tests
 
 Once you have labels:
 
@@ -145,5 +145,6 @@ pytest -m fretboard_eval     # Phase 3 keypoint fretboard
 pytest -m hand_eval          # Phase 4 fingertip top-1
 ```
 
-Each test skips with a helpful message if you haven't collected
-enough labels yet (10 framing / 5 fretboard / 100 finger labels).
+Each test skips with a helpful message if you haven't collected enough labels
+yet (10 framing / 5 fretboard / 100 finger labels). These skips are expected
+for v1 and should be reported as `optional_future`, not blockers.

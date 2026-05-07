@@ -16,5 +16,7 @@ flowchart LR
     F --> H["Confidence map"]
 ```
 
-Current demo status: scaffold only. Replace this with measured eval numbers
-and screenshots after the integrated branch passes the Phase 8/9 gates.
+Current demo status: scaffold only. Replace this with automated/public eval
+numbers, screenshots, and existing/generated media after the integrated branch
+passes the Phase 8/9 gates. Hand-labeled user-video examples are optional
+future validation, not required v1 demo assets.

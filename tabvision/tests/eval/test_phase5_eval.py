@@ -1,4 +1,4 @@
-"""Phase 5 acceptance harness — audio+vision vs. audio-only ablation.
+"""Phase 5 optional full ablation harness — audio+vision vs. audio-only.
 
 Per SPEC §5 and ``docs/plans/2026-05-06-phase5-fusion-design.md`` §6 Step E,
 the Phase-5-specific gate is:
@@ -20,10 +20,13 @@ when MediaPipe / cv2 / a YOLO checkpoint aren't available; the gate
 runs unchanged once the [vision] extras are installed and the YOLO
 weights have been acquired.
 
+The full/home-video ablation is future validation, not a v1 blocker. The
+automated v1 gate is the deterministic smoke/public-data report path.
+
 The gold source is the benchmark index at
 ``tabvision-server/tests/fixtures/benchmarks/index.json`` — same set the
-legacy ``evaluate_transcription.py`` used. Phase 1.5's annotation tool
-will eventually fold its labelled clips into the same harness.
+legacy ``evaluate_transcription.py`` used. Optional manual labels can fold
+into the same harness later.
 """
 
 from __future__ import annotations
@@ -577,7 +580,7 @@ def _find_best_pitch_offset(
     for offset in candidate_offsets:
         matches, error = _pitch_match_stats(predicted, gold, offset, tolerance_s)
         if matches > best_matches or (
-            matches == best_matches and error < best_error
+                matches == best_matches and error < best_error
         ):
             best_matches = matches
             best_offset = offset

@@ -13,7 +13,7 @@ art; new work lives in this package.
 
 ```bash
 cd tabvision
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
@@ -48,7 +48,12 @@ Useful context flags:
 ```bash
 tabvision transcribe input.mov --instrument electric --tone clean --style mixed --capo 0
 tabvision transcribe input.mov --no-video --format ascii
+tabvision transcribe input.mov --position-prior guitarset-v1
 ```
+
+`--position-prior none` is the default. `guitarset-v1` is an explicit
+experimental prior backed by a checked-in artifact; it is not promoted to the
+silent default until automated public/home-domain evidence shows no regression.
 
 ## Diagnose
 
@@ -75,6 +80,8 @@ tabvision diagnose input.mov --no-video --no-preflight
 ## Verification
 
 ```bash
+pytest -q
+python -m scripts.eval.run --scope smoke --twice-and-diff --output-dir /tmp/tabvision-eval-smoke
 pytest -m render
 python scripts/check_default_licenses.py --pyproject pyproject.toml
 bash scripts/test_fresh_install.sh
@@ -83,6 +90,11 @@ bash scripts/test_fresh_install.sh
 `scripts/test_fresh_install.sh` is the Phase 9 fresh-clone scaffold. It clones
 the repository, creates a venv, installs `.[dev]`, checks `tabvision --version`,
 runs the default license policy check, and runs render tests.
+
+Full hand-labeled, user-recorded eval remains useful future validation, but it
+is not a v1 release prerequisite. v1 release evidence must be automated:
+deterministic smoke fixtures, public/programmatic dataset reports such as
+GuitarSet validation, license checks, fresh-install checks, and renderer tests.
 
 ## License Posture
 
@@ -95,5 +107,5 @@ shipping policy.
 ## Portfolio Docs
 
 Portfolio/demo scaffolding lives at `../docs/DEMO/` and `../docs/NARRATIVE.md`.
-Those files are placeholders for final screen recordings, side-by-side eval
-examples, and the architecture story after integration.
+Those files use existing/generated assets for v1. Hand-labeled user-video
+side-by-side examples are optional future additions, not required release work.

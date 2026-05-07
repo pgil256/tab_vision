@@ -1,4 +1,4 @@
-"""Phase 7 self-labeling scaffold."""
+"""Phase 7 high-confidence pseudo-labeling scaffold."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "phase": 7,
         "dry_run": bool(args.dry_run),
         "seed": int(args.seed),
-        "status": "ready" if args.dry_run else "blocked",
+        "status": "ready" if args.dry_run else "optional_future",
         "inputs": {
             "unlabeled_manifest": str(args.unlabeled_manifest),
             "audio_checkpoint": str(args.audio_checkpoint),
@@ -26,14 +26,16 @@ def build_plan(args: argparse.Namespace) -> dict:
             "report": str(args.output),
         },
         "steps": [
-            "run current audio and video models on unlabeled home clips",
+            "run current audio and video models on automated/public unlabeled clips",
             "keep only agreement labels above the confidence threshold",
             "write pseudo-label manifest with provenance and seed metadata",
             "compare next-round eval deltas against the stop condition",
         ],
         "blockers": []
         if args.dry_run
-        else ["self-labeling requires unlabeled home clips and trained checkpoints"],
+        else [
+            "pseudo-labeling requires non-interactive unlabeled manifests and trained checkpoints"
+        ],
     }
 
 
