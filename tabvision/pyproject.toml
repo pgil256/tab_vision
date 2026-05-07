@@ -80,6 +80,7 @@ dev = [
 
 [project.scripts]
 tabvision = "tabvision.cli:main"
+tabvision-eval = "tabvision.eval.runner:main"
 
 [tool.hatch.version]
 path = "tabvision/__init__.py"
