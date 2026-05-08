@@ -23,8 +23,20 @@ Optional extras:
 
 ```bash
 python -m pip install -e '.[audio-baseline]'  # Basic Pitch baseline
+python -m pip install -e '.[audio-highres]'   # high-resolution guitar backend
 python -m pip install -e '.[render]'          # GP5, MusicXML, MIDI writers
 python -m pip install -e '.[vision]'          # video stack; see license note
+```
+
+On Linux, the Basic Pitch extra currently needs Python 3.11 because its
+TensorFlow dependency does not publish compatible Python 3.12 wheels.
+
+Check optional model/dependency readiness:
+
+```bash
+python -m scripts.acquire.models list
+python -m scripts.acquire.models status
+python -m scripts.acquire.models prepare-yolo-dir
 ```
 
 ## Quickstart
@@ -33,6 +45,16 @@ Render ASCII tab:
 
 ```bash
 tabvision transcribe input.mov --format ascii -o output.tab
+```
+
+Fresh-clone fixture smoke with a checked-in file:
+
+```bash
+python3.11 -m venv .venv-audio
+source .venv-audio/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev,audio-baseline]'
+tabvision transcribe data/fixtures/test_a440.mp4 --audio-backend basicpitch --no-video --no-preflight --format ascii -o /tmp/tabvision-a440.tab
 ```
 
 Write another supported format:
@@ -109,3 +131,4 @@ shipping policy.
 Portfolio/demo scaffolding lives at `../docs/DEMO/` and `../docs/NARRATIVE.md`.
 Those files use existing/generated assets for v1. Hand-labeled user-video
 side-by-side examples are optional future additions, not required release work.
+Start with `../docs/DEMO/fresh-user-path.md` for the reproducible CLI demo.

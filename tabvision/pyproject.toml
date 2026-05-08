@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Added in Phase 1 (audio baseline).
+# Basic Pitch pulls TensorFlow; the verified Linux fixture smoke uses Python 3.11.
 audio-baseline = [
     "basic-pitch>=0.3.0",
     "ffmpeg-python>=0.2.0",
