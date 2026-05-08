@@ -24,7 +24,7 @@ For v1, acceptance evidence must come from automated sources only:
   reports,
 - license, fresh-install, and renderer verification commands.
 
-Manual Phase 1.5/3/4 gates are therefore `removed_from_v1` o
+Manual Phase 1.5/3/4 gates are therefore `removed_from_v1` or
 `optional_future`, not blockers. `--position-prior guitarset-v1` remains an
 explicit option; `--position-prior none` remains the default unless automated
 evidence justifies promotion later.

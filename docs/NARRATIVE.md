@@ -18,7 +18,7 @@ What works now:
 What remains before a public v1 release:
 
 - Automated eval evidence from deterministic smoke fixtures and public datasets.
-- Final demo recordings and side-by-side output examples from existing o
+- Final demo recordings and side-by-side output examples from existing or
   generated assets.
 - Final license gate after all default backends are selected.
 - Release tag only after coordinator integration and user sign-off.
