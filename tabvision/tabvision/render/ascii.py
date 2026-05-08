@@ -10,7 +10,7 @@ order, no fixed time-grid. Phase 9 polish adds proper rhythm rendering.
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from tabvision.types import GuitarConfig, TabEvent
 
