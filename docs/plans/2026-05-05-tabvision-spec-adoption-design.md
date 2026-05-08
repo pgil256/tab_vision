@@ -39,6 +39,12 @@ build, and in what order.
 | Q4 | Fate of `tabvision-client/` (Electron) | **Freeze in place.** Keep desktop app + Flask server functional as a v0 demo. New CLI is the spec-compliant artifact; v1 acceptance is measured against the CLI only. Repurposing Electron as a thin CLI consumer is the likely Phase-9-or-v1.1 follow-up. |
 | Naming | Project / package name | Keep `tabvision`. Spec global-edit `tabify` → `tabvision`. CLI command stays `tabvision transcribe ...`. |
 
+**2026-05-07 addendum:** manual annotation and new user-recording work is
+removed from v1 release gates. Phase 1.5/3/4 manual-label tasks are now
+`optional_future`; v1 acceptance depends on deterministic smoke fixtures,
+checked-in fixtures, public/programmatic datasets, existing GuitarSet evidence,
+license checks, fresh-install checks, and renderer tests.
+
 ## 3. Phase mapping
 
 **Fast-forward criterion.** A phase is **fast-forwarded** if its existing
@@ -50,13 +56,13 @@ test. Otherwise: **Port** (move + reshape) or **Build** (new work).
 |---|---|---|---|
 | **0** | Audit + scaffold + LICENSES.md | none | **Build** — first thing we do |
 | **1** | Basic Pitch end-to-end → ASCII | `audio_pipeline.py` works | **Port** — wrap behind `tabvision.audio.basicpitch` + `AudioBackend` protocol |
-| **1.5** | Annotation tool + 15+ clips / 4 tiers | partial; **revised below** | **Build** annotator; **curate** existing + public datasets — no new self-recording |
+| **1.5** | Annotation tool + 15+ clips / 4 tiers | partial; **manual gates removed from v1** | **Optional future** annotator; use automated/public eval evidence for v1 |
 | **2** | Riley/Edwards SOTA swap | none | **Build** — net-new |
 | **3** | Guitar detect + preflight + fretboard | partial; fretboard exists, no YOLO, no preflight | **Build** YOLO + preflight; **Port** existing fretboard as fallback |
 | **4** | MediaPipe finger posteriors | MediaPipe wired | **Port** — wrap as `tabvision.video.hand` |
 | **5** | Viterbi fusion + chord-aware | fusion engine has chord/melodic logic | **Port** — partial rewrite of `fusion_engine.py` to fit spec's `playability.py` + `viterbi.py` split |
 | **6** | ASCII + GP5 + MusicXML + MIDI | ASCII only | **Build** — 3 new exporters |
-| **7** | Augmentation + self-labeling | finetune branch in flight | **Fold** finetune outcome into Phase 7; **Build** augmentation + self-labeling on top |
+| **7** | Augmentation + self-labeling | finetune branch in flight | **Fold** automated finetune/augmentation only; user-corrected self-labeling is optional future |
 | **8** | Deterministic eval harness, CI smoke | harness exists, not deterministic/CI-bound | **Port + harden** |
 | **9** | Polish, demo, license verify | none | **Build** |
 
@@ -134,8 +140,9 @@ tab_vision/                         (repo root, name unchanged)
    `tabvision.audio.basicpitch`. Stub `tabvision.video`. Port
    `app/fusion_engine.py` audio-only path. Port ASCII export. CLI runs
    end-to-end. Eval harness reports first numbers. **Gate:** pipeline runs.
-4. **Phase 1.5 (~1 week).** Curate existing + public datasets per Section 6.
-   No new recording.
+4. **Phase 1.5.** Keep only automated/public dataset registration and smoke
+   fixture coverage for v1. No new recording, manual annotation, or manual
+   dataset curation is required.
 5. **Phases 2 → 9 sequentially**, each gated by §9.3 acceptance.
    No fixed dates past Phase 0.
 
@@ -145,31 +152,32 @@ quality, if time pressure hits.
 
 ## 6. Phase 1.5 — revised eval set strategy
 
-**Constraint:** no new self-recording. Use existing public datasets +
-already-recorded historical clips.
+**Constraint:** no new self-recording, manual annotation, manual downloads, o
+manual dataset curation for v1. Use existing public/programmatic datasets,
+checked-in fixtures, and already-generated reports.
 
 | Tier (§1.4) | Source | Notes |
 |---|---|---|
 | Clean acoustic single-line | GuitarSet held-out player(s) | Already JAMS-annotated, hexaphonic ground truth |
 | Clean acoustic strummed | GuitarSet "comp" excerpts | Same source, comp/chord-mode subset |
-| Clean electric | IDMT-SMT-Guitar held-out | Registration needed; mostly monophonic |
+| Clean electric | Public/programmatic source if available | Registration-only datasets are optional future |
 | Distorted electric | EGDB held-out | Multi-amp, ground-truth tab |
 | **Bonus tier: iPhone OOD** | Existing 11/20 self-recorded videos | Already-annotated; **not a v1 acceptance gate**, but a tracked metric so we know iPhone-domain regressions when they happen |
 
 **Phase 1.5 deliverables (revised):**
 
-1. `tabvision/scripts/annotate/cli.py` — annotator. Useful for converting +
-   validating existing annotations and for any future ad-hoc annotation. **No
-   new recordings required.**
+1. `tabvision/scripts/annotate/cli.py` — optional future annotator. It is
+   useful for later validation, but it is not a v1 deliverable.
 2. **Manifest** `tabvision/data/eval/manifest.toml` listing each clip,
    source, tier, ground-truth path, train/val/test split.
 3. **Conversion scripts** `tabvision/scripts/eval/convert_*.py` for any
    non-JAMS source → JAMS.
 4. **License + redistribution audit** for each public dataset.
 
-**Phase 1.5 acceptance gate (revised):** manifest exists, all tiers
-represented, `pytest -m eval` runs to completion on the manifest, baseline
-metrics committed.
+**Phase 1.5 acceptance gate (revised again 2026-05-07):** deterministic smoke
+eval runs, the optional manifest validator reports missing tiers as
+informational, and any full/public eval uses datasets that can be acquired
+non-interactively. Missing hand-labeled user clips are not a v1 blocker.
 
 **Acknowledged blind spot:** distorted-electric §1.4 target is measured on
 EGDB (studio domain), not iPhone-recorded distortion. Documented here so
@@ -230,7 +238,7 @@ YOLOv8 / ultralytics AGPL (Phase 3). Resolve before each phase commits.
 ## 8. Phase 7 integration — folding in finetune work
 
 Spec Phase 7 is broader than what `feature/audio-finetune-phase1` covers.
-Phase 7 wants:
+Phase 7 originally wanted:
 
 - (a) audio augmentation (DadaGP → SFZ soundfonts → parametric EQ + IR +
   noise + codec re-encoding),
@@ -241,6 +249,11 @@ Phase 7 wants:
 
 Current finetune work covers a slice of (c) — Basic Pitch fine-tune on
 GuitarSet. **No augmentation, no self-labeling.**
+
+**2026-05-07 update:** user-corrected self-labeling is removed from v1. Keep
+only automated augmentation/fine-tune work and high-confidence pseudo-labeling
+that can run without user review. Any low-confidence review queue is
+`optional_future`.
 
 **Two scenarios for H2 fold-in (resolved at Phase 7 entry, not now):**
 
@@ -276,9 +289,9 @@ augmentation work has to lift Basic Pitch from what H2 couldn't.
 7's "drop low-RMS extras" idea would need the different mechanism the
 original Path-2 plan called out (Basic Pitch's last-pitched-note timestamp).
 
-**Phase 7 acceptance gate** stays as written in the spec — all §1.4
-aggregate + per-tier targets met. The fine-tune is one input, not a
-deliverable.
+**Phase 7 acceptance gate** is automated evidence only for v1. Aggregate +
+per-tier targets may be reported from public/programmatic datasets and existing
+GuitarSet validation, but missing hand-labeled user clips do not block release.
 
 ## 9. Risks specific to this hybrid
 

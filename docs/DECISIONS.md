@@ -469,3 +469,26 @@ or confidence-calibration metrics without the Phase 1.5 manifest and external
 media/annotations. The smoke scope still exercises the same report writer and
 fixed output format in CI, so Phase 8 hardening can progress without masking the
 remaining data-bound acceptance debt.
+
+---
+
+## 2026-05-07 — Manual annotation gates removed from v1 release criteria
+
+**Phase:** Remaining v1 / release hardening
+**Decision tree:** Remaining-plan cleanup after Phase 8 smoke report
+**Branch taken:** **Remove manual work from v1 gates.** Phase 1.5 user-recorded
+manifest completeness, Phase 3 preflight labels, Phase 3 fretboard click labels,
+Phase 4 fretting labels, manual dataset downloads, new recordings, and
+user-corrected self-labeling are now `removed_from_v1` or `optional_future`.
+**Evidence:** User instruction on 2026-05-07: "remove anything from the plan
+that requires manual annotation or work." Current automated baseline is green:
+`pytest -q` reported `272 passed, 12 skipped` before this change, and the Phase
+8 smoke runner already exercises report generation without external data.
+**Reasoning:** Manual annotation and private home-video assets are valuable for
+future validation but make v1 unshippable as a reproducible portfolio artifact.
+The remaining release plan must depend on automated evidence only: deterministic
+smoke fixtures, checked-in fixtures, public/programmatic datasets such as
+GuitarSet, existing Modal/public-data reports, license policy checks,
+fresh-install checks, and renderer tests. `--position-prior guitarset-v1` stays
+explicit; default transcription remains `--position-prior none` until automated
+evidence justifies promotion.

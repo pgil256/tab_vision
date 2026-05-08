@@ -1,4 +1,4 @@
-"""Browser-based labeling tool — closes Phase 3 + Phase 4 acceptance gates.
+"""Browser-based optional manual-validation tool for Phase 3 + Phase 4.
 
 Single-file Flask app.  Run::
 
@@ -8,11 +8,14 @@ Single-file Flask app.  Run::
 
 Three label modes:
 
-- ``framing``  — per-clip "good"/"bad" + tag list (Phase 3 preflight gate).
+- ``framing``  — per-clip "good"/"bad" + tag list (future preflight validation).
 - ``fretboard`` — click 4 fret-intersections (frets 5+12, top+bottom edges)
-  on one representative frame per clip (Phase 3 keypoint-fretboard gate).
+  on one representative frame per clip (future keypoint-fretboard validation).
 - ``fingering`` — per-frame ``(string, fret)`` for each fretting finger,
-  on N evenly-spaced frames per clip (Phase 4 acceptance gate).
+  on N evenly-spaced frames per clip (future hand validation).
+
+These labels are useful future validation data, but they are not v1 release
+blockers.
 
 Storage is plain JSON under ``tabvision/data/eval/{framing,fretboard,fingering}/``;
 schema lives in :mod:`scripts.annotate.storage`.
@@ -316,7 +319,7 @@ _TPL_INDEX = (
     _BASE_CSS
     + """
 <h1>TabVision labeling harness</h1>
-<p>Three label types map to the Phase 3 + Phase 4 acceptance gates.
+<p>Three label types support optional future Phase 3 + Phase 4 validation.
 Save labels go under <code>tabvision/data/eval/</code> as JSON.</p>
 <table>
 <tr><th>clip</th><th>framing</th><th>fretboard (4 pts)</th><th>fingering (frames)</th></tr>
@@ -340,7 +343,7 @@ Save labels go under <code>tabvision/data/eval/</code> as JSON.</p>
 </table>
 <p class="footer">Tip: when all three columns are green, run
 <code>pytest -m "fretboard_eval or preflight_eval or hand_eval"</code> to
-re-evaluate the Phase 3/4 acceptance gates against your labels.</p>
+re-evaluate optional Phase 3/4 manual-validation checks.</p>
 """
 )
 
@@ -693,7 +696,7 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=20,
         help="frames sampled per clip for fingering labels (default 20; "
-        "5 clips × 20 = 100 labeled frames per the Phase 4 spec)",
+        "5 clips x 20 = 100 optional manual-validation frames)",
     )
     parser.add_argument(
         "--host",

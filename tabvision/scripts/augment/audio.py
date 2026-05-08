@@ -1,8 +1,8 @@
 """Phase 7 audio augmentation scaffold.
 
 Dry-run mode is deterministic and writes the exact plan that a GPU/data runner
-can execute later. Full augmentation is intentionally blocked until the target
-manifest and IR/noise assets are supplied.
+can execute later. Full augmentation is optional until automated manifests and
+IR/noise assets are supplied.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ def build_plan(args: argparse.Namespace) -> dict:
         "phase": 7,
         "dry_run": bool(args.dry_run),
         "seed": int(args.seed),
-        "status": "ready" if args.dry_run else "blocked",
+        "status": "ready" if args.dry_run else "optional_future",
         "inputs": {
             "manifest": str(args.manifest),
             "ir_dir": str(args.ir_dir),
@@ -30,14 +30,14 @@ def build_plan(args: argparse.Namespace) -> dict:
             "report": str(args.output),
         },
         "steps": [
-            "load annotated audio manifest",
+            "load automated/public audio manifest",
             "apply deterministic gain, EQ, room IR, and distortion variants",
             "write augmented clips with onset-aligned labels",
             "emit augmentation manifest for fine-tuning",
         ],
         "blockers": []
         if args.dry_run
-        else ["full audio augmentation requires real manifests and augmentation assets"],
+        else ["full audio augmentation requires automated manifests and augmentation assets"],
     }
 
 

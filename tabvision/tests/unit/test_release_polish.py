@@ -8,7 +8,8 @@ from pathlib import Path
 def test_fresh_install_script_documents_fresh_clone_flow() -> None:
     script = Path("scripts/test_fresh_install.sh")
     text = script.read_text()
-    assert "python -m venv" in text
+    assert '"$PYTHON_BIN" -m venv' in text
+    assert "command -v python3" in text
     assert "pip install -e" in text
     assert "tabvision --version" in text
     assert "pytest -m render" in text

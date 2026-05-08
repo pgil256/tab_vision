@@ -32,7 +32,7 @@ Full GuitarSet validation highres run from 2026-05-07:
 Delta: `+22.26 pp` Tab F1. Per-track result: 51/60 improved, 8/60 regressed,
 1/60 unchanged.
 
-## Home-Video Prior On/Off Benchmark
+## Optional Future Home-Video Prior On/Off Benchmark
 
 Prepared command shape:
 
@@ -42,9 +42,10 @@ tabvision transcribe <home_clip.mov> --position-prior none
 tabvision transcribe <home_clip.mov> --position-prior guitarset-v1
 ```
 
-Local blocker: this worktree does not have the held-out home-video eval set,
-YOLO checkpoint, MediaPipe model, and highres audio dependencies required for
-the full Phase 5 home-video acceptance run.
+v1 policy: this home-video ablation is `optional_future`, not a release
+blocker. The worktree does not need held-out home-video media, manual labels,
+YOLO checkpoint, MediaPipe model, or highres audio dependencies to pass the
+remaining v1 gates.
 
 Local command result in this worktree:
 
@@ -65,4 +66,5 @@ s [100%]
 ## Decision
 
 Keep `guitarset-v1` optional. Promote only after the home-video ablation shows
-no regression and the remaining GuitarSet regressions are accepted or reduced.
+no regression, or after equivalent automated/public evidence shows no
+regression and the remaining GuitarSet regressions are accepted or reduced.

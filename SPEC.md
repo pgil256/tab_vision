@@ -9,6 +9,28 @@
 
 ---
 
+## 2026-05-07 Scope Override: Manual Work Removed From v1 Gates
+
+The original spec below remains historical context, but v1 release gates no
+longer require manual annotation, new user recordings, manual dataset curation,
+manual downloads, or user-corrected self-labeling. Those activities are
+optional future validation work.
+
+For v1, acceptance evidence must come from automated sources only:
+
+- deterministic smoke evals and checked-in fixtures,
+- public/programmatic datasets that can be acquired without manual steps,
+- existing GuitarSet validation reports and other reproducible public-data
+  reports,
+- license, fresh-install, and renderer verification commands.
+
+Manual Phase 1.5/3/4 gates are therefore `removed_from_v1` or
+`optional_future`, not blockers. `--position-prior guitarset-v1` remains an
+explicit option; `--position-prior none` remains the default unless automated
+evidence justifies promotion later.
+
+---
+
 ## 0. How to Use This Document (Claude Code Operating Manual)
 
 You are Claude Code. This document is your source of truth. Operating rules:

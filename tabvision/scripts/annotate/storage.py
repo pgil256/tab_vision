@@ -1,11 +1,11 @@
 """JSON storage for the labeling harness.
 
-Three label types, one per Phase-3/4 acceptance gate:
+Three label types, one per optional Phase-3/4 manual-validation check:
 
-- :class:`FramingLabel` — preflight gate (good vs bad framing + tags).
-- :class:`FretboardLabel` — keypoint-fretboard gate (4 fret-intersection
+- :class:`FramingLabel` — preflight validation (good vs bad framing + tags).
+- :class:`FretboardLabel` — keypoint-fretboard validation (4 fret-intersection
   clicks at frets 5 + 12, top + bottom edges).
-- :class:`FingeringLabel` — Phase-4 gate (per-frame finger → (string, fret)
+- :class:`FingeringLabel` — Phase-4 validation (per-frame finger → (string, fret)
   for the four fretting fingers).
 
 Each clip's labels live under ``<eval_root>/{framing,fretboard,fingering}/<clip_id>.json``
