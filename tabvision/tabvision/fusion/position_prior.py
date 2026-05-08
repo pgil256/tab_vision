@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
 from tabvision.types import AudioEvent, GuitarConfig, TabEvent
+
+_PRIORS_DIR = Path(__file__).with_name("priors")
+_NAMED_PRIORS = {
+    "guitarset-v1": _PRIORS_DIR / "guitarset_v1.json",
+}
 
 
 @dataclass(frozen=True)
@@ -90,8 +97,66 @@ def apply_pitch_position_prior(
     return out
 
 
+def load_pitch_position_prior(
+    name_or_path: str | Path,
+    *,
+    cfg: GuitarConfig | None = None,
+) -> PitchPositionPrior:
+    """Load a versioned pitch-position prior artifact.
+
+    Named artifacts are checked into ``tabvision.fusion.priors`` so runtime
+    transcription never needs raw GuitarSet files. A filesystem path may also
+    be supplied for reproducible experiments.
+    """
+    if cfg is None:
+        cfg = GuitarConfig()
+
+    key = str(name_or_path)
+    path = _NAMED_PRIORS.get(key)
+    if path is None:
+        candidate = Path(key)
+        if candidate.is_file():
+            path = candidate
+        else:
+            known = ", ".join(sorted(_NAMED_PRIORS))
+            raise ValueError(f"unknown pitch-position prior {key!r}; known: {known}")
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") != 1:
+        raise ValueError(f"unsupported pitch-position prior schema in {path}")
+    counts = payload.get("counts")
+    if not isinstance(counts, list):
+        raise ValueError(f"pitch-position prior artifact missing counts: {path}")
+
+    examples: list[TabEvent] = []
+    for row in counts:
+        if not isinstance(row, list) or len(row) != 4:
+            raise ValueError(f"invalid prior count row in {path}: {row!r}")
+        pitch_midi, string_idx, fret, count = (int(row[0]), int(row[1]), int(row[2]), int(row[3]))
+        if count < 0:
+            raise ValueError(f"invalid negative prior count in {path}: {row!r}")
+        examples.extend(
+            TabEvent(
+                onset_s=0.0,
+                duration_s=0.0,
+                string_idx=string_idx,
+                fret=fret,
+                pitch_midi=pitch_midi,
+                confidence=1.0,
+            )
+            for _ in range(count)
+        )
+    return learn_pitch_position_prior(
+        examples,
+        cfg=cfg,
+        alpha=float(payload.get("alpha", 1.0)),
+        power=float(payload.get("power", 2.0)),
+    )
+
+
 __all__ = [
     "PitchPositionPrior",
     "apply_pitch_position_prior",
     "learn_pitch_position_prior",
+    "load_pitch_position_prior",
 ]

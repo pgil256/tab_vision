@@ -107,6 +107,16 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--position-prior",
+        choices=["none", "guitarset-v1"],
+        default="none",
+        help=(
+            "explicit pitch-to-string/fret prior for audio events. Default "
+            "'none' preserves baseline decode; 'guitarset-v1' loads the "
+            "checked-in Phase 5 artifact without requiring raw GuitarSet at runtime."
+        ),
+    )
+    t.add_argument(
         "--instrument",
         choices=["acoustic", "classical", "electric"],
         default="acoustic",
@@ -167,6 +177,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         lambda_vision=args.fusion_lambda_vision,
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
+        position_prior=args.position_prior,
         cfg=cfg,
         session=session,
     )

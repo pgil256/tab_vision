@@ -422,3 +422,29 @@ classified and reduced or accepted, and (c) the home-video Phase 5 benchmark
 shows no regression. The full GuitarSet result is strong enough to justify the
 production integration path, but the 8 regressed validation clips make a silent
 global default premature.
+
+---
+
+## 2026-05-07 — Phase 5 pitch-position prior stays explicit by default
+
+**Phase:** 5 (production prior path)
+**Decision tree:** Phase 5 prior promotion — make learned pitch-position
+evidence a default decode behavior only if full-validation and home-video
+ablation evidence show a clear no-regression improvement.
+**Branch taken:** **Keep the prior optional.** The production pipeline now
+accepts `--position-prior guitarset-v1`, which loads a checked-in versioned
+artifact from `tabvision/tabvision/fusion/priors/guitarset_v1.json`; default
+transcription remains `--position-prior none`.
+**Evidence:** Existing full GuitarSet validation evidence remains strong:
+highres with no prior scored onset F1 `0.9218`, pitch F1 `0.9022`, Tab F1
+`0.3878`; highres with the GuitarSet train-split prior scored onset F1
+`0.9218`, pitch F1 `0.9022`, Tab F1 `0.6104` (`+22.26 pp`). However, 8/60
+validation clips regressed. The home-video prior on/off benchmark is prepared
+through the new explicit CLI/pipeline option, but local completion is blocked
+until the held-out home-video eval data plus heavyweight audio/vision assets
+are available in this worktree.
+**Reasoning:** The prior fixes a real pitch-to-tab ambiguity bottleneck, but
+the target product is home iPhone video, not GuitarSet. A silent default would
+hide a dataset-specific learned bias inside every decode. Keeping it explicit
+preserves baseline behavior while allowing the coordinator to run the exact
+home-video ablation before deciding whether to promote it.

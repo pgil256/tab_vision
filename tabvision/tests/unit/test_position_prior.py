@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+import tabvision.fusion.position_prior as position_prior
 from tabvision.fusion import fuse
 from tabvision.fusion.position_prior import (
     PitchPositionPrior,
@@ -71,3 +72,23 @@ def test_learned_prior_can_override_lowest_fret_audio_only_pick():
     decoded = fuse([event], [], GuitarConfig(), lambda_vision=0.0)
 
     assert [(ev.string_idx, ev.fret) for ev in decoded] == [(3, 14)]
+
+
+def test_named_prior_artifact_loads_normalized_versioned_matrices():
+    prior = position_prior.load_pitch_position_prior("guitarset-v1")
+
+    matrix = prior.matrix_for_pitch(69)
+
+    assert matrix is not None
+    assert matrix.shape == (6, 25)
+    assert np.isclose(matrix.sum(), 1.0)
+    assert prior.matrix_for_pitch(20) is None
+
+
+def test_unknown_named_prior_artifact_fails_with_clear_error():
+    try:
+        position_prior.load_pitch_position_prior("missing-prior")
+    except ValueError as exc:
+        assert "unknown pitch-position prior" in str(exc)
+    else:
+        raise AssertionError("unknown prior name should fail")
