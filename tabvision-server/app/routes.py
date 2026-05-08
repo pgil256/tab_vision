@@ -9,7 +9,7 @@ from app.processing import process_job, load_result
 
 bp = Blueprint('jobs', __name__)
 
-ALLOWED_EXTENSIONS = {'mp4', 'mov'}
+ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm'}
 
 
 def allowed_file(filename: str) -> bool:
@@ -26,7 +26,7 @@ def create_job():
         return jsonify({'error': 'No file selected'}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed. Use MP4 or MOV.'}), 400
+        return jsonify({'error': 'File type not allowed. Use MP4, MOV, or WEBM.'}), 400
 
     capo_fret = request.form.get('capo_fret', '0')
     try:

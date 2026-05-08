@@ -79,19 +79,28 @@ class TestSaveAndLoadResult:
 class TestProcessJob:
     """Tests for job processing orchestration."""
 
+    @patch('app.processing.quantize_notes')
+    @patch('app.processing.detect_muted_notes')
     @patch('app.processing.extract_audio')
+    @patch('app.processing.preprocess_audio')
     @patch('app.processing.analyze_pitch')
+    @patch('app.processing.detect_with_ensemble')
     @patch('app.processing.fuse_audio_only')
     def test_process_job_updates_status_on_success(
-        self, mock_fuse, mock_analyze, mock_extract, job_storage, sample_job, tmp_path
+        self, mock_fuse, mock_ensemble, mock_analyze, mock_preprocess, mock_extract,
+        mock_muted, mock_quantize, job_storage, sample_job, tmp_path
     ):
         """Successful processing should update job status to completed."""
         # Setup mocks
         mock_extract.return_value = str(tmp_path / "audio.wav")
-        mock_analyze.return_value = [
+        mock_preprocess.return_value = str(tmp_path / "audio_preprocessed.wav")
+        detected = [
             DetectedNote(start_time=1.0, end_time=1.5, midi_note=69, confidence=0.9)
         ]
-        mock_fuse.return_value = [
+        mock_analyze.return_value = detected
+        mock_ensemble.return_value = detected
+        mock_muted.return_value = []
+        tab_notes = [
             TabNote(
                 id="test-1",
                 timestamp=1.0,
@@ -102,6 +111,8 @@ class TestProcessJob:
                 midi_note=69,
             )
         ]
+        mock_fuse.return_value = tab_notes
+        mock_quantize.return_value = tab_notes
 
         job_storage.save(sample_job)
 
@@ -128,11 +139,16 @@ class TestProcessJob:
         assert job.status == "failed"
         assert "ffmpeg error" in job.error_message
 
+    @patch('app.processing.quantize_notes')
+    @patch('app.processing.detect_muted_notes')
     @patch('app.processing.extract_audio')
+    @patch('app.processing.preprocess_audio')
     @patch('app.processing.analyze_pitch')
+    @patch('app.processing.detect_with_ensemble')
     @patch('app.processing.fuse_audio_only')
     def test_process_job_progresses_through_stages(
-        self, mock_fuse, mock_analyze, mock_extract, job_storage, sample_job, tmp_path
+        self, mock_fuse, mock_ensemble, mock_analyze, mock_preprocess, mock_extract,
+        mock_muted, mock_quantize, job_storage, sample_job, tmp_path
     ):
         """Processing should progress through defined stages."""
         stages_seen = []
@@ -143,10 +159,14 @@ class TestProcessJob:
 
         mock_extract.return_value = str(tmp_path / "audio.wav")
         mock_extract.side_effect = lambda *a, **k: (track_stage(), str(tmp_path / "audio.wav"))[1]
+        mock_preprocess.return_value = str(tmp_path / "audio_preprocessed.wav")
         mock_analyze.return_value = []
         mock_analyze.side_effect = lambda *a, **k: (track_stage(), [])[1]
+        mock_ensemble.return_value = []
+        mock_muted.return_value = []
         mock_fuse.return_value = []
         mock_fuse.side_effect = lambda *a, **k: (track_stage(), [])[1]
+        mock_quantize.return_value = []
 
         job_storage.save(sample_job)
 

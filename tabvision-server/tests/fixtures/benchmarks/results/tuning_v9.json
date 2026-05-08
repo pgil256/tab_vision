@@ -1,0 +1,3035 @@
+{
+  "timestamp": "2026-04-23T11:58:02.723713",
+  "results": {
+    "training-01": {
+      "metrics": {
+        "exact": {
+          "precision": 0.36363636363636365,
+          "recall": 0.5,
+          "f1": 0.4210526315789474,
+          "tp": 8,
+          "fp": 14,
+          "fn": 8
+        },
+        "pitch": {
+          "precision": 0.6363636363636364,
+          "recall": 0.875,
+          "f1": 0.7368421052631579,
+          "tp": 14,
+          "fp": 8,
+          "fn": 2
+        },
+        "position": {
+          "accuracy": 0.42857142857142855,
+          "correct": 6,
+          "total": 14
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 2,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 16,
+          "detected": 22,
+          "ratio": 1.375
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 4.325,
+            "det_time": 5.261887528344671,
+            "midi_note": 64,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 4.741666666666667,
+            "det_time": 5.261887528344671,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 7.658333333333333,
+            "det_time": 6.888568253968254,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 8.075,
+            "det_time": 7.318137414965986,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 10.991666666666667,
+            "det_time": 10.583108843537415,
+            "midi_note": 59,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 5,
+            "det_fret": 5,
+            "gt_time": 11.408333333333335,
+            "det_time": 11.082337868480726,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 14.325,
+            "det_time": 13.85840634920635,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 5,
+            "gt_time": 14.741666666666667,
+            "det_time": 15.10195782312925,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 22,
+      "ground_truth_count": 16
+    },
+    "training-02": {
+      "metrics": {
+        "exact": {
+          "precision": 0.3157894736842105,
+          "recall": 0.3333333333333333,
+          "f1": 0.3243243243243243,
+          "tp": 6,
+          "fp": 13,
+          "fn": 12
+        },
+        "pitch": {
+          "precision": 0.8947368421052632,
+          "recall": 0.9444444444444444,
+          "f1": 0.918918918918919,
+          "tp": 17,
+          "fp": 2,
+          "fn": 1
+        },
+        "position": {
+          "accuracy": 0.35294117647058826,
+          "correct": 6,
+          "total": 17
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 1,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 18,
+          "detected": 19,
+          "ratio": 1.0555555555555556
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 4.5875,
+            "det_time": 4.367919274376417,
+            "midi_note": 64,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 6,
+            "gt_time": 5.3375,
+            "det_time": 5.099347845804989,
+            "midi_note": 65,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 2,
+            "det_fret": 8,
+            "gt_time": 6.0875,
+            "det_time": 5.8539963718820855,
+            "midi_note": 67,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 6,
+            "gt_time": 6.8375,
+            "det_time": 6.586708843537415,
+            "midi_note": 65,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 7.5875,
+            "det_time": 7.352967346938776,
+            "midi_note": 64,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 9.4625,
+            "det_time": 8.840328344671201,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 5,
+            "det_string": 2,
+            "det_fret": 0,
+            "gt_time": 10.5875,
+            "det_time": 10.339299319727893,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 6,
+            "det_string": 2,
+            "det_fret": 10,
+            "gt_time": 11.3375,
+            "det_time": 11.082337868480726,
+            "midi_note": 70,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 2,
+            "det_fret": 11,
+            "gt_time": 12.0875,
+            "det_time": 11.82537641723356,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 6,
+            "det_string": 2,
+            "det_fret": 13,
+            "gt_time": 12.8375,
+            "det_time": 12.55808888888889,
+            "midi_note": 70,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 5,
+            "det_string": 2,
+            "det_fret": 11,
+            "gt_time": 13.5875,
+            "det_time": 13.370787301587303,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 6,
+            "det_string": 2,
+            "det_fret": 11,
+            "gt_time": 13.9625,
+            "det_time": 13.370787301587303,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 19,
+      "ground_truth_count": 18
+    },
+    "training-03": {
+      "metrics": {
+        "exact": {
+          "precision": 0.5333333333333333,
+          "recall": 0.6153846153846154,
+          "f1": 0.5714285714285715,
+          "tp": 8,
+          "fp": 7,
+          "fn": 5
+        },
+        "pitch": {
+          "precision": 0.8,
+          "recall": 0.9230769230769231,
+          "f1": 0.8571428571428571,
+          "tp": 12,
+          "fp": 3,
+          "fn": 1
+        },
+        "position": {
+          "accuracy": 0.6666666666666666,
+          "correct": 8,
+          "total": 12
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 1,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 13,
+          "detected": 15,
+          "ratio": 1.1538461538461537
+        },
+        "near_misses": [
+          {
+            "gt_string": 2,
+            "gt_fret": 10,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 7.818181818181818,
+            "det_time": 7.503897052154195,
+            "midi_note": 69,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 10,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 9.40909090909091,
+            "det_time": 10.327689342403628,
+            "midi_note": 69,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 14,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 11.0,
+            "det_time": 10.327689342403628,
+            "midi_note": 73,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 14,
+            "det_string": 1,
+            "det_fret": 9,
+            "gt_time": 11.909090909090908,
+            "det_time": 11.21004761904762,
+            "midi_note": 78,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 14,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 12.136363636363637,
+            "det_time": 12.128519727891156,
+            "midi_note": 69,
+            "type": "wrong_position"
+          }
+        ]
+      },
+      "note_count": 15,
+      "ground_truth_count": 13
+    },
+    "training-04": {
+      "metrics": {
+        "exact": {
+          "precision": 0.2,
+          "recall": 0.2692307692307692,
+          "f1": 0.22950819672131148,
+          "tp": 7,
+          "fp": 28,
+          "fn": 19
+        },
+        "pitch": {
+          "precision": 0.6,
+          "recall": 0.8076923076923077,
+          "f1": 0.6885245901639345,
+          "tp": 21,
+          "fp": 14,
+          "fn": 5
+        },
+        "position": {
+          "accuracy": 0.3333333333333333,
+          "correct": 7,
+          "total": 21
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 9,
+          "fn": 4
+        },
+        "counts": {
+          "ground_truth": 26,
+          "detected": 35,
+          "ratio": 1.3461538461538463
+        },
+        "near_misses": [
+          {
+            "gt_string": 4,
+            "gt_fret": 4,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 5.125,
+            "det_time": 4.507239002267574,
+            "midi_note": 54,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 3,
+            "gt_time": 5.5,
+            "det_time": 4.855538321995465,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 5,
+            "det_string": 6,
+            "det_fret": 12,
+            "gt_time": 5.875,
+            "det_time": 5.099347845804989,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 14,
+            "gt_time": 6.25,
+            "det_time": 5.366377324263039,
+            "midi_note": 59,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 6,
+            "det_fret": 15,
+            "gt_time": 6.25,
+            "det_time": 5.552136961451247,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 5,
+            "det_string": 5,
+            "det_fret": 15,
+            "gt_time": 7.5625,
+            "det_time": 7.8638063492063495,
+            "midi_note": 60,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 5,
+            "det_fret": 15,
+            "gt_time": 8.5,
+            "det_time": 7.8638063492063495,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 3,
+            "det_string": 6,
+            "det_fret": 19,
+            "gt_time": 9.25,
+            "det_time": 9.339557369614512,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 6,
+            "det_fret": 19,
+            "gt_time": 9.25,
+            "det_time": 9.339557369614512,
+            "midi_note": 59,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 8,
+            "det_string": 4,
+            "det_fret": 17,
+            "gt_time": 10.375,
+            "det_time": 10.838528344671202,
+            "midi_note": 67,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 17,
+            "gt_time": 10.5625,
+            "det_time": 10.838528344671202,
+            "midi_note": 71,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 4,
+            "det_fret": 17,
+            "gt_time": 11.3125,
+            "det_time": 10.838528344671202,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 10,
+            "det_string": 4,
+            "det_fret": 21,
+            "gt_time": 11.875,
+            "det_time": 11.407417233560091,
+            "midi_note": 74,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 12,
+            "det_string": 1,
+            "det_fret": 10,
+            "gt_time": 13.375,
+            "det_time": 12.813508390022676,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 12,
+            "det_string": 1,
+            "det_fret": 10,
+            "gt_time": 13.375,
+            "det_time": 12.813508390022676,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 14,
+            "det_string": 2,
+            "det_fret": 8,
+            "gt_time": 13.9375,
+            "det_time": 13.452057142857143,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 12,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 14.5,
+            "det_time": 14.393749206349206,
+            "midi_note": 57,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 14,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 15.0625,
+            "det_time": 14.393749206349206,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 14,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 15.0625,
+            "det_time": 14.393749206349206,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 35,
+      "ground_truth_count": 26
+    },
+    "training-05": {
+      "metrics": {
+        "exact": {
+          "precision": 0.3,
+          "recall": 0.42857142857142855,
+          "f1": 0.3529411764705882,
+          "tp": 6,
+          "fp": 14,
+          "fn": 8
+        },
+        "pitch": {
+          "precision": 0.65,
+          "recall": 0.9285714285714286,
+          "f1": 0.7647058823529412,
+          "tp": 13,
+          "fp": 7,
+          "fn": 1
+        },
+        "position": {
+          "accuracy": 0.46153846153846156,
+          "correct": 6,
+          "total": 13
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 5,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 14,
+          "detected": 20,
+          "ratio": 1.4285714285714286
+        },
+        "near_misses": [
+          {
+            "gt_string": 6,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 6.550000000000001,
+            "det_time": 6.830518367346939,
+            "midi_note": 45,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 6.758333333333334,
+            "det_time": 6.830518367346939,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 7.383333333333335,
+            "det_time": 6.830518367346939,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 7,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 8.008333333333335,
+            "det_time": 7.387797278911565,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 7,
+            "det_string": 1,
+            "det_fret": 0,
+            "gt_time": 8.216666666666667,
+            "det_time": 7.852196371882086,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 8,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 9.883333333333335,
+            "det_time": 9.979390022675737,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 9,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 10.716666666666667,
+            "det_time": 9.979390022675737,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 10,
+            "det_string": 2,
+            "det_fret": 8,
+            "gt_time": 11.341666666666669,
+            "det_time": 10.884968253968255,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 20,
+      "ground_truth_count": 14
+    },
+    "training-06": {
+      "metrics": {
+        "exact": {
+          "precision": 0.6206896551724138,
+          "recall": 0.5,
+          "f1": 0.5538461538461539,
+          "tp": 18,
+          "fp": 11,
+          "fn": 18
+        },
+        "pitch": {
+          "precision": 0.7931034482758621,
+          "recall": 0.6388888888888888,
+          "f1": 0.7076923076923076,
+          "tp": 23,
+          "fp": 6,
+          "fn": 13
+        },
+        "position": {
+          "accuracy": 0.782608695652174,
+          "correct": 18,
+          "total": 23
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 3,
+          "fp": 5,
+          "fn": 4
+        },
+        "counts": {
+          "ground_truth": 36,
+          "detected": 29,
+          "ratio": 0.8055555555555556
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 3.0875000000000004,
+            "det_time": 3.1359777777777778,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 3.0875000000000004,
+            "det_time": 3.1359777777777778,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 3,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 4.5875,
+            "det_time": 3.7977464852607707,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 6.0875,
+            "det_time": 5.389597278911564,
+            "midi_note": 66,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 3,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 6.0875,
+            "det_time": 5.389597278911564,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 6.0875,
+            "det_time": 5.389597278911564,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 6.0875,
+            "det_time": 5.389597278911564,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 7.5875,
+            "det_time": 6.830518367346939,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 7.5875,
+            "det_time": 6.830518367346939,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 7.5875,
+            "det_time": 6.830518367346939,
+            "midi_note": 40,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 0,
+            "gt_time": 9.0875,
+            "det_time": 8.41075918367347,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 0,
+            "gt_time": 9.0875,
+            "det_time": 8.41075918367347,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 0,
+            "gt_time": 9.0875,
+            "det_time": 8.41075918367347,
+            "midi_note": 45,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 10.5875,
+            "det_time": 9.850396371882086,
+            "midi_note": 66,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 3,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 10.5875,
+            "det_time": 9.850396371882086,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 0,
+            "det_string": 2,
+            "det_fret": 5,
+            "gt_time": 10.5875,
+            "det_time": 9.850396371882086,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 12.0875,
+            "det_time": 11.349367346938775,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 12.0875,
+            "det_time": 11.349367346938775,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 29,
+      "ground_truth_count": 36
+    },
+    "training-07": {
+      "metrics": {
+        "exact": {
+          "precision": 0.4375,
+          "recall": 0.30434782608695654,
+          "f1": 0.358974358974359,
+          "tp": 7,
+          "fp": 9,
+          "fn": 16
+        },
+        "pitch": {
+          "precision": 0.9375,
+          "recall": 0.6521739130434783,
+          "f1": 0.7692307692307693,
+          "tp": 15,
+          "fp": 1,
+          "fn": 8
+        },
+        "position": {
+          "accuracy": 0.4666666666666667,
+          "correct": 7,
+          "total": 15
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 5,
+          "fn": 4
+        },
+        "counts": {
+          "ground_truth": 23,
+          "detected": 16,
+          "ratio": 0.6956521739130435
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 2.2083333333333335,
+            "det_time": 3.0082680272108844,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 3,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 2.2083333333333335,
+            "det_time": 3.0082680272108844,
+            "midi_note": 53,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 2.2083333333333335,
+            "det_time": 3.0082680272108844,
+            "midi_note": 41,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 3.875,
+            "det_time": 3.1127578231292516,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.541666666666667,
+            "det_time": 6.1571396825396825,
+            "midi_note": 66,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 7,
+            "gt_time": 5.541666666666667,
+            "det_time": 4.727828571428571,
+            "midi_note": 62,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.541666666666667,
+            "det_time": 6.1571396825396825,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.541666666666667,
+            "det_time": 6.1571396825396825,
+            "midi_note": 54,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.541666666666667,
+            "det_time": 6.1571396825396825,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.541666666666667,
+            "det_time": 6.1571396825396825,
+            "midi_note": 42,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 7,
+            "gt_time": 7.208333333333334,
+            "det_time": 6.238409523809524,
+            "midi_note": 66,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 11,
+            "gt_time": 7.208333333333334,
+            "det_time": 7.619996825396825,
+            "midi_note": 61,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 11,
+            "gt_time": 7.208333333333334,
+            "det_time": 7.619996825396825,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 4,
+            "det_string": 4,
+            "det_fret": 11,
+            "gt_time": 7.208333333333334,
+            "det_time": 7.619996825396825,
+            "midi_note": 54,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 4,
+            "det_string": 4,
+            "det_fret": 11,
+            "gt_time": 7.208333333333334,
+            "det_time": 7.619996825396825,
+            "midi_note": 49,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 11,
+            "gt_time": 7.208333333333334,
+            "det_time": 7.619996825396825,
+            "midi_note": 42,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 16,
+      "ground_truth_count": 23
+    },
+    "training-08": {
+      "metrics": {
+        "exact": {
+          "precision": 0.05555555555555555,
+          "recall": 0.08333333333333333,
+          "f1": 0.06666666666666667,
+          "tp": 1,
+          "fp": 17,
+          "fn": 11
+        },
+        "pitch": {
+          "precision": 0.5555555555555556,
+          "recall": 0.8333333333333334,
+          "f1": 0.6666666666666667,
+          "tp": 10,
+          "fp": 8,
+          "fn": 2
+        },
+        "position": {
+          "accuracy": 0.1,
+          "correct": 1,
+          "total": 10
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 4,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 12,
+          "detected": 18,
+          "ratio": 1.5
+        },
+        "near_misses": [
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 7,
+            "gt_time": 2.6500000000000004,
+            "det_time": 3.1708077097505667,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 7,
+            "gt_time": 3.1,
+            "det_time": 3.1708077097505667,
+            "midi_note": 52,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 7,
+            "gt_time": 3.7,
+            "det_time": 3.1708077097505667,
+            "midi_note": 49,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 4,
+            "det_string": 6,
+            "det_fret": 7,
+            "gt_time": 4.15,
+            "det_time": 3.577156916099773,
+            "midi_note": 54,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 10,
+            "gt_time": 4.9,
+            "det_time": 4.158939682539683,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 4,
+            "det_string": 6,
+            "det_fret": 9,
+            "gt_time": 5.050000000000001,
+            "det_time": 4.460799092970522,
+            "midi_note": 54,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 6,
+            "det_fret": 21,
+            "gt_time": 5.5,
+            "det_time": 4.762658503401361,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 5.95,
+            "det_time": 5.377987301587301,
+            "midi_note": 49,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 6,
+            "det_string": 5,
+            "det_fret": 9,
+            "gt_time": 6.1,
+            "det_time": 5.377987301587301,
+            "midi_note": 56,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 6,
+            "det_string": 4,
+            "det_fret": 9,
+            "gt_time": 6.55,
+            "det_time": 5.900436281179138,
+            "midi_note": 61,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 18,
+      "ground_truth_count": 12
+    },
+    "training-09": {
+      "metrics": {
+        "exact": {
+          "precision": 0.47368421052631576,
+          "recall": 0.47368421052631576,
+          "f1": 0.47368421052631576,
+          "tp": 9,
+          "fp": 10,
+          "fn": 10
+        },
+        "pitch": {
+          "precision": 0.5263157894736842,
+          "recall": 0.5263157894736842,
+          "f1": 0.5263157894736842,
+          "tp": 10,
+          "fp": 9,
+          "fn": 9
+        },
+        "position": {
+          "accuracy": 0.8,
+          "correct": 8,
+          "total": 10
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 3,
+          "fn": 3
+        },
+        "counts": {
+          "ground_truth": 19,
+          "detected": 19,
+          "ratio": 1.0
+        },
+        "near_misses": [
+          {
+            "gt_string": 5,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 5.527272727272728,
+            "det_time": 5.9946,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 5.981818181818182,
+            "det_time": 5.9946,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 6.436363636363637,
+            "det_time": 5.9946,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 2,
+            "det_fret": 2,
+            "gt_time": 6.8909090909090915,
+            "det_time": 6.342899319727891,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 7.345454545454546,
+            "det_time": 7.051107936507937,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 2,
+            "det_fret": 1,
+            "gt_time": 8.254545454545456,
+            "det_time": 7.619996825396825,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 10.981818181818182,
+            "det_time": 10.246419501133788,
+            "midi_note": 53,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 3,
+            "gt_time": 11.436363636363637,
+            "det_time": 10.803698412698413,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 1,
+            "det_fret": 1,
+            "gt_time": 11.89090909090909,
+            "det_time": 11.407417233560091,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 3,
+            "det_string": 1,
+            "det_fret": 1,
+            "gt_time": 11.89090909090909,
+            "det_time": 11.407417233560091,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 19,
+      "ground_truth_count": 19
+    },
+    "training-10": {
+      "metrics": {
+        "exact": {
+          "precision": 0.6956521739130435,
+          "recall": 0.5,
+          "f1": 0.5818181818181818,
+          "tp": 16,
+          "fp": 7,
+          "fn": 16
+        },
+        "pitch": {
+          "precision": 0.8695652173913043,
+          "recall": 0.625,
+          "f1": 0.7272727272727273,
+          "tp": 20,
+          "fp": 3,
+          "fn": 12
+        },
+        "position": {
+          "accuracy": 0.8,
+          "correct": 16,
+          "total": 20
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 5,
+          "fp": 3,
+          "fn": 1
+        },
+        "counts": {
+          "ground_truth": 32,
+          "detected": 23,
+          "ratio": 0.71875
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 2.5785714285714287,
+            "det_time": 2.2768394557823126,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 2.5785714285714287,
+            "det_time": 2.2768394557823126,
+            "midi_note": 45,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 3,
+            "gt_time": 4.007142857142858,
+            "det_time": 3.7745265306122446,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 1,
+            "det_string": 4,
+            "det_fret": 3,
+            "gt_time": 4.007142857142858,
+            "det_time": 3.7745265306122446,
+            "midi_note": 41,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 1,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 5.435714285714286,
+            "det_time": 4.9832480725623585,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 5.435714285714286,
+            "det_time": 4.9832480725623585,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 6.864285714285715,
+            "det_time": 6.342899319727891,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 6.864285714285715,
+            "det_time": 6.342899319727891,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 6.864285714285715,
+            "det_time": 6.342899319727891,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 6.864285714285715,
+            "det_time": 6.342899319727891,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 3,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 6.864285714285715,
+            "det_time": 6.342899319727891,
+            "midi_note": 43,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 8.292857142857144,
+            "det_time": 7.666436734693877,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 3,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 8.292857142857144,
+            "det_time": 7.666436734693877,
+            "midi_note": 58,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 1,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 8.292857142857144,
+            "det_time": 7.666436734693877,
+            "midi_note": 46,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 9.721428571428572,
+            "det_time": 9.40921723356009,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 9.721428571428572,
+            "det_time": 9.40921723356009,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 23,
+      "ground_truth_count": 32
+    },
+    "training-11": {
+      "metrics": {
+        "exact": {
+          "precision": 0.5925925925925926,
+          "recall": 0.7272727272727273,
+          "f1": 0.6530612244897959,
+          "tp": 16,
+          "fp": 11,
+          "fn": 6
+        },
+        "pitch": {
+          "precision": 0.7777777777777778,
+          "recall": 0.9545454545454546,
+          "f1": 0.8571428571428572,
+          "tp": 21,
+          "fp": 6,
+          "fn": 1
+        },
+        "position": {
+          "accuracy": 0.7142857142857143,
+          "correct": 15,
+          "total": 21
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 2,
+          "fn": 1
+        },
+        "counts": {
+          "ground_truth": 22,
+          "detected": 27,
+          "ratio": 1.2272727272727273
+        },
+        "near_misses": [
+          {
+            "gt_string": 6,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 2.8666666666666667,
+            "det_time": 3.321737414965986,
+            "midi_note": 45,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 7,
+            "det_string": 5,
+            "det_fret": 7,
+            "gt_time": 4.866666666666667,
+            "det_time": 4.286649433106576,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 8,
+            "det_string": 3,
+            "det_fret": 5,
+            "gt_time": 5.7,
+            "det_time": 4.971638095238095,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 6.533333333333333,
+            "det_time": 5.94687619047619,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 8,
+            "det_string": 1,
+            "det_fret": 5,
+            "gt_time": 8.366666666666667,
+            "det_time": 8.166949659863945,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 7,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 9.2,
+            "det_time": 8.526858956916099,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 27,
+      "ground_truth_count": 22
+    },
+    "training-12": {
+      "metrics": {
+        "exact": {
+          "precision": 0.4473684210526316,
+          "recall": 0.7083333333333334,
+          "f1": 0.5483870967741936,
+          "tp": 17,
+          "fp": 21,
+          "fn": 7
+        },
+        "pitch": {
+          "precision": 0.4473684210526316,
+          "recall": 0.7083333333333334,
+          "f1": 0.5483870967741936,
+          "tp": 17,
+          "fp": 21,
+          "fn": 7
+        },
+        "position": {
+          "accuracy": 1.0,
+          "correct": 17,
+          "total": 17
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 12,
+          "fn": 4
+        },
+        "counts": {
+          "ground_truth": 24,
+          "detected": 38,
+          "ratio": 1.5833333333333333
+        },
+        "near_misses": [
+          {
+            "gt_string": 6,
+            "gt_fret": 1,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 2.6875,
+            "det_time": 2.358109297052154,
+            "midi_note": 41,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 2,
+            "det_string": 4,
+            "det_fret": 4,
+            "gt_time": 3.4375,
+            "det_time": 2.7760684807256233,
+            "midi_note": 42,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 1,
+            "det_string": 4,
+            "det_fret": 5,
+            "gt_time": 4.0,
+            "det_time": 3.217247619047619,
+            "midi_note": 46,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 10.5625,
+            "det_time": 9.79234648526077,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 8,
+            "gt_time": 11.3125,
+            "det_time": 10.931408163265306,
+            "midi_note": 66,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 2,
+            "det_fret": 9,
+            "gt_time": 12.0625,
+            "det_time": 11.419027210884355,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 38,
+      "ground_truth_count": 24
+    },
+    "training-13": {
+      "metrics": {
+        "exact": {
+          "precision": 0.7647058823529411,
+          "recall": 0.5909090909090909,
+          "f1": 0.6666666666666667,
+          "tp": 13,
+          "fp": 4,
+          "fn": 9
+        },
+        "pitch": {
+          "precision": 0.7647058823529411,
+          "recall": 0.5909090909090909,
+          "f1": 0.6666666666666667,
+          "tp": 13,
+          "fp": 4,
+          "fn": 9
+        },
+        "position": {
+          "accuracy": 1.0,
+          "correct": 13,
+          "total": 13
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 2,
+          "fn": 1
+        },
+        "counts": {
+          "ground_truth": 22,
+          "detected": 17,
+          "ratio": 0.7727272727272727
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 7.175000000000001,
+            "det_time": 6.412559183673469,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 6,
+            "det_fret": 3,
+            "gt_time": 8.216666666666667,
+            "det_time": 8.37592925170068,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 0,
+            "det_string": 6,
+            "det_fret": 3,
+            "gt_time": 8.425,
+            "det_time": 8.37592925170068,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 6,
+            "det_fret": 3,
+            "gt_time": 8.841666666666667,
+            "det_time": 8.37592925170068,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 10.091666666666667,
+            "det_time": 9.780736507936508,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 10.3,
+            "det_time": 9.780736507936508,
+            "midi_note": 40,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 0,
+            "gt_time": 10.925,
+            "det_time": 11.070727891156464,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 0,
+            "gt_time": 11.341666666666669,
+            "det_time": 11.070727891156464,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 3,
+            "det_fret": 0,
+            "gt_time": 12.383333333333335,
+            "det_time": 12.070469841269842,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 17,
+      "ground_truth_count": 22
+    },
+    "training-14": {
+      "metrics": {
+        "exact": {
+          "precision": 0.30434782608695654,
+          "recall": 0.4375,
+          "f1": 0.358974358974359,
+          "tp": 7,
+          "fp": 16,
+          "fn": 9
+        },
+        "pitch": {
+          "precision": 0.6521739130434783,
+          "recall": 0.9375,
+          "f1": 0.7692307692307693,
+          "tp": 15,
+          "fp": 8,
+          "fn": 1
+        },
+        "position": {
+          "accuracy": 0.3333333333333333,
+          "correct": 5,
+          "total": 15
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 3,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 16,
+          "detected": 23,
+          "ratio": 1.4375
+        },
+        "near_misses": [
+          {
+            "gt_string": 6,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 4,
+            "gt_time": 2.007142857142857,
+            "det_time": 1.253877551020408,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 8,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 2.3285714285714287,
+            "det_time": 2.834118367346939,
+            "midi_note": 48,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 10,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 2.5428571428571427,
+            "det_time": 2.834118367346939,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 7,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 2.8642857142857143,
+            "det_time": 2.834118367346939,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 8,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 3.185714285714286,
+            "det_time": 2.834118367346939,
+            "midi_note": 53,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 10,
+            "det_string": 5,
+            "det_fret": 2,
+            "gt_time": 3.507142857142857,
+            "det_time": 2.834118367346939,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 9,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 4.257142857142857,
+            "det_time": 3.588766893424036,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 5.007142857142857,
+            "det_time": 4.240209523809524,
+            "midi_note": 71,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 4,
+            "det_fret": 10,
+            "gt_time": 5.328571428571428,
+            "det_time": 4.634948752834467,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 23,
+      "ground_truth_count": 16
+    },
+    "training-15": {
+      "metrics": {
+        "exact": {
+          "precision": 0.45454545454545453,
+          "recall": 0.7142857142857143,
+          "f1": 0.5555555555555556,
+          "tp": 10,
+          "fp": 12,
+          "fn": 4
+        },
+        "pitch": {
+          "precision": 0.5,
+          "recall": 0.7857142857142857,
+          "f1": 0.6111111111111112,
+          "tp": 11,
+          "fp": 11,
+          "fn": 3
+        },
+        "position": {
+          "accuracy": 0.9090909090909091,
+          "correct": 10,
+          "total": 11
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 1,
+          "fp": 6,
+          "fn": 5
+        },
+        "counts": {
+          "ground_truth": 14,
+          "detected": 22,
+          "ratio": 1.5714285714285714
+        },
+        "near_misses": [
+          {
+            "gt_string": 3,
+            "gt_fret": 6,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 7.542857142857144,
+            "det_time": 7.782536507936508,
+            "midi_note": 61,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 8.07857142857143,
+            "det_time": 7.782536507936508,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 7,
+            "det_string": 5,
+            "det_fret": 16,
+            "gt_time": 8.971428571428572,
+            "det_time": 8.526858956916099,
+            "midi_note": 71,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 5,
+            "det_fret": 16,
+            "gt_time": 8.971428571428572,
+            "det_time": 8.526858956916099,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 22,
+      "ground_truth_count": 14
+    },
+    "training-16": {
+      "metrics": {
+        "exact": {
+          "precision": 0.3076923076923077,
+          "recall": 0.3333333333333333,
+          "f1": 0.32,
+          "tp": 4,
+          "fp": 9,
+          "fn": 8
+        },
+        "pitch": {
+          "precision": 0.6153846153846154,
+          "recall": 0.6666666666666666,
+          "f1": 0.64,
+          "tp": 8,
+          "fp": 5,
+          "fn": 4
+        },
+        "position": {
+          "accuracy": 0.5,
+          "correct": 4,
+          "total": 8
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 1,
+          "fn": 0
+        },
+        "counts": {
+          "ground_truth": 12,
+          "detected": 13,
+          "ratio": 1.0833333333333333
+        },
+        "near_misses": [
+          {
+            "gt_string": 5,
+            "gt_fret": 10,
+            "det_string": 5,
+            "det_fret": 3,
+            "gt_time": 3.254545454545455,
+            "det_time": 2.578698866213152,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 4,
+            "det_fret": 5,
+            "gt_time": 4.845454545454545,
+            "det_time": 4.077669841269841,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 2,
+            "det_fret": 6,
+            "gt_time": 5.527272727272727,
+            "det_time": 4.925198185941043,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 12,
+            "det_string": 4,
+            "det_fret": 7,
+            "gt_time": 7.118181818181818,
+            "det_time": 6.969838095238095,
+            "midi_note": 57,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 5,
+            "det_fret": 5,
+            "gt_time": 9.163636363636364,
+            "det_time": 8.49202902494331,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 4,
+            "gt_time": 9.618181818181819,
+            "det_time": 9.850396371882086,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 13,
+      "ground_truth_count": 12
+    },
+    "training-17": {
+      "metrics": {
+        "exact": {
+          "precision": 0.5263157894736842,
+          "recall": 0.5555555555555556,
+          "f1": 0.5405405405405405,
+          "tp": 10,
+          "fp": 9,
+          "fn": 8
+        },
+        "pitch": {
+          "precision": 0.7894736842105263,
+          "recall": 0.8333333333333334,
+          "f1": 0.8108108108108109,
+          "tp": 15,
+          "fp": 4,
+          "fn": 3
+        },
+        "position": {
+          "accuracy": 0.6666666666666666,
+          "correct": 10,
+          "total": 15
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 1,
+          "fn": 1
+        },
+        "counts": {
+          "ground_truth": 18,
+          "detected": 19,
+          "ratio": 1.0555555555555556
+        },
+        "near_misses": [
+          {
+            "gt_string": 2,
+            "gt_fret": 13,
+            "det_string": 1,
+            "det_fret": 8,
+            "gt_time": 10.825,
+            "det_time": 10.350909297052155,
+            "midi_note": 72,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 15,
+            "det_string": 2,
+            "det_fret": 15,
+            "gt_time": 11.45,
+            "det_time": 11.186827664399093,
+            "midi_note": 79,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 13,
+            "det_string": 1,
+            "det_fret": 17,
+            "gt_time": 13.325,
+            "det_time": 12.98765804988662,
+            "midi_note": 77,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 12,
+            "det_string": 1,
+            "det_fret": 15,
+            "gt_time": 13.95,
+            "det_time": 13.811966439909297,
+            "midi_note": 76,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 15,
+            "det_string": 1,
+            "det_fret": 12,
+            "gt_time": 16.241666666666667,
+            "det_time": 15.531526984126984,
+            "midi_note": 74,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 13,
+            "det_string": 1,
+            "det_fret": 10,
+            "gt_time": 16.866666666666667,
+            "det_time": 16.391949206349206,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 12,
+            "det_string": 1,
+            "det_fret": 8,
+            "gt_time": 17.491666666666667,
+            "det_time": 17.239477551020407,
+            "midi_note": 71,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 14,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 18.325,
+            "det_time": 18.134729705215417,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 19,
+      "ground_truth_count": 18
+    },
+    "training-18": {
+      "metrics": {
+        "exact": {
+          "precision": 0.3103448275862069,
+          "recall": 0.2647058823529412,
+          "f1": 0.28571428571428575,
+          "tp": 9,
+          "fp": 20,
+          "fn": 25
+        },
+        "pitch": {
+          "precision": 0.6896551724137931,
+          "recall": 0.5882352941176471,
+          "f1": 0.6349206349206349,
+          "tp": 20,
+          "fp": 9,
+          "fn": 14
+        },
+        "position": {
+          "accuracy": 0.45,
+          "correct": 9,
+          "total": 20
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 9,
+          "fn": 11
+        },
+        "counts": {
+          "ground_truth": 34,
+          "detected": 29,
+          "ratio": 0.8529411764705882
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 7.666666666666667,
+            "det_time": 7.492287074829932,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 7.666666666666667,
+            "det_time": 7.492287074829932,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 7.666666666666667,
+            "det_time": 7.492287074829932,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 8.166666666666666,
+            "det_time": 7.492287074829932,
+            "midi_note": 71,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 8.166666666666666,
+            "det_time": 7.492287074829932,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 2,
+            "gt_time": 8.166666666666666,
+            "det_time": 7.492287074829932,
+            "midi_note": 52,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 6,
+            "det_fret": 10,
+            "gt_time": 8.666666666666666,
+            "det_time": 8.37592925170068,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 7,
+            "det_string": 6,
+            "det_fret": 10,
+            "gt_time": 8.666666666666666,
+            "det_time": 8.37592925170068,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 8,
+            "det_string": 6,
+            "det_fret": 10,
+            "gt_time": 8.666666666666666,
+            "det_time": 8.37592925170068,
+            "midi_note": 53,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 9.333333333333334,
+            "det_time": 10.049049886621315,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 7,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 9.333333333333334,
+            "det_time": 10.049049886621315,
+            "midi_note": 62,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 8,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 9.333333333333334,
+            "det_time": 10.049049886621315,
+            "midi_note": 53,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 5,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 10.333333333333332,
+            "det_time": 10.049049886621315,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 10.333333333333332,
+            "det_time": 10.049049886621315,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 10.333333333333332,
+            "det_time": 10.049049886621315,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 7,
+            "det_string": 1,
+            "det_fret": 7,
+            "gt_time": 11.0,
+            "det_time": 10.049049886621315,
+            "midi_note": 71,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 5,
+            "det_string": 3,
+            "det_fret": 5,
+            "gt_time": 11.0,
+            "det_time": 10.072269841269842,
+            "midi_note": 60,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 7,
+            "det_string": 5,
+            "det_fret": 7,
+            "gt_time": 11.0,
+            "det_time": 10.06065986394558,
+            "midi_note": 52,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 8,
+            "det_string": 3,
+            "det_fret": 7,
+            "gt_time": 11.5,
+            "det_time": 10.908188208616782,
+            "midi_note": 72,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 10,
+            "det_string": 4,
+            "det_fret": 14,
+            "gt_time": 12.0,
+            "det_time": 11.802156462585035,
+            "midi_note": 74,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 29,
+      "ground_truth_count": 34
+    },
+    "training-19": {
+      "metrics": {
+        "exact": {
+          "precision": 1.0,
+          "recall": 0.7666666666666667,
+          "f1": 0.8679245283018869,
+          "tp": 23,
+          "fp": 0,
+          "fn": 7
+        },
+        "pitch": {
+          "precision": 1.0,
+          "recall": 0.7666666666666667,
+          "f1": 0.8679245283018869,
+          "tp": 23,
+          "fp": 0,
+          "fn": 7
+        },
+        "position": {
+          "accuracy": 1.0,
+          "correct": 23,
+          "total": 23
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 2,
+          "fp": 4,
+          "fn": 2
+        },
+        "counts": {
+          "ground_truth": 30,
+          "detected": 23,
+          "ratio": 0.7666666666666667
+        },
+        "near_misses": [
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 3,
+            "det_fret": 2,
+            "gt_time": 2.6785714285714284,
+            "det_time": 2.6019188208616777,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 2,
+            "det_string": 1,
+            "det_fret": 0,
+            "gt_time": 5.892857142857142,
+            "det_time": 5.354767346938775,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 1,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 8.571428571428571,
+            "det_time": 8.735838548752834,
+            "midi_note": 65,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 9.285714285714285,
+            "det_time": 8.735838548752834,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 2,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 9.285714285714285,
+            "det_time": 8.735838548752834,
+            "midi_note": 47,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 1,
+            "det_fret": 3,
+            "gt_time": 9.464285714285715,
+            "det_time": 8.735838548752834,
+            "midi_note": 67,
+            "type": "wrong_position"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 1,
+            "det_fret": 0,
+            "gt_time": 12.857142857142858,
+            "det_time": 12.116909750566894,
+            "midi_note": 64,
+            "type": "wrong_position"
+          }
+        ]
+      },
+      "note_count": 23,
+      "ground_truth_count": 30
+    },
+    "training-20": {
+      "metrics": {
+        "exact": {
+          "precision": 0.7368421052631579,
+          "recall": 0.25925925925925924,
+          "f1": 0.3835616438356165,
+          "tp": 14,
+          "fp": 5,
+          "fn": 40
+        },
+        "pitch": {
+          "precision": 0.9473684210526315,
+          "recall": 0.5,
+          "f1": 0.6545454545454545,
+          "tp": 18,
+          "fp": 1,
+          "fn": 18
+        },
+        "position": {
+          "accuracy": 0.7777777777777778,
+          "correct": 14,
+          "total": 18
+        },
+        "chord": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "partial": 0,
+          "fp": 5,
+          "fn": 9
+        },
+        "counts": {
+          "ground_truth": 54,
+          "detected": 19,
+          "ratio": 0.35185185185185186
+        },
+        "near_misses": [
+          {
+            "gt_string": 1,
+            "gt_fret": 0,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 1.7083333333333333,
+            "det_time": 1.822766439909297,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 0,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 1.7083333333333333,
+            "det_time": 1.822766439909297,
+            "midi_note": 40,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 3,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 2.541666666666667,
+            "det_time": 1.822766439909297,
+            "midi_note": 67,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 4,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 2.541666666666667,
+            "det_time": 1.822766439909297,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 5,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 2.541666666666667,
+            "det_time": 1.822766439909297,
+            "midi_note": 55,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 5,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 2.541666666666667,
+            "det_time": 1.822766439909297,
+            "midi_note": 50,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 3,
+            "det_string": 5,
+            "det_fret": 0,
+            "gt_time": 2.541666666666667,
+            "det_time": 1.822766439909297,
+            "midi_note": 43,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": "X",
+            "det_string": 2,
+            "det_fret": 3,
+            "gt_time": 3.375,
+            "det_time": 2.857338321995465,
+            "midi_note": null,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 4.416666666666667,
+            "det_time": 4.507239002267574,
+            "midi_note": 59,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 6,
+            "gt_fret": 0,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 4.416666666666667,
+            "det_time": 4.507239002267574,
+            "midi_note": 40,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 1,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 5.25,
+            "det_time": 4.507239002267574,
+            "midi_note": 69,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 2,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 5.25,
+            "det_time": 4.507239002267574,
+            "midi_note": 64,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 3,
+            "gt_fret": 5,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 5.25,
+            "det_time": 4.507239002267574,
+            "midi_note": 60,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 4,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 5.25,
+            "det_time": 4.507239002267574,
+            "midi_note": 57,
+            "type": "wrong_pitch"
+          },
+          {
+            "gt_string": 5,
+            "gt_fret": 7,
+            "det_string": 4,
+            "det_fret": 0,
+            "gt_time": 5.25,
+            "det_time": 4.507239002267574,
+            "midi_note": 52,
+            "type": "wrong_pitch"
+          }
+        ]
+      },
+      "note_count": 19,
+      "ground_truth_count": 54
+    }
+  }
+}

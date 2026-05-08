@@ -1,0 +1,35 @@
+{
+  "audio_backend": "highres",
+  "filters_enabled": true,
+  "n_clips": 3,
+  "n_succeeded": 3,
+  "rows": [
+    {
+      "clip": "training-01",
+      "duration_s": 18.97,
+      "audio_events": 20,
+      "tab_events": 18,
+      "gt_notes": 16,
+      "ratio_detected_to_gt": 1.125,
+      "error": null
+    },
+    {
+      "clip": "training-03",
+      "duration_s": 18.63,
+      "audio_events": 14,
+      "tab_events": 13,
+      "gt_notes": 13,
+      "ratio_detected_to_gt": 1.0,
+      "error": null
+    },
+    {
+      "clip": "training-06",
+      "duration_s": 16.03,
+      "audio_events": 42,
+      "tab_events": 38,
+      "gt_notes": 36,
+      "ratio_detected_to_gt": 1.056,
+      "error": null
+    }
+  ]
+}

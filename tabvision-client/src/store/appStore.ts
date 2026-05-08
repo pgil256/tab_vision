@@ -30,6 +30,13 @@ interface AppState {
   isFollowingPlayback: boolean;
   pendingFretInput: string;
 
+  // UI state
+  zoomLevel: number;
+  capoFretInput: number;
+  isVideoCollapsed: boolean;
+  showShortcutsModal: boolean;
+  playbackRate: number;
+
   // Edit history
   editHistory: EditAction[];
   editHistoryIndex: number;
@@ -63,19 +70,28 @@ interface AppState {
   canUndo: () => boolean;
   canRedo: () => boolean;
 
-  // Auto-scroll
+  // UI actions
   setFollowingPlayback: (following: boolean) => void;
+  setZoomLevel: (zoom: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
+  setCapoFretInput: (fret: number) => void;
+  setVideoCollapsed: (collapsed: boolean) => void;
+  toggleVideoCollapsed: () => void;
+  setShowShortcutsModal: (show: boolean) => void;
+  setPlaybackRate: (rate: number) => void;
 }
 
 const initialState = {
   // Job state
-  currentJobId: null,
+  currentJobId: null as string | null,
   jobStatus: 'idle' as JobStatus,
   progress: 0,
   currentStage: '',
-  tabDocument: null,
-  errorMessage: null,
-  videoUrl: null,
+  tabDocument: null as TabDocument | null,
+  errorMessage: null as string | null,
+  videoUrl: null as string | null,
 
   // Playback state
   currentTime: 0,
@@ -83,9 +99,16 @@ const initialState = {
   isPlaying: false,
 
   // Editor state
-  selectedNoteId: null,
+  selectedNoteId: null as string | null,
   isFollowingPlayback: true,
   pendingFretInput: '',
+
+  // UI state
+  zoomLevel: 1.0,
+  capoFretInput: 0,
+  isVideoCollapsed: false,
+  showShortcutsModal: false,
+  playbackRate: 1.0,
 
   // Edit history
   editHistory: [] as EditAction[],
@@ -262,6 +285,32 @@ export const useAppStore = create<AppState>((set, get) => ({
     return editHistoryIndex < editHistory.length - 1;
   },
 
-  // Auto-scroll
+  // UI actions
   setFollowingPlayback: (following) => set({ isFollowingPlayback: following }),
+
+  setZoomLevel: (zoom) => set({ zoomLevel: Math.max(0.25, Math.min(4.0, zoom)) }),
+
+  zoomIn: () => {
+    const { zoomLevel } = get();
+    const nextZoom = Math.min(4.0, Math.round((zoomLevel + 0.25) * 100) / 100);
+    set({ zoomLevel: nextZoom });
+  },
+
+  zoomOut: () => {
+    const { zoomLevel } = get();
+    const nextZoom = Math.max(0.25, Math.round((zoomLevel - 0.25) * 100) / 100);
+    set({ zoomLevel: nextZoom });
+  },
+
+  resetZoom: () => set({ zoomLevel: 1.0 }),
+
+  setCapoFretInput: (fret) => set({ capoFretInput: Math.max(0, Math.min(12, fret)) }),
+
+  setVideoCollapsed: (collapsed) => set({ isVideoCollapsed: collapsed }),
+
+  toggleVideoCollapsed: () => set((state) => ({ isVideoCollapsed: !state.isVideoCollapsed })),
+
+  setShowShortcutsModal: (show) => set({ showShortcutsModal: show }),
+
+  setPlaybackRate: (rate) => set({ playbackRate: rate }),
 }));

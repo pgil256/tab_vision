@@ -3,31 +3,43 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { TabNote } from '../types/tab';
 
-// Layout constants
-const PIXELS_PER_SECOND = 50;
-const STRING_HEIGHT = 24;
-const TIME_AXIS_HEIGHT = 24;
-const STRING_LABEL_WIDTH = 24;
-const CANVAS_PADDING = 16;
-const NOTE_SIZE = 20;
+// Base layout constants (scaled by zoom)
+const BASE_PPS = 60; // pixels per second
+const STRING_HEIGHT = 28;
+const TIME_AXIS_HEIGHT = 28;
+const STRING_LABEL_WIDTH = 28;
+const CANVAS_PADDING = 12;
+const NOTE_SIZE = 22;
 const CANVAS_HEIGHT = TIME_AXIS_HEIGHT + (STRING_HEIGHT * 6) + CANVAS_PADDING * 2;
 
 const STRING_NAMES = ['e', 'B', 'G', 'D', 'A', 'E'];
 
-// Colors
+// Design system colors
 const COLORS = {
-  background: '#1f2937',
-  stringLine: '#4b5563',
-  timeMarker: '#6b7280',
-  timeText: '#9ca3af',
-  noteHigh: '#22c55e',
-  noteMedium: '#eab308',
-  noteLow: '#ef4444',
-  noteSelected: '#3b82f6',
+  background: '#0b0e14',
+  surface: '#131620',
+  stringLine: 'rgba(148, 163, 184, 0.12)',
+  stringLineHighlight: 'rgba(148, 163, 184, 0.06)',
+  timeMarker: 'rgba(148, 163, 184, 0.15)',
+  timeMajorMarker: 'rgba(148, 163, 184, 0.25)',
+  timeText: '#64748b',
+  labelText: '#94a3b8',
+  noteHigh: '#10b981',
+  noteHighBg: 'rgba(16, 185, 129, 0.15)',
+  noteMedium: '#f59e0b',
+  noteMediumBg: 'rgba(245, 158, 11, 0.15)',
+  noteLow: '#f43f5e',
+  noteLowBg: 'rgba(244, 63, 94, 0.15)',
+  noteSelected: '#6366f1',
+  noteSelectedBg: 'rgba(99, 102, 241, 0.2)',
+  noteSelectedGlow: 'rgba(99, 102, 241, 0.4)',
   noteEdited: '#ffffff',
-  playbackIndicator: '#ef4444',
-  noteTextLight: '#ffffff',
-  noteTextDark: '#000000',
+  noteMuted: '#94a3b8',
+  playbackLine: '#6366f1',
+  playbackLineGlow: 'rgba(99, 102, 241, 0.3)',
+  noteText: '#ffffff',
+  noteTextDark: '#1a1a1a',
+  beatLine: 'rgba(99, 102, 241, 0.06)',
 };
 
 interface NoteHitbox {
@@ -50,6 +62,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<number | null>(null);
   const fretInputTimeoutRef = useRef<number | null>(null);
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
 
   const {
     tabDocument,
@@ -59,6 +72,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     selectedNoteId,
     isFollowingPlayback,
     pendingFretInput,
+    zoomLevel,
     selectNote,
     selectAdjacentNote,
     setCurrentTime,
@@ -68,32 +82,44 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     updateNoteFret,
     undo,
     redo,
+    zoomIn,
+    zoomOut,
   } = useAppStore();
+
+  // Zoom-adjusted pixels per second
+  const pps = BASE_PPS * zoomLevel;
 
   // Calculate canvas width based on duration
   const canvasWidth = Math.max(
     800,
-    duration > 0 ? duration * PIXELS_PER_SECOND + STRING_LABEL_WIDTH + CANVAS_PADDING * 2 : 800
+    duration > 0 ? duration * pps + STRING_LABEL_WIDTH + CANVAS_PADDING * 2 : 800
   );
 
-  // Get note color based on confidence
+  // Get note color
   const getNoteColor = useCallback((note: TabNote, isSelected: boolean): string => {
     if (isSelected) return COLORS.noteSelected;
+    if (note.fret === 'X') return COLORS.noteMuted;
     if (note.confidenceLevel === 'high') return COLORS.noteHigh;
     if (note.confidenceLevel === 'medium') return COLORS.noteMedium;
     return COLORS.noteLow;
   }, []);
 
-  // Get text color for note (contrast with background)
+  const getNoteBgColor = useCallback((note: TabNote, isSelected: boolean): string => {
+    if (isSelected) return COLORS.noteSelectedBg;
+    if (note.confidenceLevel === 'high') return COLORS.noteHighBg;
+    if (note.confidenceLevel === 'medium') return COLORS.noteMediumBg;
+    return COLORS.noteLowBg;
+  }, []);
+
   const getNoteTextColor = useCallback((note: TabNote): string => {
     if (note.confidenceLevel === 'medium') return COLORS.noteTextDark;
-    return COLORS.noteTextLight;
+    return COLORS.noteText;
   }, []);
 
   // Convert timestamp to X position
   const timestampToX = useCallback((timestamp: number): number => {
-    return STRING_LABEL_WIDTH + CANVAS_PADDING + timestamp * PIXELS_PER_SECOND;
-  }, []);
+    return STRING_LABEL_WIDTH + CANVAS_PADDING + timestamp * pps;
+  }, [pps]);
 
   // Convert string number (1-6) to Y position
   const stringToY = useCallback((stringNum: number): number => {
@@ -106,9 +132,25 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx || !tabDocument) return;
 
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvasWidth * dpr;
+    canvas.height = CANVAS_HEIGHT * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${CANVAS_HEIGHT}px`;
+    ctx.scale(dpr, dpr);
+
     // Clear canvas
     ctx.fillStyle = COLORS.background;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvasWidth, CANVAS_HEIGHT);
+
+    // Draw alternating string row backgrounds
+    for (let i = 0; i < 6; i++) {
+      if (i % 2 === 0) {
+        ctx.fillStyle = COLORS.stringLineHighlight;
+        const y = TIME_AXIS_HEIGHT + CANVAS_PADDING + i * STRING_HEIGHT - STRING_HEIGHT / 2;
+        ctx.fillRect(STRING_LABEL_WIDTH, y, canvasWidth - STRING_LABEL_WIDTH, STRING_HEIGHT);
+      }
+    }
 
     // Draw string lines
     ctx.strokeStyle = COLORS.stringLine;
@@ -117,13 +159,13 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       const y = stringToY(i);
       ctx.beginPath();
       ctx.moveTo(STRING_LABEL_WIDTH, y);
-      ctx.lineTo(canvas.width, y);
+      ctx.lineTo(canvasWidth, y);
       ctx.stroke();
     }
 
     // Draw string labels
-    ctx.fillStyle = COLORS.timeText;
-    ctx.font = '12px monospace';
+    ctx.fillStyle = COLORS.labelText;
+    ctx.font = '600 12px "SF Mono", "Cascadia Code", "Fira Code", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (let i = 0; i < 6; i++) {
@@ -132,24 +174,39 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     }
 
     // Draw time markers
-    ctx.fillStyle = COLORS.timeMarker;
-    ctx.strokeStyle = COLORS.timeMarker;
-    ctx.lineWidth = 1;
     const maxTime = duration > 0 ? duration : (tabDocument.duration || 60);
+    const majorInterval = zoomLevel < 0.5 ? 10 : zoomLevel < 1 ? 5 : zoomLevel < 2 ? 5 : 1;
+
     for (let t = 0; t <= maxTime; t++) {
       const x = timestampToX(t);
-      // Tick mark every second
+      const isMajor = t % majorInterval === 0;
+
+      // Tick marks
+      ctx.strokeStyle = isMajor ? COLORS.timeMajorMarker : COLORS.timeMarker;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(x, TIME_AXIS_HEIGHT);
-      ctx.lineTo(x, TIME_AXIS_HEIGHT + 4);
+      ctx.moveTo(x, TIME_AXIS_HEIGHT - (isMajor ? 8 : 4));
+      ctx.lineTo(x, TIME_AXIS_HEIGHT);
       ctx.stroke();
 
-      // Label every 5 seconds
-      if (t % 5 === 0) {
+      // Vertical beat grid lines
+      if (isMajor) {
+        ctx.strokeStyle = COLORS.beatLine;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, TIME_AXIS_HEIGHT);
+        ctx.lineTo(x, CANVAS_HEIGHT);
+        ctx.stroke();
+      }
+
+      // Time labels
+      if (isMajor || (zoomLevel >= 2 && t % 1 === 0)) {
         ctx.fillStyle = COLORS.timeText;
-        ctx.font = '10px monospace';
+        ctx.font = '10px "SF Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(`${t}s`, x, TIME_AXIS_HEIGHT / 2);
+        ctx.textBaseline = 'middle';
+        const label = t >= 60 ? `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` : `${t}s`;
+        ctx.fillText(label, x, TIME_AXIS_HEIGHT / 2);
       }
     }
 
@@ -162,6 +219,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       const x = timestampToX(note.timestamp);
       const y = stringToY(note.string);
       const isSelected = note.id === selectedNoteId;
+      const isHovered = note.id === hoveredNoteId;
 
       // Store hitbox
       noteHitboxesRef.current.push({
@@ -173,63 +231,122 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         note,
       });
 
-      // Draw note background
       const color = getNoteColor(note, isSelected);
+
+      // Draw glow effect for selected note
+      if (isSelected) {
+        ctx.shadowColor = COLORS.noteSelectedGlow;
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = COLORS.noteSelectedBg;
+        ctx.beginPath();
+        ctx.roundRect(x - NOTE_SIZE / 2 - 2, y - NOTE_SIZE / 2 - 2, NOTE_SIZE + 4, NOTE_SIZE + 4, 6);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Draw note background
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.roundRect(x - NOTE_SIZE / 2, y - NOTE_SIZE / 2, NOTE_SIZE, NOTE_SIZE, 4);
+      ctx.roundRect(x - NOTE_SIZE / 2, y - NOTE_SIZE / 2, NOTE_SIZE, NOTE_SIZE, 5);
       ctx.fill();
 
-      // Draw selection border
+      // Draw hover effect
+      if (isHovered && !isSelected) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // Draw selection ring
       if (isSelected) {
-        ctx.strokeStyle = COLORS.noteTextLight;
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // Draw edited indicator (small dot)
+      // Draw edited indicator (top-right dot)
       if (note.isEdited && !isSelected) {
         ctx.fillStyle = COLORS.noteEdited;
         ctx.beginPath();
-        ctx.arc(x + NOTE_SIZE / 2 - 3, y - NOTE_SIZE / 2 + 3, 2, 0, Math.PI * 2);
+        ctx.arc(x + NOTE_SIZE / 2 - 2, y - NOTE_SIZE / 2 + 2, 2, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Draw fret number
+      // Draw technique indicator
+      if (note.fret !== 'X' && note.technique) {
+        const technique = note.technique;
+        if (technique === 'bend') {
+          // Small bend arrow
+          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(x + NOTE_SIZE / 2 + 2, y + 2);
+          ctx.lineTo(x + NOTE_SIZE / 2 + 2, y - 4);
+          ctx.lineTo(x + NOTE_SIZE / 2 + 5, y - 1);
+          ctx.stroke();
+        }
+      }
+
+      // Draw fret number text
       const fretText = note.fret === 'X' ? 'X' : note.fret.toString();
-      ctx.fillStyle = isSelected ? COLORS.noteTextLight : getNoteTextColor(note);
-      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = isSelected ? COLORS.noteText : getNoteTextColor(note);
+      ctx.font = 'bold 11px "SF Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Show pending input if this note is selected and has pending input
+      // Show pending input if selected
       if (isSelected && pendingFretInput) {
-        ctx.fillText(pendingFretInput, x, y);
+        ctx.fillStyle = COLORS.noteText;
+        ctx.fillText(pendingFretInput + '_', x, y);
       } else {
         ctx.fillText(fretText, x, y);
       }
     }
 
     // Draw playback indicator
-    if (currentTime > 0 || duration > 0) {
+    if (currentTime >= 0) {
       const indicatorX = timestampToX(currentTime);
-      ctx.strokeStyle = COLORS.playbackIndicator;
+
+      // Glow effect
+      const gradient = ctx.createLinearGradient(indicatorX - 8, 0, indicatorX + 8, 0);
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.5, COLORS.playbackLineGlow);
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(indicatorX - 8, TIME_AXIS_HEIGHT, 16, CANVAS_HEIGHT - TIME_AXIS_HEIGHT);
+
+      // Line
+      ctx.strokeStyle = COLORS.playbackLine;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(indicatorX, TIME_AXIS_HEIGHT);
-      ctx.lineTo(indicatorX, canvas.height);
+      ctx.lineTo(indicatorX, CANVAS_HEIGHT);
       ctx.stroke();
+
+      // Top triangle
+      ctx.fillStyle = COLORS.playbackLine;
+      ctx.beginPath();
+      ctx.moveTo(indicatorX - 5, TIME_AXIS_HEIGHT);
+      ctx.lineTo(indicatorX + 5, TIME_AXIS_HEIGHT);
+      ctx.lineTo(indicatorX, TIME_AXIS_HEIGHT + 6);
+      ctx.closePath();
+      ctx.fill();
     }
   }, [
+    canvasWidth,
     tabDocument,
     duration,
     currentTime,
     selectedNoteId,
+    hoveredNoteId,
     pendingFretInput,
+    zoomLevel,
     timestampToX,
     stringToY,
     getNoteColor,
+    getNoteBgColor,
     getNoteTextColor,
+    pps,
   ]);
 
   // Redraw on state changes
@@ -244,7 +361,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     const indicatorX = timestampToX(currentTime);
     const container = containerRef.current;
     const viewportWidth = container.clientWidth;
-    const targetScrollLeft = indicatorX - viewportWidth * 0.2;
+    const targetScrollLeft = indicatorX - viewportWidth * 0.3;
 
     container.scrollTo({
       left: Math.max(0, targetScrollLeft),
@@ -257,7 +374,6 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     isUserScrollingRef.current = true;
     setFollowingPlayback(false);
 
-    // Reset the flag after scrolling stops
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
@@ -266,16 +382,29 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     }, 150);
   }, [setFollowingPlayback]);
 
+  // Handle mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        zoomIn();
+      } else {
+        zoomOut();
+      }
+    }
+  }, [zoomIn, zoomOut]);
+
   // Handle canvas click
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const clickX = (e.clientX - rect.left) * scaleX;
-    const clickY = (e.clientY - rect.top) * scaleY;
+    const dpr = window.devicePixelRatio || 1;
+    const scaleX = (canvasWidth * dpr) / rect.width;
+    const scaleY = (CANVAS_HEIGHT * dpr) / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX / dpr;
+    const clickY = (e.clientY - rect.top) * scaleY / dpr;
 
     // Check if click is on a note
     for (const hitbox of noteHitboxesRef.current) {
@@ -286,7 +415,6 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         clickY <= hitbox.y + hitbox.height
       ) {
         selectNote(hitbox.id);
-        // Seek video to note timestamp
         if (videoRef.current) {
           videoRef.current.currentTime = hitbox.note.timestamp;
           setCurrentTime(hitbox.note.timestamp);
@@ -297,17 +425,48 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
 
     // Click on empty area - deselect and seek
     selectNote(null);
-    const clickedTime = (clickX - STRING_LABEL_WIDTH - CANVAS_PADDING) / PIXELS_PER_SECOND;
+    const clickedTime = (clickX - STRING_LABEL_WIDTH - CANVAS_PADDING) / pps;
     if (clickedTime >= 0 && clickedTime <= duration && videoRef.current) {
       videoRef.current.currentTime = clickedTime;
       setCurrentTime(clickedTime);
     }
-  }, [selectNote, setCurrentTime, duration, videoRef]);
+  }, [selectNote, setCurrentTime, duration, videoRef, canvasWidth, pps]);
+
+  // Handle mouse move for hover effects
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const scaleX = (canvasWidth * dpr) / rect.width;
+    const scaleY = (CANVAS_HEIGHT * dpr) / rect.height;
+    const mouseX = (e.clientX - rect.left) * scaleX / dpr;
+    const mouseY = (e.clientY - rect.top) * scaleY / dpr;
+
+    let found = false;
+    for (const hitbox of noteHitboxesRef.current) {
+      if (
+        mouseX >= hitbox.x &&
+        mouseX <= hitbox.x + hitbox.width &&
+        mouseY >= hitbox.y &&
+        mouseY <= hitbox.y + hitbox.height
+      ) {
+        if (hoveredNoteId !== hitbox.id) {
+          setHoveredNoteId(hitbox.id);
+        }
+        found = true;
+        break;
+      }
+    }
+    if (!found && hoveredNoteId) {
+      setHoveredNoteId(null);
+    }
+  }, [hoveredNoteId, canvasWidth]);
 
   // Handle keyboard input
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       // Undo/Redo
@@ -318,6 +477,18 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         } else {
           undo();
         }
+        return;
+      }
+
+      // Zoom shortcuts
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        zoomIn();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+        e.preventDefault();
+        zoomOut();
         return;
       }
 
@@ -347,7 +518,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         return;
       }
 
-      // Escape - deselect
+      // Escape
       if (e.key === 'Escape') {
         e.preventDefault();
         setPendingFretInput('');
@@ -355,7 +526,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         return;
       }
 
-      // Enter - commit and deselect
+      // Enter
       if (e.key === 'Enter') {
         e.preventDefault();
         commitPendingEdit();
@@ -363,7 +534,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         return;
       }
 
-      // Delete/Backspace - set to X (muted)
+      // Delete/Backspace -> muted
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteId) {
         e.preventDefault();
         setPendingFretInput('');
@@ -375,22 +546,17 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       if (selectedNoteId && /^[0-9]$/.test(e.key)) {
         e.preventDefault();
         const newInput = pendingFretInput + e.key;
-
-        // Validate: max fret 24
         const fretValue = parseInt(newInput, 10);
+
         if (fretValue > 24) {
-          // If invalid, start fresh with this digit
           setPendingFretInput(e.key);
         } else {
           setPendingFretInput(newInput);
         }
 
-        // Clear any existing timeout
         if (fretInputTimeoutRef.current) {
           clearTimeout(fretInputTimeoutRef.current);
         }
-
-        // Auto-commit after 500ms of no input
         fretInputTimeoutRef.current = window.setTimeout(() => {
           commitPendingEdit();
         }, 500);
@@ -411,6 +577,8 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     updateNoteFret,
     undo,
     redo,
+    zoomIn,
+    zoomOut,
   ]);
 
   // Cleanup timeouts
@@ -422,63 +590,32 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   }, []);
 
   if (jobStatus !== 'completed' || !tabDocument) {
-    return (
-      <div className="border border-gray-700 rounded-lg p-8 text-center text-gray-500">
-        <p>Upload a video to see the tab here</p>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="border border-gray-700 rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-semibold">Tab Editor</h2>
-          <div className="text-sm text-gray-400">
-            {tabDocument.notes.length} notes | Click note to edit | Arrow keys to navigate
-          </div>
-        </div>
-        <div className="flex gap-4 text-sm">
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded" style={{ backgroundColor: COLORS.noteHigh }}></span>
-            High
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded" style={{ backgroundColor: COLORS.noteMedium }}></span>
-            Medium
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded" style={{ backgroundColor: COLORS.noteLow }}></span>
-            Low
-          </span>
-        </div>
-      </div>
-
-      {/* Canvas container with scroll */}
+    <div
+      className="h-full flex flex-col"
+      style={{ background: COLORS.background }}
+    >
+      {/* Scrollable canvas */}
       <div
         ref={containerRef}
-        className="overflow-x-auto bg-gray-900"
+        className="flex-1 overflow-x-auto overflow-y-hidden"
         onScroll={handleScroll}
+        onWheel={handleWheel}
       >
         <canvas
           ref={canvasRef}
-          width={canvasWidth}
-          height={CANVAS_HEIGHT}
           onClick={handleClick}
-          className="cursor-pointer"
-          style={{ display: 'block' }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoveredNoteId(null)}
+          className="cursor-pointer block"
+          style={{
+            width: `${canvasWidth}px`,
+            height: `${CANVAS_HEIGHT}px`,
+          }}
         />
-      </div>
-
-      {/* Footer info */}
-      <div className="px-4 py-2 border-t border-gray-700 text-xs text-gray-500 flex justify-between">
-        <span>
-          Tuning: {tabDocument.tuning?.join(' ') || 'E B G D A E'} | Capo: {tabDocument.capoFret ?? 'None'}
-        </span>
-        <span>
-          {selectedNoteId ? 'Editing - type fret number, Esc to cancel' : 'Click a note to edit'}
-        </span>
       </div>
     </div>
   );

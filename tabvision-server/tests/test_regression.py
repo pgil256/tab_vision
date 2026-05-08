@@ -40,13 +40,16 @@ def load_benchmark_index():
 def run_benchmark(benchmark: dict, defaults: dict) -> tuple[EvalMetrics, list]:
     """Run a single benchmark and return (metrics, tab_notes)."""
     video_path = os.path.join(REPO_ROOT, benchmark['video_path'])
-    gt_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        benchmark['ground_truth_path']
-    )
+
+    gt_path = benchmark['ground_truth_path']
+    if not os.path.isabs(gt_path):
+        gt_path = os.path.join(REPO_ROOT, gt_path)
 
     if not os.path.exists(video_path):
         pytest.skip(f"Video not found: {video_path}")
+
+    if not os.path.exists(gt_path):
+        pytest.skip(f"Ground truth not found: {gt_path}")
 
     # Load ground truth
     with open(gt_path) as f:
@@ -59,10 +62,13 @@ def run_benchmark(benchmark: dict, defaults: dict) -> tuple[EvalMetrics, list]:
     # Evaluate
     video_duration = benchmark.get('video_duration') or get_video_duration(video_path)
     time_tolerance = benchmark.get('time_tolerance', defaults.get('time_tolerance', 0.6))
+    bpm = benchmark.get('bpm') or defaults.get('bpm')
     metrics = evaluate_accuracy(
         tab_notes, ground_truth,
         time_tolerance=time_tolerance,
         video_duration=video_duration,
+        bpm=bpm,
+        auto_align=True,
     )
     return metrics, tab_notes
 

@@ -458,9 +458,9 @@ class TestOpenStringDetection:
 class TestCorrectSlidePositions:
     """Tests for slide/legato position correction."""
 
-    def test_descending_semitone_prefers_existing_string(self):
-        """When s5f8 is followed by a note that could be s5f7 or s4f2,
-        prefer s5f7 (same string as prev) for continuity."""
+    def test_descending_semitone_low_fret_guard(self):
+        """When s4f2 could become s5f7, the low-fret guard blocks the correction
+        because fret 2 <= 4 and the jump to fret 7 is > 3."""
         notes = [
             TabNote(id='1', timestamp=12.62, string=5, fret=8, confidence=0.77,
                     confidence_level='medium', midi_note=53),
@@ -468,15 +468,15 @@ class TestCorrectSlidePositions:
                     confidence_level='high', midi_note=52),
         ]
         result = _correct_slide_positions(notes, capo_fret=0)
-        # Both should end up on string 5 (descending slide)
+        # Guard blocks: fret 2 -> fret 7 is jump > 3 from low fret
         assert result[0].string == 5
         assert result[0].fret == 8
-        assert result[1].string == 5
-        assert result[1].fret == 7
+        assert result[1].string == 4
+        assert result[1].fret == 2
 
-    def test_ascending_semitone_prefers_existing_string(self):
-        """When s5f7 is followed by a note that could be s5f8 or s4f3,
-        prefer s5f8 (same string as prev)."""
+    def test_ascending_semitone_low_fret_guard(self):
+        """When s4f3 could become s5f8, the low-fret guard blocks the correction
+        because fret 3 <= 4 and the jump to fret 8 is > 3."""
         notes = [
             TabNote(id='1', timestamp=1.00, string=5, fret=7, confidence=0.8,
                     confidence_level='high', midi_note=52),
@@ -484,10 +484,11 @@ class TestCorrectSlidePositions:
                     confidence_level='high', midi_note=53),
         ]
         result = _correct_slide_positions(notes, capo_fret=0)
+        # Guard blocks: fret 3 -> fret 8 is jump > 3 from low fret
         assert result[0].string == 5
         assert result[0].fret == 7
-        assert result[1].string == 5
-        assert result[1].fret == 8
+        assert result[1].string == 4
+        assert result[1].fret == 3
 
     def test_does_not_change_same_string_pair(self):
         """Notes already on the same string should not be modified."""
@@ -503,9 +504,9 @@ class TestCorrectSlidePositions:
         assert result[1].string == 3
         assert result[1].fret == 4
 
-    def test_full_slide_section_s5f8_to_s5f7(self):
-        """Realistic slide section: s5f0->s5f4->s5f8->s4f2 should correct
-        the last note to s5f7 while preserving the rest."""
+    def test_full_slide_section_guard_blocks_last_note(self):
+        """Realistic slide section: s5f0->s5f4->s5f8->s4f2. The last note
+        at fret 2 is protected by the low-fret guard (jump to fret 7 > 3)."""
         notes = [
             TabNote(id='a', timestamp=12.16, string=5, fret=0, confidence=0.88,
                     confidence_level='high', midi_note=45),
@@ -520,7 +521,7 @@ class TestCorrectSlidePositions:
         assert result[0].string == 5 and result[0].fret == 0   # unchanged
         assert result[1].string == 5 and result[1].fret == 4   # unchanged
         assert result[2].string == 5 and result[2].fret == 8   # unchanged
-        assert result[3].string == 5 and result[3].fret == 7   # corrected!
+        assert result[3].string == 4 and result[3].fret == 2   # guard blocks correction
 
 
 class TestFuseAudioVideoFiltering:
@@ -558,17 +559,18 @@ class TestFuseAudioVideoFiltering:
         assert result[0].midi_note == 64
 
     def test_chord_size_limited(self):
-        """Chords should be limited to max_chord_size (default 3)."""
+        """Chords should be limited to max_chord_size (default 6)."""
+        # Create 8 simultaneous notes - should be trimmed to max_chord_size
         notes = [
             DetectedNote(
                 start_time=1.0, end_time=2.0, midi_note=midi,
                 confidence=0.8, amplitude=0.5 + i * 0.1,
             )
-            for i, midi in enumerate([40, 45, 50, 55, 60])
+            for i, midi in enumerate([40, 45, 50, 55, 60, 64, 69, 76])
         ]
         fretboard = self._make_fretboard()
         result = fuse_audio_video(notes, {}, fretboard, capo_fret=0)
-        assert len(result) <= 3
+        assert len(result) <= 6
 
     def test_slide_positions_corrected(self):
         """Consecutive semitone notes on different strings should be corrected to same string."""

@@ -11,6 +11,10 @@ export interface TabNote {
   originalFret?: number | "X";
   detectedPitch?: number;
   detectedMidiNote?: number;
+  technique?: string;
+  endTime?: number;
+  videoMatched?: boolean;
+  pitchBend?: number;
 }
 
 export interface TabDocument {
