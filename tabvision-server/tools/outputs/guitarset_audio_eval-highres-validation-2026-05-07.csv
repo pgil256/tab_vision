@@ -1,0 +1,4 @@
+track_id,backend,gold_notes,audio_events,decoded_events,onset_f1,pitch_f1,tab_f1,tab_tp,tab_fp,tab_fn
+05_BN1-129-Eb_comp,highres,148,150,150,0.979866,0.973154,0.221477,33,117,115
+05_BN1-129-Eb_solo,highres,44,46,46,0.933333,0.933333,0.111111,5,41,39
+05_BN1-147-Gb_comp,highres,96,100,100,0.969388,0.938776,0.612245,60,40,36

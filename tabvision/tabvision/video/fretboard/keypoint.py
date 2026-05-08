@@ -15,17 +15,17 @@ Canonical convention (matches ``geometric.py`` so consumers can swap
 backends without changing their math):
 
 - x-axis: along the neck, ``0 = nut``, ``1 = body end of detected region``.
-- y-axis: across the strings, ``0 = top edge (high E side)``,
-  ``1 = bottom edge (low E side)``.
+- y-axis: across the strings, ``0 = high-E side``,
+  ``1 = low-E side``.
 - The four corners of the unit square map to ``top_left``, ``top_right``,
   ``bottom_right``, ``bottom_left`` in that order.
 
-The high-E vs low-E assignment uses image-Y (smaller Y = top of frame =
-high-E side), which is correct for the standard iPhone-on-lap framing
-the spec assumes (§7 Phase 3, §1 user setup). Clips with the guitar
-flipped will still produce a valid homography but with the canonical
-y-axis inverted; downstream consumers that depend on orientation should
-sanity-check with the hand pipeline.
+The high-E vs low-E assignment uses a lap-framing heuristic: when the
+headstock/nut side is to the right of the body side in the image, the
+player-facing camera view usually puts high-E on the lower image edge, so
+canonical y is flipped. Otherwise smaller image-Y is treated as high-E.
+Clips with unusual camera/player handedness may still need a preflight
+orientation check.
 """
 
 from __future__ import annotations
@@ -91,6 +91,9 @@ def predictions_to_homography(preds: OBBPredictions) -> Homography:
     nut = preds.best_nut()
     nut_xy = (nut.cx, nut.cy) if nut else None
     ordered = _order_corners_by_neck_anatomy(corners, nut_xy)
+    if nut_xy is not None:
+        ordered = _extend_nut_edge_to_detection(ordered, nut_xy)
+    ordered = _orient_string_axis_for_lap_framing(ordered)
     H = _homography_from_quad(ordered)  # noqa: N806 — math-convention name
 
     # Confidence: weight neck heavily, boost a bit if we also pinned the
@@ -195,6 +198,61 @@ def _order_corners_by_neck_anatomy(
         ],
         dtype=np.float64,
     )
+
+
+def _extend_nut_edge_to_detection(
+    ordered_corners: np.ndarray,
+    nut_xy: tuple[float, float],
+    *,
+    min_extension_px: float = 5.0,
+) -> np.ndarray:
+    """Move the nut-side edge to an external nut detection when needed.
+
+    The YOLO ``neck`` OBB often starts at the first visible fret rather than
+    the true nut. In that case canonical x=0 is too far down the neck and
+    every fingertip projects to an artificially low fret. We keep the OBB's
+    cross-neck edge vector, but slide that whole edge along the neck axis to
+    the detected nut center when the nut lies beyond the current nut edge.
+    """
+    if ordered_corners.shape != (4, 2):
+        raise ValueError(f"expected (4, 2) corners, got {ordered_corners.shape}")
+
+    out = ordered_corners.astype(np.float64, copy=True)
+    nut_mid = (out[0] + out[3]) / 2.0
+    body_mid = (out[1] + out[2]) / 2.0
+    neck_axis = body_mid - nut_mid
+    norm = float(np.linalg.norm(neck_axis))
+    if norm <= 1e-9:
+        return out
+
+    axis_u = neck_axis / norm
+    nut_pt = np.array(nut_xy, dtype=np.float64)
+    signed_distance = float(np.dot(nut_pt - nut_mid, axis_u))
+    if signed_distance >= -min_extension_px:
+        return out
+
+    cross_edge = out[3] - out[0]
+    new_nut_mid = nut_mid + signed_distance * axis_u
+    out[0] = new_nut_mid - cross_edge / 2.0
+    out[3] = new_nut_mid + cross_edge / 2.0
+    return out
+
+
+def _orient_string_axis_for_lap_framing(ordered_corners: np.ndarray) -> np.ndarray:
+    """Infer canonical string-side orientation for common iPhone/lap videos.
+
+    ``ordered_corners`` arrives as [nut top, body top, body bottom, nut bottom]
+    in image-Y terms. When the nut/headstock is to the right of the body side,
+    the front-facing lap view typically shows low-E on the image-top edge and
+    high-E on the image-bottom edge. Since canonical y=0 means high-E, swap the
+    top/bottom edges in that case.
+    """
+    out = ordered_corners.astype(np.float64, copy=True)
+    nut_mid = (out[0] + out[3]) / 2.0
+    body_mid = (out[1] + out[2]) / 2.0
+    if nut_mid[0] > body_mid[0]:
+        out = np.array([out[3], out[2], out[1], out[0]], dtype=np.float64)
+    return out
 
 
 def _split_top_bottom(corners: np.ndarray, i: int, j: int) -> tuple[int, int]:
