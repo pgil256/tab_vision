@@ -1,0 +1,17 @@
+# Phase 1.5 eval manifest.
+#
+# This file is intentionally a checked-in placeholder until the external
+# datasets are registered under $TABVISION_DATA_ROOT. The validator reports
+# the concrete missing clips and tiers:
+#
+#   tabvision-eval --manifest tabvision/data/eval/manifest.toml --check
+#
+# Required clip schema:
+#
+# [[clips]]
+# id = "guitarset-05-example"
+# tier = "clean_acoustic_single_line"
+# source = "GuitarSet"
+# split = "validation"
+# media_path = "$TABVISION_DATA_ROOT/guitarset/audio_mono-mic/05_example_mic.wav"
+# annotation_path = "$TABVISION_DATA_ROOT/guitarset/annotation/05_example.jams"
