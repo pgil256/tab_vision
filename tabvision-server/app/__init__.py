@@ -22,14 +22,26 @@ def _prewarm_ml_libraries():
         logger.warning(f"Could not pre-warm ML libraries: {e}")
 
 
-def create_app():
+def _bool_from_env(name: str, default: bool = True) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def create_app(config_overrides: dict | None = None):
     """Create and configure the Flask application."""
     app = Flask(__name__)
 
     # Configuration
     default_uploads = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', default_uploads)
+    app.config['RESULTS_FOLDER'] = os.environ.get('RESULTS_FOLDER', app.config['UPLOAD_FOLDER'])
     app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload
+    app.config['PREWARM_ML'] = _bool_from_env('PREWARM_ML', True)
+
+    if config_overrides:
+        app.config.update(config_overrides)
 
     # Enable CORS for frontend (local dev + any Vercel deployment)
     cors_origins = [
@@ -42,10 +54,11 @@ def create_app():
         cors_origins.append(frontend_url)
     CORS(app, origins=cors_origins)
 
-    # Pre-warm ML libraries on the main thread (required for TF pybind11)
-    _prewarm_ml_libraries()
+    # Pre-warm ML libraries on the main thread when local threaded processing uses TF.
+    if app.config['PREWARM_ML']:
+        _prewarm_ml_libraries()
 
-    # Health check endpoint for Railway
+    # Health check endpoint for deployment platforms.
     @app.route('/health')
     def health():
         return jsonify({'status': 'ok'}), 200

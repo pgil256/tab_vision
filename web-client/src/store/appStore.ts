@@ -1,6 +1,7 @@
 // tabvision-client/src/store/appStore.ts
 import { create } from 'zustand';
 import { TabDocument, TabNote } from '../types/tab';
+import type { AccuracyMode, Instrument, PlayingStyle, Tone, UploadRoi } from '../api/client';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
@@ -33,6 +34,12 @@ interface AppState {
   // UI state
   zoomLevel: number;
   capoFretInput: number;
+  instrumentInput: Instrument;
+  toneInput: Tone;
+  styleInput: PlayingStyle;
+  accuracyModeInput: AccuracyMode;
+  roiEnabled: boolean;
+  roiInput: UploadRoi;
   isVideoCollapsed: boolean;
   showShortcutsModal: boolean;
   playbackRate: number;
@@ -77,6 +84,12 @@ interface AppState {
   zoomOut: () => void;
   resetZoom: () => void;
   setCapoFretInput: (fret: number) => void;
+  setInstrumentInput: (instrument: Instrument) => void;
+  setToneInput: (tone: Tone) => void;
+  setStyleInput: (style: PlayingStyle) => void;
+  setAccuracyModeInput: (mode: AccuracyMode) => void;
+  setRoiEnabled: (enabled: boolean) => void;
+  setRoiInput: (roi: UploadRoi) => void;
   setVideoCollapsed: (collapsed: boolean) => void;
   toggleVideoCollapsed: () => void;
   setShowShortcutsModal: (show: boolean) => void;
@@ -106,6 +119,12 @@ const initialState = {
   // UI state
   zoomLevel: 1.0,
   capoFretInput: 0,
+  instrumentInput: 'acoustic' as Instrument,
+  toneInput: 'clean' as Tone,
+  styleInput: 'mixed' as PlayingStyle,
+  accuracyModeInput: 'accurate' as AccuracyMode,
+  roiEnabled: false,
+  roiInput: { x1: 0, y1: 0, x2: 1, y2: 1 } as UploadRoi,
   isVideoCollapsed: false,
   showShortcutsModal: false,
   playbackRate: 1.0,
@@ -305,6 +324,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   resetZoom: () => set({ zoomLevel: 1.0 }),
 
   setCapoFretInput: (fret) => set({ capoFretInput: Math.max(0, Math.min(12, fret)) }),
+
+  setInstrumentInput: (instrument) => set({ instrumentInput: instrument }),
+
+  setToneInput: (tone) => set({ toneInput: tone }),
+
+  setStyleInput: (style) => set({ styleInput: style }),
+
+  setAccuracyModeInput: (mode) => set({ accuracyModeInput: mode }),
+
+  setRoiEnabled: (enabled) => set({ roiEnabled: enabled }),
+
+  setRoiInput: (roi) => set({
+    roiInput: {
+      x1: Math.max(0, Math.min(1, roi.x1)),
+      y1: Math.max(0, Math.min(1, roi.y1)),
+      x2: Math.max(0, Math.min(1, roi.x2)),
+      y2: Math.max(0, Math.min(1, roi.y2)),
+    },
+  }),
 
   setVideoCollapsed: (collapsed) => set({ isVideoCollapsed: collapsed }),
 

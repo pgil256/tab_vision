@@ -75,9 +75,114 @@ class TestSaveAndLoadResult:
         assert "notes" in result
         assert len(result["notes"]) == 1
 
+    def test_save_result_creates_missing_output_directory(self, tmp_path, sample_job):
+        """save_result should create the configured result directory."""
+        output_dir = tmp_path / "missing" / "results"
+
+        result_path = save_result(sample_job, [], str(output_dir))
+
+        assert os.path.exists(result_path)
+        assert output_dir.exists()
+
 
 class TestProcessJob:
     """Tests for job processing orchestration."""
+
+    @patch('app.processing.quantize_notes')
+    @patch('app.processing.detect_muted_notes')
+    @patch('app.processing.extract_audio')
+    @patch('app.processing.preprocess_audio')
+    @patch('app.processing.analyze_pitch')
+    @patch('app.processing.detect_with_ensemble')
+    @patch('app.processing.fuse_audio_only')
+    def test_process_job_persists_progress_and_terminal_state(
+        self, mock_fuse, mock_ensemble, mock_analyze, mock_preprocess, mock_extract,
+        mock_muted, mock_quantize, sample_job, tmp_path
+    ):
+        """Processing should save every progress update for remote pollers."""
+        class RecordingStorage(JobStorage):
+            def __init__(self):
+                super().__init__()
+                self.snapshots = []
+
+            def save(self, job):
+                self.snapshots.append((job.status, job.current_stage, job.progress))
+                super().save(job)
+
+        recording_storage = RecordingStorage()
+        mock_extract.return_value = str(tmp_path / "audio.wav")
+        mock_preprocess.return_value = str(tmp_path / "audio_preprocessed.wav")
+        detected = [
+            DetectedNote(start_time=1.0, end_time=1.5, midi_note=69, confidence=0.9)
+        ]
+        mock_analyze.return_value = detected
+        mock_ensemble.return_value = detected
+        mock_muted.return_value = []
+        tab_notes = [
+            TabNote(
+                id="test-1",
+                timestamp=1.0,
+                string=1,
+                fret=5,
+                confidence=0.9,
+                confidence_level="high",
+                midi_note=69,
+            )
+        ]
+        mock_fuse.return_value = tab_notes
+        mock_quantize.return_value = tab_notes
+
+        recording_storage.save(sample_job)
+        recording_storage.snapshots.clear()
+
+        process_job(sample_job.id, recording_storage, str(tmp_path))
+
+        assert ("processing", "extracting_audio", 0.1) in recording_storage.snapshots
+        assert ("processing", "analyzing_audio", 0.3) in recording_storage.snapshots
+        assert ("processing", "saving", 0.9) in recording_storage.snapshots
+        assert ("completed", "complete", 1.0) in recording_storage.snapshots
+
+    @patch('app.processing.quantize_notes')
+    @patch('app.processing.detect_muted_notes')
+    @patch('app.processing.extract_audio')
+    @patch('app.processing.preprocess_audio')
+    @patch('app.processing.analyze_pitch')
+    @patch('app.processing.detect_with_ensemble')
+    @patch('app.processing.fuse_audio_only')
+    def test_process_job_runs_result_saved_hook_before_completed_save(
+        self, mock_fuse, mock_ensemble, mock_analyze, mock_preprocess, mock_extract,
+        mock_muted, mock_quantize, sample_job, tmp_path
+    ):
+        """Remote file commits should happen before completed status is visible."""
+        events = []
+
+        class RecordingStorage(JobStorage):
+            def save(self, job):
+                events.append(("save", job.status, job.current_stage))
+                super().save(job)
+
+        recording_storage = RecordingStorage()
+        mock_extract.return_value = str(tmp_path / "audio.wav")
+        mock_preprocess.return_value = str(tmp_path / "audio_preprocessed.wav")
+        mock_analyze.return_value = []
+        mock_ensemble.return_value = []
+        mock_muted.return_value = []
+        mock_fuse.return_value = []
+        mock_quantize.return_value = []
+
+        recording_storage.save(sample_job)
+        events.clear()
+
+        process_job(
+            sample_job.id,
+            recording_storage,
+            str(tmp_path),
+            result_saved_hook=lambda: events.append(("result_saved",)),
+        )
+
+        result_saved_index = events.index(("result_saved",))
+        completed_index = events.index(("save", "completed", "complete"))
+        assert result_saved_index < completed_index
 
     @patch('app.processing.quantize_notes')
     @patch('app.processing.detect_muted_notes')

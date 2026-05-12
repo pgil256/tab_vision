@@ -45,3 +45,35 @@ def test_job_roi_defaults_to_none():
     assert job.roi_y1 is None
     assert job.roi_x2 is None
     assert job.roi_y2 is None
+
+
+def test_job_context_fields_round_trip_record():
+    """Guided upload context survives durable storage serialization."""
+    job = Job.create(
+        video_path="/test.mp4",
+        capo_fret=3,
+        instrument="electric",
+        tone="distorted",
+        style="fingerstyle",
+        accuracy_mode="fast",
+    )
+    job.roi_x1 = 0.1
+    job.roi_y1 = 0.2
+    job.roi_x2 = 0.8
+    job.roi_y2 = 0.9
+    job.result_path = "/results/test.json"
+    job.error_message = "example error"
+
+    restored = Job.from_record(job.to_record())
+
+    assert restored.instrument == "electric"
+    assert restored.tone == "distorted"
+    assert restored.style == "fingerstyle"
+    assert restored.accuracy_mode == "fast"
+    assert restored.capo_fret == 3
+    assert restored.roi_x1 == 0.1
+    assert restored.roi_y1 == 0.2
+    assert restored.roi_x2 == 0.8
+    assert restored.roi_y2 == 0.9
+    assert restored.result_path == "/results/test.json"
+    assert restored.error_message == "example error"

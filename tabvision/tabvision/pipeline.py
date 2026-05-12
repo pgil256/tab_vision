@@ -31,6 +31,7 @@ import numpy as np
 
 from tabvision.demux import demux
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
+from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
 from tabvision.types import (
@@ -71,6 +72,7 @@ def run_pipeline(
     video_stride: int = 3,
     video_enabled: bool = True,
     position_prior: str | None = None,
+    melodic_prior_enabled: bool = False,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
 ) -> list[TabEvent]:
@@ -94,6 +96,10 @@ def run_pipeline(
         prior = load_pitch_position_prior(position_prior, cfg=cfg)
         audio_events = apply_pitch_position_prior(audio_events, prior)
         logger.info("attached pitch-position prior %s", position_prior)
+
+    if melodic_prior_enabled:
+        audio_events = apply_melodic_segment_prior(audio_events, cfg)
+        logger.info("attached melodic segment prior")
 
     fingerings: list[FrameFingering] = []
     neck_anchors: list[TimedNeckAnchor] = []

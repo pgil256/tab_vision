@@ -237,6 +237,14 @@ def extract_audio(video_path: str, output_path: str) -> str:
     return output_path
 
 
+def _ensure_basic_pitch_scipy_compat() -> None:
+    """Restore scipy.signal.gaussian for Basic Pitch versions that still import it."""
+    import scipy.signal
+
+    if not hasattr(scipy.signal, "gaussian") and hasattr(scipy.signal, "windows"):
+        scipy.signal.gaussian = scipy.signal.windows.gaussian
+
+
 def analyze_pitch(
     audio_path: str,
     config: Optional[AudioAnalysisConfig] = None
@@ -269,9 +277,12 @@ def analyze_pitch(
             "Install with: pip install basic-pitch"
         )
 
+    _ensure_basic_pitch_scipy_compat()
+
     # Run Basic Pitch inference with optimized parameters for guitar
     model_output, midi_data, note_events = predict(
         audio_path,
+        ICASSP_2022_MODEL_PATH,
         onset_threshold=0.4,  # Lower for better onset detection
         frame_threshold=0.25,  # Lower to catch sustaining notes
         minimum_note_length=config.min_note_duration * 1000,  # Convert to ms

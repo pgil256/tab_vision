@@ -1,28 +1,44 @@
 """Background job processing orchestration."""
+from __future__ import annotations
+
 import json
 import logging
 import os
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
 from app.models import Job
-from app.storage import JobStorage
-from app.audio_pipeline import (
-    extract_audio, analyze_pitch, AudioAnalysisConfig, AudioPreprocessConfig,
-    detect_note_onsets, preprocess_audio, detect_muted_notes,
-)
-from app.fusion_engine import fuse_audio_only, fuse_audio_video, TabNote, FusionConfig
-from app.video_pipeline import analyze_video_at_timestamps, VideoAnalysisConfig
-from app.fretboard_detection import (
-    detect_fretboard_from_video, track_fretboard_temporal, FretboardDetectionConfig
-)
-from app.secondary_pitch_detector import EnsembleConfig, detect_with_ensemble
-from app.spectral_residual import SpectralResidualConfig, analyze_spectral_residual
-from app.beat_quantization import QuantizationConfig, quantize_notes
 
 logger = logging.getLogger(__name__)
+
+
+# Legacy v0 dependencies are loaded only when the legacy pipeline is selected.
+# Tests patch these module attributes directly, so keep the names available
+# without importing TensorFlow/Basic Pitch/OpenCV at module import time.
+AudioAnalysisConfig = None
+AudioPreprocessConfig = None
+EnsembleConfig = None
+FretboardDetectionConfig = None
+FusionConfig = None
+QuantizationConfig = None
+SpectralResidualConfig = None
+VideoAnalysisConfig = None
+
+analyze_pitch = None
+analyze_spectral_residual = None
+analyze_video_at_timestamps = None
+detect_fretboard_from_video = None
+detect_muted_notes = None
+detect_note_onsets = None
+detect_with_ensemble = None
+extract_audio = None
+fuse_audio_only = None
+fuse_audio_video = None
+preprocess_audio = None
+quantize_notes = None
+track_fretboard_temporal = None
 
 
 @dataclass
@@ -32,12 +48,120 @@ class EnhancedAudioConfig:
     spectral_residual: Optional[SpectralResidualConfig] = None
 
 
-def update_job(job: Job, stage: str, progress: float) -> None:
+def _ensure_legacy_dependencies() -> None:
+    """Import legacy v0 dependencies lazily for local/threaded processing."""
+    global AudioAnalysisConfig, AudioPreprocessConfig
+    global EnsembleConfig, FretboardDetectionConfig, FusionConfig, QuantizationConfig
+    global SpectralResidualConfig, VideoAnalysisConfig
+    global analyze_pitch, analyze_spectral_residual, analyze_video_at_timestamps
+    global detect_fretboard_from_video, detect_muted_notes, detect_note_onsets
+    global detect_with_ensemble, extract_audio, fuse_audio_only, fuse_audio_video
+    global preprocess_audio, quantize_notes, track_fretboard_temporal
+
+    if (
+        AudioAnalysisConfig is None
+        or AudioPreprocessConfig is None
+        or analyze_pitch is None
+        or detect_note_onsets is None
+        or extract_audio is None
+        or preprocess_audio is None
+        or detect_muted_notes is None
+    ):
+        from app.audio_pipeline import (
+            AudioAnalysisConfig as _AudioAnalysisConfig,
+            AudioPreprocessConfig as _AudioPreprocessConfig,
+            analyze_pitch as _analyze_pitch,
+            detect_muted_notes as _detect_muted_notes,
+            detect_note_onsets as _detect_note_onsets,
+            extract_audio as _extract_audio,
+            preprocess_audio as _preprocess_audio,
+        )
+
+        AudioAnalysisConfig = AudioAnalysisConfig or _AudioAnalysisConfig
+        AudioPreprocessConfig = AudioPreprocessConfig or _AudioPreprocessConfig
+        analyze_pitch = analyze_pitch or _analyze_pitch
+        detect_muted_notes = detect_muted_notes or _detect_muted_notes
+        detect_note_onsets = detect_note_onsets or _detect_note_onsets
+        extract_audio = extract_audio or _extract_audio
+        preprocess_audio = preprocess_audio or _preprocess_audio
+
+    if QuantizationConfig is None or quantize_notes is None:
+        from app.beat_quantization import (
+            QuantizationConfig as _QuantizationConfig,
+            quantize_notes as _quantize_notes,
+        )
+
+        QuantizationConfig = QuantizationConfig or _QuantizationConfig
+        quantize_notes = quantize_notes or _quantize_notes
+
+    if (
+        FretboardDetectionConfig is None
+        or detect_fretboard_from_video is None
+        or track_fretboard_temporal is None
+    ):
+        from app.fretboard_detection import (
+            FretboardDetectionConfig as _FretboardDetectionConfig,
+            detect_fretboard_from_video as _detect_fretboard_from_video,
+            track_fretboard_temporal as _track_fretboard_temporal,
+        )
+
+        FretboardDetectionConfig = FretboardDetectionConfig or _FretboardDetectionConfig
+        detect_fretboard_from_video = (
+            detect_fretboard_from_video or _detect_fretboard_from_video
+        )
+        track_fretboard_temporal = track_fretboard_temporal or _track_fretboard_temporal
+
+    if FusionConfig is None or fuse_audio_only is None or fuse_audio_video is None:
+        from app.fusion_engine import (
+            FusionConfig as _FusionConfig,
+            fuse_audio_only as _fuse_audio_only,
+            fuse_audio_video as _fuse_audio_video,
+        )
+
+        FusionConfig = FusionConfig or _FusionConfig
+        fuse_audio_only = fuse_audio_only or _fuse_audio_only
+        fuse_audio_video = fuse_audio_video or _fuse_audio_video
+
+    if EnsembleConfig is None or detect_with_ensemble is None:
+        from app.secondary_pitch_detector import (
+            EnsembleConfig as _EnsembleConfig,
+            detect_with_ensemble as _detect_with_ensemble,
+        )
+
+        EnsembleConfig = EnsembleConfig or _EnsembleConfig
+        detect_with_ensemble = detect_with_ensemble or _detect_with_ensemble
+
+    if SpectralResidualConfig is None or analyze_spectral_residual is None:
+        from app.spectral_residual import (
+            SpectralResidualConfig as _SpectralResidualConfig,
+            analyze_spectral_residual as _analyze_spectral_residual,
+        )
+
+        SpectralResidualConfig = SpectralResidualConfig or _SpectralResidualConfig
+        analyze_spectral_residual = (
+            analyze_spectral_residual or _analyze_spectral_residual
+        )
+
+    if VideoAnalysisConfig is None or analyze_video_at_timestamps is None:
+        from app.video_pipeline import (
+            VideoAnalysisConfig as _VideoAnalysisConfig,
+            analyze_video_at_timestamps as _analyze_video_at_timestamps,
+        )
+
+        VideoAnalysisConfig = VideoAnalysisConfig or _VideoAnalysisConfig
+        analyze_video_at_timestamps = (
+            analyze_video_at_timestamps or _analyze_video_at_timestamps
+        )
+
+
+def update_job(job: Job, stage: str, progress: float, storage=None) -> None:
     """Update job status and progress."""
     job.current_stage = stage
     job.progress = progress
     job.status = "processing"
     job.updated_at = datetime.now(timezone.utc)
+    if storage is not None:
+        storage.save(job)
 
 
 def save_result(job: Job, tab_notes: list[TabNote], output_dir: str) -> str:
@@ -111,9 +235,19 @@ def save_result(job: Job, tab_notes: list[TabNote], output_dir: str) -> str:
             "lowConfidenceNotes": low_conf,
             "videoConfirmedNotes": video_confirmed,
             "averageConfidence": sum(n.confidence for n in tab_notes) / total_notes if total_notes > 0 else 0,
+            "pipelineVersion": "legacy_v0",
+            "audioBackend": "basicpitch",
+            "positionPrior": "none",
+            "videoEnabled": video_confirmed > 0,
+            "accuracyMode": job.accuracy_mode,
+            "noteCountRatio": None,
+            "diagnostics": {
+                "notesAffectedByVideo": video_confirmed,
+            },
         }
     }
 
+    os.makedirs(output_dir, exist_ok=True)
     result_path = os.path.join(output_dir, f"{job.id}_result.json")
     with open(result_path, "w") as f:
         json.dump(tab_document, f, indent=2)
@@ -142,7 +276,7 @@ def load_result(job: Job) -> dict:
 
 def process_job(
     job_id: str,
-    storage: JobStorage,
+    storage,
     output_dir: str = None,
     audio_config: AudioAnalysisConfig = None,
     preprocess_config: AudioPreprocessConfig = None,
@@ -151,6 +285,7 @@ def process_job(
     fusion_config: FusionConfig = None,
     enhanced_audio_config: EnhancedAudioConfig = None,
     quantization_config: QuantizationConfig = None,
+    result_saved_hook=None,
 ) -> None:
     """Process a job through the audio and video analysis pipelines.
 
@@ -164,6 +299,7 @@ def process_job(
         fretboard_config: Fretboard detection configuration
         fusion_config: Fusion engine configuration
         enhanced_audio_config: Enhanced audio processing (ensemble + spectral)
+        result_saved_hook: Optional callback after result JSON is written but before completion is saved
     """
     job = storage.get(job_id)
     if job is None:
@@ -171,6 +307,20 @@ def process_job(
 
     if output_dir is None:
         output_dir = tempfile.gettempdir()
+
+    pipeline_name = os.getenv("TABVISION_PIPELINE", "legacy_v0").strip().lower()
+    if pipeline_name in {"v1", "tabvision_v1"}:
+        from app.v1_adapter import process_v1_job
+
+        process_v1_job(
+            job,
+            storage,
+            output_dir,
+            result_saved_hook=result_saved_hook,
+        )
+        return
+
+    _ensure_legacy_dependencies()
 
     # Use default configs if not provided
     if audio_config is None:
@@ -191,7 +341,7 @@ def process_job(
 
     try:
         # Stage 1: Extract audio
-        update_job(job, "extracting_audio", 0.1)
+        update_job(job, "extracting_audio", 0.1, storage)
         audio_path = os.path.join(output_dir, f"{job.id}_audio.wav")
         extract_audio(job.video_path, audio_path)
 
@@ -203,7 +353,7 @@ def process_job(
         analysis_audio_path = preprocessed_path
 
         # Stage 2: Analyze with pitch detector
-        update_job(job, "analyzing_audio", 0.3)
+        update_job(job, "analyzing_audio", 0.3, storage)
         detected_notes = analyze_pitch(analysis_audio_path, audio_config)
         logger.info(f"Audio analysis: detected {len(detected_notes)} notes")
 
@@ -243,7 +393,7 @@ def process_job(
             logger.warning(f"Muted note detection failed: {muted_err}")
 
         # Stage 3: Analyze video (optional - graceful fallback if fails)
-        update_job(job, "analyzing_video", 0.5)
+        update_job(job, "analyzing_video", 0.5, storage)
         video_observations = {}
         fretboard = None
 
@@ -303,7 +453,7 @@ def process_job(
             logger.warning(f"Video analysis failed: {video_err}, using audio-only mode")
 
         # Stage 4: Fuse into tab notes
-        update_job(job, "fusing", 0.7)
+        update_job(job, "fusing", 0.7, storage)
 
         # Quality gate: only use video fusion if fretboard and video are reliable
         use_video = False
@@ -361,8 +511,10 @@ def process_job(
                 logger.warning(f"Beat quantization failed: {quant_err}, using unquantized notes")
 
         # Stage 5: Save result
-        update_job(job, "saving", 0.9)
+        update_job(job, "saving", 0.9, storage)
         result_path = save_result(job, tab_notes, output_dir)
+        if result_saved_hook:
+            result_saved_hook()
         job.result_path = result_path
 
         # Complete
@@ -370,6 +522,7 @@ def process_job(
         job.current_stage = "complete"
         job.progress = 1.0
         job.updated_at = datetime.now(timezone.utc)
+        storage.save(job)
 
         # Cleanup temp audio files
         for path in [audio_path, preprocessed_path]:
@@ -383,3 +536,4 @@ def process_job(
         job.status = "failed"
         job.error_message = f"{e}\n\nTraceback:\n{tb}"
         job.updated_at = datetime.now(timezone.utc)
+        storage.save(job)

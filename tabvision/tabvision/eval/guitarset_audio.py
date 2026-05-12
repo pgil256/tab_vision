@@ -22,6 +22,7 @@ import numpy as np
 from tabvision.errors import BackendError
 from tabvision.eval.metrics import TabF1Result, tab_f1
 from tabvision.fusion import fuse
+from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.position_prior import (
     PitchPositionPrior,
     apply_pitch_position_prior,
@@ -83,6 +84,7 @@ class EvalSummary:
     backend: str
     split: str
     position_prior: str
+    melodic_prior: bool
     n_tracks: int
     total_gold_notes: int
     total_audio_events: int
@@ -242,13 +244,18 @@ def score_audio_only(
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
     onset_tolerance_s: float = DEFAULT_ONSET_TOLERANCE_S,
+    melodic_prior_enabled: bool = False,
 ) -> AudioOnlyScore:
     if cfg is None:
         cfg = GuitarConfig()
     if session is None:
         session = SessionConfig()
 
-    decoded = fuse(audio_events, [], cfg, session, lambda_vision=0.0)
+    events_for_fusion = list(audio_events)
+    if melodic_prior_enabled:
+        events_for_fusion = apply_melodic_segment_prior(events_for_fusion, cfg)
+
+    decoded = fuse(events_for_fusion, [], cfg, session, lambda_vision=0.0)
     onset = _score_event_f1(
         decoded,
         gold,
@@ -318,6 +325,7 @@ def evaluate_track(
     session: SessionConfig | None = None,
     position_prior: PitchPositionPrior | None = None,
     backend: AudioBackend | None = None,
+    melodic_prior_enabled: bool = True,
 ) -> TrackEvalResult:
     if cfg is None:
         cfg = GuitarConfig()
@@ -342,7 +350,13 @@ def evaluate_track(
     audio_events = list(backend.transcribe(wav, sr, session))
     if position_prior is not None:
         audio_events = apply_pitch_position_prior(audio_events, position_prior)
-    scored = score_audio_only(audio_events, gold, cfg=cfg, session=session)
+    scored = score_audio_only(
+        audio_events,
+        gold,
+        cfg=cfg,
+        session=session,
+        melodic_prior_enabled=melodic_prior_enabled,
+    )
     return TrackEvalResult(
         track_id=track_id,
         backend=backend_name,
@@ -361,6 +375,7 @@ def summarize_results(
     backend: str,
     split: str,
     position_prior: str = "none",
+    melodic_prior: bool = False,
 ) -> EvalSummary:
     total_gold = sum(r.gold_notes for r in results)
     total_audio = sum(r.audio_events for r in results)
@@ -372,6 +387,7 @@ def summarize_results(
         backend=backend,
         split=split,
         position_prior=position_prior,
+        melodic_prior=melodic_prior,
         n_tracks=n_tracks,
         total_gold_notes=total_gold,
         total_audio_events=total_audio,
@@ -420,6 +436,7 @@ def run_eval(
     validation_player: str = DEFAULT_VALIDATION_PLAYER,
     position_prior_name: str = "none",
     backend_kwargs: Mapping[str, object] | None = None,
+    melodic_prior_enabled: bool = False,
 ) -> tuple[list[TrackEvalResult], EvalSummary]:
     track_ids = list_guitarset_track_ids(
         data_home,
@@ -457,6 +474,7 @@ def run_eval(
                 data_home=data_home,
                 position_prior=position_prior,
                 backend=backend,
+                melodic_prior_enabled=melodic_prior_enabled,
             )
         )
     return results, summarize_results(
@@ -464,6 +482,7 @@ def run_eval(
         backend=backend_name,
         split=split,
         position_prior=position_prior_name,
+        melodic_prior=melodic_prior_enabled,
     )
 
 
@@ -520,6 +539,7 @@ def write_report(
         "",
         f"Split: **{summary.split}**",
         f"Position prior: **{summary.position_prior}**",
+        f"Melodic prior: **{'enabled' if summary.melodic_prior else 'disabled'}**",
         f"Tracks: **{summary.n_tracks}**",
         f"Gold notes: **{summary.total_gold_notes}**",
         f"Audio events: **{summary.total_audio_events}**",
@@ -576,6 +596,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=["none", "guitarset-v1", "guitarset-train"],
         help="optional pitch-to-string/fret prior attached before audio-only fusion",
     )
+    parser.add_argument(
+        "--melodic-prior",
+        action="store_true",
+        help="enable the experimental melodic segment prior during eval",
+    )
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
     args = parser.parse_args(argv)
 
@@ -588,6 +613,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             validation_player=args.validation_player,
             position_prior_name=args.position_prior,
             backend_kwargs={"device": args.device} if args.device else None,
+            melodic_prior_enabled=args.melodic_prior,
         )
     except (BackendError, FileNotFoundError, RuntimeError) as exc:
         print(f"setup_blocker={exc}", file=sys.stderr)

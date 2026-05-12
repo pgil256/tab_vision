@@ -7,6 +7,7 @@ from tabvision.audio.filters import (
     filter_low_quality,
     filter_sustain_redetections,
     merge_consecutive,
+    trim_after_last_confident_event,
 )
 from tabvision.types import AudioEvent
 
@@ -178,6 +179,22 @@ def test_filter_harmonics_ignores_non_harmonic_intervals():
     assert len(out) == 2
 
 
+# ---------- trim_after_last_confident_event ----------
+
+
+def test_trim_after_last_confident_event_drops_trailing_clutter():
+    cfg = AudioFilterConfig(end_trim_min_confidence=0.55, end_trim_tail_s=0.5)
+    events = [
+        _ev(60, 0.0, offset=0.2, confidence=0.8),
+        _ev(64, 1.0, offset=1.2, confidence=0.7),
+        _ev(67, 2.0, offset=2.2, confidence=0.4),
+    ]
+
+    out = trim_after_last_confident_event(events, cfg)
+
+    assert [event.pitch_midi for event in out] == [60, 64]
+
+
 # ---------- apply_default_filters end-to-end ----------
 
 
@@ -199,3 +216,15 @@ def test_default_pipeline_runs_all_stages():
     assert len(out) == 1
     assert out[0].pitch_midi == 60
     assert out[0].onset_s == 0.0
+
+
+def test_default_pipeline_can_disable_harmonic_filter_for_polyphony():
+    cfg = AudioFilterConfig(harmonic_filter_enabled=False)
+    events = [
+        _ev(60, 0.0, velocity=0.6),
+        _ev(72, 0.0, velocity=0.10),
+    ]
+
+    out = apply_default_filters(events, cfg)
+
+    assert [event.pitch_midi for event in out] == [60, 72]

@@ -78,7 +78,7 @@ Three separable components:
 2. **Video position model** — unchanged in this plan. MediaPipe + fretboard geometry → candidate `(string, fret)` per onset. Replacing this is a separate future plan.
 3. **Fusion** — unchanged in this plan. The existing engine consumes `(pitch, candidate positions)` and produces tab notes. With a stronger audio model feeding it, many of today's heuristic filters (sustain-redetection, harmonic filter) can be reviewed and possibly simplified in a follow-up.
 
-Deployment target: Vercel + Next.js frontend, backend TBD (likely FastAPI/Flask on Railway or Fly, with GPU inference on Modal/Replicate if CPU proves too slow). This plan is deployment-agnostic — the fine-tuned checkpoint runs on the existing backend.
+Deployment target: Vercel frontend with a Modal-hosted backend. This plan is deployment-agnostic — the fine-tuned checkpoint runs on the existing backend.
 
 ## 5. Dataset — Tier A only, initially
 

@@ -68,6 +68,14 @@ export function TabToolbar() {
   const medCount = tabDocument ? tabDocument.notes.filter(n => n.confidenceLevel === 'medium').length : 0;
   const lowCount = tabDocument ? tabDocument.notes.filter(n => n.confidenceLevel === 'low').length : 0;
   const totalNotes = tabDocument ? tabDocument.notes.length : 0;
+  const metadata = tabDocument?.metadata;
+  const diagnostics = metadata?.diagnostics;
+  const pipelineLabel = metadata?.pipelineVersion
+    ? `${metadata.pipelineVersion} · ${metadata.audioBackend || 'audio'}`
+    : null;
+  const evidenceLabel = metadata?.positionPrior || typeof diagnostics?.videoObservationCount === 'number'
+    ? `${metadata?.positionPrior || 'no prior'} · video ${metadata?.videoEnabled ? 'on' : 'off'}`
+    : null;
 
   return (
     <>
@@ -101,6 +109,24 @@ export function TabToolbar() {
           <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
             {totalNotes} notes
           </span>
+
+          {pipelineLabel && (
+            <>
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
+              <span className="text-xs truncate max-w-[150px]" style={{ color: 'var(--text-muted)' }}>
+                {pipelineLabel}
+              </span>
+            </>
+          )}
+
+          {evidenceLabel && (
+            <>
+              <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
+              <span className="text-xs truncate max-w-[170px]" style={{ color: 'var(--text-muted)' }}>
+                {evidenceLabel}
+              </span>
+            </>
+          )}
 
           {tabDocument && tabDocument.capoFret > 0 && (
             <>

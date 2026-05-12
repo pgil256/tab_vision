@@ -37,11 +37,13 @@ class AudioFilterConfig:
     # Same-pitch merge: events within this gap (sec) are coalesced.
     # Negative ⇒ overlapping ⇒ also merge.
     merge_gap_s: float = 0.02
+    merge_enabled: bool = True
 
     # Sustain re-detection: same-pitch event within this window …
     sustain_window_s: float = 0.6
     # … and amplitude < ratio × original ⇒ drop as sustain artifact.
     sustain_amplitude_ratio: float = 0.95
+    sustain_filter_enabled: bool = True
 
     # Harmonic filter: simultaneous-ish (within tolerance) higher pitch
     # at a harmonic interval below ratio × fundamental amplitude ⇒ drop.
@@ -52,8 +54,14 @@ class AudioFilterConfig:
     # Notes louder than this raw amplitude are protected from harmonic
     # filtering (real notes are rarely this loud as harmonics).
     harmonic_protect_amplitude: float = 0.45
+    harmonic_filter_enabled: bool = True
     # Also remove sub-harmonics (low-frequency artifacts).
     filter_sub_harmonics: bool = True
+
+    # Trim trailing low-confidence detections after the performance has ended.
+    end_trim_enabled: bool = True
+    end_trim_min_confidence: float = 0.55
+    end_trim_tail_s: float = 0.75
 
 
 # ---------- individual filters ----------
@@ -213,6 +221,26 @@ def _is_harmonic(
     return False
 
 
+def trim_after_last_confident_event(
+    events: Sequence[AudioEvent], cfg: AudioFilterConfig
+) -> list[AudioEvent]:
+    """Drop low-confidence trailing clutter after the last confident event."""
+    if not events or not cfg.end_trim_enabled:
+        return list(events)
+
+    sorted_events = sorted(events, key=lambda e: e.onset_s)
+    last_confident = None
+    for ev in sorted_events:
+        if ev.confidence >= cfg.end_trim_min_confidence:
+            last_confident = ev
+
+    if last_confident is None:
+        return sorted_events
+
+    cutoff = last_confident.offset_s + cfg.end_trim_tail_s
+    return [ev for ev in sorted_events if ev.onset_s <= cutoff]
+
+
 # ---------- pipeline ----------
 
 
@@ -231,9 +259,13 @@ def apply_default_filters(
 
     out = list(events)
     out = filter_low_quality(out, cfg)
-    out = merge_consecutive(out, cfg)
-    out = filter_sustain_redetections(out, cfg)
-    out = filter_harmonics(out, cfg)
+    if cfg.merge_enabled:
+        out = merge_consecutive(out, cfg)
+    if cfg.sustain_filter_enabled:
+        out = filter_sustain_redetections(out, cfg)
+    if cfg.harmonic_filter_enabled:
+        out = filter_harmonics(out, cfg)
+    out = trim_after_last_confident_event(out, cfg)
     out.sort(key=lambda e: e.onset_s)
     return out
 
@@ -244,6 +276,7 @@ __all__ = [
     "merge_consecutive",
     "filter_sustain_redetections",
     "filter_harmonics",
+    "trim_after_last_confident_event",
     "apply_default_filters",
     "HARMONIC_INTERVALS",
     "MUSICAL_INTERVALS",

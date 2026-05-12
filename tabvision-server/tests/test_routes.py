@@ -149,6 +149,42 @@ def test_post_jobs_with_roi(client):
         assert job.roi_y2 == 0.9
 
 
+def test_post_jobs_accepts_guided_context_fields(client):
+    """POST /jobs accepts optional guided transcription context."""
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake video content'), 'test.mp4'),
+            'capo_fret': '4',
+            'instrument': 'electric',
+            'tone': 'distorted',
+            'style': 'fingerstyle',
+            'accuracy_mode': 'fast',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 201
+        job = job_storage.get(response.get_json()['job_id'])
+        assert job.capo_fret == 4
+        assert job.instrument == 'electric'
+        assert job.tone == 'distorted'
+        assert job.style == 'fingerstyle'
+        assert job.accuracy_mode == 'fast'
+
+
+def test_post_jobs_rejects_unknown_guided_context(client):
+    """POST /jobs rejects unsupported guided input values."""
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake video content'), 'test.mp4'),
+            'capo_fret': '0',
+            'instrument': 'banjo',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        assert 'instrument' in response.get_json()['error']
+
+
 def test_post_jobs_validates_roi_range(client):
     """POST /jobs validates ROI coordinates are in 0-1 range."""
     with patch('app.routes.Thread'):

@@ -1,0 +1,6 @@
+*
+!web-client
+!web-client/**
+web-client/.vercel
+web-client/dist
+web-client/node_modules

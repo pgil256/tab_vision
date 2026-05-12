@@ -63,8 +63,20 @@ s [100%]
 8 skipped, 230 deselected
 ```
 
-## Decision
+## 2026-05-08 Update
 
-Keep `guitarset-v1` optional. Promote only after the home-video ablation shows
-no regression, or after equivalent automated/public evidence shows no
-regression and the remaining GuitarSet regressions are accepted or reduced.
+The primary release gate moved to GuitarSet held-out validation because the
+20 personal training clips are not label-reliable enough for tuning. The
+checked-in `guitarset-v1` artifact was rebuilt from the GuitarSet train split
+with held-out player `05` excluded.
+
+Fresh Modal validation:
+
+| Condition | Onset F1 | Pitch F1 | Tab F1 |
+| --- | ---: | ---: | ---: |
+| Highres, no prior | 0.9218 | 0.9022 | 0.3878 |
+| Highres, `guitarset-v1` | 0.9218 | 0.9022 | 0.6104 |
+
+Decision: promote `guitarset-v1` for the accurate production path. Keep the
+melodic-segment prior disabled by default because it regressed the GuitarSet
+aggregate to `0.5989`.

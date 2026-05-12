@@ -90,7 +90,7 @@ Guitarists who want to transcribe their own playing quickly and accurately.
                                      │ HTTPS
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                            CLOUD BACKEND (Railway/Fly.io)                   │
+│                              CLOUD BACKEND (Modal)                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                         Flask API                                    │   │
 │  │  POST /jobs         - Upload video, create job                       │   │
@@ -202,7 +202,7 @@ Guitarists who want to transcribe their own playing quickly and accurately.
 
 | Purpose | Choice | Notes |
 |---------|--------|-------|
-| Hosting | Railway or Fly.io | Simple deployment, reasonable pricing |
+| Hosting | Modal | GPU-capable Flask API and background processing |
 | File storage (scale) | Cloudflare R2 or AWS S3 | When needed |
 | Domain | Any registrar | Namecheap, Cloudflare, etc. |
 
@@ -303,7 +303,7 @@ GET /jobs/:id/result
 - [ ] Basic UI: upload button, status display, placeholder editor area
 - [ ] Flask backend with `/jobs` endpoints (returns fake data, no real processing)
 - [ ] File upload flow working
-- [ ] Deploy backend to Railway
+- [ ] Deploy backend to Modal
 - [ ] Verify Electron app can communicate with deployed backend
 
 **Deliverable**: Upload a video → see fake TabDocument rendered.

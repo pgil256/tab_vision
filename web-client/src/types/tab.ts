@@ -24,6 +24,21 @@ export interface TabDocument {
   capoFret: number;
   tuning: string[];
   notes: TabNote[];
+  metadata?: {
+    totalNotes?: number;
+    highConfidenceNotes?: number;
+    mediumConfidenceNotes?: number;
+    lowConfidenceNotes?: number;
+    videoConfirmedNotes?: number;
+    averageConfidence?: number;
+    pipelineVersion?: string;
+    audioBackend?: string;
+    positionPrior?: string;
+    videoEnabled?: boolean;
+    accuracyMode?: string;
+    noteCountRatio?: number | null;
+    diagnostics?: Record<string, unknown>;
+  };
 }
 
 export interface JobStatus {

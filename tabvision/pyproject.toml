@@ -33,10 +33,11 @@ audio-baseline = [
 # Not on PyPI yet; install from GitHub directly. MIT-licensed (verified
 # 2026-05-05 — see LICENSES.md).
 audio-highres = [
-    "hf-midi-transcription @ git+https://github.com/xavriley/hf_midi_transcription.git",
+    "hf-midi-transcription @ git+https://github.com/xavriley/hf_midi_transcription.git@96f6797881e9497cbfc8f8e5deccea9c1f2f7adc",
     "torch>=1.9.0",
     "huggingface-hub>=0.16.0",
     "safetensors>=0.3.0",
+    "pretty_midi>=0.2.10",
 ]
 # Added in Phase 3-4 (vision).
 # WARNING: ultralytics is AGPL-3.0 — installing this extras makes the

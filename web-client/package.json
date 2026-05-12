@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/require-vercel-api-url.mjs",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:vercel-api-url": "node scripts/require-vercel-api-url.test.mjs",
+    "test:prod-api-config": "npm run build && node scripts/assert-prod-api-config.mjs"
   },
   "dependencies": {
     "react": "^19.2.3",

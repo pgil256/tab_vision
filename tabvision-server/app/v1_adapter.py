@@ -1,0 +1,269 @@
+"""Adapter from the v1 ``tabvision`` package to the Flask API contract."""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import uuid
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Iterable
+
+from app.models import Job
+
+
+@dataclass(frozen=True)
+class V1PipelineConfig:
+    """Runtime-selectable v1 pipeline settings."""
+
+    audio_backend: str = "highres"
+    fallback_audio_backend: str | None = None
+    position_prior: str | None = "guitarset-v1"
+    video_enabled: bool = False
+    melodic_prior_enabled: bool = False
+    accuracy_mode: str = "accurate"
+
+    @classmethod
+    def from_env(cls) -> "V1PipelineConfig":
+        return cls(
+            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "highres").strip().lower(),
+            fallback_audio_backend=_optional_env(
+                "TABVISION_FALLBACK_AUDIO_BACKEND", None
+            ),
+            position_prior=_optional_env("TABVISION_POSITION_PRIOR", "guitarset-v1"),
+            video_enabled=_truthy(os.getenv("TABVISION_VIDEO_ENABLED", "false")),
+            melodic_prior_enabled=_truthy(os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")),
+            accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate").strip().lower(),
+        )
+
+
+def _optional_env(name: str, default: str | None) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if not value or value.lower() == "none":
+        return None
+    return value
+
+
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _ensure_v1_on_path() -> None:
+    """Make the sibling v1 package importable in local development."""
+    repo_root = Path(__file__).resolve().parents[2]
+    local_package_root = repo_root / "tabvision"
+    if local_package_root.exists():
+        sys.path.insert(0, str(local_package_root))
+
+
+def _load_v1_runner() -> Callable[..., list[Any]]:
+    _ensure_v1_on_path()
+    from tabvision.pipeline import run_pipeline
+
+    return run_pipeline
+
+
+def _load_v1_types():
+    _ensure_v1_on_path()
+    from tabvision.types import GuitarConfig, SessionConfig
+
+    return GuitarConfig, SessionConfig
+
+
+def _confidence_level(confidence: float) -> str:
+    if confidence >= 0.8:
+        return "high"
+    if confidence >= 0.5:
+        return "medium"
+    return "low"
+
+
+def _video_diagnostics(video_enabled: bool) -> dict[str, Any]:
+    return {
+        "fretboardDetectionConfidence": None,
+        "handDetectionRate": 0.0,
+        "videoObservationCount": 0,
+        "notesAffectedByVideo": 0,
+        "videoIgnoredByQualityGate": not video_enabled,
+    }
+
+
+def tab_events_to_tab_document(
+    job: Job,
+    events: Iterable[Any],
+    config: V1PipelineConfig,
+    *,
+    diagnostics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Convert v1 TabEvents to the existing frontend TabDocument JSON."""
+    event_list = sorted(list(events), key=lambda event: event.onset_s)
+    notes_data: list[dict[str, Any]] = []
+
+    for index, event in enumerate(event_list):
+        string_idx = int(event.string_idx)
+        if string_idx < 0 or string_idx > 5:
+            raise ValueError(f"v1 string_idx must be 0..5, got {string_idx}")
+
+        confidence = float(event.confidence)
+        duration = max(0.0, float(event.duration_s))
+        note = {
+            "id": f"{job.id}-v1-{index}-{uuid.uuid4().hex[:8]}",
+            "timestamp": float(event.onset_s),
+            "endTime": float(event.onset_s) + duration,
+            "string": 6 - string_idx,
+            "fret": int(event.fret),
+            "confidence": confidence,
+            "confidenceLevel": _confidence_level(confidence),
+            "isEdited": False,
+        }
+        techniques = tuple(getattr(event, "techniques", ()) or ())
+        if techniques:
+            note["technique"] = techniques[0]
+        notes_data.append(note)
+
+    total_notes = len(notes_data)
+    high_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "high")
+    med_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "medium")
+    low_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "low")
+    max_time = max((note.get("endTime", note["timestamp"]) for note in notes_data), default=0.0)
+
+    merged_diagnostics = _video_diagnostics(config.video_enabled)
+    if diagnostics:
+        merged_diagnostics.update(diagnostics)
+
+    return {
+        "id": job.id,
+        "createdAt": job.created_at.isoformat(),
+        "duration": max_time + 1,
+        "capoFret": job.capo_fret,
+        "tuning": ["E", "B", "G", "D", "A", "E"],
+        "notes": notes_data,
+        "metadata": {
+            "totalNotes": total_notes,
+            "highConfidenceNotes": high_conf,
+            "mediumConfidenceNotes": med_conf,
+            "lowConfidenceNotes": low_conf,
+            "videoConfirmedNotes": merged_diagnostics["notesAffectedByVideo"],
+            "averageConfidence": (
+                sum(note["confidence"] for note in notes_data) / total_notes
+                if total_notes > 0 else 0
+            ),
+            "pipelineVersion": "v1",
+            "audioBackend": config.audio_backend,
+            "positionPrior": config.position_prior or "none",
+            "videoEnabled": config.video_enabled,
+            "accuracyMode": config.accuracy_mode,
+            "noteCountRatio": None,
+            "diagnostics": merged_diagnostics,
+        },
+    }
+
+
+def run_v1_transcription(
+    job: Job,
+    output_dir: str,
+    *,
+    config: V1PipelineConfig | None = None,
+    pipeline_runner: Callable[..., list[Any]] | None = None,
+) -> str:
+    """Run v1 transcription and write a frontend-compatible result JSON."""
+    config = replace(config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode)
+    runner = pipeline_runner or _load_v1_runner()
+    GuitarConfig, SessionConfig = _load_v1_types()
+
+    diagnostics: dict[str, Any] = {
+        "fallbackUsed": False,
+        "requestedAudioBackend": config.audio_backend,
+        "positionSweep": None,
+    }
+
+    common_kwargs = {
+            "position_prior": config.position_prior,
+            "video_enabled": config.video_enabled,
+            "melodic_prior_enabled": config.melodic_prior_enabled,
+            "lambda_vision": 1.0 if config.video_enabled else 0.0,
+        "cfg": GuitarConfig(capo=job.capo_fret),
+        "session": SessionConfig(
+            instrument=job.instrument,
+            tone=job.tone,
+            style=job.style,
+        ),
+    }
+
+    effective_config = config
+    try:
+        events = runner(
+            job.video_path,
+            audio_backend_name=config.audio_backend,
+            **common_kwargs,
+        )
+    except Exception as exc:
+        fallback = config.fallback_audio_backend
+        if not fallback or fallback == config.audio_backend:
+            raise
+
+        diagnostics["fallbackUsed"] = True
+        diagnostics["fallbackReason"] = str(exc)
+        events = runner(
+            job.video_path,
+            audio_backend_name=fallback,
+            **common_kwargs,
+        )
+        effective_config = replace(config, audio_backend=fallback)
+
+    tab_document = tab_events_to_tab_document(
+        job,
+        events,
+        effective_config,
+        diagnostics=diagnostics,
+    )
+
+    os.makedirs(output_dir, exist_ok=True)
+    result_path = os.path.join(output_dir, f"{job.id}_result.json")
+    with open(result_path, "w") as f:
+        json.dump(tab_document, f, indent=2)
+
+    return result_path
+
+
+def process_v1_job(
+    job: Job,
+    storage,
+    output_dir: str,
+    *,
+    config: V1PipelineConfig | None = None,
+    result_saved_hook=None,
+) -> None:
+    """Process a job with v1 while persisting each poll-visible state."""
+
+    def save_stage(stage: str, progress: float, *, status: str = "processing") -> None:
+        job.status = status
+        job.current_stage = stage
+        job.progress = progress
+        job.updated_at = datetime.now(timezone.utc)
+        storage.save(job)
+
+    try:
+        save_stage("analyzing_audio", 0.25)
+        result_path = run_v1_transcription(job, output_dir, config=config)
+
+        save_stage("saving", 0.9)
+        if result_saved_hook:
+            result_saved_hook()
+        job.result_path = result_path
+        job.status = "completed"
+        job.current_stage = "complete"
+        job.progress = 1.0
+        job.updated_at = datetime.now(timezone.utc)
+        storage.save(job)
+    except Exception as exc:
+        import traceback
+
+        job.status = "failed"
+        job.error_message = f"{exc}\n\nTraceback:\n{traceback.format_exc()}"
+        job.updated_at = datetime.now(timezone.utc)
+        storage.save(job)

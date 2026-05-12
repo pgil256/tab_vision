@@ -19,7 +19,7 @@ COPY . .
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
-# Expose port (Railway sets PORT env var)
+# Expose port for generic container hosts.
 EXPOSE ${PORT:-5000}
 
 # Start with gunicorn

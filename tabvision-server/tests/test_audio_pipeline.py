@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from app.audio_pipeline import (
     DetectedNote, extract_audio, analyze_pitch,
     AudioPreprocessConfig, preprocess_audio,
+    _ensure_basic_pitch_scipy_compat,
 )
 import os
 import tempfile
@@ -86,6 +87,42 @@ class TestAnalyzePitch:
         assert isinstance(result, list)
         for note in result:
             assert isinstance(note, DetectedNote)
+
+    def test_analyze_pitch_passes_model_path_to_basic_pitch(self, tmp_path, monkeypatch):
+        """Basic Pitch versions without a predict() model default should work."""
+        pytest.importorskip("basic_pitch")
+        import basic_pitch
+        import basic_pitch.inference
+
+        wav_path = tmp_path / "input.wav"
+        wav_path.write_bytes(b"placeholder")
+        model_path = "/models/basic-pitch"
+        captured = {}
+
+        def fake_predict(audio_path, model_or_model_path, **kwargs):
+            captured["audio_path"] = audio_path
+            captured["model_or_model_path"] = model_or_model_path
+            captured["kwargs"] = kwargs
+            return {}, None, [(0.0, 0.25, 69, 0.8, None)]
+
+        monkeypatch.setattr(basic_pitch, "ICASSP_2022_MODEL_PATH", model_path)
+        monkeypatch.setattr(basic_pitch.inference, "predict", fake_predict)
+
+        notes = analyze_pitch(str(wav_path))
+
+        assert captured["audio_path"] == str(wav_path)
+        assert captured["model_or_model_path"] == model_path
+        assert notes[0].midi_note == 69
+
+    def test_scipy_compat_restores_signal_gaussian(self, monkeypatch):
+        """Basic Pitch 0.3 expects scipy.signal.gaussian to exist."""
+        import scipy.signal
+
+        monkeypatch.delattr(scipy.signal, "gaussian", raising=False)
+
+        _ensure_basic_pitch_scipy_compat()
+
+        assert scipy.signal.gaussian is scipy.signal.windows.gaussian
 
 
 def _make_test_wav(path: str, freq: float = 440.0, duration: float = 1.0,

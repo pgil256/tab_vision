@@ -155,6 +155,57 @@ def test_score_audio_only_separates_pitch_from_tab_candidate_selection():
     assert scored.decoded[0].fret == 5
 
 
+def test_score_audio_only_can_apply_melodic_segment_prior():
+    pitches = [47, 48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 67, 69, 71, 72, 74]
+    predicted_audio = [
+        AudioEvent(
+            onset_s=index * 0.2,
+            offset_s=index * 0.2 + 0.1,
+            pitch_midi=pitch,
+            velocity=0.8,
+            confidence=0.9,
+        )
+        for index, pitch in enumerate(pitches)
+    ]
+    gold = [
+        TabEvent(
+            onset_s=index * 0.2,
+            duration_s=0.1,
+            string_idx=string_idx,
+            fret=fret,
+            pitch_midi=pitch,
+            confidence=1.0,
+        )
+        for index, (pitch, string_idx, fret) in enumerate(
+            [
+                (47, 0, 7),
+                (48, 0, 8),
+                (50, 0, 10),
+                (52, 1, 7),
+                (53, 1, 8),
+                (55, 1, 10),
+                (57, 2, 7),
+                (59, 2, 9),
+                (60, 2, 10),
+                (62, 3, 7),
+                (64, 3, 9),
+                (67, 4, 8),
+                (69, 4, 10),
+                (71, 5, 7),
+                (72, 5, 8),
+                (74, 5, 10),
+            ]
+        )
+    ]
+
+    disabled = score_audio_only(predicted_audio, gold, melodic_prior_enabled=False)
+    enabled = score_audio_only(predicted_audio, gold, melodic_prior_enabled=True)
+
+    assert enabled.tab.f1 > disabled.tab.f1
+    assert enabled.decoded[0].string_idx == 0
+    assert enabled.decoded[0].fret == 7
+
+
 def test_summarize_results_uses_all_micro_counts():
     result = TrackEvalResult(
         track_id="clip",
@@ -170,6 +221,7 @@ def test_summarize_results_uses_all_micro_counts():
     summary = summarize_results([result], backend="highres", split="validation")
 
     assert summary.micro_onset.true_positives == 2
+    assert summary.melodic_prior is False
     assert summary.micro_onset.false_positives == 2
     assert summary.micro_onset.false_negatives == 1
     assert summary.micro_onset.f1 == pytest.approx(4 / 7)

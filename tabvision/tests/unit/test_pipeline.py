@@ -339,6 +339,39 @@ def test_run_pipeline_attaches_named_pitch_position_prior_when_explicit(monkeypa
     assert captured["events"][0].fret_prior is prior_matrix
 
 
+def test_run_pipeline_keeps_melodic_prior_disabled_by_default(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+
+    def fail_if_called(events, cfg):
+        pytest.fail("melodic prior should be explicit")
+
+    monkeypatch.setattr(pipeline, "apply_melodic_segment_prior", fail_if_called)
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(),
+        video_enabled=False,
+    )
+
+
+def test_run_pipeline_can_attach_melodic_prior_when_explicit(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    captured = {}
+
+    def fake_prior(events, cfg):
+        captured["called"] = True
+        return events
+
+    monkeypatch.setattr(pipeline, "apply_melodic_segment_prior", fake_prior)
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(),
+        video_enabled=False,
+        melodic_prior_enabled=True,
+    )
+
+    assert captured["called"] is True
+
+
 def test_run_pipeline_falls_back_to_audio_only_on_video_import_failure(monkeypatch, caplog):
     """Soft import failure of any video backend → audio-only with a warning."""
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())

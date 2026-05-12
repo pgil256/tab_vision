@@ -27,6 +27,7 @@ from typing import Sequence
 import numpy as np
 import soundfile as sf
 
+from tabvision.audio.filters import AudioFilterConfig, apply_default_filters
 from tabvision.errors import BackendError, InvalidInputError
 from tabvision.types import AudioEvent, SessionConfig
 
@@ -53,6 +54,7 @@ class HighResBackend:
         offset_threshold: float = 0.3,
         frame_threshold: float = 0.1,
         hf_repo: str = DEFAULT_HF_REPO,
+        filter_config: AudioFilterConfig | None | bool = False,
     ) -> None:
         if checkpoint not in GUITAR_VARIANTS:
             raise InvalidInputError(
@@ -66,6 +68,17 @@ class HighResBackend:
         self.offset_threshold = offset_threshold
         self.frame_threshold = frame_threshold
         self.hf_repo = hf_repo
+        if filter_config is True:
+            self.filter_config: AudioFilterConfig | None = AudioFilterConfig(
+                min_confidence=0.0,
+                min_amplitude=0.0,
+                harmonic_filter_enabled=False,
+                filter_sub_harmonics=False,
+            )
+        elif filter_config in (False, None):
+            self.filter_config = None
+        else:
+            self.filter_config = filter_config  # type: ignore[assignment]
 
         self._model = None  # type: ignore[assignment]  # lazy-loaded
 
@@ -114,6 +127,9 @@ class HighResBackend:
 
             model.transcribe(str(in_path), str(out_path))
             events = _parse_midi(out_path)
+
+        if self.filter_config is not None:
+            events = apply_default_filters(events, self.filter_config)
 
         return events
 

@@ -5,6 +5,12 @@ import { uploadVideo, getJobStatus, getJobResult } from '../api/client';
 export function useProcessVideo() {
   const {
     capoFretInput,
+    instrumentInput,
+    toneInput,
+    styleInput,
+    accuracyModeInput,
+    roiEnabled,
+    roiInput,
     setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl,
     reset,
   } = useAppStore();
@@ -17,7 +23,14 @@ export function useProcessVideo() {
     setVideoUrl(videoUrl);
 
     try {
-      const jobId = await uploadVideo(file, capoFretInput);
+      const jobId = await uploadVideo(file, {
+        capoFret: capoFretInput,
+        instrument: instrumentInput,
+        tone: toneInput,
+        style: styleInput,
+        accuracyMode: accuracyModeInput,
+        roi: roiEnabled ? roiInput : null,
+      });
       setJobId(jobId);
       setStatus('processing');
 
@@ -42,5 +55,20 @@ export function useProcessVideo() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     }
-  }, [reset, setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl, capoFretInput]);
+  }, [
+    reset,
+    setJobId,
+    setStatus,
+    setProgress,
+    setTabDocument,
+    setError,
+    setVideoUrl,
+    capoFretInput,
+    instrumentInput,
+    toneInput,
+    styleInput,
+    accuracyModeInput,
+    roiEnabled,
+    roiInput,
+  ]);
 }

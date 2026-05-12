@@ -5,15 +5,56 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.models import Job
 from app.storage import job_storage
-from app.processing import process_job, load_result
+from app.result_io import load_result
 
 bp = Blueprint('jobs', __name__)
 
 ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm'}
+ALLOWED_INSTRUMENTS = {'acoustic', 'electric', 'classical'}
+ALLOWED_TONES = {'clean', 'distorted'}
+ALLOWED_STYLES = {'fingerstyle', 'strumming', 'mixed'}
+ALLOWED_ACCURACY_MODES = {'fast', 'accurate'}
 
 
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_job_storage():
+    return current_app.config.get('JOB_STORAGE', job_storage)
+
+
+def dispatch_local_job(job_id: str, storage, results_folder: str) -> None:
+    from app.processing import process_job
+
+    thread = Thread(
+        target=process_job,
+        args=(job_id, storage, results_folder),
+        daemon=True
+    )
+    thread.start()
+
+
+def get_job_dispatcher():
+    return current_app.config.get('JOB_DISPATCHER', dispatch_local_job)
+
+
+def get_result_loader():
+    return current_app.config.get('RESULT_LOADER', load_result)
+
+
+def run_configured_hook(name: str) -> None:
+    hook = current_app.config.get(name)
+    if hook:
+        hook()
+
+
+def parse_choice(name: str, allowed: set[str], default: str):
+    value = request.form.get(name, default).strip().lower()
+    if value not in allowed:
+        allowed_values = ', '.join(sorted(allowed))
+        return None, jsonify({'error': f'{name} must be one of: {allowed_values}'}), 400
+    return value, None, None
 
 
 @bp.route('/jobs', methods=['POST'])
@@ -33,6 +74,23 @@ def create_job():
         capo_fret = int(capo_fret)
     except ValueError:
         capo_fret = 0
+
+    instrument, error_response, status_code = parse_choice(
+        'instrument', ALLOWED_INSTRUMENTS, 'acoustic'
+    )
+    if error_response:
+        return error_response, status_code
+    tone, error_response, status_code = parse_choice('tone', ALLOWED_TONES, 'clean')
+    if error_response:
+        return error_response, status_code
+    style, error_response, status_code = parse_choice('style', ALLOWED_STYLES, 'mixed')
+    if error_response:
+        return error_response, status_code
+    accuracy_mode, error_response, status_code = parse_choice(
+        'accuracy_mode', ALLOWED_ACCURACY_MODES, 'accurate'
+    )
+    if error_response:
+        return error_response, status_code
 
     # Parse ROI coordinates if provided
     roi_x1 = request.form.get('roi_x1')
@@ -73,7 +131,14 @@ def create_job():
     os.makedirs(upload_folder, exist_ok=True)
 
     # Create job first to get ID for unique filename
-    job = Job.create(video_path="", capo_fret=capo_fret)
+    job = Job.create(
+        video_path="",
+        capo_fret=capo_fret,
+        instrument=instrument,
+        tone=tone,
+        style=style,
+        accuracy_mode=accuracy_mode,
+    )
 
     # Use job ID in filename to ensure uniqueness
     ext = filename.rsplit('.', 1)[1].lower()
@@ -88,23 +153,20 @@ def create_job():
         job.roi_y1 = roi_values['y1']
         job.roi_x2 = roi_values['x2']
         job.roi_y2 = roi_values['y2']
-    job_storage.save(job)
+    storage = get_job_storage()
+    storage.save(job)
+    run_configured_hook('UPLOAD_SAVED_HOOK')
 
     # Launch background processing
     results_folder = current_app.config.get('RESULTS_FOLDER', upload_folder)
-    thread = Thread(
-        target=process_job,
-        args=(job.id, job_storage, results_folder),
-        daemon=True
-    )
-    thread.start()
+    get_job_dispatcher()(job.id, storage, results_folder)
 
     return jsonify({'job_id': job.id}), 201
 
 
 @bp.route('/jobs/<job_id>', methods=['GET'])
 def get_job_status(job_id: str):
-    job = job_storage.get(job_id)
+    job = get_job_storage().get(job_id)
     if job is None:
         return jsonify({'error': 'Job not found'}), 404
 
@@ -113,7 +175,7 @@ def get_job_status(job_id: str):
 
 @bp.route('/jobs/<job_id>/result', methods=['GET'])
 def get_job_result(job_id: str):
-    job = job_storage.get(job_id)
+    job = get_job_storage().get(job_id)
     if job is None:
         return jsonify({'error': 'Job not found'}), 404
 
@@ -121,7 +183,8 @@ def get_job_result(job_id: str):
         return jsonify({'error': 'Job not completed yet'}), 400
 
     try:
-        tab_document = load_result(job)
+        run_configured_hook('RESULTS_RELOAD_HOOK')
+        tab_document = get_result_loader()(job)
     except FileNotFoundError:
         return jsonify({'error': 'Result file not found'}), 500
 

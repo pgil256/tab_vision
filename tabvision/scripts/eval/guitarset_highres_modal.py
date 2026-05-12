@@ -55,7 +55,7 @@ image = (
     modal.Image.from_registry("pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime", add_python=None)
     .apt_install("ffmpeg", "git", "libsndfile1")
     .pip_install(
-        "git+https://github.com/xavriley/hf_midi_transcription.git",
+        "git+https://github.com/xavriley/hf_midi_transcription.git@96f6797881e9497cbfc8f8e5deccea9c1f2f7adc",
         "huggingface-hub>=0.16.0",
         "librosa>=0.10.0",
         "mir_eval>=0.7",
@@ -77,6 +77,7 @@ def run_highres_eval(
     limit: int | None = None,
     force_data_refresh: bool = False,
     position_prior: str = "guitarset-train",
+    melodic_prior: bool = False,
 ) -> dict:
     """Run validation eval on a GPU and return report artifacts."""
     import logging
@@ -113,6 +114,7 @@ def run_highres_eval(
         limit=limit,
         position_prior_name=position_prior,
         backend_kwargs={"device": "cuda"},
+        melodic_prior_enabled=melodic_prior,
     )
     log.info(
         "eval finished in %.1fs: tracks=%d onset=%.4f pitch=%.4f tab=%.4f",
@@ -188,16 +190,18 @@ def main(
     limit: int | None = None,
     force_data_refresh: bool = False,
     position_prior: str = "guitarset-train",
+    melodic_prior: bool = False,
 ) -> None:
     print(
         f"[modal] app={APP_NAME} gpu=L4 limit={limit} "
-        f"position_prior={position_prior}",
+        f"position_prior={position_prior} melodic_prior={melodic_prior}",
         file=sys.stderr,
     )
     payload = run_highres_eval.remote(
         limit=limit,
         force_data_refresh=force_data_refresh,
         position_prior=position_prior,
+        melodic_prior=melodic_prior,
     )
 
     OUTPUT_LOCAL.mkdir(parents=True, exist_ok=True)

@@ -93,10 +93,34 @@ export function UploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const {
-    jobStatus, progress, currentStage, errorMessage, capoFretInput,
-    setError, setCapoFretInput, reset,
+    jobStatus,
+    progress,
+    currentStage,
+    errorMessage,
+    capoFretInput,
+    instrumentInput,
+    toneInput,
+    styleInput,
+    accuracyModeInput,
+    roiEnabled,
+    roiInput,
+    setError,
+    setCapoFretInput,
+    setInstrumentInput,
+    setToneInput,
+    setStyleInput,
+    setAccuracyModeInput,
+    setRoiEnabled,
+    setRoiInput,
+    reset,
   } = useAppStore();
   const processVideo = useProcessVideo();
+
+  const selectStyle: React.CSSProperties = {
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+  };
 
   const processFile = useCallback(async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -256,6 +280,110 @@ export function UploadPanel() {
               <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Tuning</p>
               <p className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>E A D G B E</p>
             </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label
+              className="rounded-xl px-3 py-3"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            >
+              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Mode</span>
+              <select
+                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
+                style={selectStyle}
+                value={accuracyModeInput}
+                onChange={(event) => setAccuracyModeInput(event.target.value as 'fast' | 'accurate')}
+              >
+                <option value="accurate">Accurate</option>
+                <option value="fast">Fast</option>
+              </select>
+            </label>
+
+            <label
+              className="rounded-xl px-3 py-3"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            >
+              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Instrument</span>
+              <select
+                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
+                style={selectStyle}
+                value={instrumentInput}
+                onChange={(event) => setInstrumentInput(event.target.value as 'acoustic' | 'electric' | 'classical')}
+              >
+                <option value="acoustic">Acoustic</option>
+                <option value="electric">Electric</option>
+                <option value="classical">Classical</option>
+              </select>
+            </label>
+
+            <label
+              className="rounded-xl px-3 py-3"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            >
+              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Tone</span>
+              <select
+                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
+                style={selectStyle}
+                value={toneInput}
+                onChange={(event) => setToneInput(event.target.value as 'clean' | 'distorted')}
+              >
+                <option value="clean">Clean</option>
+                <option value="distorted">Distorted</option>
+              </select>
+            </label>
+
+            <label
+              className="rounded-xl px-3 py-3"
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            >
+              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Style</span>
+              <select
+                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
+                style={selectStyle}
+                value={styleInput}
+                onChange={(event) => setStyleInput(event.target.value as 'fingerstyle' | 'strumming' | 'mixed')}
+              >
+                <option value="mixed">Mixed</option>
+                <option value="fingerstyle">Fingerstyle</option>
+                <option value="strumming">Strumming</option>
+              </select>
+            </label>
+          </div>
+
+          <div
+            className="mt-3 rounded-xl px-4 py-3"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+          >
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Fretboard ROI</span>
+              <input
+                type="checkbox"
+                checked={roiEnabled}
+                onChange={(event) => setRoiEnabled(event.target.checked)}
+              />
+            </label>
+            {roiEnabled && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {(['x1', 'y1', 'x2', 'y2'] as const).map((key) => (
+                  <label key={key}>
+                    <span className="block text-[11px] uppercase mb-1" style={{ color: 'var(--text-muted)' }}>{key}</span>
+                    <input
+                      className="w-full rounded-lg px-2 py-1.5 text-sm outline-none"
+                      style={selectStyle}
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={roiInput[key]}
+                      onChange={(event) => setRoiInput({
+                        ...roiInput,
+                        [key]: Number(event.target.value),
+                      })}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Feature highlights */}
