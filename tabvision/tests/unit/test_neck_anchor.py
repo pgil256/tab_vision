@@ -59,9 +59,7 @@ def _hand_at_frets(
 def test_compute_neck_anchor_estimates_hand_fret_span():
     cfg = GuitarConfig(max_fret=12)
     homography = _make_homography()
-    hand = _hand_at_frets(
-        homography, {"index": 3.0, "middle": 4.0, "ring": 5.0, "pinky": 6.0}
-    )
+    hand = _hand_at_frets(homography, {"index": 3.0, "middle": 4.0, "ring": 5.0, "pinky": 6.0})
 
     anchor = compute_neck_anchor(hand, homography, cfg)
 

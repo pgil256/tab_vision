@@ -17,11 +17,7 @@ from tabvision.eval.guitarset_audio import (
 )
 
 DEFAULT_OUTPUT = (
-    Path(__file__).resolve().parents[2]
-    / "tabvision"
-    / "fusion"
-    / "priors"
-    / "guitarset_v1.json"
+    Path(__file__).resolve().parents[2] / "tabvision" / "fusion" / "priors" / "guitarset_v1.json"
 )
 
 

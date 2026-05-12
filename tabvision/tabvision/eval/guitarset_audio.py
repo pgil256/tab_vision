@@ -32,9 +32,7 @@ from tabvision.fusion.position_prior import (
 from tabvision.types import AudioBackend, AudioEvent, GuitarConfig, SessionConfig, TabEvent
 
 DEFAULT_DATA_HOME = Path("~/mir_datasets/guitarset").expanduser()
-DEFAULT_OUTPUT_DIR = (
-    Path(__file__).resolve().parents[3] / "tabvision-server" / "tools" / "outputs"
-)
+DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "tabvision-server" / "tools" / "outputs"
 DEFAULT_VALIDATION_PLAYER = "05"
 DEFAULT_ONSET_TOLERANCE_S = 0.05
 DEFAULT_POSITION_PRIOR_ALPHA = 1.0
@@ -172,23 +170,13 @@ def list_guitarset_track_ids(
         return []
 
     track_ids = sorted(p.stem for p in annotation_dir.glob("*.jams"))
-    available = [
-        tid for tid in track_ids if (audio_dir / f"{tid}_mic.wav").is_file()
-    ]
+    available = [tid for tid in track_ids if (audio_dir / f"{tid}_mic.wav").is_file()]
     if split == "all":
         return available
     if split == "validation":
-        return [
-            tid
-            for tid in available
-            if tid.split("_", 1)[0] == validation_player
-        ]
+        return [tid for tid in available if tid.split("_", 1)[0] == validation_player]
     if split == "train":
-        return [
-            tid
-            for tid in available
-            if tid.split("_", 1)[0] != validation_player
-        ]
+        return [tid for tid in available if tid.split("_", 1)[0] != validation_player]
     raise ValueError(f"unknown split: {split!r}; expected train, validation, or all")
 
 

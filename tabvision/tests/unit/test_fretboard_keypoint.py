@@ -34,8 +34,13 @@ from tabvision.video.guitar.yolo_backend import (
 def test_obb_to_corners_axis_aligned():
     """A non-rotated OBB yields rectangular corners around (cx, cy)."""
     obb = OBBDetection(
-        class_name=CLASS_NECK, cx=100.0, cy=50.0, w=80.0, h=20.0,
-        rotation_deg=0.0, confidence=0.9,
+        class_name=CLASS_NECK,
+        cx=100.0,
+        cy=50.0,
+        w=80.0,
+        h=20.0,
+        rotation_deg=0.0,
+        confidence=0.9,
     )
     corners = _obb_to_corners(obb)
     # Pre-rotation order: (+w/2,+h/2), (-w/2,+h/2), (-w/2,-h/2), (+w/2,-h/2)
@@ -53,8 +58,13 @@ def test_obb_to_corners_axis_aligned():
 def test_obb_to_corners_rotated_90_deg():
     """Rotation by +90° swaps the role of w and h relative to image axes."""
     obb = OBBDetection(
-        class_name=CLASS_NECK, cx=0.0, cy=0.0, w=80.0, h=20.0,
-        rotation_deg=90.0, confidence=0.9,
+        class_name=CLASS_NECK,
+        cx=0.0,
+        cy=0.0,
+        w=80.0,
+        h=20.0,
+        rotation_deg=90.0,
+        confidence=0.9,
     )
     corners = _obb_to_corners(obb)
     # Original (+40, +10) rotated 90° -> (-10, +40).  All 4 should be
@@ -80,10 +90,10 @@ def _make_horizontal_neck_corners(
     (+w/2,+h/2), (-w/2,+h/2), (-w/2,-h/2), (+w/2,-h/2)."""
     return np.array(
         [
-            [body_right_x, bottom_y],     # (+,+) -> body, bottom
-            [headstock_left_x, bottom_y], # (-,+) -> nut, bottom
-            [headstock_left_x, top_y],    # (-,-) -> nut, top
-            [body_right_x, top_y],        # (+,-) -> body, top
+            [body_right_x, bottom_y],  # (+,+) -> body, bottom
+            [headstock_left_x, bottom_y],  # (-,+) -> nut, bottom
+            [headstock_left_x, top_y],  # (-,-) -> nut, top
+            [body_right_x, top_y],  # (+,-) -> body, top
         ],
         dtype=np.float64,
     )
@@ -97,10 +107,10 @@ def test_order_corners_uses_nut_to_disambiguate_short_edge():
     # ordered = [top_left, top_right, bottom_right, bottom_left]
     # top_left = nut side + smaller y
     assert ordered.shape == (4, 2)
-    assert ordered[0].tolist() == [50.0, 100.0]   # top_left: nut, top
+    assert ordered[0].tolist() == [50.0, 100.0]  # top_left: nut, top
     assert ordered[1].tolist() == [450.0, 100.0]  # top_right: body, top
     assert ordered[2].tolist() == [450.0, 140.0]  # bottom_right: body, bot
-    assert ordered[3].tolist() == [50.0, 140.0]   # bottom_left: nut, bot
+    assert ordered[3].tolist() == [50.0, 140.0]  # bottom_left: nut, bot
 
 
 def test_order_corners_handles_swapped_nut_to_the_right():
@@ -110,7 +120,7 @@ def test_order_corners_handles_swapped_nut_to_the_right():
     ordered = _order_corners_by_neck_anatomy(corners, nut_xy)
     # nut side is now at x=450, body side at x=50.
     assert ordered[0].tolist() == [450.0, 100.0]  # top_left = nut/top = (450, top)
-    assert ordered[1].tolist() == [50.0, 100.0]   # top_right = body/top = (50, top)
+    assert ordered[1].tolist() == [50.0, 100.0]  # top_right = body/top = (50, top)
     assert ordered[2].tolist() == [50.0, 140.0]
     assert ordered[3].tolist() == [450.0, 140.0]
 
@@ -229,18 +239,21 @@ def test_homography_round_trip_with_rotation():
 
 
 def _neck(cx, cy, w, h, rot=0.0, conf=0.9):
-    return OBBDetection(class_name=CLASS_NECK, cx=cx, cy=cy, w=w, h=h,
-                        rotation_deg=rot, confidence=conf)
+    return OBBDetection(
+        class_name=CLASS_NECK, cx=cx, cy=cy, w=w, h=h, rotation_deg=rot, confidence=conf
+    )
 
 
 def _nut(cx, cy, w=8.0, h=60.0, rot=0.0, conf=0.7):
-    return OBBDetection(class_name=CLASS_NUT, cx=cx, cy=cy, w=w, h=h,
-                        rotation_deg=rot, confidence=conf)
+    return OBBDetection(
+        class_name=CLASS_NUT, cx=cx, cy=cy, w=w, h=h, rotation_deg=rot, confidence=conf
+    )
 
 
 def _fret(cx, cy, w=8.0, h=40.0, rot=0.0, conf=0.5):
-    return OBBDetection(class_name=CLASS_FRET, cx=cx, cy=cy, w=w, h=h,
-                        rotation_deg=rot, confidence=conf)
+    return OBBDetection(
+        class_name=CLASS_FRET, cx=cx, cy=cy, w=w, h=h, rotation_deg=rot, confidence=conf
+    )
 
 
 def test_predictions_no_neck_returns_zero_confidence_identity():

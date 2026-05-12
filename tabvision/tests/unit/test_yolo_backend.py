@@ -118,13 +118,15 @@ def _make_fake_result(detections: list[FakeDetTuple]) -> _FakeResult:
 
 def test_predict_all_groups_and_sorts_by_confidence():
     """Detections are bucketed by class and each bucket is sorted desc by conf."""
-    fake_result = _make_fake_result([
-        # class       cx    cy    w     h    rad   conf
-        (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.40),
-        (CLASS_FRET, 130, 200, 30, 5, 0.0, 0.85),  # higher-conf fret should come first
-        (CLASS_NECK, 200, 200, 400, 60, 0.05, 0.95),
-        (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.70),
-    ])
+    fake_result = _make_fake_result(
+        [
+            # class       cx    cy    w     h    rad   conf
+            (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.40),
+            (CLASS_FRET, 130, 200, 30, 5, 0.0, 0.85),  # higher-conf fret should come first
+            (CLASS_NECK, 200, 200, 400, 60, 0.05, 0.95),
+            (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.70),
+        ]
+    )
     backend = _backend_with_fake(_FakeModel([fake_result]))
     preds = backend.predict_all(np.zeros((480, 640, 3), dtype=np.uint8))
     assert isinstance(preds, OBBPredictions)
@@ -155,12 +157,14 @@ def test_predict_all_no_results_at_all():
 
 def test_detect_returns_only_neck_class():
     """detect() must filter to neck — never return a fret or nut as the GuitarBBox."""
-    fake_result = _make_fake_result([
-        # A fret with HIGHER confidence than the neck — detect() must still pick neck.
-        (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.99),
-        (CLASS_NECK, 200, 200, 400, 60, 0.05, 0.85),
-        (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.95),
-    ])
+    fake_result = _make_fake_result(
+        [
+            # A fret with HIGHER confidence than the neck — detect() must still pick neck.
+            (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.99),
+            (CLASS_NECK, 200, 200, 400, 60, 0.05, 0.85),
+            (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.95),
+        ]
+    )
     backend = _backend_with_fake(_FakeModel([fake_result]))
     bbox = backend.detect(np.zeros((480, 640, 3), dtype=np.uint8))
     assert bbox is not None
@@ -175,10 +179,12 @@ def test_detect_returns_only_neck_class():
 
 def test_detect_returns_none_when_no_neck():
     """A frame with frets/nut but no neck must yield None — we can't crop without it."""
-    fake_result = _make_fake_result([
-        (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.50),
-        (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.90),
-    ])
+    fake_result = _make_fake_result(
+        [
+            (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.50),
+            (CLASS_NUT, 50, 200, 8, 60, 0.05, 0.90),
+        ]
+    )
     backend = _backend_with_fake(_FakeModel([fake_result]))
     assert backend.detect(np.zeros((480, 640, 3), dtype=np.uint8)) is None
 
@@ -201,12 +207,14 @@ def test_unknown_class_is_skipped_not_fatal():
 
 def test_detect_frets_returns_all_sorted():
     """detect_frets() exposes the full set, sorted by descending confidence."""
-    fake_result = _make_fake_result([
-        (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.30),
-        (CLASS_FRET, 130, 200, 30, 5, 0.0, 0.95),
-        (CLASS_FRET, 160, 200, 30, 5, 0.0, 0.60),
-        (CLASS_NECK, 200, 200, 400, 60, 0.0, 0.99),
-    ])
+    fake_result = _make_fake_result(
+        [
+            (CLASS_FRET, 100, 200, 30, 5, 0.0, 0.30),
+            (CLASS_FRET, 130, 200, 30, 5, 0.0, 0.95),
+            (CLASS_FRET, 160, 200, 30, 5, 0.0, 0.60),
+            (CLASS_NECK, 200, 200, 400, 60, 0.0, 0.99),
+        ]
+    )
     backend = _backend_with_fake(_FakeModel([fake_result]))
     frets = backend.detect_frets(np.zeros((480, 640, 3), dtype=np.uint8))
     assert [round(d.confidence, 2) for d in frets] == [0.95, 0.60, 0.30]
@@ -216,8 +224,13 @@ def test_detect_frets_returns_all_sorted():
 def test_obbdetection_to_guitar_bbox_round_trip():
     """The center->top-left conversion in to_guitar_bbox is the canonical map."""
     det = OBBDetection(
-        class_name=CLASS_NECK, cx=100.0, cy=50.0, w=80.0, h=20.0,
-        rotation_deg=12.5, confidence=0.7,
+        class_name=CLASS_NECK,
+        cx=100.0,
+        cy=50.0,
+        w=80.0,
+        h=20.0,
+        rotation_deg=12.5,
+        confidence=0.7,
     )
     bbox = det.to_guitar_bbox()
     assert bbox.x == pytest.approx(100 - 80 / 2)

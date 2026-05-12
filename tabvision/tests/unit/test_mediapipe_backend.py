@@ -102,7 +102,7 @@ def test_select_fretting_hand_picks_mediapipe_right_label():
 def test_select_fretting_hand_falls_back_to_widest_spread():
     """When neither hand is labelled "Right", widest fingertip spread wins."""
     narrow = _hand_with_finger_xs([0.40, 0.42, 0.44, 0.46, 0.48])  # spread = 0.08
-    wide = _hand_with_finger_xs([0.10, 0.30, 0.50, 0.70, 0.90])    # spread = 0.80
+    wide = _hand_with_finger_xs([0.10, 0.30, 0.50, 0.70, 0.90])  # spread = 0.80
     lms = [narrow, wide]
     handedness = [[_FakeCategory("Left")], [_FakeCategory("Left")]]
     assert _select_fretting_hand(lms, handedness) == 1
@@ -123,8 +123,11 @@ def _full_landmark_list(
     lms[0] = _FakeLandmark(*wrist_xy)
     # Layout: thumb (1..4), index (5..8), middle (9..12), ring (13..16), pinky (17..20).
     finger_groups = [
-        (1, 2, 3, 4), (5, 6, 7, 8), (9, 10, 11, 12),
-        (13, 14, 15, 16), (17, 18, 19, 20),
+        (1, 2, 3, 4),
+        (5, 6, 7, 8),
+        (9, 10, 11, 12),
+        (13, 14, 15, 16),
+        (17, 18, 19, 20),
     ]
     for fi, (cmc, mcp, pip, tip) in enumerate(finger_groups):
         lms[cmc] = _FakeLandmark(wrist_xy[0] + 0.01, wrist_xy[1])
@@ -171,7 +174,7 @@ def test_build_hand_sample_records_handedness_correctly():
     h_left = [_FakeCategory("Left", score=0.85)]
     sample_right = _build_hand_sample(lms, h_right, frame_width=320, frame_height=240)
     sample_left = _build_hand_sample(lms, h_left, frame_width=320, frame_height=240)
-    assert sample_right.is_left_hand is True   # MediaPipe "Right" -> player's left
+    assert sample_right.is_left_hand is True  # MediaPipe "Right" -> player's left
     assert sample_left.is_left_hand is False
     assert sample_right.confidence == pytest.approx(0.9)
 
@@ -184,7 +187,9 @@ def test_empty_fingering_has_zero_confidence_and_correct_shape():
     ff = _empty_fingering(cfg)
     assert ff.homography_confidence == 0.0
     assert ff.finger_pos_logits.shape == (
-        len(FRETTING_FINGERS), cfg.n_strings, cfg.max_fret + 1,
+        len(FRETTING_FINGERS),
+        cfg.n_strings,
+        cfg.max_fret + 1,
     )
 
 
@@ -202,7 +207,9 @@ def test_detect_returns_empty_when_no_hand_extracted(monkeypatch, tmp_path):
     out = backend.detect(frame, H, cfg)
     assert out.homography_confidence == 0.0
     assert out.finger_pos_logits.shape == (
-        len(FRETTING_FINGERS), cfg.n_strings, cfg.max_fret + 1,
+        len(FRETTING_FINGERS),
+        cfg.n_strings,
+        cfg.max_fret + 1,
     )
 
 
@@ -226,7 +233,10 @@ def test_detect_runs_compute_fingering_when_hand_extracted(monkeypatch, tmp_path
         for name in ("thumb", "index", "middle", "ring", "pinky")
     }
     fake_sample = HandSample(
-        wrist_xy=(80.0, 250.0), wrist_z=0.0, is_left_hand=True, confidence=0.9,
+        wrist_xy=(80.0, 250.0),
+        wrist_z=0.0,
+        is_left_hand=True,
+        confidence=0.9,
         fingers=fingers,
     )
     monkeypatch.setattr(backend, "_extract_fretting_hand", lambda _f: fake_sample)

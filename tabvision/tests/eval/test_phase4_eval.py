@@ -86,4 +86,5 @@ def _clip_path_from_id(cid: str) -> str:
     if not p.exists():
         return ""
     import json
+
     return json.loads(p.read_text()).get("clip_path", "")

@@ -8,9 +8,9 @@ from tabvision.video.fretboard.tracker import smooth_homography_track
 
 def _h(scale=1.0, conf=0.8, method="geometric") -> Homography:
     """Construct a simple identity-ish homography scaled by `scale`."""
-    H = np.eye(3) * scale
-    H[2, 2] = 1.0  # keep last element 1
-    return Homography(H=H, confidence=conf, method=method)
+    matrix = np.eye(3) * scale
+    matrix[2, 2] = 1.0  # keep last element 1
+    return Homography(H=matrix, confidence=conf, method=method)
 
 
 def test_smooth_track_returns_one_per_frame():

@@ -62,10 +62,7 @@ def test_midi_round_trip_preserves_string_channels() -> None:
 
     midi = mido.MidiFile(file=BytesIO(render(_fixture_events(), GuitarConfig())))
     note_ons = [
-        msg
-        for track in midi.tracks
-        for msg in track
-        if msg.type == "note_on" and msg.velocity > 0
+        msg for track in midi.tracks for msg in track if msg.type == "note_on" and msg.velocity > 0
     ]
     assert [(msg.note, msg.channel) for msg in note_ons] == [(64, 5), (43, 0)]
 

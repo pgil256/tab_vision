@@ -165,14 +165,10 @@ def _acquire_roboflow_guitar(
 
     license_info = getattr(ver, "license", None) or "unknown (check Roboflow page)"
     citation = (
-        f"Roboflow Universe project {workspace}/{project} v{version}, "
-        f"accessed {dataset.location}"
+        f"Roboflow Universe project {workspace}/{project} v{version}, accessed {dataset.location}"
     )
     print(f"\nattribution required:\n  {citation}\n  license: {license_info}")
-    print(
-        "Add the above to docs/HISTORY.md and to the repo README "
-        "before merging Phase 3."
-    )
+    print("Add the above to docs/HISTORY.md and to the repo README before merging Phase 3.")
     return 0
 
 

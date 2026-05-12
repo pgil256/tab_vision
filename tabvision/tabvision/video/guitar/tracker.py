@@ -7,8 +7,8 @@ detector jitter and bridges single-frame missed detections.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
-from typing import Iterable
 
 from tabvision.types import GuitarBBox, GuitarTrack
 
@@ -74,7 +74,10 @@ def _center_std(boxes: list[GuitarBBox]) -> float:
     n = len(boxes)
     mx = sum(centers_x) / n
     my = sum(centers_y) / n
-    var = sum((cx - mx) ** 2 + (cy - my) ** 2 for cx, cy in zip(centers_x, centers_y)) / n
+    var = (
+        sum((cx - mx) ** 2 + (cy - my) ** 2 for cx, cy in zip(centers_x, centers_y, strict=True))
+        / n
+    )
     return float(var**0.5)
 
 

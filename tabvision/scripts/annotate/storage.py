@@ -92,8 +92,8 @@ class FramingLabel:
 class FretIntersection:
     """One hand-clicked fret-line endpoint, in image-pixel coords."""
 
-    fret: int               # the fret number (5 or 12 per the spec)
-    edge: Literal["top", "bottom"]   # high-E (top) or low-E (bottom) side
+    fret: int  # the fret number (5 or 12 per the spec)
+    edge: Literal["top", "bottom"]  # high-E (top) or low-E (bottom) side
     x: float
     y: float
 
@@ -101,7 +101,7 @@ class FretIntersection:
 @dataclass
 class FretboardLabel:
     clip_path: str
-    frame_idx: int           # the representative frame the clicks were made on
+    frame_idx: int  # the representative frame the clicks were made on
     points: list[FretIntersection]
     notes: str = ""
 

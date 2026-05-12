@@ -1,4 +1,5 @@
 """Tests for the melodic-segment position prior."""
+
 from __future__ import annotations
 
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior, find_melodic_segments

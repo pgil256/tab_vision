@@ -87,7 +87,7 @@ def predictions_to_homography(preds: OBBPredictions) -> Homography:
             method="keypoint",
         )
 
-    corners = _obb_to_corners(neck)             # 4×2, image px
+    corners = _obb_to_corners(neck)  # 4×2, image px
     nut = preds.best_nut()
     nut_xy = (nut.cx, nut.cy) if nut else None
     ordered = _order_corners_by_neck_anatomy(corners, nut_xy)
@@ -167,8 +167,7 @@ def _order_corners_by_neck_anatomy(
     # corners 1-2 and 3-0 are the short edges (the nut + body ends).
     short_edges = [(1, 2), (3, 0)]
     short_midpoints = [
-        (i, j, np.array([(corners[i, 0] + corners[j, 0]) / 2,
-                         (corners[i, 1] + corners[j, 1]) / 2]))
+        (i, j, np.array([(corners[i, 0] + corners[j, 0]) / 2, (corners[i, 1] + corners[j, 1]) / 2]))
         for (i, j) in short_edges
     ]
 
@@ -191,10 +190,10 @@ def _order_corners_by_neck_anatomy(
 
     return np.array(
         [
-            corners[nut_top],     # top_left
-            corners[body_top],    # top_right
-            corners[body_bot],    # bottom_right
-            corners[nut_bot],     # bottom_left
+            corners[nut_top],  # top_left
+            corners[body_top],  # top_right
+            corners[body_bot],  # bottom_right
+            corners[nut_bot],  # bottom_left
         ],
         dtype=np.float64,
     )
@@ -268,10 +267,10 @@ def _homography_from_quad(ordered_corners: np.ndarray) -> np.ndarray:
 
     src = np.array(
         [
-            [0.0, 0.0],   # top_left
-            [1.0, 0.0],   # top_right
-            [1.0, 1.0],   # bottom_right
-            [0.0, 1.0],   # bottom_left
+            [0.0, 0.0],  # top_left
+            [1.0, 0.0],  # top_right
+            [1.0, 1.0],  # bottom_right
+            [0.0, 1.0],  # bottom_left
         ],
         dtype=np.float32,
     )

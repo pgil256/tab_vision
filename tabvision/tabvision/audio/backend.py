@@ -8,7 +8,7 @@ TensorFlow or PyTorch).
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from tabvision.errors import InvalidInputError
 from tabvision.types import AudioBackend
@@ -27,8 +27,7 @@ def register(name: str, factory: Callable[..., AudioBackend]) -> None:
 def make(name: str, **kwargs) -> AudioBackend:  # type: ignore[no-untyped-def]
     if name not in _REGISTRY:
         raise InvalidInputError(
-            f"unknown audio backend: {name!r}; "
-            f"available: {sorted(_REGISTRY.keys())}"
+            f"unknown audio backend: {name!r}; available: {sorted(_REGISTRY.keys())}"
         )
     return _REGISTRY[name](**kwargs)
 

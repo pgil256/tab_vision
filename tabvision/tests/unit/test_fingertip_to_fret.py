@@ -149,8 +149,10 @@ def test_curled_finger_logits_uniformly_lower_than_extended():
     # Same finger but curled.
     base = _hand_sample_with_fingers(fingers_extended)
     curled_index = FingerSample(
-        name="index", tip_xy=base.fingers["index"].tip_xy,
-        tip_z=base.fingers["index"].tip_z, curl_ratio=0.6,
+        name="index",
+        tip_xy=base.fingers["index"].tip_xy,
+        tip_z=base.fingers["index"].tip_z,
+        curl_ratio=0.6,
     )
     new_fingers = dict(base.fingers)
     new_fingers["index"] = curled_index
@@ -183,18 +185,20 @@ def test_pressing_z_window_adds_bonus_to_logits():
     # Pressing: tip_z near wrist_z (within window).
     pressing = base.fingers["index"]
     pressing_hand = HandSample(
-        wrist_xy=base.wrist_xy, wrist_z=0.0, is_left_hand=base.is_left_hand,
+        wrist_xy=base.wrist_xy,
+        wrist_z=0.0,
+        is_left_hand=base.is_left_hand,
         confidence=base.confidence,
-        fingers={**base.fingers,
-                 "index": FingerSample("index", pressing.tip_xy, 0.0, 1.0)},
+        fingers={**base.fingers, "index": FingerSample("index", pressing.tip_xy, 0.0, 1.0)},
     )
 
     # Not pressing: tip_z way past the press window.
     not_pressing_hand = HandSample(
-        wrist_xy=base.wrist_xy, wrist_z=0.0, is_left_hand=base.is_left_hand,
+        wrist_xy=base.wrist_xy,
+        wrist_z=0.0,
+        is_left_hand=base.is_left_hand,
         confidence=base.confidence,
-        fingers={**base.fingers,
-                 "index": FingerSample("index", pressing.tip_xy, 1.0, 1.0)},
+        fingers={**base.fingers, "index": FingerSample("index", pressing.tip_xy, 1.0, 1.0)},
     )
 
     press_logits = compute_fingering(pressing_hand, H, cfg, pcfg).finger_pos_logits[0]
@@ -221,14 +225,14 @@ def test_marginal_combines_finger_evidence():
     """Two fingers concentrated at distinct cells → marginal has mass at both."""
     n_fingers, n_strings, n_frets = 4, 6, 13
     logits = np.full((n_fingers, n_strings, n_frets), -10.0)
-    logits[0, 0, 0] = 0.0      # finger 0 sharp at (string 0, fret 0)
-    logits[1, 5, 12] = 0.0     # finger 1 sharp at (string 5, fret 12)
+    logits[0, 0, 0] = 0.0  # finger 0 sharp at (string 0, fret 0)
+    logits[1, 5, 12] = 0.0  # finger 1 sharp at (string 5, fret 12)
     m = marginal_string_fret(logits)
     # The two designated cells should be the largest two entries.
     flat = m.reshape(-1)
     top2 = np.argsort(flat)[-2:]
     assert (n_strings * n_frets - 1) in top2  # last cell
-    assert 0 in top2                            # first cell
+    assert 0 in top2  # first cell
 
 
 def test_marginal_string_fret_via_frame_fingering_method():
@@ -259,8 +263,7 @@ def test_string_index_zero_is_low_e_at_bottom_of_canonical_y():
     px, py = float(proj[0] / proj[2]), float(proj[1] / proj[2])
     hand = _hand_sample_with_fingers({"index": (px, py)})
     out = compute_fingering(hand, H, cfg)
-    s_arg, _ = np.unravel_index(out.finger_pos_logits[0].argmax(),
-                                out.finger_pos_logits[0].shape)
+    s_arg, _ = np.unravel_index(out.finger_pos_logits[0].argmax(), out.finger_pos_logits[0].shape)
     assert int(s_arg) == 0
 
 
@@ -271,6 +274,5 @@ def test_string_index_max_is_high_e_at_top_of_canonical_y():
     px, py = float(proj[0] / proj[2]), float(proj[1] / proj[2])
     hand = _hand_sample_with_fingers({"index": (px, py)})
     out = compute_fingering(hand, H, cfg)
-    s_arg, _ = np.unravel_index(out.finger_pos_logits[0].argmax(),
-                                out.finger_pos_logits[0].shape)
+    s_arg, _ = np.unravel_index(out.finger_pos_logits[0].argmax(), out.finger_pos_logits[0].shape)
     assert int(s_arg) == cfg.n_strings - 1

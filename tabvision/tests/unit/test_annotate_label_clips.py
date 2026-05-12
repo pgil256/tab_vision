@@ -182,7 +182,7 @@ def test_fingering_post_saves_per_frame_labels(client, app):
     assert len(saved.frames) == 2
     f0 = saved.frames[0]
     assert f0.fingers[0].is_fretting
-    assert not f0.fingers[1].is_fretting   # blank string/fret -> not fretting
+    assert not f0.fingers[1].is_fretting  # blank string/fret -> not fretting
 
 
 def test_fingering_get_pre_populates_from_existing(client, app):
@@ -190,8 +190,9 @@ def test_fingering_get_pre_populates_from_existing(client, app):
     refreshing doesn't lose state."""
     client.post(
         "/fingering/b",
-        json={"frames": [{"frame_idx": 0,
-                          "fingers": [{"finger": "index", "string": 3, "fret": 7}]}]},
+        json={
+            "frames": [{"frame_idx": 0, "fingers": [{"finger": "index", "string": 3, "fret": 7}]}]
+        },
     )
     r = client.get("/fingering/b")
     assert r.status_code == 200
@@ -200,5 +201,5 @@ def test_fingering_get_pre_populates_from_existing(client, app):
     # FingerLabel fields show up verbatim. (The dict key "0" — frame_idx
     # — gets stringified as a JSON object key and isn't searchable as
     # `"frame_idx": 0`.)
-    assert "\"finger\": \"index\"" in body
-    assert "\"string\": 3" in body and "\"fret\": 7" in body
+    assert '"finger": "index"' in body
+    assert '"string": 3' in body and '"fret": 7' in body

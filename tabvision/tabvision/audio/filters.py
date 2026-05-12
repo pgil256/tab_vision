@@ -10,8 +10,8 @@ Phase 1 polish: applied after Basic Pitch transcription to reduce the
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 from tabvision.types import AudioEvent
 
@@ -67,9 +67,7 @@ class AudioFilterConfig:
 # ---------- individual filters ----------
 
 
-def filter_low_quality(
-    events: Sequence[AudioEvent], cfg: AudioFilterConfig
-) -> list[AudioEvent]:
+def filter_low_quality(events: Sequence[AudioEvent], cfg: AudioFilterConfig) -> list[AudioEvent]:
     """Drop events below confidence / duration / amplitude floors."""
     out: list[AudioEvent] = []
     for ev in events:
@@ -83,9 +81,7 @@ def filter_low_quality(
     return out
 
 
-def merge_consecutive(
-    events: Sequence[AudioEvent], cfg: AudioFilterConfig
-) -> list[AudioEvent]:
+def merge_consecutive(events: Sequence[AudioEvent], cfg: AudioFilterConfig) -> list[AudioEvent]:
     """Coalesce same-pitch overlapping/consecutive events.
 
     Basic Pitch sometimes splits a single sustained note into multiple
@@ -154,9 +150,7 @@ def filter_sustain_redetections(
     return keep
 
 
-def filter_harmonics(
-    events: Sequence[AudioEvent], cfg: AudioFilterConfig
-) -> list[AudioEvent]:
+def filter_harmonics(events: Sequence[AudioEvent], cfg: AudioFilterConfig) -> list[AudioEvent]:
     """Drop events at harmonic intervals above (or sub-harmonic intervals
     below) a louder near-simultaneous fundamental.
 

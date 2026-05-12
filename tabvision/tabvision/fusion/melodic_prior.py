@@ -1,4 +1,5 @@
 """Melodic-segment position prior for fast single-note runs."""
+
 from __future__ import annotations
 
 import math
@@ -68,7 +69,12 @@ def apply_melodic_segment_prior(
     ):
         path = _decode_segment([out[index] for index in segment], cfg)
         for index, candidate in zip(segment, path, strict=True):
-            segment_prior = _prior_for_candidate(candidate, out[index].pitch_midi, cfg, prior_strength)
+            segment_prior = _prior_for_candidate(
+                candidate,
+                out[index].pitch_midi,
+                cfg,
+                prior_strength,
+            )
             existing = out[index].fret_prior
             if existing is not None and getattr(existing, "shape", ()) == segment_prior.shape:
                 combined = np.asarray(existing, dtype=np.float64) * 0.35 + segment_prior * 0.65
@@ -122,8 +128,7 @@ def _decode_segment(events: Sequence[AudioEvent], cfg: GuitarConfig) -> list[Can
         path_indexes[step_index - 1] = backptrs[step_index][path_indexes[step_index]]
 
     return [
-        candidates[index]
-        for candidates, index in zip(candidate_steps, path_indexes, strict=True)
+        candidates[index] for candidates, index in zip(candidate_steps, path_indexes, strict=True)
     ]
 
 
@@ -136,7 +141,9 @@ def _infer_target_fret_window(
     """Infer the compact neck region that best covers a long scalar run."""
     if len(events) < 8:
         return None
-    pitch_span = max(event.pitch_midi for event in events) - min(event.pitch_midi for event in events)
+    pitch_span = max(event.pitch_midi for event in events) - min(
+        event.pitch_midi for event in events
+    )
     if pitch_span < 12:
         return None
 
@@ -150,7 +157,9 @@ def _infer_target_fret_window(
             if not candidates:
                 score += 100.0
                 continue
-            score += min(_distance_to_window(candidate.fret, start, end) for candidate in candidates)
+            score += min(
+                _distance_to_window(candidate.fret, start, end) for candidate in candidates
+            )
         if score < best_score:
             best_score = score
             best_window = (start, end)

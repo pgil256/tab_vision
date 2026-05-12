@@ -87,9 +87,7 @@ def check(video_path: str | Path, *, strict: bool = False) -> PreflightReport:
 # ----- frame sampling -----
 
 
-def _sample_preview_frames(
-    path: Path, max_seconds: float
-) -> tuple[list[np.ndarray], float]:
+def _sample_preview_frames(path: Path, max_seconds: float) -> tuple[list[np.ndarray], float]:
     """Decode the first ``max_seconds`` of video into a list of BGR frames."""
     try:
         import cv2
@@ -111,9 +109,7 @@ def _sample_preview_frames(
         cap.release()
         return [], fps
 
-    sample_indices = set(
-        int(round(i)) for i in np.linspace(0, n_max - 1, n_sample, dtype=float)
-    )
+    sample_indices = set(int(round(i)) for i in np.linspace(0, n_max - 1, n_sample, dtype=float))
     frames: list[np.ndarray] = []
     idx = 0
     while idx < n_max:
@@ -177,7 +173,11 @@ def _check_guitar_visibility(
     rate = sum(1 for d in detections if d is not None) / n
     if rate >= DEFAULT_MIN_GUITAR_DETECT_RATE:
         findings.append(
-            PreflightFinding("info", "GUITAR_VISIBLE", f"guitar detected in {rate:.0%} of preview frames")
+            PreflightFinding(
+                "info",
+                "GUITAR_VISIBLE",
+                f"guitar detected in {rate:.0%} of preview frames",
+            )
         )
         return
     if rate == 0.0:
@@ -188,7 +188,9 @@ def _check_guitar_visibility(
                 "no guitar found in any preview frame",
             )
         )
-        suggestions.append("Move the guitar fully into frame; check that it isn't off-screen or occluded.")
+        suggestions.append(
+            "Move the guitar fully into frame; check that it isn't off-screen or occluded."
+        )
     else:
         findings.append(
             PreflightFinding(
@@ -197,7 +199,10 @@ def _check_guitar_visibility(
                 f"guitar only detected in {rate:.0%} of preview frames",
             )
         )
-        suggestions.append("Hold the guitar steadier; partial occlusion or motion is reducing detection reliability.")
+        suggestions.append(
+            "Hold the guitar steadier; partial occlusion or motion is reducing detection "
+            "reliability."
+        )
 
 
 def _check_framing_position(
@@ -241,7 +246,9 @@ def _check_framing_position(
                 f"guitar fills only {area_frac:.1%} of the frame",
             )
         )
-        suggestions.append("Move the camera closer or zoom in so the guitar fills more of the frame.")
+        suggestions.append(
+            "Move the camera closer or zoom in so the guitar fills more of the frame."
+        )
     elif area_frac > amax:
         findings.append(
             PreflightFinding(
@@ -275,7 +282,9 @@ def _check_bbox_stability(
                 f"bbox center drift {drift:.0f} px ({drift_frac:.1%} of frame width)",
             )
         )
-        suggestions.append("Stabilize the camera — drift across the take will hurt fretboard tracking.")
+        suggestions.append(
+            "Stabilize the camera — drift across the take will hurt fretboard tracking."
+        )
 
 
 def _check_lighting(
@@ -289,14 +298,26 @@ def _check_lighting(
     lo, hi = DEFAULT_LUMA_RANGE
     if luma < lo:
         findings.append(
-            PreflightFinding("warn", "LIGHTING_DIM", f"mean luma {luma:.0f}/255 — likely too dark")
+            PreflightFinding(
+                "warn",
+                "LIGHTING_DIM",
+                f"mean luma {luma:.0f}/255 — likely too dark",
+            )
         )
-        suggestions.append("Add light: an overhead lamp or open blinds typically rescues fretboard detection.")
+        suggestions.append(
+            "Add light: an overhead lamp or open blinds typically rescues fretboard detection."
+        )
     elif luma > hi:
         findings.append(
-            PreflightFinding("warn", "LIGHTING_BRIGHT", f"mean luma {luma:.0f}/255 — frames may be over-exposed")
+            PreflightFinding(
+                "warn",
+                "LIGHTING_BRIGHT",
+                f"mean luma {luma:.0f}/255 — frames may be over-exposed",
+            )
         )
-        suggestions.append("Reduce light or move out of direct sun; clipped highlights hurt edge detection.")
+        suggestions.append(
+            "Reduce light or move out of direct sun; clipped highlights hurt edge detection."
+        )
 
 
 def _check_aspect_ratio(
@@ -318,7 +339,9 @@ def _check_aspect_ratio(
                 f"mean bbox aspect {mean_aspect:.2f} — fretboard angle may be too oblique",
             )
         )
-        suggestions.append("Tilt the phone so the fretboard runs roughly horizontally across the frame.")
+        suggestions.append(
+            "Tilt the phone so the fretboard runs roughly horizontally across the frame."
+        )
 
 
 # ----- error helpers -----

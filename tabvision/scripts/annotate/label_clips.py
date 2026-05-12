@@ -49,8 +49,7 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
         from flask import Flask, abort, jsonify, render_template_string, request
     except ImportError as exc:
         raise SystemExit(
-            "flask is required for the labeling tool. "
-            "Install with: pip install flask"
+            "flask is required for the labeling tool. Install with: pip install flask"
         ) from exc
 
     app = Flask(__name__)
@@ -77,13 +76,15 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
     def index():
         rows = []
         for cid, path in sorted(clip_index.items()):
-            rows.append({
-                "id": cid,
-                "path": str(path),
-                "framing": _summary_framing(path, eval_root),
-                "fretboard": _summary_fretboard(path, eval_root),
-                "fingering": _summary_fingering(path, eval_root, fingering_frames),
-            })
+            rows.append(
+                {
+                    "id": cid,
+                    "path": str(path),
+                    "framing": _summary_framing(path, eval_root),
+                    "fretboard": _summary_fretboard(path, eval_root),
+                    "fingering": _summary_fingering(path, eval_root, fingering_frames),
+                }
+            )
         return render_template_string(_TPL_INDEX, rows=rows)
 
     @app.route("/clip/<cid>/frame/<int:frame_idx>.jpg")
@@ -184,8 +185,7 @@ def make_app(clips: list[Path], eval_root: Path | None, fingering_frames: int): 
         if existing:
             for fr in existing.frames:
                 existing_by_idx[fr.frame_idx] = [
-                    {"finger": fl.finger, "string": fl.string, "fret": fl.fret}
-                    for fl in fr.fingers
+                    {"finger": fl.finger, "string": fl.string, "fret": fl.fret} for fl in fr.fingers
                 ]
         prev_cid, next_cid = _neighbours(cid)
         return render_template_string(
@@ -269,6 +269,7 @@ def _summary_fingering(path: Path, eval_root: Path | None, expected: int) -> dic
 def _resolve_clip(cid: str, clip_index: dict[str, Path]) -> Path:
     if cid not in clip_index:
         from flask import abort
+
         abort(404)
     return clip_index[cid]
 
@@ -668,8 +669,7 @@ def discover_clips(clip_dir: Path) -> list[Path]:
     if not clip_dir.exists():
         raise SystemExit(f"clips dir not found: {clip_dir}")
     found = sorted(
-        p for p in clip_dir.iterdir()
-        if p.is_file() and p.suffix.lower() in VIDEO_SUFFIXES
+        p for p in clip_dir.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_SUFFIXES
     )
     if not found:
         raise SystemExit(f"no video files found in {clip_dir} (suffixes: {VIDEO_SUFFIXES})")
@@ -688,8 +688,7 @@ def main(argv: list[str] | None = None) -> int:
         "--eval-root",
         type=Path,
         default=None,
-        help="output JSON root (default: $TABVISION_EVAL_ROOT or "
-        "tabvision/data/eval)",
+        help="output JSON root (default: $TABVISION_EVAL_ROOT or tabvision/data/eval)",
     )
     parser.add_argument(
         "--fingering-frames",

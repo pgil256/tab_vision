@@ -120,11 +120,7 @@ def test_overlay_fretboard_draws_fret_lines_when_enabled():
 
     def _grey_count(img: np.ndarray) -> int:
         # All three channels equal and non-zero -> a grey-toned pixel.
-        m = (
-            (img[..., 0] == img[..., 1])
-            & (img[..., 1] == img[..., 2])
-            & (img[..., 0] > 0)
-        )
+        m = (img[..., 0] == img[..., 1]) & (img[..., 1] == img[..., 2]) & (img[..., 0] > 0)
         return int(m.sum())
 
     # 12 fret guides + 12 number labels add hundreds of grey pixels relative
@@ -155,7 +151,8 @@ def test_project_points_through_identity_homography():
     src = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
     dst = np.array([[10.0, 20.0], [110.0, 25.0], [115.0, 75.0], [15.0, 80.0]])
     H = cv2.getPerspectiveTransform(  # noqa: N806
-        src.astype(np.float32), dst.astype(np.float32),
+        src.astype(np.float32),
+        dst.astype(np.float32),
     )
     homog = Homography(H=H.astype(np.float64), confidence=1.0, method="keypoint")
     proj = _project(homog, src)
@@ -199,7 +196,8 @@ def test_render_overlay_guitar_writes_output_with_fake_backend(tmp_path):
 
     with patch.object(overlay_guitar, "YoloOBBBackend", _FakeBackend):
         stats = overlay_guitar.render_overlay(
-            src, out,
+            src,
+            out,
             checkpoint=tmp_path / "ignored.pt",
             stride=1,
             show_progress=False,
@@ -229,10 +227,12 @@ def test_render_overlay_fretboard_writes_output_with_fake_backend(tmp_path):
     out = tmp_path / "out.mp4"
     _write_synthetic_video(src, n_frames=4)
 
-    with patch.object(overlay_fretboard, "_build_backends",
-                      lambda _name, _cp: (_FakeBackend(), None)):
+    with patch.object(
+        overlay_fretboard, "_build_backends", lambda _name, _cp: (_FakeBackend(), None)
+    ):
         stats = overlay_fretboard.render_overlay(
-            src, out,
+            src,
+            out,
             backend_name="keypoint",
             stride=1,
             show_progress=False,

@@ -36,9 +36,9 @@ from tabvision.video.guitar.yolo_backend import (
 )
 
 # BGR colours; chosen to be distinct on a typical wood-grain fretboard.
-COLOR_NECK = (0, 255, 0)      # green
-COLOR_FRET = (0, 165, 255)    # orange
-COLOR_NUT = (255, 0, 255)     # magenta
+COLOR_NECK = (0, 255, 0)  # green
+COLOR_FRET = (0, 165, 255)  # orange
+COLOR_NUT = (255, 0, 255)  # magenta
 COLOR_TEXT = (255, 255, 255)  # white
 
 
@@ -189,10 +189,8 @@ def _draw_legend(frame: np.ndarray, preds: OBBPredictions) -> None:
     ]
     for i, (text, color) in enumerate(lines):
         y = 20 + 18 * i
-        cv2.putText(frame, text, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, COLOR_TEXT, 2, cv2.LINE_AA)
-        cv2.putText(frame, text, (10, y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, color, 1, cv2.LINE_AA)
+        cv2.putText(frame, text, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_TEXT, 2, cv2.LINE_AA)
+        cv2.putText(frame, text, (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
 
 def main(argv: list[str] | None = None) -> int:

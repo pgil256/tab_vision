@@ -76,10 +76,7 @@ def _columns_to_lines(columns: list[tuple[int, str]], n_strings: int) -> str:
 
 
 def _empty_tab(n_strings: int) -> str:
-    return "\n".join(
-        f"{STRING_NAMES[s]}{BAR}{DASH * 16}{BAR}"
-        for s in reversed(range(n_strings))
-    )
+    return "\n".join(f"{STRING_NAMES[s]}{BAR}{DASH * 16}{BAR}" for s in reversed(range(n_strings)))
 
 
 def _wrap_rows(lines: list[str], width: int) -> str:

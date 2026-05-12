@@ -62,7 +62,9 @@ def _make_fingering(cfg: GuitarConfig) -> FrameFingering:
     """A FrameFingering with a clear peak at (string=2, fret=5) for the index finger."""
     n_fingers = len(FRETTING_FINGERS)
     logits = np.full(
-        (n_fingers, cfg.n_strings, cfg.max_fret + 1), -10.0, dtype=np.float64,
+        (n_fingers, cfg.n_strings, cfg.max_fret + 1),
+        -10.0,
+        dtype=np.float64,
     )
     logits[0, 2, 5] = 0.0
     return FrameFingering(t=0.0, finger_pos_logits=logits, homography_confidence=0.8)
@@ -110,7 +112,8 @@ def test_render_overlay_hand_writes_output_with_stub_backends(tmp_path):
         patch.object(overlay_hand, "MediaPipeHandBackend", _FakeHand),
     ):
         stats = overlay_hand.render_overlay(
-            src, out,
+            src,
+            out,
             cfg=cfg,
             stride=1,
             show_progress=False,
@@ -128,7 +131,9 @@ def test_render_overlay_hand_handles_no_hand_detected(tmp_path):
     homog = _identity_homography()
     n_fingers = len(FRETTING_FINGERS)
     empty_logits = np.full(
-        (n_fingers, cfg.n_strings, cfg.max_fret + 1), -10.0, dtype=np.float64,
+        (n_fingers, cfg.n_strings, cfg.max_fret + 1),
+        -10.0,
+        dtype=np.float64,
     )
     empty = FrameFingering(t=0.0, finger_pos_logits=empty_logits, homography_confidence=0.0)
 
@@ -158,7 +163,11 @@ def test_render_overlay_hand_handles_no_hand_detected(tmp_path):
         patch.object(overlay_hand, "MediaPipeHandBackend", _FakeHand),
     ):
         stats = overlay_hand.render_overlay(
-            src, out, cfg=cfg, stride=1, show_progress=False,
+            src,
+            out,
+            cfg=cfg,
+            stride=1,
+            show_progress=False,
         )
 
     assert out.exists()

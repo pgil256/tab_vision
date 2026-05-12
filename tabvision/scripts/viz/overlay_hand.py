@@ -30,19 +30,19 @@ from tabvision.video.hand.mediapipe_backend import MediaPipeHandBackend
 
 # BGR colours; viridis-ish ramp for the heat-map plus per-finger fingertip dots.
 HEATMAP_LUT_BGR = [
-    (84, 1, 68),       # dark purple (low)
+    (84, 1, 68),  # dark purple (low)
     (139, 35, 59),
     (165, 80, 49),
     (123, 144, 33),
     (54, 200, 50),
     (39, 235, 175),
-    (37, 231, 253),    # bright yellow (high)
+    (37, 231, 253),  # bright yellow (high)
 ]
 COLOR_FINGERTIPS = [
-    (0, 255, 255),     # index — yellow
-    (0, 165, 255),     # middle — orange
-    (0, 0, 255),       # ring — red
-    (255, 0, 255),     # pinky — magenta
+    (0, 255, 255),  # index — yellow
+    (0, 165, 255),  # middle — orange
+    (0, 0, 255),  # ring — red
+    (255, 0, 255),  # pinky — magenta
 ]
 COLOR_HUD_BG = (0, 0, 0)
 COLOR_HUD_FG = (255, 255, 255)
@@ -110,7 +110,11 @@ def render_overlay(  # noqa: PLR0913 — wraps a clear set of CLI flags
                 detect_count += 1
 
             annotated = _draw(
-                frame, last_homog, last_fingering, last_method, cfg,
+                frame,
+                last_homog,
+                last_fingering,
+                last_method,
+                cfg,
                 heatmap_alpha=heatmap_alpha,
                 draw_fingertips=draw_fingertips,
             )
@@ -225,7 +229,7 @@ def _blit_heatmap(
     M = homog.H @ scale  # noqa: N806 — math-convention name
     h, w = frame.shape[:2]
     warped = cv2.warpPerspective(canvas, M, (w, h))
-    mask = (warped.sum(axis=-1) > 0)
+    mask = warped.sum(axis=-1) > 0
     if not mask.any():
         return
     blended = cv2.addWeighted(frame, 1 - alpha, warped, alpha, 0)
@@ -288,9 +292,14 @@ def _draw_finger_argmax_dots(
         colour = COLOR_FINGERTIPS[fi % len(COLOR_FINGERTIPS)]
         cv2.circle(frame, (px, py), 6, colour, thickness=2, lineType=cv2.LINE_AA)
         cv2.putText(
-            frame, FRETTING_FINGERS[fi][0].upper(),
+            frame,
+            FRETTING_FINGERS[fi][0].upper(),
             (px - 4, py - 8),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.4, colour, 1, cv2.LINE_AA,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            colour,
+            1,
+            cv2.LINE_AA,
         )
 
 
@@ -317,8 +326,14 @@ def _draw_hud(
         thickness=-1,
     )
     cv2.putText(
-        frame, text, (pad, h - pad),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_HUD_FG, 1, cv2.LINE_AA,
+        frame,
+        text,
+        (pad, h - pad),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        COLOR_HUD_FG,
+        1,
+        cv2.LINE_AA,
     )
 
 

@@ -16,14 +16,15 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Iterable
 
 # Regex finds fret numbers (1–2 digits) in a tab line, ignoring barlines/dashes.
 FRET_RE = re.compile(r"\d+")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Phase 1/2 smoke eval — runs an audio backend over a list of clips")
+    parser = argparse.ArgumentParser(
+        description="Phase 1/2 smoke eval — runs an audio backend over a list of clips"
+    )
     parser.add_argument("--videos", nargs="+", type=Path, required=True)
     parser.add_argument("--gt-dir", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=None)

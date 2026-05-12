@@ -187,8 +187,7 @@ def _benchmark_for_clip(clip_id: str) -> dict:
 def _position_differences(base: Sequence, other: Sequence) -> int:
     n = min(len(base), len(other))
     diffs = sum(
-        (base[i].string_idx, base[i].fret) != (other[i].string_idx, other[i].fret)
-        for i in range(n)
+        (base[i].string_idx, base[i].fret) != (other[i].string_idx, other[i].fret) for i in range(n)
     )
     return diffs + abs(len(base) - len(other))
 
@@ -236,9 +235,7 @@ def _sample_emission_terms(
                         "string_idx": c.string_idx,
                         "fret": c.fret,
                         "vision_prob": float(marginal[c.string_idx, c.fret]),
-                        "prior": float(
-                            np.asarray(ev.fret_prior)[c.string_idx, c.fret]
-                        ),
+                        "prior": float(np.asarray(ev.fret_prior)[c.string_idx, c.fret]),
                     }
                     for c in candidates
                 ],
@@ -283,9 +280,7 @@ def _posterior_gold_alignment_stats(
 
         gold_prob = float(marginal[gold.string_idx, gold.fret])
         global_rank = _rank_cell(marginal, gold.string_idx, gold.fret)
-        candidate_probs = [
-            (c, float(marginal[c.string_idx, c.fret])) for c in candidates
-        ]
+        candidate_probs = [(c, float(marginal[c.string_idx, c.fret])) for c in candidates]
         candidate_probs.sort(key=lambda item: item[1], reverse=True)
         same_pitch_rank = next(
             i + 1
@@ -375,8 +370,7 @@ def _aligned_gold_events(
     )
     if audio_events:
         audio_like = [
-            _PitchTimeEvent(onset_s=ev.onset_s, pitch_midi=ev.pitch_midi)
-            for ev in audio_events
+            _PitchTimeEvent(onset_s=ev.onset_s, pitch_midi=ev.pitch_midi) for ev in audio_events
         ]
         aligned, offset_s, matches = _align_gold_to_audio_only(
             audio_only=audio_like,
@@ -517,11 +511,7 @@ def _format_report(clip_id: str, video: Path, report: dict) -> str:
             )
         lines.append("    top_posterior:")
         for cell in sample["top_posterior_cells"]:
-            lines.append(
-                "      "
-                f"s={cell['string_idx']} f={cell['fret']} "
-                f"p={cell['prob']:.6f}"
-            )
+            lines.append(f"      s={cell['string_idx']} f={cell['fret']} p={cell['prob']:.6f}")
         lines.append("    same_pitch_candidates:")
         for c in sample["same_pitch_candidates"]:
             lines.append(
@@ -539,10 +529,7 @@ def _format_report(clip_id: str, video: Path, report: dict) -> str:
             )
         lines.append("    " + _stat_line("prior_cost", sample["prior_cost"]))
         lines.append("    " + _stat_line("vision_cost", sample["vision_cost"]))
-        lines.append(
-            "    "
-            + _stat_line("low_fret_open_cost", sample["low_fret_open_cost"])
-        )
+        lines.append("    " + _stat_line("low_fret_open_cost", sample["low_fret_open_cost"]))
     return "\n".join(lines)
 
 
@@ -563,10 +550,7 @@ def _posterior_summary_line(label: str, stats: dict) -> str:
 def _stat_line(label: str, stats: dict) -> str:
     if stats["min"] is None:
         return f"{label}: none"
-    return (
-        f"{label}: min={stats['min']:.6f} mean={stats['mean']:.6f} "
-        f"max={stats['max']:.6f}"
-    )
+    return f"{label}: min={stats['min']:.6f} mean={stats['mean']:.6f} max={stats['max']:.6f}"
 
 
 if __name__ == "__main__":

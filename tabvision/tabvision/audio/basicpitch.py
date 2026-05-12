@@ -10,8 +10,8 @@ Phase 1 deliverable. Apache-2.0 license; see LICENSES.md.
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 import soundfile as sf
@@ -71,9 +71,7 @@ class BasicPitchBackend:
         else:
             self.filter_config = filter_config  # type: ignore[assignment]
 
-    def transcribe(
-        self, wav: np.ndarray, sr: int, session: SessionConfig
-    ) -> Sequence[AudioEvent]:
+    def transcribe(self, wav: np.ndarray, sr: int, session: SessionConfig) -> Sequence[AudioEvent]:
         """Run Basic Pitch on ``wav`` and return guitar-range note events.
 
         Basic Pitch reads audio from disk; we materialize to a temp WAV
@@ -114,9 +112,7 @@ class BasicPitchBackend:
 
         return events
 
-    def _note_events_to_audio_events(
-        self, note_events: list
-    ) -> list[AudioEvent]:
+    def _note_events_to_audio_events(self, note_events: list) -> list[AudioEvent]:
         """Convert Basic Pitch's ``(start, end, midi, amp, bends)`` tuples."""
         guitar_amps: list[float] = []
         for ev in note_events:
@@ -156,9 +152,7 @@ class BasicPitchBackend:
         return out
 
 
-def transcribe(
-    wav: np.ndarray, sr: int, session: SessionConfig
-) -> Sequence[AudioEvent]:
+def transcribe(wav: np.ndarray, sr: int, session: SessionConfig) -> Sequence[AudioEvent]:
     """Convenience function: instantiate the default backend and run."""
     return BasicPitchBackend().transcribe(wav, sr, session)
 

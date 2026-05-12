@@ -31,7 +31,7 @@ def test_transcribe_a440_fixture(tmp_path):
     from tabvision.cli import main
 
     out = tmp_path / "out.tab"
-    rc = main(["transcribe", str(FIXTURE), "-o", str(out)])
+    rc = main(["transcribe", str(FIXTURE), "--no-preflight", "-o", str(out)])
     assert rc == 0, "CLI should exit 0 on the fixture"
     assert out.exists(), "output file should be written"
 
@@ -52,7 +52,7 @@ def test_transcribe_emits_correct_position_for_a440(tmp_path):
     from tabvision.cli import main
 
     out = tmp_path / "out.tab"
-    main(["transcribe", str(FIXTURE), "-o", str(out)])
+    main(["transcribe", str(FIXTURE), "--no-preflight", "-o", str(out)])
 
     text = out.read_text()
     high_e_line = next(line for line in text.splitlines() if line.startswith("e|"))

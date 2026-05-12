@@ -38,8 +38,8 @@ from tabvision.video.fretboard.geometric import GeometricFretboardBackend
 from tabvision.video.fretboard.keypoint import KeypointFretboardBackend
 
 # BGR colours.
-COLOR_QUAD = (255, 0, 255)      # magenta — fretboard rectangle
-COLOR_STRING = (0, 200, 255)    # yellow-orange — string guides
+COLOR_QUAD = (255, 0, 255)  # magenta — fretboard rectangle
+COLOR_STRING = (0, 200, 255)  # yellow-orange — string guides
 COLOR_FRET_LINE = (180, 180, 180)  # light grey — fret guides
 COLOR_HUD_BG = (0, 0, 0)
 COLOR_HUD_FG = (255, 255, 255)
@@ -125,12 +125,15 @@ def render_overlay(  # noqa: PLR0913 — wraps a clear set of CLI flags
 
 def _build_backends(
     name: str, checkpoint: Path | None
-) -> tuple[KeypointFretboardBackend | GeometricFretboardBackend,
-           KeypointFretboardBackend | GeometricFretboardBackend | None]:
+) -> tuple[
+    KeypointFretboardBackend | GeometricFretboardBackend,
+    KeypointFretboardBackend | GeometricFretboardBackend | None,
+]:
     """Build the primary backend and optional secondary fallback per the spec
     decision (keypoint primary, geometric fallback)."""
     if name == "keypoint":
         from tabvision.video.guitar.yolo_backend import YoloOBBBackend
+
         yolo = YoloOBBBackend(checkpoint_path=checkpoint) if checkpoint else None
         primary = KeypointFretboardBackend(backend=yolo)
         secondary: GeometricFretboardBackend | None = GeometricFretboardBackend()
@@ -196,12 +199,14 @@ def _project(homog: Homography, pts_canon: np.ndarray) -> np.ndarray:
 
 def _draw_quad(frame: np.ndarray, quad: np.ndarray, color: tuple[int, int, int]) -> None:
     import cv2
+
     cv2.polylines(frame, [quad.astype(np.int32)], isClosed=True, color=color, thickness=2)
 
 
 def _draw_string_grid(frame: np.ndarray, homog: Homography) -> None:
     """Draw 6 horizontal lines at canonical y = i/5 for i ∈ {0..5}."""
     import cv2
+
     for i in range(6):
         y = i / 5.0
         line = _project(homog, np.array([[0.0, y], [1.0, y]]))
@@ -218,15 +223,13 @@ def _draw_string_grid(frame: np.ndarray, homog: Homography) -> None:
 # Equal-tempered fret positions (rule of 18). Canonical x assumed to span
 # nut (x=0) to fret 12 (x=1). Off when the detected fretboard ends before
 # or extends past the 12th fret, but visually informative.
-_FRET_X_CANON = [
-    (1 - 1.0 / (2 ** (k / 12.0))) / (1 - 1.0 / (2 ** 1.0))
-    for k in range(1, 13)
-]
+_FRET_X_CANON = [(1 - 1.0 / (2 ** (k / 12.0))) / (1 - 1.0 / (2**1.0)) for k in range(1, 13)]
 
 
 def _draw_fret_grid(frame: np.ndarray, homog: Homography) -> None:
     """Vertical guides at frets 1..12, assuming x=1 is at fret 12."""
     import cv2
+
     for k, x in enumerate(_FRET_X_CANON, start=1):
         if not 0.0 <= x <= 1.0:
             continue

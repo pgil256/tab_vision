@@ -118,9 +118,7 @@ def compute_fingering(
             pcfg.floor_logit,
             dtype=np.float64,
         )
-        return FrameFingering(
-            t=0.0, finger_pos_logits=logits, homography_confidence=0.0
-        )
+        return FrameFingering(t=0.0, finger_pos_logits=logits, homography_confidence=0.0)
 
     H_inv = np.linalg.inv(H.H)  # noqa: N806 — math-convention name
 
@@ -151,9 +149,9 @@ def compute_fingering(
         cx, cy = _project_point(H_inv, *sample.tip_xy)
 
         # Gaussian distance log-prob: -0.5 * ((cx-fret_x)/sigma_x)^2 + ((cy-string_y)/sigma_y)^2
-        dx = (cx - fret_xs[None, :]) / sigma_x          # (1, F)
-        dy = (cy - string_ys[:, None]) / sigma_y        # (S, 1)
-        finger_logit = -0.5 * (dx ** 2 + dy ** 2)       # (S, F)
+        dx = (cx - fret_xs[None, :]) / sigma_x  # (1, F)
+        dy = (cy - string_ys[:, None]) / sigma_y  # (S, 1)
+        finger_logit = -0.5 * (dx**2 + dy**2)  # (S, F)
 
         # Curl prior: curled fingers can't fret.
         if sample.curl_ratio < pcfg.curl_min:
@@ -188,8 +186,7 @@ def marginal_string_fret(finger_pos_logits: np.ndarray) -> np.ndarray:
     """
     if finger_pos_logits.ndim != 3:
         raise ValueError(
-            f"expected (n_fingers, n_strings, max_fret+1), got shape "
-            f"{finger_pos_logits.shape}"
+            f"expected (n_fingers, n_strings, max_fret+1), got shape {finger_pos_logits.shape}"
         )
     # logsumexp over the finger axis (axis 0).
     m = finger_pos_logits.max(axis=0)

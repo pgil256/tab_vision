@@ -97,10 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         target = yolo_checkpoint_path()
         target.parent.mkdir(parents=True, exist_ok=True)
         print(f"YOLO checkpoint path: {target}")
-        print(
-            "Place the trained checkpoint there, or set "
-            f"{YOLO_CHECKPOINT_ENV}=<checkpoint.pt>."
-        )
+        print(f"Place the trained checkpoint there, or set {YOLO_CHECKPOINT_ENV}=<checkpoint.pt>.")
         return 0
 
     if args.command == "status":

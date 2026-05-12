@@ -84,9 +84,7 @@ def validate_manifest(path: str | Path) -> ManifestValidation:
             ManifestIssue(
                 severity="info",
                 code="TOO_FEW_CLIPS",
-                message=(
-                    f"Optional full eval target is >= {MIN_PHASE15_CLIPS} clips; found 0."
-                ),
+                message=(f"Optional full eval target is >= {MIN_PHASE15_CLIPS} clips; found 0."),
             ),
         ]
         missing_items.extend(_missing_tier_issues(REQUIRED_TIERS))
@@ -237,8 +235,7 @@ def _missing_tier_issues(missing_tiers: tuple[str, ...] | list[str]) -> list[Man
             severity="info",
             code="MISSING_TIER",
             message=(
-                f"Optional full eval tier {tier!r} has no clip; this is not a v1 "
-                "release blocker."
+                f"Optional full eval tier {tier!r} has no clip; this is not a v1 release blocker."
             ),
         )
         for tier in missing_tiers

@@ -43,11 +43,11 @@ WRIST_IDX = 0
 # the same shape so we treat it uniformly here, but the thumb is dropped
 # from fretting-finger reasoning (see THUMB constant below).
 _FINGER_LANDMARKS = {
-    "thumb":  (1, 2, 3, 4),
-    "index":  (5, 6, 7, 8),
+    "thumb": (1, 2, 3, 4),
+    "index": (5, 6, 7, 8),
     "middle": (9, 10, 11, 12),
-    "ring":   (13, 14, 15, 16),
-    "pinky":  (17, 18, 19, 20),
+    "ring": (13, 14, 15, 16),
+    "pinky": (17, 18, 19, 20),
 }
 THUMB = "thumb"
 FRETTING_FINGERS: tuple[str, ...] = ("index", "middle", "ring", "pinky")
@@ -89,7 +89,10 @@ class MediaPipeHandBackend:
     # ----- HandBackend protocol -----
 
     def detect(
-        self, frame: np.ndarray, H: Homography, cfg: GuitarConfig  # noqa: N803
+        self,
+        frame: np.ndarray,
+        homography: Homography,
+        cfg: GuitarConfig,
     ) -> FrameFingering:
         """Run MediaPipe + posterior. Returns a degenerate :class:`FrameFingering`
         with ``homography_confidence=0`` if no hand is found in ``frame``."""
@@ -102,13 +105,16 @@ class MediaPipeHandBackend:
 
         return compute_fingering(
             landmarks,
-            H,
+            homography,
             cfg,
             self.config.posterior,
         )
 
     def detect_anchor(
-        self, frame: np.ndarray, H: Homography, cfg: GuitarConfig  # noqa: N803
+        self,
+        frame: np.ndarray,
+        homography: Homography,
+        cfg: GuitarConfig,
     ) -> HandNeckAnchor:
         """Return the coarse fretting-hand neck region for fusion.
 
@@ -120,7 +126,7 @@ class MediaPipeHandBackend:
             raise BackendError(f"expected BGR frame, got shape {frame.shape}")
 
         landmarks = self._extract_fretting_hand(frame)
-        return compute_neck_anchor(landmarks, H, cfg)
+        return compute_neck_anchor(landmarks, homography, cfg)
 
     def close(self) -> None:
         if self._landmarker is not None:
@@ -172,8 +178,7 @@ class MediaPipeHandBackend:
             import mediapipe as mp
         except ImportError as exc:
             raise BackendError(
-                "opencv-python and mediapipe are required. Install with: "
-                "pip install '.[vision]'."
+                "opencv-python and mediapipe are required. Install with: pip install '.[vision]'."
             ) from exc
 
         landmarker = self._load()

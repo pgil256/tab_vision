@@ -76,9 +76,9 @@ class GeometricFretboardBackend:
                 method="geometric",
             )
 
-        H = _homography_from_geometry(geometry)
+        matrix = _homography_from_geometry(geometry)
         return Homography(
-            H=H,
+            H=matrix,
             confidence=float(geometry.detection_confidence),
             method="geometric",
         )
@@ -114,8 +114,8 @@ def _homography_from_geometry(geometry) -> np.ndarray:  # type: ignore[no-untype
         ],
         dtype=np.float64,
     )
-    H = cv2.getPerspectiveTransform(src.astype(np.float32), dst.astype(np.float32))
-    return H.astype(np.float64)
+    matrix = cv2.getPerspectiveTransform(src.astype(np.float32), dst.astype(np.float32))
+    return matrix.astype(np.float64)
 
 
 def detect_geometric(frame: np.ndarray, guitar_box: GuitarBBox | None = None) -> Homography:

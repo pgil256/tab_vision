@@ -67,10 +67,10 @@ class OBBDetection:
     """
 
     class_name: str
-    cx: float          # center x (image px)
-    cy: float          # center y (image px)
-    w: float           # rotated width (along major axis)
-    h: float           # rotated height (along minor axis)
+    cx: float  # center x (image px)
+    cy: float  # center y (image px)
+    w: float  # rotated width (along major axis)
+    h: float  # rotated height (along minor axis)
     rotation_deg: float  # CCW from +x, in image coords
     confidence: float
 

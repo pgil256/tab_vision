@@ -21,8 +21,8 @@ F1 over the eval set.
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 import soundfile as sf
@@ -58,8 +58,7 @@ class HighResBackend:
     ) -> None:
         if checkpoint not in GUITAR_VARIANTS:
             raise InvalidInputError(
-                f"unknown guitar checkpoint: {checkpoint!r}; "
-                f"expected one of {GUITAR_VARIANTS}"
+                f"unknown guitar checkpoint: {checkpoint!r}; expected one of {GUITAR_VARIANTS}"
             )
         self.checkpoint = checkpoint
         self.device = device
@@ -111,9 +110,7 @@ class HighResBackend:
         )
         return self._model
 
-    def transcribe(
-        self, wav: np.ndarray, sr: int, session: SessionConfig
-    ) -> Sequence[AudioEvent]:
+    def transcribe(self, wav: np.ndarray, sr: int, session: SessionConfig) -> Sequence[AudioEvent]:
         if wav.ndim != 1:
             raise InvalidInputError(f"expected mono wav, got shape {wav.shape}")
 
@@ -141,9 +138,7 @@ def _resample_if_needed(wav: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
     try:
         from scipy.signal import resample_poly
     except ImportError as exc:
-        raise BackendError(
-            "scipy is required to resample audio for the highres backend"
-        ) from exc
+        raise BackendError("scipy is required to resample audio for the highres backend") from exc
 
     # Use rational up/down to avoid integer-rate artifacts.
     from math import gcd
@@ -162,9 +157,7 @@ def _parse_midi(midi_path: Path) -> list[AudioEvent]:
     try:
         import pretty_midi
     except ImportError as exc:
-        raise BackendError(
-            "pretty_midi is required to parse highres-backend MIDI output"
-        ) from exc
+        raise BackendError("pretty_midi is required to parse highres-backend MIDI output") from exc
 
     pm = pretty_midi.PrettyMIDI(str(midi_path))
     out: list[AudioEvent] = []

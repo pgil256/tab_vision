@@ -208,8 +208,8 @@ def test_default_pipeline_runs_all_stages():
     cfg = AudioFilterConfig()
     events = [
         _ev(60, 0.0, offset=1.0, velocity=0.6),  # fundamental
-        _ev(72, 0.0, velocity=0.10),              # harmonic, drops
-        _ev(60, 0.5, velocity=0.05),              # sustain redetection, drops
+        _ev(72, 0.0, velocity=0.10),  # harmonic, drops
+        _ev(60, 0.5, velocity=0.05),  # sustain redetection, drops
         _ev(60, 0.001, offset=0.003, velocity=0.5),  # too short, drops in low-quality
     ]
     out = apply_default_filters(events, cfg)

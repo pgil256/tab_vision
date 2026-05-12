@@ -66,7 +66,7 @@ class DemuxResult:
     sample_rate: int
     duration_s: float
     fps: float
-    frame_iterator: Iterator[tuple[float, np.ndarray]] = field(default_factory=iter)
+    frame_iterator: Iterator[tuple[float, np.ndarray]] = field(default_factory=lambda: iter(()))
 
 
 @dataclass
@@ -138,6 +138,7 @@ class FrameFingering:
         Backed by ``video.hand.fingertip_to_fret.marginal_string_fret``.
         """
         from tabvision.video.hand.fingertip_to_fret import marginal_string_fret
+
         return marginal_string_fret(self.finger_pos_logits)
 
 
@@ -160,22 +161,19 @@ class AudioBackend(Protocol):
 
     def transcribe(
         self, wav: np.ndarray, sr: int, session: SessionConfig
-    ) -> Sequence[AudioEvent]:
-        ...
+    ) -> Sequence[AudioEvent]: ...
 
 
 class GuitarBackend(Protocol):
     name: str
 
-    def detect(self, frame: np.ndarray) -> GuitarBBox | None:
-        ...
+    def detect(self, frame: np.ndarray) -> GuitarBBox | None: ...
 
 
 class FretboardBackend(Protocol):
     name: str
 
-    def detect(self, frame: np.ndarray, guitar_box: GuitarBBox) -> Homography:
-        ...
+    def detect(self, frame: np.ndarray, guitar_box: GuitarBBox) -> Homography: ...
 
 
 class HandBackend(Protocol):
@@ -186,5 +184,4 @@ class HandBackend(Protocol):
         frame: np.ndarray,
         H: Homography,  # noqa: N803 — math-convention name baked into the §8 contract
         cfg: GuitarConfig,
-    ) -> FrameFingering:
-        ...
+    ) -> FrameFingering: ...

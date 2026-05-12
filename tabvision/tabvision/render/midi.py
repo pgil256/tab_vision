@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from io import BytesIO
+from typing import Any
 
 from tabvision.types import GuitarConfig, TabEvent
 
@@ -33,7 +34,7 @@ def render(events: Sequence[TabEvent], cfg: GuitarConfig | None = None) -> bytes
     track.append(mido.MetaMessage("track_name", name="TabVision", time=0))
     track.append(mido.MetaMessage("set_tempo", tempo=mido.bpm2tempo(120), time=0))
 
-    messages: list[tuple[int, int, object]] = []
+    messages: list[tuple[int, int, Any]] = []
     for order, event in enumerate(sorted(events, key=lambda e: e.onset_s)):
         _validate_string(event, cfg)
         start_tick = _seconds_to_ticks(event.onset_s)

@@ -89,7 +89,8 @@ def test_fretboard_round_trip(tmp_path):
 
 def test_fretboard_is_complete_requires_all_four_corners():
     label = storage.FretboardLabel(
-        clip_path="x", frame_idx=0,
+        clip_path="x",
+        frame_idx=0,
         points=[
             storage.FretIntersection(fret=5, edge="top", x=0, y=0),
             storage.FretIntersection(fret=5, edge="bottom", x=0, y=0),

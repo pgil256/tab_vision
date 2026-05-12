@@ -181,8 +181,7 @@ def _stat_line(label: str, stats: dict, *, suffix: str = "") -> str:
     if stats["min"] is None:
         return f"{label}: none{suffix}"
     return (
-        f"{label}: min={stats['min']:.6f} mean={stats['mean']:.6f} "
-        f"max={stats['max']:.6f}{suffix}"
+        f"{label}: min={stats['min']:.6f} mean={stats['mean']:.6f} max={stats['max']:.6f}{suffix}"
     )
 
 

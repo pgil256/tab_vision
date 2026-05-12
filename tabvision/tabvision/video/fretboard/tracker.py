@@ -8,9 +8,7 @@ also blends consecutive detections without a true Kalman filter.
 
 from __future__ import annotations
 
-from typing import Iterable
-
-import numpy as np
+from collections.abc import Iterable
 
 from tabvision.types import Homography
 
@@ -53,11 +51,11 @@ def smooth_homography_track(
             continue
 
         if last is None:
-            new_H = det.H.copy()
+            new_h = det.H.copy()
         else:
-            new_H = alpha * det.H + (1 - alpha) * last.H
+            new_h = alpha * det.H + (1 - alpha) * last.H
         smoothed = Homography(
-            H=new_H,
+            H=new_h,
             confidence=max(det.confidence, (last.confidence if last else 0.0) * confidence_decay),
             method=det.method,
         )

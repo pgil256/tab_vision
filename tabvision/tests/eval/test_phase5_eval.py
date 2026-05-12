@@ -157,8 +157,7 @@ def _phase5_eval_requires_marker(request: pytest.FixtureRequest) -> None:
     markexpr = str(getattr(request.config.option, "markexpr", "") or "")
     if request.node.get_closest_marker("eval") and "eval" not in markexpr:
         pytest.skip(
-            "Phase 5 eval is opt-in; run with "
-            "`pytest -m eval tests/eval/test_phase5_eval.py`."
+            "Phase 5 eval is opt-in; run with `pytest -m eval tests/eval/test_phase5_eval.py`."
         )
 
 
@@ -579,9 +578,7 @@ def _find_best_pitch_offset(
 
     for offset in candidate_offsets:
         matches, error = _pitch_match_stats(predicted, gold, offset, tolerance_s)
-        if matches > best_matches or (
-                matches == best_matches and error < best_error
-        ):
+        if matches > best_matches or (matches == best_matches and error < best_error):
             best_matches = matches
             best_offset = offset
             best_error = error

@@ -53,6 +53,7 @@ def _local_output_root() -> Path:
 def _local_stable_weight_link() -> Path:
     return _local_data_root() / "models" / "guitar-yolo-obb-finetuned.pt"
 
+
 # ----- remote paths -----
 
 VOLUME_NAME = "tabvision-yolo-guitar-3"
@@ -68,9 +69,8 @@ REMOTE_RUN_NAME = "guitar-obb-finetune"
 # subsequent training runs mount it read-only.
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 
-image = (
-    modal.Image.from_registry("ultralytics/ultralytics:latest", add_python=None)
-    .pip_install("ultralytics>=8.3", "numpy<2", "opencv-python-headless")
+image = modal.Image.from_registry("ultralytics/ultralytics:latest", add_python=None).pip_install(
+    "ultralytics>=8.3", "numpy<2", "opencv-python-headless"
 )
 
 app = modal.App("tabvision-yolo-obb-finetune", image=image)
@@ -116,7 +116,12 @@ def finetune(
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
     log = logging.getLogger("yolo-obb")
 
-    log.info("torch=%s cuda=%s gpus=%d", torch.__version__, torch.cuda.is_available(), torch.cuda.device_count())
+    log.info(
+        "torch=%s cuda=%s gpus=%d",
+        torch.__version__,
+        torch.cuda.is_available(),
+        torch.cuda.device_count(),
+    )
     if not torch.cuda.is_available():
         raise RuntimeError("no CUDA GPU visible to torch")
 
@@ -138,7 +143,12 @@ def finetune(
 
     log.info(
         "training: base=%s epochs=%d batch=%d imgsz=%d lr0=%g seed=%d",
-        base_model, epochs, batch, img_size, lr0, seed,
+        base_model,
+        epochs,
+        batch,
+        img_size,
+        lr0,
+        seed,
     )
     t0 = time.time()
     model = YOLO(base_model)
@@ -209,7 +219,7 @@ def main(
 
     archive = out_dir / "run.tar.gz"
     archive.write_bytes(tarball)
-    print(f"[modal] artifact ({len(tarball)/1e6:.1f} MB) -> {archive}", file=sys.stderr)
+    print(f"[modal] artifact ({len(tarball) / 1e6:.1f} MB) -> {archive}", file=sys.stderr)
 
     with tarfile.open(archive) as tar:
         tar.extractall(out_dir)
