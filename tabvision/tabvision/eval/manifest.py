@@ -24,9 +24,23 @@ REQUIRED_CLIP_FIELDS: tuple[str, ...] = (
     "split",
     "media_path",
     "annotation_path",
+    "annotation_format",
 )
 ALLOWED_SPLITS: tuple[str, ...] = ("train", "validation", "test")
 MIN_PHASE15_CLIPS = 15
+
+SYNTHETIC_SOURCE_PREFIXES: tuple[str, ...] = (
+    "synthtab/",
+    "dadagp/",
+    "synthetic/",
+)
+"""Source-name prefixes flagged as synthetic.
+
+Per the 2026-05-12 design plan §5 (R8 in §7), synthetic-source clips
+must not appear in non-train splits. ``validate_manifest`` emits a
+``SYNTHETIC_IN_EVAL_SPLIT`` fail issue when a clip whose ``source``
+starts with any of these prefixes is listed with ``split`` of
+``"validation"`` or ``"test"``."""
 
 Severity = Literal["info", "warn", "fail"]
 
@@ -198,6 +212,25 @@ def validate_manifest(path: str | Path) -> ManifestValidation:
                 )
             )
 
+        # Cross-contamination guard: synthetic-source clips must not appear
+        # in non-train splits. See design plan §5 / risk R8.
+        source = _string_field(clip, "source") or ""
+        if split in {"validation", "test"} and any(
+            source.lower().startswith(prefix) for prefix in SYNTHETIC_SOURCE_PREFIXES
+        ):
+            items.append(
+                ManifestIssue(
+                    severity="fail",
+                    code="SYNTHETIC_IN_EVAL_SPLIT",
+                    message=(
+                        f"Clip {clip_id!r} has synthetic source {source!r} but "
+                        f"split={split!r}; synthetic-source clips are restricted to "
+                        f"split='train' (design plan §5 / R8)."
+                    ),
+                    clip_id=clip_id,
+                )
+            )
+
     if len(clips) < MIN_PHASE15_CLIPS:
         items.append(
             ManifestIssue(
@@ -251,5 +284,6 @@ __all__ = [
     "OPTIONAL_TIERS",
     "REQUIRED_CLIP_FIELDS",
     "REQUIRED_TIERS",
+    "SYNTHETIC_SOURCE_PREFIXES",
     "validate_manifest",
 ]

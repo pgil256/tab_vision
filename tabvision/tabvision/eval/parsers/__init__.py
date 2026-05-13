@@ -13,7 +13,7 @@ Submodule imports below trigger registration in
 """
 
 # Built-in parsers — importing them registers their FORMAT_NAME.
-from tabvision.eval.parsers import guitarset_jams  # noqa: F401
+from tabvision.eval.parsers import guitar_techs_midi, guitarset_jams  # noqa: F401
 from tabvision.eval.parsers.registry import (
     ParserFn,
     clear_parsers,

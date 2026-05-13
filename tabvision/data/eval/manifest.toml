@@ -17,3 +17,12 @@
 # split = "validation"
 # media_path = "$TABVISION_DATA_ROOT/guitarset/audio_mono-mic/05_example_mic.wav"
 # annotation_path = "$TABVISION_DATA_ROOT/guitarset/annotation/05_example.jams"
+# annotation_format = "guitarset_jams"
+#
+# `annotation_format` selects the parser registered in
+# tabvision.eval.parsers (Phase 0). Known formats: guitarset_jams.
+# Forthcoming: guitar_techs_midi, egdb_gp.
+#
+# Synthetic-source clips (source = "synthtab/...", "dadagp/...",
+# "synthetic/...") are restricted to split = "train". The validator
+# rejects them in validation/test splits — see design plan §5 / R8.
