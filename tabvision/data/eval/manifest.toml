@@ -20,8 +20,8 @@
 # annotation_format = "guitarset_jams"
 #
 # `annotation_format` selects the parser registered in
-# tabvision.eval.parsers (Phase 0). Known formats: guitarset_jams.
-# Forthcoming: guitar_techs_midi, egdb_gp.
+# tabvision.eval.parsers (Phase 0). Known formats: guitarset_jams,
+# guitar_techs_midi. Forthcoming: egdb_gp (license-pending).
 #
 # Synthetic-source clips (source = "synthtab/...", "dadagp/...",
 # "synthetic/...") are restricted to split = "train". The validator

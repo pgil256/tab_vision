@@ -367,7 +367,11 @@ def format_decomposition_markdown(
     *,
     title: str = "Tab F1 error decomposition",
 ) -> str:
-    """Render the per-tier 7-bucket (currently 6) error decomposition."""
+    """Render the per-tier six-bucket error decomposition.
+
+    Six buckets are populated; the apr-28 ``muted_undetectable`` seventh
+    bucket is deferred until the v1 contract carries a muted/X flag.
+    """
     bucket_columns = (
         "correct",
         "wrong_position_same_pitch",
@@ -464,7 +468,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--decomposition-output",
         type=Path,
-        help="optional: write the 7-bucket error decomposition to this file too",
+        help=(
+            "optional: write the six-bucket error decomposition "
+            "(port of the apr-28 7-bucket harness; muted_undetectable deferred) "
+            "to this file too"
+        ),
     )
     parser.add_argument("--bootstrap-n", type=int, default=10_000)
     parser.add_argument("--bootstrap-seed", type=int, default=42)
@@ -534,3 +542,7 @@ __all__ = [
     "make_run_pipeline_predictor",
     "run_composite_eval",
 ]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

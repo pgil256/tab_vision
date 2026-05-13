@@ -1,4 +1,4 @@
-"""Tab F1 error decomposition — Phase 0 port of the apr-28 7-bucket harness.
+"""Tab F1 error decomposition — six-bucket port of the apr-28 7-bucket harness.
 
 Ports the methodology from
 ``tabvision-server/tools/outputs/errors-2026-04-28_185743.md`` to operate
