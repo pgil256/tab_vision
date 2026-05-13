@@ -18,9 +18,19 @@ parallel under `refactor/v1`.
 - `LICENSES.md` — dependency license map; ⚠️ items gate respective phase entry.
 - `docs/DECISIONS.md` — non-obvious branches taken (per SPEC §0.5).
 
-**Active branch:** `refactor/v1` (cut off `feature/audio-finetune-phase1`,
-not `main` — see `docs/DECISIONS.md`). `main` is 33 commits behind v0.
-Phase 0 in progress; sign-off pending on AUDIT + LICENSES.
+**Active branch (2026-05-13):** `main`. The Modal production deploy
+(`936a5cc`) and v1 CI hardening landed on `main`; `refactor/v1` is now
+**23 commits behind `main`** and should be treated as historical. Cut new
+work branches off `main`. Older design docs (and earlier paragraphs in
+this file) may reference paths that exist on `main` but not on
+`refactor/v1` — verify with `git cat-file -e origin/main:<path>` before
+relying on them. The full pipeline (`tabvision/tabvision/pipeline.py`),
+the Modal production adapter (`tabvision-server/modal_app.py`,
+`tabvision-server/app/v1_adapter.py`), and the highres audio backend all
+live on `main`. Phase 5 fusion has shipped. See
+`docs/2026-05-12-session-handoff.md` for the production state and
+`docs/plans/2026-05-12-tab-f1-to-spec-design.md` (+ companion Phase 0
+implementation plan) for current accuracy work.
 
 ## Layout
 
