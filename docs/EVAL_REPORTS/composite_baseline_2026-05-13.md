@@ -32,7 +32,9 @@ This is the first artifact of `impl/tab-f1-phase-0`. Companion
 - Manifest: `data/eval/composite.toml`
 - Audio backend: `highres`
 - Position prior: `guitarset-v1`
-- Eval-harness SHA: `354571b-matcher-fix`
+- Eval-harness SHA: `2ec4849` (the commit that landed both this baseline
+  artifact and the chord-cluster matcher fix in
+  `tabvision.eval.error_decomposition.decompose_errors`)
 - Onset tolerance: 50 ms
 - Bootstrap: N=10,000, seed=42, 95% percentile interval
 - Acceptance gate: `lower_95_CI >= target` per design plan §5

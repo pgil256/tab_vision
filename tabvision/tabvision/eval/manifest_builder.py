@@ -157,10 +157,40 @@ def _toml_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def render_toml(entries: Iterable[ClipEntry], *, header_comment: str = "") -> str:
+def _relativize_to_data_root(path_str: str, data_root: Path | None) -> str:
+    """Rewrite ``path_str`` as ``$TABVISION_DATA_ROOT/<rest>`` when it lives
+    under ``data_root``. Returns the original string when ``data_root`` is
+    ``None`` or the path isn't under it.
+
+    The composite-eval CLI expands ``$TABVISION_DATA_ROOT`` at eval time
+    via the env var or its ``--media-root`` / ``--annotation-root`` args
+    (see :func:`tabvision.eval.composite._resolve_path`), so this keeps
+    checked-in manifests portable across developer machines.
+    """
+    if data_root is None:
+        return path_str
+    abs_root = str(data_root.expanduser().resolve())
+    if path_str == abs_root:
+        return "$TABVISION_DATA_ROOT"
+    if path_str.startswith(abs_root + "/"):
+        rest = path_str[len(abs_root) + 1 :]
+        return f"$TABVISION_DATA_ROOT/{rest}"
+    return path_str
+
+
+def render_toml(
+    entries: Iterable[ClipEntry],
+    *,
+    header_comment: str = "",
+    data_root: Path | None = None,
+) -> str:
     """Render entries as a TOML composite manifest.
 
-    Output is sorted by clip id for byte-stable re-generation.
+    Output is sorted by clip id for byte-stable re-generation. When
+    ``data_root`` is provided, ``media_path`` and ``annotation_path``
+    values that fall under that root are rewritten as
+    ``$TABVISION_DATA_ROOT/<rest>`` — the composite-eval CLI expands
+    that token at eval time. Use this for checked-in manifests.
     """
     sorted_entries = sorted(entries, key=lambda entry: entry.id)
     lines: list[str] = []
@@ -180,7 +210,10 @@ def render_toml(entries: Iterable[ClipEntry], *, header_comment: str = "") -> st
     for entry in sorted_entries:
         lines.append("[[clips]]")
         for field in fields:
-            value = _toml_escape(getattr(entry, field))
+            raw = getattr(entry, field)
+            if field in ("media_path", "annotation_path"):
+                raw = _relativize_to_data_root(raw, data_root)
+            value = _toml_escape(raw)
             lines.append(f'{field} = "{value}"')
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
@@ -311,6 +344,15 @@ def main(argv: list[str] | None = None) -> int:
             "smoke pre-flight). Default: include all splits."
         ),
     )
+    parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=None,
+        help=(
+            "rewrite media/annotation paths that fall under this root as "
+            "$TABVISION_DATA_ROOT/<rest> for portable checked-in manifests"
+        ),
+    )
 
     args = parser.parse_args(argv)
 
@@ -349,7 +391,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        render_toml(entries, header_comment=header), encoding="utf-8"
+        render_toml(entries, header_comment=header, data_root=args.data_root),
+        encoding="utf-8",
     )
 
     print(f"Wrote {len(entries)} clips to {args.output}", flush=True)

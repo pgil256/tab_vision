@@ -439,7 +439,7 @@ def test_data_root_substitution_uses_function_arg(
 
 
 def test_per_clip_metrics_include_error_decomposition(tmp_path: Path) -> None:
-    """Each ClipEvalResult should carry the 7-bucket decomposition."""
+    """Each ClipEvalResult should carry the six-bucket decomposition."""
     manifest_path, gold_by_path = _build_two_tier_manifest(tmp_path)
     report = run_composite_eval(
         manifest_path,

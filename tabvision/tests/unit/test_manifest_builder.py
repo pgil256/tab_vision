@@ -185,6 +185,62 @@ def test_render_toml_emits_header_when_provided() -> None:
     assert text.startswith("# hello world\n")
 
 
+def test_render_toml_rewrites_paths_under_data_root(tmp_path: Path) -> None:
+    """media/annotation paths under data_root become $TABVISION_DATA_ROOT/<rest>."""
+    data_root = tmp_path / "datasets"
+    data_root.mkdir()
+    entry = ClipEntry(
+        id="clip-x",
+        tier="clean_acoustic_strummed",
+        source="GuitarSet",
+        split="validation",
+        media_path=str((data_root / "guitarset" / "audio.wav").resolve()),
+        annotation_path=str((data_root / "guitarset" / "ann.jams").resolve()),
+        annotation_format="guitarset_jams",
+    )
+    text = render_toml([entry], data_root=data_root)
+    assert '"$TABVISION_DATA_ROOT/guitarset/audio.wav"' in text
+    assert '"$TABVISION_DATA_ROOT/guitarset/ann.jams"' in text
+    # Paths NOT under data_root should be untouched.
+    assert "/datasets/" not in text  # absolute prefix is gone
+
+
+def test_render_toml_leaves_paths_outside_data_root_alone(tmp_path: Path) -> None:
+    data_root = tmp_path / "datasets"
+    data_root.mkdir()
+    other = tmp_path / "elsewhere" / "x.wav"
+    other.parent.mkdir(parents=True)
+    other.write_bytes(b"")
+    entry = ClipEntry(
+        id="clip-x",
+        tier="clean_acoustic_strummed",
+        source="GuitarSet",
+        split="validation",
+        media_path=str(other.resolve()),
+        annotation_path=str(other.resolve()),
+        annotation_format="guitarset_jams",
+    )
+    text = render_toml([entry], data_root=data_root)
+    assert "$TABVISION_DATA_ROOT" not in text
+    assert str(other.resolve()) in text
+
+
+def test_render_toml_with_no_data_root_is_unchanged(tmp_path: Path) -> None:
+    """Backward-compat: omitting data_root keeps current absolute-path output."""
+    entry = ClipEntry(
+        id="clip-x",
+        tier="clean_acoustic_strummed",
+        source="GuitarSet",
+        split="validation",
+        media_path="/some/abs/path.wav",
+        annotation_path="/some/abs/path.jams",
+        annotation_format="guitarset_jams",
+    )
+    text = render_toml([entry], data_root=None)
+    assert "/some/abs/path.wav" in text
+    assert "$TABVISION_DATA_ROOT" not in text
+
+
 def test_summarise_coverage_reports_per_tier_and_per_split() -> None:
     entries = [
         _entry("a", "clean_acoustic_strummed"),
