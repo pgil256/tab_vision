@@ -127,17 +127,29 @@ def decompose_errors(
 ) -> ErrorDecomposition:
     """Bucket the events into the six-bucket Phase 0 schema.
 
-    The matcher is greedy by onset proximity, in two passes:
+    The matcher is **priority-based** within each tolerance window so
+    chord clusters (multiple gold events at the same onset) don't get
+    mis-paired by raw onset proximity:
 
-    1. For each gold event, find the closest unclaimed predicted event
-       within ``onset_tolerance_s``. If found, bucket by
-       ``(string, fret)`` / ``pitch_midi`` agreement.
-    2. For each gold event not matched in pass 1, find the closest
-       unclaimed predicted event within ``timing_extended_tolerance_s``
-       *that agrees on position or pitch*. If found → ``timing_only``;
-       otherwise → ``missed_onset``.
+    1. **Strict-tolerance pass.** For each gold event, search unclaimed
+       predicted events within ``onset_tolerance_s``. Pick the best in
+       priority order:
+       - same ``(string_idx, fret)`` → ``correct``
+       - same ``pitch_midi`` → ``wrong_position_same_pitch``
+       - neither → ``pitch_off``
+       Within each priority bucket, ties are broken by closest onset.
+    2. **Extended-tolerance pass.** For each gold event still unmatched,
+       search within ``timing_extended_tolerance_s`` for a predicted
+       event that agrees on position or pitch → ``timing_only``.
+       Else → ``missed_onset``.
 
     Unclaimed predicted events after both passes → ``extra_detection``.
+
+    Priority matters: in a chord cluster with three gold events at the
+    same onset and three predicted events with matching pitches but
+    different on-the-wire ordering, onset-only greediness would shuffle
+    pairings and inflate ``pitch_off``. Priority-based matching tracks
+    ``event_f1(match_pitch=True)`` exactly when ``Pitch F1 = 1.0``.
     """
     if onset_tolerance_s <= 0:
         raise ValueError(f"onset_tolerance_s must be positive; got {onset_tolerance_s}")
@@ -158,26 +170,45 @@ def decompose_errors(
     gold_sorted = sorted(gold, key=lambda g: g.onset_s)
 
     for g in gold_sorted:
-        # Pass 1: strict-tolerance closest match.
-        strict_idx = -1
-        strict_dt = onset_tolerance_s + 1e-9
+        # Pass 1: strict-tolerance, priority-ordered match.
+        best_pos_idx = -1
+        best_pitch_idx = -1
+        best_any_idx = -1
+        best_pos_dt = onset_tolerance_s + 1e-9
+        best_pitch_dt = onset_tolerance_s + 1e-9
+        best_any_dt = onset_tolerance_s + 1e-9
+
         for pi, p in enumerate(predicted):
             if pred_used[pi]:
                 continue
             dt = abs(p.onset_s - g.onset_s)
-            if dt <= onset_tolerance_s and dt < strict_dt:
-                strict_idx = pi
-                strict_dt = dt
+            if dt > onset_tolerance_s:
+                continue
+            same_pos = p.string_idx == g.string_idx and p.fret == g.fret
+            same_pitch = p.pitch_midi == g.pitch_midi
+            if same_pos:
+                if dt < best_pos_dt:
+                    best_pos_idx = pi
+                    best_pos_dt = dt
+            elif same_pitch:
+                if dt < best_pitch_dt:
+                    best_pitch_idx = pi
+                    best_pitch_dt = dt
+            elif dt < best_any_dt:
+                best_any_idx = pi
+                best_any_dt = dt
 
-        if strict_idx >= 0:
-            p = predicted[strict_idx]
-            pred_used[strict_idx] = True
-            if p.string_idx == g.string_idx and p.fret == g.fret:
-                correct += 1
-            elif p.pitch_midi == g.pitch_midi:
-                wrong_position += 1
-            else:
-                pitch_off += 1
+        if best_pos_idx >= 0:
+            pred_used[best_pos_idx] = True
+            correct += 1
+            continue
+        if best_pitch_idx >= 0:
+            pred_used[best_pitch_idx] = True
+            wrong_position += 1
+            continue
+        if best_any_idx >= 0:
+            pred_used[best_any_idx] = True
+            pitch_off += 1
             continue
 
         # Pass 2: extended-tolerance match on position OR pitch.

@@ -205,7 +205,7 @@ def test_each_pred_matches_at_most_one_gold() -> None:
 
 
 def test_greedy_picks_closest_onset() -> None:
-    """When multiple preds are within tolerance, the closest-by-onset wins."""
+    """When multiple same-position preds are within tolerance, the closest-by-onset wins."""
     gold = [_ev(0.0, 0, 0)]
     pred = [_ev(0.04, 0, 0), _ev(0.01, 0, 0)]  # both within 50 ms; 0.01 is closer
 
@@ -213,3 +213,45 @@ def test_greedy_picks_closest_onset() -> None:
 
     assert r.correct == 1
     assert r.extra_detection == 1
+
+
+def test_chord_cluster_priority_pitch_over_onset() -> None:
+    """Multi-gold same-onset chord: matcher should pair by pitch, not by onset proximity.
+
+    Two gold events at the same onset with different pitches, paired
+    with two preds whose pitches match the gold (but whose on-the-wire
+    ordering doesn't). Onset-only greediness would mis-pair them and
+    inflate ``pitch_off``. The priority-based matcher must pair on
+    pitch.
+    """
+    gold = [
+        _ev(0.0, 0, 0, pitch=40),  # low E
+        _ev(0.0, 1, 2, pitch=47),  # A string fret 2
+    ]
+    pred = [
+        # Different on-the-wire order: pitch=47 first.
+        _ev(0.01, 1, 2, pitch=47),  # → matches gold[1] (correct)
+        _ev(0.01, 0, 0, pitch=40),  # → matches gold[0] (correct)
+    ]
+
+    r = decompose_errors(pred, gold)
+
+    assert r.correct == 2
+    assert r.pitch_off == 0
+    assert r.wrong_position_same_pitch == 0
+
+
+def test_chord_cluster_priority_falls_back_to_position_match_then_pitch() -> None:
+    """When one pred has the right position and another has the right pitch,
+    the same-position match wins for ``correct`` accounting.
+    """
+    gold = [_ev(0.0, 0, 0, pitch=40)]
+    pred = [
+        # Same pitch as gold but different position
+        _ev(0.005, 5, 0, pitch=64),  # noise; nothing in common
+        _ev(0.020, 0, 0, pitch=40),  # exact match; further in onset
+    ]
+
+    r = decompose_errors(pred, gold)
+
+    assert r.correct == 1  # picked the same-position match even though it's further
