@@ -262,11 +262,275 @@ def _session_from_clip(clip: dict[str, object]) -> SessionConfig:
     return SessionConfig()
 
 
+DEFAULT_TIER_TARGETS: Mapping[str, float] = {
+    "clean_acoustic_single_line": 0.85,
+    "clean_acoustic_strummed": 0.90,
+    "clean_electric": 0.87,
+    "distorted_electric": 0.80,
+}
+"""Per-tier Tab F1 acceptance targets from SPEC §1.4.1.
+
+These are the v1 acceptance bar locked in by the 2026-05-13 design plan
+§0 D2. The original SPEC §1.4 numbers (0.94 / 0.86 / 0.90 / 0.82) are
+the v1.1 / portfolio stretch reference, not used here.
+"""
+
+
+def format_baseline_markdown(
+    report: CompositeReport,
+    *,
+    targets: Mapping[str, float] = DEFAULT_TIER_TARGETS,
+    backend_label: str = "<unset>",
+    position_prior_label: str = "<unset>",
+    eval_harness_sha: str = "<unset>",
+    title: str = "Composite per-tier baseline",
+) -> str:
+    """Render a Phase 0 per-tier baseline report as Markdown.
+
+    Output format follows
+    ``docs/plans/2026-05-13-tab-f1-phase-0-implementation.md`` §4.1.
+    """
+    statuses = report.tab_f1_acceptance(targets)
+    lines: list[str] = [f"# {title}", ""]
+
+    lines.append("## Per-tier results")
+    lines.append("")
+    header_cells = [
+        "Tier",
+        "Clips",
+        "Gold notes",
+        "Tab F1 mean",
+        "Tab F1 lower-95",
+        "Target",
+        "Status",
+        "Onset F1",
+        "Pitch F1",
+    ]
+    lines.append("| " + " | ".join(header_cells) + " |")
+    lines.append("|---|---:|---:|---:|---:|---:|---|---:|---:|")
+    for tier, target in targets.items():
+        tier_report = report.tiers.get(tier)
+        if tier_report is None:
+            lines.append(
+                f"| {tier} | 0 | 0 | — | — | {target:.2f} | missing | — | — |"
+            )
+            continue
+        tab_mean = tier_report.tab_f1.statistic
+        tab_lo = tier_report.tab_f1.lower
+        onset_mean = tier_report.onset_f1.statistic
+        pitch_mean = tier_report.pitch_f1.statistic
+        lines.append(
+            f"| {tier} | {tier_report.n_clips} | {tier_report.n_gold_total} | "
+            f"{tab_mean:.4f} | {tab_lo:.4f} | {target:.2f} | {statuses[tier]} | "
+            f"{onset_mean:.4f} | {pitch_mean:.4f} |"
+        )
+    lines.append("")
+
+    lines.append("## Per-source breakdown")
+    lines.append("")
+    lines.append("| Tier | Source | Clips | Tab F1 mean | Onset F1 mean | Pitch F1 mean |")
+    lines.append("|---|---|---:|---:|---:|---:|")
+    grouped: dict[tuple[str, str], list[ClipEvalResult]] = {}
+    for clip in report.per_clip:
+        grouped.setdefault((clip.tier, clip.source), []).append(clip)
+    for (tier, source), clips in sorted(grouped.items()):
+        tab_mean = sum(c.tab.f1 for c in clips) / len(clips)
+        onset_mean = sum(c.onset.f1 for c in clips) / len(clips)
+        pitch_mean = sum(c.pitch.f1 for c in clips) / len(clips)
+        lines.append(
+            f"| {tier} | {source} | {len(clips)} | "
+            f"{tab_mean:.4f} | {onset_mean:.4f} | {pitch_mean:.4f} |"
+        )
+    lines.append("")
+
+    lines.append("## Methodology")
+    lines.append("")
+    lines.append(f"- Manifest: `{report.manifest_path}`")
+    lines.append(f"- Audio backend: `{backend_label}`")
+    lines.append(f"- Position prior: `{position_prior_label}`")
+    lines.append(f"- Eval-harness SHA: `{eval_harness_sha}`")
+    lines.append(f"- Onset tolerance: {report.onset_tolerance_s * 1000:.0f} ms")
+    lines.append(
+        f"- Bootstrap: N={report.bootstrap_n:,}, seed={report.bootstrap_seed}, "
+        f"95% percentile interval"
+    )
+    lines.append(
+        "- Acceptance gate: `lower_95_CI >= target` per design plan §5"
+    )
+    lines.append("")
+
+    return "\n".join(lines) + "\n"
+
+
+def format_decomposition_markdown(
+    report: CompositeReport,
+    *,
+    title: str = "Tab F1 error decomposition",
+) -> str:
+    """Render the per-tier 7-bucket (currently 6) error decomposition."""
+    bucket_columns = (
+        "correct",
+        "wrong_position_same_pitch",
+        "pitch_off",
+        "timing_only",
+        "missed_onset",
+        "extra_detection",
+    )
+    lines: list[str] = [f"# {title}", ""]
+
+    lines.append("## Aggregate (all tiers)")
+    lines.append("")
+    from tabvision.eval.error_decomposition import aggregate_decompositions
+
+    overall = aggregate_decompositions(c.errors for c in report.per_clip)
+    lines.append("| Bucket | Count | Share of loss |")
+    lines.append("|---|---:|---:|")
+    shares = overall.share_of_loss()
+    for col in bucket_columns:
+        count = getattr(overall, col)
+        if col == "correct":
+            lines.append(f"| {col} | {count} | — |")
+        else:
+            lines.append(f"| {col} | {count} | {shares[col] * 100:.1f}% |")
+    lines.append("")
+
+    lines.append("## Per-tier breakdown")
+    lines.append("")
+    header_cells = ["Tier"] + list(bucket_columns)
+    lines.append("| " + " | ".join(header_cells) + " |")
+    lines.append("|" + "|".join(["---"] * len(header_cells)) + "|")
+    for tier_name in sorted(report.tiers):
+        tier_report = report.tiers[tier_name]
+        row = [tier_name]
+        for col in bucket_columns:
+            row.append(str(getattr(tier_report.errors, col)))
+        lines.append("| " + " | ".join(row) + " |")
+    lines.append("")
+
+    return "\n".join(lines) + "\n"
+
+
+def make_run_pipeline_predictor(
+    *,
+    audio_backend_name: str,
+    position_prior: str | None,
+    melodic_prior_enabled: bool = False,
+    video_enabled: bool = False,
+) -> Predictor:
+    """Wrap :func:`tabvision.pipeline.run_pipeline` for composite-eval use.
+
+    Imports ``run_pipeline`` lazily so the composite-eval CLI's --help
+    works without the audio-highres extras installed.
+    """
+    from tabvision.pipeline import run_pipeline  # noqa: PLC0415
+
+    def predictor(media_path: Path, session: SessionConfig) -> list[TabEvent]:
+        return run_pipeline(
+            str(media_path),
+            audio_backend_name=audio_backend_name,
+            position_prior=position_prior,
+            melodic_prior_enabled=melodic_prior_enabled,
+            video_enabled=video_enabled,
+            session=session,
+        )
+
+    return predictor
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point: ``tabvision-composite-eval``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="tabvision-composite-eval",
+        description=(
+            "Run the v1 per-tier composite eval and write a Markdown report."
+        ),
+    )
+    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--backend", default="highres", help="audio backend name")
+    parser.add_argument(
+        "--position-prior",
+        default="guitarset-v1",
+        help='position prior name; pass "none" to disable',
+    )
+    parser.add_argument("--melodic-prior", action="store_true")
+    parser.add_argument(
+        "--enable-video",
+        action="store_true",
+        help="enable video stack (default: off — Phase 0 ships audio-only)",
+    )
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--decomposition-output",
+        type=Path,
+        help="optional: write the 7-bucket error decomposition to this file too",
+    )
+    parser.add_argument("--bootstrap-n", type=int, default=10_000)
+    parser.add_argument("--bootstrap-seed", type=int, default=42)
+    parser.add_argument("--onset-tolerance-s", type=float, default=0.05)
+    parser.add_argument(
+        "--splits",
+        default="validation,test",
+        help="comma-separated splits to include",
+    )
+    parser.add_argument("--media-root", type=Path, default=None)
+    parser.add_argument("--annotation-root", type=Path, default=None)
+    parser.add_argument("--eval-harness-sha", default="<unset>")
+
+    args = parser.parse_args(argv)
+
+    position_prior: str | None = args.position_prior
+    if position_prior and position_prior.lower() == "none":
+        position_prior = None
+
+    predictor = make_run_pipeline_predictor(
+        audio_backend_name=args.backend,
+        position_prior=position_prior,
+        melodic_prior_enabled=args.melodic_prior,
+        video_enabled=args.enable_video,
+    )
+
+    splits = tuple(s.strip() for s in args.splits.split(",") if s.strip())
+
+    report = run_composite_eval(
+        args.manifest,
+        predictor=predictor,
+        media_root=args.media_root,
+        annotation_root=args.annotation_root,
+        splits=splits,
+        onset_tolerance_s=args.onset_tolerance_s,
+        bootstrap_n=args.bootstrap_n,
+        bootstrap_seed=args.bootstrap_seed,
+    )
+
+    baseline_md = format_baseline_markdown(
+        report,
+        backend_label=args.backend,
+        position_prior_label=position_prior or "none",
+        eval_harness_sha=args.eval_harness_sha,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(baseline_md, encoding="utf-8")
+
+    if args.decomposition_output:
+        decomp_md = format_decomposition_markdown(report)
+        args.decomposition_output.parent.mkdir(parents=True, exist_ok=True)
+        args.decomposition_output.write_text(decomp_md, encoding="utf-8")
+
+    return 0
+
+
 __all__ = [
     "ClipEvalResult",
     "CompositeReport",
     "DEFAULT_EVAL_SPLITS",
+    "DEFAULT_TIER_TARGETS",
     "Predictor",
     "TierReport",
+    "format_baseline_markdown",
+    "format_decomposition_markdown",
+    "main",
+    "make_run_pipeline_predictor",
     "run_composite_eval",
 ]
