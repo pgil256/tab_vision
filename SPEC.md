@@ -121,6 +121,41 @@ The targets above are aggregate over the full eval set. Per-difficulty-tier expe
 
 If the aggregate hits 0.88 but distorted electric scores below 0.75, treat that as a partial pass and prioritize Phase 7 distortion-augmented fine-tuning before final acceptance.
 
+### 1.4.1 v1 acceptance amendment — per-tier targets (2026-05-13)
+
+Per the 2026-05-13 design plan
+(`docs/plans/2026-05-12-tab-f1-to-spec-design.md`), v1 acceptance moves
+from the aggregate 0.88 Tab F1 in §1.4 to **per-tier targets on a
+public-corpus composite eval set**:
+
+| Tier | §1.4 stretch reference | v1 acceptance |
+|---|---:|---:|
+| Clean acoustic single-line | 0.94 | **0.85** |
+| Clean acoustic strummed | 0.86 | **0.90** |
+| Clean electric | 0.90 | **0.87** |
+| Distorted electric | 0.82 | **0.80** |
+
+Rationale: 2026-05-08 GuitarSet validation showed aggregate Tab F1 = 0.61
+with comp tracks at 0.67 and solo tracks at 0.51 despite both being near
+0.92 Pitch F1. The aggregate hid the structural failure mode (single-line
+string/fret assignment). Per-tier targets force the conversation onto the
+right axis and let work be sequenced (strummed first, distorted electric
+last).
+
+**Test-set composition amendment:** the "user's own playing" test set in
+§1.4 paragraph 1 is replaced by a public-corpus composite (GuitarSet
+held-out + Guitar-TECHS + EGDB pending license + qualifying synthetic
+training/dev material). See the design plan §5 for composite policy
+(per-tier minimums, splits, leakage rules, bootstrap CIs).
+
+**Stretch / portfolio reference:** the original §1.4 per-tier table
+(0.94 / 0.86 / 0.90 / 0.82) remains the v1.1 / portfolio stretch bar.
+Hitting it is welcome; v1 acceptance requires only the amended table.
+
+**Aggregate Tab F1** is retired as an acceptance metric. **Onset F1
+(≥ 0.92), Pitch F1 (≥ 0.90), chord-instance accuracy (≥ 0.85), and
+latency (≤ 5 min)** from §1.4 are unchanged.
+
 ### 1.5 Hard constraints
 
 - All training/inference dependencies must be free or have a free tier sufficient for this project (see §6).
