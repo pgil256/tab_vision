@@ -17,7 +17,9 @@ Acceptance, copied from the strategy doc §6:
 
 - Per-tier baseline numbers for ≥ 3 of 4 D2 tiers with **bootstrap
   95% CIs**, on the composite eval set.
-- Per-tier 7-bucket error decomposition on the same set.
+- Per-tier six-bucket error decomposition on the same set
+  (port of the apr-28 7-bucket harness; ``muted_undetectable`` deferred
+  until the §8 ``TabEvent`` contract carries a muted/X flag).
 - Free-tier compute accounts (Local / Colab / Kaggle / Lightning / W&B)
   verified.
 - EGDB author email sent; reply tracked in `docs/DECISIONS.md`.
@@ -43,10 +45,10 @@ Acceptance, copied from the strategy doc §6:
 | `tabvision/tests/unit/test_parser_guitarset_jams.py` | JAMS parser round-trip test |
 | `tabvision/tests/unit/test_parser_guitar_techs_midi.py` | MIDI parser round-trip test |
 | `tabvision/tests/unit/test_bootstrap_ci.py` | CI helper correctness on known distributions |
-| `tabvision/tests/unit/test_error_decomposition.py` | 7-bucket assignment correctness on synthetic predicted/gold pairs |
+| `tabvision/tests/unit/test_error_decomposition.py` | Per-bucket assignment correctness on synthetic predicted/gold pairs (six buckets populated) |
 | `tabvision/tests/integration/test_composite_eval_smoke.py` | End-to-end smoke: 5-clip manifest → tier numbers exist + CIs computed |
 | `docs/EVAL_REPORTS/composite_baseline_2026-05-13.md` | First baseline report (output of Phase 0E) |
-| `docs/EVAL_REPORTS/tab_f1_error_decomposition_2026-05-13.md` | First 7-bucket decomposition (output of Phase 0D) |
+| `docs/EVAL_REPORTS/tab_f1_error_decomposition_2026-05-13.md` | First six-bucket decomposition (output of Phase 0D) |
 
 ### 1.2 Modified files
 
@@ -215,8 +217,8 @@ Must contain:
 
 Must contain:
 
-- Aggregate 7-bucket table (counts + share-of-loss).
-- Per-tier 7-bucket table.
+- Aggregate six-bucket table (counts + share-of-loss).
+- Per-tier six-bucket table.
 - A "biggest lever per tier" callout: which bucket dominates each
   tier's loss. Phase 1+ priorities derive from this.
 
