@@ -122,14 +122,32 @@ pytest tabvision/tests/unit/test_bootstrap_ci.py -v
 
 ### 3.2 Acquire Guitar-TECHS
 
+Guitar-TECHS is CC-BY-4.0, hosted on Zenodo record
+[14963133](https://zenodo.org/records/14963133) (see strategy doc §4.1).
+No credentials are required. Use the `guitar-techs` subcommand of the
+acquire script:
+
 ```bash
-# Guitar-TECHS is CC-BY-4.0, hosted on Zenodo (see strategy doc §4.1)
-mkdir -p ~/mir_datasets/guitar_techs
-# Download the dataset archive from the URL in arXiv:2501.03720
-# (resolved at acquisition time; not committed to repo)
-# Extract into ~/mir_datasets/guitar_techs/
-ls ~/mir_datasets/guitar_techs/
+# Dry run — print the file manifest + MD5 checksums from Zenodo,
+# do not download. Useful for sanity-checking before the ~5 GB pull.
+python -m tabvision.scripts.acquire.datasets guitar-techs --dry-run
+
+# Full download — places files under
+# $TABVISION_DATA_ROOT/datasets/zenodo-14963133-guitar-techs-v1/
+# (default ~/.tabvision/data/datasets/zenodo-14963133-guitar-techs-v1/).
+# Idempotent; MD5-verifies each file against the Zenodo manifest.
+python -m tabvision.scripts.acquire.datasets guitar-techs
+
+# If the host network is blocking Zenodo upstream (CERN IP ranges
+# 137.138.0.0/16 and 188.184.0.0/15), download via browser elsewhere,
+# drop the files into --output, then verify integrity locally:
+python -m tabvision.scripts.acquire.datasets guitar-techs \
+    --output /path/to/manually/downloaded/guitar-techs \
+    --verify-only
 ```
+
+Attribution and citation lines for `LICENSES.md` / README are printed
+on successful completion.
 
 ### 3.3 Build the manifest
 
@@ -184,8 +202,11 @@ python -c "import wandb; r = wandb.init(project='tabvision-phase0', mode='online
 
 ### 3.7 Send the EGDB email
 
-User action — not a command. Template in strategy doc; log the
-date sent and the reply (when it arrives) in `docs/DECISIONS.md`.
+User action — not a command. Template lives at
+[`docs/email_drafts/2026-05-19-egdb_access_inquiry.md`](../email_drafts/2026-05-19-egdb_access_inquiry.md)
+(recipient, subject, body, and the post-send `DECISIONS.md` template).
+Log the date sent and the reply (when it arrives) in
+`docs/DECISIONS.md` per SPEC §0.5.
 
 ## 4. Acceptance outputs
 
