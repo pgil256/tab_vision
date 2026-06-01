@@ -213,7 +213,7 @@ phase's evidence justifies starting it.
   the composite eval. Acquire Guitar-TECHS; send EGDB email; verify free
   compute accounts. **No production code changes.** Acceptance: per-tier
   baseline numbers exist for ≥ 3 of 4 tiers with bootstrap CIs;
-  per-tier 7-bucket error breakdown exists. [Companion:
+  per-tier six-bucket error breakdown exists. [Companion:
   `2026-05-13-tab-f1-phase-0-implementation.md`.]
 - **Phase 1 — Pitch ceiling lift (cheap moves).** Voicing/silence gate
   + peak-picking + Basic Pitch pitch-only ensemble. Acceptance: Pitch

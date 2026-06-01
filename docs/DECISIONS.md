@@ -16,6 +16,62 @@ Format:
 
 ---
 
+## 2026-05-13 — Tab F1 v1 acceptance: per-tier targets + public-corpus composite
+
+**Phase:** Accuracy work (cross-cuts Phases 1, 2, 3, 5, 7, 8 of the SPEC)
+**Decision tree:** Design plan adoption + SPEC §1.4 amendment proposal
+**Branch taken:** Replace the aggregate 0.88 Tab F1 acceptance gate with
+a per-tier table; drop SynthTab (CC-BY-NC) and GOAT (request-only) from
+the default pipeline; rely on GuitarSet + Guitar-TECHS + EGDB
+(license-pending) for the public-corpus composite eval.
+
+**Evidence:**
+- Strategy / decision record: `docs/plans/2026-05-12-tab-f1-to-spec-design.md`
+- Phase 0 implementation plan: `docs/plans/2026-05-13-tab-f1-phase-0-implementation.md`
+- SPEC amendment block: `SPEC.md` §1.4.1 (per-tier table + composite test set)
+- First baseline artifact (2 of 4 tiers covered): `docs/EVAL_REPORTS/composite_baseline_2026-05-13.md`
+- Companion error decomposition: `docs/EVAL_REPORTS/tab_f1_error_decomposition_2026-05-13.md`
+- Implementation branch with the eval harness: `impl/tab-f1-phase-0`
+
+**Reasoning:** The 2026-05-08 GuitarSet validation showed aggregate Tab
+F1 = 0.6104 with comp tracks at 0.670 and solo tracks at 0.508. The
+aggregate target hid the dominant failure axis (string/fret assignment
+on single-line passages), and the SPEC §1.4 numbers (0.94 / 0.86 / 0.90
+/ 0.82) baked in implicit per-tier expectations that the project hadn't
+explicitly negotiated. The 2026-05-13 user conversation locked in
+relaxed v1 targets (0.85 / 0.90 / 0.87 / 0.80), kept the original SPEC
+numbers as the v1.1 / portfolio stretch reference, and committed to
+audio-only fusion priors + cheap pitch post-processing as the leverage
+path (no SynthTab pretrain → no NC license taint on shipped weights).
+
+**Per-tier acceptance gate (v1):**
+
+| Tier | v1 target | 2026-05-13 baseline (mean / lower 95% CI) |
+|---|---:|---:|
+| Clean acoustic single-line | 0.85 | 0.5076 / 0.4448 (fail) |
+| Clean acoustic strummed | 0.90 | 0.6708 / 0.6015 (fail) |
+| Clean electric | 0.87 | missing — pending Guitar-TECHS |
+| Distorted electric | 0.80 | missing — pending EGDB |
+
+Both covered tiers fail by ~25–35 pp. Per the error decomposition,
+`wrong_position_same_pitch` accounts for 77% of single-line loss and
+50% of strummed loss — Phases 1-7 of the design plan target this
+bucket.
+
+**Decisions inventoried in the design plan (D1–D11):**
+
+- D1 Per-tier replaces aggregate. D2 Targets table. D3 Composite eval.
+  D4 No SynthTab. D5 Video qualitative-only. D6 Free-tier compute first
+  (Local > Colab > Kaggle > Lightning > Modal). D7 1-2 month cadence.
+  D8 No stretch (bends/slides) in v1. D9 D2 numbers on top-1 only.
+  D10 Personal clips fully banned. D11 This is a SPEC §1.4 amendment,
+  not a SPEC-achievement plan.
+
+**Open Phase 0 user actions:** Lightning Studios / Kaggle / Colab / W&B
+account verification; EGDB author email; Guitar-TECHS Zenodo download.
+
+---
+
 ## 2026-05-05 — Project name kept as `tabvision` (not `tabify`)
 
 **Phase:** 0
