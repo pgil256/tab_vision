@@ -15,6 +15,9 @@ Usage::
     # Download the YOLO-OBB guitar detector training set (Phase 3).
     python -m scripts.acquire.datasets roboflow-guitar
 
+    # Download EGDB (author-granted access URL; Phase 0 distorted-electric eval).
+    python -m scripts.acquire.datasets egdb --url '<grant-url>'
+
     # List supported datasets.
     python -m scripts.acquire.datasets list
 """
@@ -22,8 +25,12 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
+import tarfile
+import urllib.request
+import zipfile
 from pathlib import Path
 
 DEFAULT_DATA_ROOT = Path.home() / ".tabvision" / "data"
@@ -51,6 +58,24 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="dataset", required=True)
 
     sub.add_parser("list", help="list supported datasets")
+
+    eg = sub.add_parser(
+        "egdb",
+        help="EGDB electric-guitar dataset (Phase 0 distorted-electric eval). "
+        "Author-granted use 2026-06-01; eval-only, not redistributed.",
+    )
+    eg.add_argument(
+        "--url",
+        default=None,
+        help="direct download URL for the EGDB archive, as provided by the "
+        "author's access grant. Falls back to $EGDB_DOWNLOAD_URL.",
+    )
+    eg.add_argument(
+        "--sha256",
+        default=None,
+        help="optional expected SHA-256 of the downloaded archive; verified "
+        "before extraction. Falls back to $EGDB_SHA256.",
+    )
 
     rb = sub.add_parser(
         "roboflow-guitar",
@@ -81,7 +106,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.dataset == "list":
         print("Supported datasets:")
         print("  roboflow-guitar — Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
+        print("  egdb           — EGDB electric guitar (Phase 0 distorted-electric eval)")
         return 0
+
+    if args.dataset == "egdb":
+        return _acquire_egdb(
+            url=args.url or os.environ.get("EGDB_DOWNLOAD_URL"),
+            sha256=args.sha256 or os.environ.get("EGDB_SHA256"),
+        )
 
     if args.dataset == "roboflow-guitar":
         return _acquire_roboflow_guitar(
@@ -170,6 +202,92 @@ def _acquire_roboflow_guitar(
     print(f"\nattribution required:\n  {citation}\n  license: {license_info}")
     print("Add the above to docs/HISTORY.md and to the repo README before merging Phase 3.")
     return 0
+
+
+def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
+    """Fetch the EGDB archive from the author-granted access URL.
+
+    EGDB is request-gated: the author grants a direct download URL (2026-06-01
+    grant on record — see LICENSES.md). We never hard-code or redistribute the
+    URL or the data; the caller supplies it via ``--url`` / ``$EGDB_DOWNLOAD_URL``.
+    Eval-only: the extracted data is used for held-out distorted-electric
+    evaluation, not committed to the repo, not a shipped-weight substrate.
+    """
+    if not url:
+        print(
+            "error: EGDB download URL missing.\n\n"
+            "EGDB is request-gated; the author granted access on 2026-06-01.\n"
+            "Provide the direct download URL from that grant:\n\n"
+            "  # one-off:\n"
+            "  python -m scripts.acquire.datasets egdb --url '<grant-url>'\n\n"
+            "  # or persist it (gitignored .env at the repo root):\n"
+            "  echo 'EGDB_DOWNLOAD_URL=<grant-url>' >> .env\n"
+            "  python -m scripts.acquire.datasets egdb\n\n"
+            "Do NOT commit the URL or the data. EGDB is eval-only (SPEC §1.5).\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    target = _data_root() / "datasets" / "egdb"
+    if target.exists() and any(target.iterdir()):
+        print(f"already present: {target}")
+        print("(delete the directory to force re-download)")
+        return 0
+    target.mkdir(parents=True, exist_ok=True)
+
+    archive = target.parent / "egdb.download"
+    print(f"downloading EGDB → {archive}")
+    try:
+        urllib.request.urlretrieve(url, archive)  # noqa: S310 (author-trusted URL)
+    except OSError as exc:
+        print(f"error: download failed: {exc}", file=sys.stderr)
+        return 1
+
+    if sha256:
+        digest = _sha256_file(archive)
+        if digest.lower() != sha256.lower():
+            print(
+                f"error: SHA-256 mismatch.\n  expected {sha256}\n  got      {digest}",
+                file=sys.stderr,
+            )
+            archive.unlink(missing_ok=True)
+            return 1
+        print(f"sha256 OK: {digest}")
+
+    print(f"extracting → {target}")
+    if zipfile.is_zipfile(archive):
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(target)
+    elif tarfile.is_tarfile(archive):
+        with tarfile.open(archive) as tf:
+            tf.extractall(target)  # noqa: S202 (author-trusted archive)
+    else:
+        print(
+            "error: downloaded file is neither a zip nor a tar archive. "
+            f"Left in place at {archive} for manual inspection.",
+            file=sys.stderr,
+        )
+        return 1
+    archive.unlink(missing_ok=True)
+
+    print(
+        "\nEGDB acquired (eval-only).\n"
+        "  - Confirm the EGDB grant email is saved under docs/ and logged in "
+        "docs/DECISIONS.md.\n"
+        "  - Parse with the `egdb_gp` parser (Phase 0 deliverable; add to "
+        "tabvision/tabvision/eval/parsers/ when wiring the distorted-electric "
+        "tier into the composite manifest).\n"
+        "  - Do NOT commit the extracted audio."
+    )
+    return 0
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _list_project_versions(proj) -> list[tuple[int, str]]:  # type: ignore[no-untyped-def]
