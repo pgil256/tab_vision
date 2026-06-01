@@ -1,5 +1,12 @@
 # TabVision
 
+> **⚠️ HISTORICAL — NOT CANONICAL (deprecated 2026-06-01).** This is the
+> original v0 product spec for the Electron + Flask desktop app. The
+> canonical specification is **`SPEC.md`** (the v1 Python-CLI spec with the
+> §8 contracts and §1.4 acceptance gate). This file is retained only for
+> historical reference and is linked from `AUDIT.md` / `README.md`. Do not
+> treat anything below as a current requirement.
+
 **Automatic Guitar Tab Transcription from Video**
 
 A desktop application that analyzes video recordings of guitar playing and generates accurate tablature by combining audio pitch detection with visual finger tracking.
