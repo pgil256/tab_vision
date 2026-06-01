@@ -121,40 +121,45 @@ The targets above are aggregate over the full eval set. Per-difficulty-tier expe
 
 If the aggregate hits 0.88 but distorted electric scores below 0.75, treat that as a partial pass and prioritize Phase 7 distortion-augmented fine-tuning before final acceptance.
 
-### 1.4.1 v1 acceptance amendment — per-tier targets (2026-05-13)
+### 1.4.1 v1 acceptance — committed to the §1.4 targets (2026-06-01)
 
-Per the 2026-05-13 design plan
-(`docs/plans/2026-05-12-tab-f1-to-spec-design.md`), v1 acceptance moves
-from the aggregate 0.88 Tab F1 in §1.4 to **per-tier targets on a
-public-corpus composite eval set**:
+This section **supersedes and reverses** the 2026-05-13 amendment, which
+had relaxed v1 acceptance to per-tier 0.85 / 0.90 / 0.87 / 0.80 and
+retired the aggregate. Per user direction (2026-06-01), v1 commits to the
+**highest** bar: the original §1.4 targets stand, unchanged, as the single
+acceptance gate.
 
-| Tier | §1.4 stretch reference | v1 acceptance |
-|---|---:|---:|
-| Clean acoustic single-line | 0.94 | **0.85** |
-| Clean acoustic strummed | 0.86 | **0.90** |
-| Clean electric | 0.90 | **0.87** |
-| Distorted electric | 0.82 | **0.80** |
+| Tier | v1 acceptance (committed) |
+|---|---:|
+| Clean acoustic single-line | ≥ 0.94 |
+| Clean acoustic strummed | ≥ 0.86 |
+| Clean electric | ≥ 0.90 |
+| Distorted electric | ≥ 0.82 |
 
-Rationale: 2026-05-08 GuitarSet validation showed aggregate Tab F1 = 0.61
-with comp tracks at 0.67 and solo tracks at 0.51 despite both being near
-0.92 Pitch F1. The aggregate hid the structural failure mode (single-line
-string/fret assignment). Per-tier targets force the conversation onto the
-right axis and let work be sequenced (strummed first, distorted electric
-last).
+- **Aggregate Tab F1 ≥ 0.88 is retained** as an acceptance metric — it is
+  *not* retired. Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90, chord-instance accuracy
+  ≥ 0.85, and latency ≤ 5 min are unchanged.
+- The relaxed 0.85 / 0.90 / 0.87 / 0.80 table is **withdrawn**. It survives
+  only as a historical waypoint in the design plan, not as a gate.
 
-**Test-set composition amendment:** the "user's own playing" test set in
-§1.4 paragraph 1 is replaced by a public-corpus composite (GuitarSet
-held-out + Guitar-TECHS + EGDB pending license + qualifying synthetic
-training/dev material). See the design plan §5 for composite policy
-(per-tier minimums, splits, leakage rules, bootstrap CIs).
+**What carries over from the 2026-05-13 plan (methodology, not targets):**
+acceptance evidence is a **public-corpus composite** (GuitarSet held-out +
+Guitar-TECHS + EGDB + qualifying synthetic dev material), reported **per
+tier** with **95 % bootstrap CIs** over clips, and the acceptance test is
+`lower_95_CI ≥ target` (not `mean ≥ target`). Personal clips remain banned
+as an acceptance gate. See the design plan §5 for composite policy
+(per-tier minimums, splits, leakage rules).
 
-**Stretch / portfolio reference:** the original §1.4 per-tier table
-(0.94 / 0.86 / 0.90 / 0.82) remains the v1.1 / portfolio stretch bar.
-Hitting it is welcome; v1 acceptance requires only the amended table.
+**Gap to close (honest framing).** The 2026-05-08 GuitarSet baseline is
+aggregate Tab F1 0.61 (comp 0.67 / solo 0.51) against the 0.88 aggregate;
+the clean-acoustic single-line tier must rise from ~0.51 to **0.94**. This
+is by far the hardest target in the project, and the highest-bar commitment
+is accepted with that difficulty in full view — it is a stretch goal
+adopted as the gate, not a forecast.
 
-**Aggregate Tab F1** is retired as an acceptance metric. **Onset F1
-(≥ 0.92), Pitch F1 (≥ 0.90), chord-instance accuracy (≥ 0.85), and
-latency (≤ 5 min)** from §1.4 are unchanged.
+**§1.4 is the single source of truth for acceptance.** Where any other
+document (CLAUDE.md, AGENTS.md, design plans, DECISIONS.md) disagrees,
+§1.4 governs.
 
 ### 1.5 Hard constraints
 

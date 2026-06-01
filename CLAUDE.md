@@ -119,6 +119,13 @@ pytest tests/    # 17 v0 tests
 
 ## Acceptance targets (SPEC §1.4)
 
+**Committed bar (2026-06-01):** v1 targets the **highest** numbers — the
+original SPEC §1.4 per-tier table (0.94 / 0.86 / 0.90 / 0.82) **and**
+aggregate Tab F1 ≥ 0.88. The 2026-05-13 relaxation (per-tier 0.85–0.90,
+aggregate retired) is **withdrawn** (see SPEC §1.4.1). **SPEC §1.4 is the
+single source of truth**; do not re-relax targets without a SPEC edit + user
+approval.
+
 | Metric | Target | Definition |
 |---|---|---|
 | Onset F1 (50 ms) | ≥ 0.92 | mir_eval onset_f_measure |
