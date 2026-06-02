@@ -548,3 +548,34 @@ GuitarSet, existing Modal/public-data reports, license policy checks,
 fresh-install checks, and renderer tests. `--position-prior guitarset-v1` stays
 explicit; default transcription remains `--position-prior none` until automated
 evidence justifies promotion.
+
+## 2026-06-02 — Cross-dataset check: prior doesn't transfer to electric; audio backbone is the blocker
+
+**Phase:** Accuracy work (#2 cross-dataset prior generalization, run on laptop CPU)
+**Decision tree:** Tab-F1 strategy §6 "verify the +22 pp prior generalizes before building on it"
+**Branch taken:** Prior lift does **not** generalize to electric (out-of-domain),
+and the dominant cause is upstream — the highres (acoustic GAPS) backbone does
+not transcribe electric guitar well. Re-prioritize: electric tiers are blocked
+on the **audio backbone**, not the prior/fusion.
+
+**Evidence:** `docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md` and the four
+local reports (`local_guitarset_{prior,noprior}.md`,
+`local_guitartechs_{prior,noprior}.md`). GuitarSet acoustic prior lift +28.9 pp
+(single) / +19.6 pp (strummed), onset/pitch ~0.92–0.94 / 0.90–0.93 — reproduces
+the documented 0.6104/0.3878 baseline. Guitar-TECHS electric (58 clips, 5541
+notes): prior lift **+1.3 pp** (0.110 → 0.124, within the 95% CI), onset/pitch
+**0.75 / 0.73**. Tab F1 capped ~0.12 by the pitch collapse.
+
+**Reasoning:** The prior's electric lift is within noise, so it shows no useful
+transfer — but the test is confounded: with pitch F1 only 0.73 on electric, the
+prior has almost nothing correct to re-assign, so "acoustic-specific prior" can't
+be cleanly separated from "nothing to work with." The clean, dominant finding is
+that the audio backbone doesn't generalize to electric (pitch 0.93 → 0.73). This
+makes the committed SPEC §1.4 clean-electric (0.90) and distorted-electric (0.82)
+targets unreachable with the current backbone (measured 0.12). **Next step pivots
+from #3 (GuitarSet-only fine-tune, acoustic) to evaluating an electric-capable
+backbone** (`hf_midi_transcription` `guitar_fl`, or a highres fine-tune on
+Guitar-TECHS/EGDB) before any further fusion/prior work on the electric tiers.
+The prior remains justified for the acoustic tiers (in-domain +22 pp). Caveats:
+GT subset is chord-dominant (P1+P2; no P3/scales/EGDB), single electric corpus,
+long-form clips.
