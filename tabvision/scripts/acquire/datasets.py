@@ -67,8 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     eg.add_argument(
         "--url",
         default=None,
-        help="direct download URL for the EGDB archive, as provided by the "
-        "author's access grant. Falls back to $EGDB_DOWNLOAD_URL.",
+        help="EGDB source URL; defaults to the public project Drive folder. "
+        "Falls back to $EGDB_DOWNLOAD_URL. Override only for a mirror.",
     )
     eg.add_argument(
         "--sha256",
@@ -204,30 +204,23 @@ def _acquire_roboflow_guitar(
     return 0
 
 
+# Public Google Drive folder linked from the EGDB project page
+# (https://ss12f32v.github.io/Guitar-Transcription/, verified 2026-06-01).
+# Access is open; the *license* is the gate (see LICENSES.md), cleared by the
+# author's written grant. Override with --url / $EGDB_DOWNLOAD_URL if mirrored.
+EGDB_DRIVE_FOLDER = "https://drive.google.com/drive/folders/1h9DrB4dk4QstgjNaHh7lL7IMeKdYw82_"
+
+
 def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
-    """Fetch the EGDB archive from the author-granted access URL.
+    """Fetch EGDB for the Phase-0 distorted-electric eval tier.
 
-    EGDB is request-gated: the author grants a direct download URL (2026-06-01
-    grant on record — see LICENSES.md). We never hard-code or redistribute the
-    URL or the data; the caller supplies it via ``--url`` / ``$EGDB_DOWNLOAD_URL``.
-    Eval-only: the extracted data is used for held-out distorted-electric
-    evaluation, not committed to the repo, not a shipped-weight substrate.
+    EGDB ships as a *public* Google Drive folder (link above); access is open.
+    The gate is the *license*, not the download: the EGDB repo has no LICENSE
+    file, so portfolio use needs the author's written grant (on record
+    2026-06-01 — see LICENSES.md). Eval-only: not redistributed here, not a
+    shipped-weight substrate.
     """
-    if not url:
-        print(
-            "error: EGDB download URL missing.\n\n"
-            "EGDB is request-gated; the author granted access on 2026-06-01.\n"
-            "Provide the direct download URL from that grant:\n\n"
-            "  # one-off:\n"
-            "  python -m scripts.acquire.datasets egdb --url '<grant-url>'\n\n"
-            "  # or persist it (gitignored .env at the repo root):\n"
-            "  echo 'EGDB_DOWNLOAD_URL=<grant-url>' >> .env\n"
-            "  python -m scripts.acquire.datasets egdb\n\n"
-            "Do NOT commit the URL or the data. EGDB is eval-only (SPEC §1.5).\n",
-            file=sys.stderr,
-        )
-        return 2
-
+    url = url or EGDB_DRIVE_FOLDER
     target = _data_root() / "datasets" / "egdb"
     if target.exists() and any(target.iterdir()):
         print(f"already present: {target}")
@@ -235,10 +228,36 @@ def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
         return 0
     target.mkdir(parents=True, exist_ok=True)
 
-    archive = target.parent / "egdb.download"
-    print(f"downloading EGDB → {archive}")
+    if "drive.google.com" in url and "/folders/" in url:
+        return _download_drive_folder(url, target)
+    return _download_archive(url, target, sha256)
+
+
+def _download_drive_folder(url: str, target: Path) -> int:
     try:
-        urllib.request.urlretrieve(url, archive)  # noqa: S310 (author-trusted URL)
+        import gdown
+    except ImportError:
+        print(
+            "EGDB is a Google Drive folder; this needs `gdown`. Either:\n"
+            "  1) pip install gdown   (then re-run this command), or\n"
+            "  2) download the folder manually from:\n"
+            f"       {url}\n"
+            "     and unzip its contents into:\n"
+            f"       {target}\n",
+            file=sys.stderr,
+        )
+        return 2
+    print(f"downloading EGDB Drive folder → {target}")
+    gdown.download_folder(url=url, output=str(target), quiet=False, use_cookies=False)
+    _egdb_done_message()
+    return 0
+
+
+def _download_archive(url: str, target: Path, sha256: str | None) -> int:
+    archive = target.parent / "egdb.download"
+    print(f"downloading EGDB archive → {archive}")
+    try:
+        urllib.request.urlretrieve(url, archive)  # noqa: S310 (trusted, user-supplied)
     except OSError as exc:
         print(f"error: download failed: {exc}", file=sys.stderr)
         return 1
@@ -260,7 +279,7 @@ def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
             zf.extractall(target)
     elif tarfile.is_tarfile(archive):
         with tarfile.open(archive) as tf:
-            tf.extractall(target)  # noqa: S202 (author-trusted archive)
+            tf.extractall(target)  # noqa: S202 (trusted archive)
     else:
         print(
             "error: downloaded file is neither a zip nor a tar archive. "
@@ -269,17 +288,19 @@ def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
         )
         return 1
     archive.unlink(missing_ok=True)
+    _egdb_done_message()
+    return 0
 
+
+def _egdb_done_message() -> None:
     print(
         "\nEGDB acquired (eval-only).\n"
-        "  - Confirm the EGDB grant email is saved under docs/ and logged in "
-        "docs/DECISIONS.md.\n"
-        "  - Parse with the `egdb_gp` parser (Phase 0 deliverable; add to "
-        "tabvision/tabvision/eval/parsers/ when wiring the distorted-electric "
-        "tier into the composite manifest).\n"
+        "  - Confirm the author's license-grant email is saved under docs/ and "
+        "logged in docs/DECISIONS.md.\n"
+        "  - Add an `egdb_gp` parser under tabvision/tabvision/eval/parsers/ to "
+        "fold the distorted-electric tier into the composite manifest.\n"
         "  - Do NOT commit the extracted audio."
     )
-    return 0
 
 
 def _sha256_file(path: Path) -> str:
