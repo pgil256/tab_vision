@@ -260,7 +260,13 @@ def _acquire_guitarset(*, data_home: Path | None) -> int:
     """
     home = data_home or (_data_root() / "guitarset")
     annotation_dir = home / "annotation"
-    if annotation_dir.is_dir() and any(annotation_dir.glob("*.jams")):
+    audio_dir = home / "audio_mono-mic"
+    if (
+        annotation_dir.is_dir()
+        and any(annotation_dir.glob("*.jams"))
+        and audio_dir.is_dir()
+        and any(audio_dir.glob("*.wav"))
+    ):
         print(f"already present: {home}")
         print("(delete the directory to force re-download)")
         return 0
@@ -276,9 +282,11 @@ def _acquire_guitarset(*, data_home: Path | None) -> int:
         return 2
 
     home.mkdir(parents=True, exist_ok=True)
-    print(f"downloading GuitarSet via mirdata -> {home}")
+    print(f"downloading GuitarSet (annotations + mono-mic only) via mirdata -> {home}")
     dataset = mirdata.initialize("guitarset", data_home=str(home))
-    dataset.download()
+    # The composite eval reads only annotation/*.jams + audio_mono-mic/*_mic.wav
+    # (see scan_guitarset). Skip the multi-GB hex-pickup + mix partitions.
+    dataset.download(partial_download=["annotations", "audio_mic"])
     print(
         "\nGuitarSet acquired (CC-BY-4.0; not redistributed).\n"
         f"  annotation/ + audio_mono-mic/ under {home}\n"
