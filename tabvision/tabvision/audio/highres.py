@@ -38,6 +38,17 @@ DEFAULT_HF_REPO = "xavriley/midi-transcription-models"
 
 GUITAR_VARIANTS = ("guitar", "guitar_gaps", "guitar_fl")
 
+# The pinned hf_midi_transcription only exposes instrument="guitar" (which maps
+# to guitar-gaps.pth). The other guitar checkpoints live in the same HF repo and
+# are loaded via checkpoint_path (the package downloads by filename if not local).
+_CHECKPOINT_FILE: dict[str, str | None] = {
+    "guitar": None,  # package default → guitar-gaps.pth
+    "guitar_gaps": "guitar-gaps.pth",
+    # Not a built-in default, so give the full HF "repo/file" path: the package
+    # only auto-downloads its own defaults or a "<user>/<repo>/<file>" path.
+    "guitar_fl": f"{DEFAULT_HF_REPO}/guitar-fl.pth",  # Francois Leduc; electric timbre
+}
+
 
 class HighResBackend:
     """Audio backend wrapping `hf_midi_transcription` for guitar SOTA."""
@@ -100,8 +111,11 @@ class HighResBackend:
         # the checkpoint when given an instrument name, so we use that.
         # ``self.hf_repo`` is unused for now; the constructor hard-codes
         # ``xavriley/midi-transcription-models`` as the default repo.
+        # instrument="guitar" selects the guitar architecture; checkpoint_path
+        # overrides the weights (None → package default guitar-gaps.pth).
         self._model = MidiTranscriptionModel(
-            instrument=self.checkpoint,
+            instrument="guitar",
+            checkpoint_path=_CHECKPOINT_FILE[self.checkpoint],
             device=self.device,
             batch_size=self.batch_size,
             onset_threshold=self.onset_threshold,

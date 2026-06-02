@@ -75,3 +75,25 @@ python -m scripts.eval.composite_eval --manifest data/eval/local_guitar_techs.to
 python -m scripts.eval.composite_eval --manifest data/eval/local_guitar_techs.toml \
   --backend highres --position-prior none --splits train --output docs/EVAL_REPORTS/local_guitartechs_noprior.md
 ```
+
+## Update — off-the-shelf backbone swap (`guitar_fl`) does NOT help (2026-06-02)
+
+Tested whether the package's other guitar checkpoint, `guitar-fl.pth` (Francois
+Leduc / "broader timbre"), closes the electric gap with zero training. Paired,
+same 12 Guitar-TECHS chord clips, prior-OFF:
+
+| Backbone | Onset F1 | Pitch F1 | Tab F1 |
+|---|---:|---:|---:|
+| `guitar_gaps` (current) | 0.732 | 0.679 | 0.074 |
+| `guitar_fl` | 0.715 | 0.687 | 0.078 |
+
+`guitar_fl` ≈ `guitar_gaps` (pitch +0.8 pp, onset −1.7 pp — within noise). **The
+cheap checkpoint-swap lever fails**; both shipped guitar checkpoints sit at ~0.68
+pitch on electric (vs ~0.93 on acoustic). Closing the electric tiers therefore
+requires **fine-tuning** the highres backbone on electric audio (Guitar-TECHS
+CC-BY; EGDB if the grant permits training) — not a free swap.
+
+Note: this required a backend fix — `highres-fl` was dead code (it passed a
+non-existent `instrument="guitar_fl"`; the package only knows
+saxophone/bass/guitar/piano). It now loads `guitar-fl.pth` via `checkpoint_path`
+(`tabvision/audio/highres.py`).
