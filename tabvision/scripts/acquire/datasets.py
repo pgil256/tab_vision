@@ -1,8 +1,8 @@
-"""Dataset acquisition — see SPEC.md §6.2.
+"""Dataset acquisition - see SPEC.md §6.2.
 
 Each subcommand fetches one dataset, verifies a checksum where possible,
 and places it under ``$TABVISION_DATA_ROOT`` (defaults to
-``~/.tabvision/data``). Idempotent — skips if already present.
+``~/.tabvision/data``). Idempotent - skips if already present.
 
 Credentials are read from a ``.env`` at the repo root (gitignored). See
 ``.env.example`` for the expected variable names.
@@ -142,10 +142,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dataset == "list":
         print("Supported datasets:")
-        print("  guitarset      — GuitarSet via mirdata (clean-acoustic tiers + prior)")
-        print("  guitar-techs   — Guitar-TECHS via Zenodo (clean_electric tier)")
-        print("  egdb           — EGDB electric guitar (Phase 0 distorted-electric eval)")
-        print("  roboflow-guitar — Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
+        print("  guitarset      - GuitarSet via mirdata (clean-acoustic tiers + prior)")
+        print("  guitar-techs   - Guitar-TECHS via Zenodo (clean_electric tier)")
+        print("  egdb           - EGDB electric guitar (Phase 0 distorted-electric eval)")
+        print("  roboflow-guitar - Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
         return 0
 
     if args.dataset == "guitarset":
@@ -189,7 +189,7 @@ def _acquire_roboflow_guitar(
             "  cp .env.example .env\n"
             "  # then edit .env and set ROBOFLOW_API_KEY=...\n"
             "  # (.env is gitignored; never commit it)\n\n"
-            "Get a key at https://roboflow.com → Settings → API.\n",
+            "Get a key at https://roboflow.com -> Settings -> API.\n",
             file=sys.stderr,
         )
         return 2
@@ -236,7 +236,7 @@ def _acquire_roboflow_guitar(
         return 0
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    print(f"downloading roboflow {workspace}/{project} v{version} → {target}")
+    print(f"downloading roboflow {workspace}/{project} v{version} -> {target}")
     ver = proj.version(version)
     dataset = ver.download(export_format, location=str(target))
 
@@ -253,7 +253,7 @@ def _acquire_guitarset(*, data_home: Path | None) -> int:
     """Download GuitarSet via mirdata into the layout the eval expects.
 
     mirdata lays GuitarSet out as ``<data_home>/annotation/*.jams`` and
-    ``<data_home>/audio_mono-mic/*_mic.wav`` — exactly what
+    ``<data_home>/audio_mono-mic/*_mic.wav`` - exactly what
     ``tabvision.eval.manifest_builder.scan_guitarset`` and the checked-in
     ``data/eval/composite.toml`` reference. Default data_home =
     ``$TABVISION_DATA_ROOT/guitarset``. CC-BY-4.0; not redistributed here.
@@ -276,7 +276,7 @@ def _acquire_guitarset(*, data_home: Path | None) -> int:
         return 2
 
     home.mkdir(parents=True, exist_ok=True)
-    print(f"downloading GuitarSet via mirdata → {home}")
+    print(f"downloading GuitarSet via mirdata -> {home}")
     dataset = mirdata.initialize("guitarset", data_home=str(home))
     dataset.download()
     print(
@@ -293,7 +293,7 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
     Enumerates the record's files through the Zenodo REST API (so no archive
     filenames are hard-coded), downloads each into ``<target>``, and extracts
     any zips. Default target = ``$TABVISION_DATA_ROOT/guitar-techs``.
-    Electric-guitar, per-string MIDI (Fishman Triple Play) → clean_electric
+    Electric-guitar, per-string MIDI (Fishman Triple Play) -> clean_electric
     tier. CC-BY-4.0; not redistributed here.
     """
     dest = target or (_data_root() / "guitar-techs")
@@ -304,7 +304,7 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
     dest.mkdir(parents=True, exist_ok=True)
 
     api = f"https://zenodo.org/api/records/{record}"
-    print(f"querying Zenodo record {record} …")
+    print(f"querying Zenodo record {record} ...")
     try:
         with urllib.request.urlopen(api) as resp:  # noqa: S310 (trusted Zenodo API)
             meta = json.load(resp)
@@ -325,19 +325,19 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
             print(f"  skip {key}: no download link", file=sys.stderr)
             continue
         out = dest / key
-        print(f"  downloading {key} …")
+        print(f"  downloading {key} ...")
         try:
             urllib.request.urlretrieve(link, out)  # noqa: S310 (trusted Zenodo file)
         except OSError as exc:
             print(f"error: download of {key} failed: {exc}", file=sys.stderr)
             return 1
         if zipfile.is_zipfile(out):
-            print(f"  extracting {key} …")
+            print(f"  extracting {key} ...")
             with zipfile.ZipFile(out) as zf:
                 zf.extractall(dest)
             out.unlink(missing_ok=True)
 
-    print(f"\nGuitar-TECHS acquired → {dest} (CC-BY-4.0; not redistributed).")
+    print(f"\nGuitar-TECHS acquired -> {dest} (CC-BY-4.0; not redistributed).")
     print("  Top-level entries (use these to verify the scanner's layout):")
     for child in sorted(dest.iterdir())[:25]:
         print(f"    {child.name}{'/' if child.is_dir() else ''}")
@@ -345,7 +345,7 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
         "  Next: build the composite manifest with `--guitar-techs "
         f"{dest}` (see docs/plans/2026-06-02-tab-f1-phase-0-local-run.md).\n"
         "  If the manifest shows 0 GuitarTECHS clips, the on-disk layout "
-        "differs from the assumed one — adjust globs in "
+        "differs from the assumed one - adjust globs in "
         "manifest_builder.scan_guitar_techs."
     )
     return 0
@@ -364,7 +364,7 @@ def _acquire_egdb(*, url: str | None, sha256: str | None) -> int:
     EGDB ships as a *public* Google Drive folder (link above); access is open.
     The gate is the *license*, not the download: the EGDB repo has no LICENSE
     file, so portfolio use needs the author's written grant (on record
-    2026-06-01 — see LICENSES.md). Eval-only: not redistributed here, not a
+    2026-06-01 - see LICENSES.md). Eval-only: not redistributed here, not a
     shipped-weight substrate.
     """
     url = url or EGDB_DRIVE_FOLDER
@@ -394,7 +394,7 @@ def _download_drive_folder(url: str, target: Path) -> int:
             file=sys.stderr,
         )
         return 2
-    print(f"downloading EGDB Drive folder → {target}")
+    print(f"downloading EGDB Drive folder -> {target}")
     gdown.download_folder(url=url, output=str(target), quiet=False, use_cookies=False)
     _egdb_done_message()
     return 0
@@ -402,7 +402,7 @@ def _download_drive_folder(url: str, target: Path) -> int:
 
 def _download_archive(url: str, target: Path, sha256: str | None) -> int:
     archive = target.parent / "egdb.download"
-    print(f"downloading EGDB archive → {archive}")
+    print(f"downloading EGDB archive -> {archive}")
     try:
         urllib.request.urlretrieve(url, archive)  # noqa: S310 (trusted, user-supplied)
     except OSError as exc:
@@ -420,7 +420,7 @@ def _download_archive(url: str, target: Path, sha256: str | None) -> int:
             return 1
         print(f"sha256 OK: {digest}")
 
-    print(f"extracting → {target}")
+    print(f"extracting -> {target}")
     if zipfile.is_zipfile(archive):
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(target)
