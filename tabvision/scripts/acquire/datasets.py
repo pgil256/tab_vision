@@ -305,10 +305,6 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
     tier. CC-BY-4.0; not redistributed here.
     """
     dest = target or (_data_root() / "guitar-techs")
-    if dest.exists() and any(dest.iterdir()):
-        print(f"already present: {dest}")
-        print("(delete the directory to force re-download)")
-        return 0
     dest.mkdir(parents=True, exist_ok=True)
 
     api = f"https://zenodo.org/api/records/{record}"
@@ -327,6 +323,12 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
 
     for entry in files:
         key = entry.get("key", "file")
+        # Resume: skip a file whose extracted dir already exists, so a re-run
+        # completes only the missing/failed parts (no full re-download).
+        marker = dest / Path(key).stem  # e.g. P1_chords.zip -> P1_chords/
+        if marker.is_dir() and any(marker.iterdir()):
+            print(f"  skip {key}: already extracted")
+            continue
         links = entry.get("links", {})
         link = links.get("self") or links.get("download")
         if not link:
@@ -337,12 +339,20 @@ def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
         try:
             urllib.request.urlretrieve(link, out)  # noqa: S310 (trusted Zenodo file)
         except OSError as exc:
-            print(f"error: download of {key} failed: {exc}", file=sys.stderr)
-            return 1
+            # One blip shouldn't abort a multi-GB download; drop the partial and
+            # keep going. Re-run the same command to retry just the missing files.
+            print(f"  WARNING: {key} failed ({exc}); continuing", file=sys.stderr)
+            out.unlink(missing_ok=True)
+            continue
         if zipfile.is_zipfile(out):
             print(f"  extracting {key} ...")
-            with zipfile.ZipFile(out) as zf:
-                zf.extractall(dest)
+            try:
+                with zipfile.ZipFile(out) as zf:
+                    zf.extractall(dest)
+            except zipfile.BadZipFile:
+                print(f"  WARNING: {key} is a corrupt/partial zip; removing", file=sys.stderr)
+                out.unlink(missing_ok=True)
+                continue
             out.unlink(missing_ok=True)
 
     print(f"\nGuitar-TECHS acquired -> {dest} (CC-BY-4.0; not redistributed).")
