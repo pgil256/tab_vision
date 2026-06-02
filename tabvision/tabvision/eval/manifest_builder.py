@@ -118,48 +118,50 @@ _GT_SKIP_KEYWORDS: tuple[str, ...] = (
     "bend", "vibrato", "pinch", "harmonic", "palm", "slide", "hammer", "pull", "trill",
 )
 _GT_AUDIO_EXTS: tuple[str, ...] = (".wav", ".flac", ".aiff", ".aif")
-# When several renders share a MIDI stem, prefer clean direct-input audio.
-_GT_CLEAN_HINTS: tuple[str, ...] = ("di", "direct", "clean", "exo", "mic")
-# Matches a whole path *component* naming a performer: 'player01', 'player_1',
-# 'guitarist3', 'p02'. Whole-token (fullmatch) to avoid false hits on substrings
-# like 'tmp12' or 'clip01'. If a release encodes the performer inside a longer
-# filename, detection falls through to split='train' — safe: the clip is still
-# included, just not held out (fine for the #2 prior-generalization check, where
+# Audio-capture preference for the clean_electric tier: direct input (clean DI)
+# before mic'd amp. Ranked by first hit in the path (lower index = preferred).
+_GT_AUDIO_PREF: tuple[str, ...] = (
+    "directinput", "direct", "di", "clean", "micamp", "mic",
+)
+# Performer id from a path component: 'P1_chords', 'player01', 'guitarist3', 'p02'.
+# Anchored at the component start with a trailing separator/end so substrings like
+# 'tmp12' don't false-match. Unmatched -> split='train' (safe; fine for #2 where
 # all of Guitar-TECHS is held out w.r.t. the GuitarSet-trained prior anyway).
-_GT_PLAYER_RE = re.compile(r"(?:player|guitarist|p)[_\-]?(\d{1,2})", re.IGNORECASE)
+_GT_PLAYER_RE = re.compile(r"^(?:player|guitarist|p)[_\-]?(\d{1,2})(?:[_\-]|$)", re.IGNORECASE)
 
 
 def _guitar_techs_player(path_parts: tuple[str, ...]) -> str | None:
-    """Best-effort performer id from a path *component* (e.g. 'player01' → '01')."""
+    """Best-effort performer id from a path *component* (e.g. 'P1_chords' -> '01')."""
     for part in path_parts:
-        match = _GT_PLAYER_RE.fullmatch(part)
+        match = _GT_PLAYER_RE.match(part)
         if match:
             return match.group(1).zfill(2)
     return None
 
 
-def _guitar_techs_pick_audio(
-    stem: str, parent: Path, audio_index: list[Path]
-) -> Path | None:
-    """Pick a same-stem audio file for a MIDI clip from a prebuilt index.
+def _gt_content(stem: str) -> str:
+    """Content id shared by a clip's MIDI and audio files.
 
-    Prefers an exact stem match, then ``<midi_stem><sep><tone>`` prefixes
-    (audio renders commonly append a tone suffix). Among matches, prefers the
-    same directory and DI/clean-sounding names.
+    Guitar-TECHS names files ``<capture>_<content>`` -- MIDI ``midi_Drop3_7``
+    and audio ``directinput_Drop3_7`` share ``Drop3_7``. Returns everything
+    after the first underscore (or the whole stem if there is none).
     """
-    exact = [p for p in audio_index if p.stem == stem]
-    candidates = exact or [
-        p for p in audio_index if p.stem.startswith(stem) and p.stem != stem
-    ]
-    if not candidates:
-        return None
+    return stem.split("_", 1)[1] if "_" in stem else stem
 
-    def _rank(path: Path) -> tuple[int, int, str]:
-        same_dir = 0 if path.parent == parent else 1
-        clean = -sum(hint in str(path).lower() for hint in _GT_CLEAN_HINTS)
-        return (same_dir, clean, str(path))
 
-    return sorted(candidates, key=_rank)[0]
+def _gt_group_dir(path: Path, root: Path) -> Path:
+    """The performer/category group dir (e.g. ``P1_chords``) -- first part under root."""
+    rel = path.relative_to(root)
+    return root / rel.parts[0] if rel.parts else path.parent
+
+
+def _gt_audio_rank(path: Path) -> int:
+    """Lower = preferred capture (direct input before mic'd amp)."""
+    low = str(path).lower()
+    for i, hint in enumerate(_GT_AUDIO_PREF):
+        if hint in low:
+            return i
+    return len(_GT_AUDIO_PREF)
 
 
 def scan_guitar_techs(
@@ -169,36 +171,45 @@ def scan_guitar_techs(
 ) -> list[ClipEntry]:
     """Scan a Guitar-TECHS tree into ``clean_electric`` clip entries.
 
-    **Layout is inferred** from arXiv:2501.03720 + the project page (all
-    electric; per-string 6-track MIDI via Fishman Triple Play; categories
-    techniques / excerpts / chords / scales; 3 performers). Heuristics:
+    Layout (verified 2026-06-02 against Zenodo record 14963133)::
 
-    - one 6-track ``.mid`` per clip, paired with a same-stem audio file
-      (DI/clean preferred);
-    - tier is always ``clean_electric`` (SPEC §1.4 has no electric
-      single-line/strummed split);
-    - stretch-goal technique clips (bends/vibrato/harmonics/…) are skipped;
-    - split by performer (player ``03`` → validation by default).
+        <root>/<Pn_category>/midi/midi_<content>.mid
+        <root>/<Pn_category>/audio/directinput/directinput_<content>.wav
+        <root>/<Pn_category>/audio/micamp/micamp_<content>.wav
 
-    Returns ``[]`` gracefully when no MIDI is found — i.e. the real layout
-    differs from the assumption. **Verify against the first real download
-    (the acquirer prints the tree) and adjust the globs/keywords above.**
+    All electric -> the single ``clean_electric`` tier (SPEC 1.4 has no electric
+    single-line/strummed split). MIDI<->audio are paired by the shared
+    ``<content>`` token (the part after the first underscore), scoped to the same
+    Pn_category group -- NOT by a common prefix. Direct-input audio is preferred
+    over mic'd amp. Stretch-goal technique clips are skipped; ``__MACOSX`` zip
+    cruft is ignored. Split by performer (``P3`` -> validation by default).
+    Returns ``[]`` gracefully if no pairable MIDI is found.
     """
     if not root.is_dir():
         return []
 
-    audio_index = [path for ext in _GT_AUDIO_EXTS for path in root.rglob(f"*{ext}")]
+    audio_by_group: dict[Path, list[Path]] = {}
+    for ext in _GT_AUDIO_EXTS:
+        for path in root.rglob(f"*{ext}"):
+            if "__macosx" in str(path).lower():
+                continue
+            audio_by_group.setdefault(_gt_group_dir(path, root), []).append(path)
+
     entries: list[ClipEntry] = []
     seen: set[str] = set()
-    midis = sorted(root.rglob("*.mid")) + sorted(root.rglob("*.midi"))
-    for midi_path in midis:
-        if any(kw in str(midi_path).lower() for kw in _GT_SKIP_KEYWORDS):
+    for midi_path in sorted(root.rglob("*.mid")) + sorted(root.rglob("*.midi")):
+        path_low = str(midi_path).lower()
+        if "__macosx" in path_low or any(kw in path_low for kw in _GT_SKIP_KEYWORDS):
             continue
-        audio_path = _guitar_techs_pick_audio(
-            midi_path.stem, midi_path.parent, audio_index
-        )
-        if audio_path is None:
+        content = _gt_content(midi_path.stem)
+        candidates = [
+            p
+            for p in audio_by_group.get(_gt_group_dir(midi_path, root), [])
+            if _gt_content(p.stem) == content
+        ]
+        if not candidates:
             continue
+        audio_path = sorted(candidates, key=lambda p: (_gt_audio_rank(p), str(p)))[0]
         rel = midi_path.relative_to(root)
         clip_id = f"guitar-techs/{rel.with_suffix('').as_posix()}"
         if clip_id in seen:
