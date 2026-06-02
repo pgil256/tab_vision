@@ -12,11 +12,15 @@ Usage::
     # Set up credentials once:
     cp .env.example .env  # then edit .env to fill in ROBOFLOW_API_KEY
 
+    # Download GuitarSet (mirdata) + Guitar-TECHS (Zenodo) for the #2 eval.
+    python -m scripts.acquire.datasets guitarset
+    python -m scripts.acquire.datasets guitar-techs
+
     # Download the YOLO-OBB guitar detector training set (Phase 3).
     python -m scripts.acquire.datasets roboflow-guitar
 
-    # Download EGDB (author-granted access URL; Phase 0 distorted-electric eval).
-    python -m scripts.acquire.datasets egdb --url '<grant-url>'
+    # Download EGDB (public Drive folder; Phase 0 distorted-electric eval).
+    python -m scripts.acquire.datasets egdb
 
     # List supported datasets.
     python -m scripts.acquire.datasets list
@@ -26,12 +30,15 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import sys
 import tarfile
 import urllib.request
 import zipfile
 from pathlib import Path
+
+GUITAR_TECHS_ZENODO_RECORD = "14963133"  # https://zenodo.org/records/14963133 (CC-BY-4.0)
 
 DEFAULT_DATA_ROOT = Path.home() / ".tabvision" / "data"
 
@@ -77,6 +84,36 @@ def main(argv: list[str] | None = None) -> int:
         "before extraction. Falls back to $EGDB_SHA256.",
     )
 
+    gs = sub.add_parser(
+        "guitarset",
+        help="GuitarSet via mirdata (clean-acoustic eval tiers + guitarset-v1 "
+        "prior source). CC-BY-4.0.",
+    )
+    gs.add_argument(
+        "--data-home",
+        type=Path,
+        default=None,
+        help="GuitarSet root; defaults to $TABVISION_DATA_ROOT/guitarset "
+        "(the layout the composite-eval GuitarSet scanner expects).",
+    )
+
+    gt = sub.add_parser(
+        "guitar-techs",
+        help="Guitar-TECHS from Zenodo (clean_electric eval tier; cross-dataset "
+        "prior-generalization target). CC-BY-4.0.",
+    )
+    gt.add_argument(
+        "--data-home",
+        type=Path,
+        default=None,
+        help="target dir; defaults to $TABVISION_DATA_ROOT/guitar-techs.",
+    )
+    gt.add_argument(
+        "--record",
+        default=GUITAR_TECHS_ZENODO_RECORD,
+        help=f"Zenodo record id (default {GUITAR_TECHS_ZENODO_RECORD}).",
+    )
+
     rb = sub.add_parser(
         "roboflow-guitar",
         help="Roboflow b101/guitar-3 (YOLO-OBB training, Phase 3)",
@@ -105,9 +142,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dataset == "list":
         print("Supported datasets:")
-        print("  roboflow-guitar — Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
+        print("  guitarset      — GuitarSet via mirdata (clean-acoustic tiers + prior)")
+        print("  guitar-techs   — Guitar-TECHS via Zenodo (clean_electric tier)")
         print("  egdb           — EGDB electric guitar (Phase 0 distorted-electric eval)")
+        print("  roboflow-guitar — Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
         return 0
+
+    if args.dataset == "guitarset":
+        return _acquire_guitarset(data_home=args.data_home)
+
+    if args.dataset == "guitar-techs":
+        return _acquire_guitar_techs(record=args.record, target=args.data_home)
 
     if args.dataset == "egdb":
         return _acquire_egdb(
@@ -201,6 +246,108 @@ def _acquire_roboflow_guitar(
     )
     print(f"\nattribution required:\n  {citation}\n  license: {license_info}")
     print("Add the above to docs/HISTORY.md and to the repo README before merging Phase 3.")
+    return 0
+
+
+def _acquire_guitarset(*, data_home: Path | None) -> int:
+    """Download GuitarSet via mirdata into the layout the eval expects.
+
+    mirdata lays GuitarSet out as ``<data_home>/annotation/*.jams`` and
+    ``<data_home>/audio_mono-mic/*_mic.wav`` — exactly what
+    ``tabvision.eval.manifest_builder.scan_guitarset`` and the checked-in
+    ``data/eval/composite.toml`` reference. Default data_home =
+    ``$TABVISION_DATA_ROOT/guitarset``. CC-BY-4.0; not redistributed here.
+    """
+    home = data_home or (_data_root() / "guitarset")
+    annotation_dir = home / "annotation"
+    if annotation_dir.is_dir() and any(annotation_dir.glob("*.jams")):
+        print(f"already present: {home}")
+        print("(delete the directory to force re-download)")
+        return 0
+
+    try:
+        import mirdata
+    except ImportError:
+        print(
+            "error: mirdata not installed. Install with:\n"
+            "  pip install mirdata        # or: pip install -e '.[train]'\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    home.mkdir(parents=True, exist_ok=True)
+    print(f"downloading GuitarSet via mirdata → {home}")
+    dataset = mirdata.initialize("guitarset", data_home=str(home))
+    dataset.download()
+    print(
+        "\nGuitarSet acquired (CC-BY-4.0; not redistributed).\n"
+        f"  annotation/ + audio_mono-mic/ under {home}\n"
+        "  Attribution: Xi et al., 'GuitarSet' (ISMIR 2018)."
+    )
+    return 0
+
+
+def _acquire_guitar_techs(*, record: str, target: Path | None) -> int:
+    """Download Guitar-TECHS from Zenodo via the public API.
+
+    Enumerates the record's files through the Zenodo REST API (so no archive
+    filenames are hard-coded), downloads each into ``<target>``, and extracts
+    any zips. Default target = ``$TABVISION_DATA_ROOT/guitar-techs``.
+    Electric-guitar, per-string MIDI (Fishman Triple Play) → clean_electric
+    tier. CC-BY-4.0; not redistributed here.
+    """
+    dest = target or (_data_root() / "guitar-techs")
+    if dest.exists() and any(dest.iterdir()):
+        print(f"already present: {dest}")
+        print("(delete the directory to force re-download)")
+        return 0
+    dest.mkdir(parents=True, exist_ok=True)
+
+    api = f"https://zenodo.org/api/records/{record}"
+    print(f"querying Zenodo record {record} …")
+    try:
+        with urllib.request.urlopen(api) as resp:  # noqa: S310 (trusted Zenodo API)
+            meta = json.load(resp)
+    except OSError as exc:
+        print(f"error: Zenodo API request failed: {exc}", file=sys.stderr)
+        return 1
+
+    files = meta.get("files", [])
+    if not files:
+        print("error: no files listed on the Zenodo record.", file=sys.stderr)
+        return 1
+
+    for entry in files:
+        key = entry.get("key", "file")
+        links = entry.get("links", {})
+        link = links.get("self") or links.get("download")
+        if not link:
+            print(f"  skip {key}: no download link", file=sys.stderr)
+            continue
+        out = dest / key
+        print(f"  downloading {key} …")
+        try:
+            urllib.request.urlretrieve(link, out)  # noqa: S310 (trusted Zenodo file)
+        except OSError as exc:
+            print(f"error: download of {key} failed: {exc}", file=sys.stderr)
+            return 1
+        if zipfile.is_zipfile(out):
+            print(f"  extracting {key} …")
+            with zipfile.ZipFile(out) as zf:
+                zf.extractall(dest)
+            out.unlink(missing_ok=True)
+
+    print(f"\nGuitar-TECHS acquired → {dest} (CC-BY-4.0; not redistributed).")
+    print("  Top-level entries (use these to verify the scanner's layout):")
+    for child in sorted(dest.iterdir())[:25]:
+        print(f"    {child.name}{'/' if child.is_dir() else ''}")
+    print(
+        "  Next: build the composite manifest with `--guitar-techs "
+        f"{dest}` (see docs/plans/2026-06-02-tab-f1-phase-0-local-run.md).\n"
+        "  If the manifest shows 0 GuitarTECHS clips, the on-disk layout "
+        "differs from the assumed one — adjust globs in "
+        "manifest_builder.scan_guitar_techs."
+    )
     return 0
 
 

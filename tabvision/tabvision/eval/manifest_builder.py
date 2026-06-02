@@ -20,6 +20,7 @@ EGDB is intentionally not yet wired up (license-pending per the
 from __future__ import annotations
 
 import argparse
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -108,17 +109,115 @@ def scan_guitarset(
     return entries
 
 
-def scan_guitar_techs(root: Path) -> list[ClipEntry]:
-    """Scan a Guitar-TECHS directory tree.
+GUITAR_TECHS_VALIDATION_PLAYER = "03"
 
-    Returns ``[]`` until the dataset is acquired locally and the
-    on-disk layout (per arXiv:2501.03720) is verified. The strategy
-    doc §3.1 marks Guitar-TECHS as an acquisition item; once the
-    bytes are on disk we can populate this scanner in a follow-up
-    commit.
+# Stretch-goal articulations (SPEC §1.4 → v1.1). Skipped so the clean_electric
+# tier scores clean transcription, not expression. Matched case-insensitively
+# anywhere in a clip's path.
+_GT_SKIP_KEYWORDS: tuple[str, ...] = (
+    "bend", "vibrato", "pinch", "harmonic", "palm", "slide", "hammer", "pull", "trill",
+)
+_GT_AUDIO_EXTS: tuple[str, ...] = (".wav", ".flac", ".aiff", ".aif")
+# When several renders share a MIDI stem, prefer clean direct-input audio.
+_GT_CLEAN_HINTS: tuple[str, ...] = ("di", "direct", "clean", "exo", "mic")
+# Matches a whole path *component* naming a performer: 'player01', 'player_1',
+# 'guitarist3', 'p02'. Whole-token (fullmatch) to avoid false hits on substrings
+# like 'tmp12' or 'clip01'. If a release encodes the performer inside a longer
+# filename, detection falls through to split='train' — safe: the clip is still
+# included, just not held out (fine for the #2 prior-generalization check, where
+# all of Guitar-TECHS is held out w.r.t. the GuitarSet-trained prior anyway).
+_GT_PLAYER_RE = re.compile(r"(?:player|guitarist|p)[_\-]?(\d{1,2})", re.IGNORECASE)
+
+
+def _guitar_techs_player(path_parts: tuple[str, ...]) -> str | None:
+    """Best-effort performer id from a path *component* (e.g. 'player01' → '01')."""
+    for part in path_parts:
+        match = _GT_PLAYER_RE.fullmatch(part)
+        if match:
+            return match.group(1).zfill(2)
+    return None
+
+
+def _guitar_techs_pick_audio(
+    stem: str, parent: Path, audio_index: list[Path]
+) -> Path | None:
+    """Pick a same-stem audio file for a MIDI clip from a prebuilt index.
+
+    Prefers an exact stem match, then ``<midi_stem><sep><tone>`` prefixes
+    (audio renders commonly append a tone suffix). Among matches, prefers the
+    same directory and DI/clean-sounding names.
     """
-    del root
-    return []
+    exact = [p for p in audio_index if p.stem == stem]
+    candidates = exact or [
+        p for p in audio_index if p.stem.startswith(stem) and p.stem != stem
+    ]
+    if not candidates:
+        return None
+
+    def _rank(path: Path) -> tuple[int, int, str]:
+        same_dir = 0 if path.parent == parent else 1
+        clean = -sum(hint in str(path).lower() for hint in _GT_CLEAN_HINTS)
+        return (same_dir, clean, str(path))
+
+    return sorted(candidates, key=_rank)[0]
+
+
+def scan_guitar_techs(
+    root: Path,
+    *,
+    validation_player: str = GUITAR_TECHS_VALIDATION_PLAYER,
+) -> list[ClipEntry]:
+    """Scan a Guitar-TECHS tree into ``clean_electric`` clip entries.
+
+    **Layout is inferred** from arXiv:2501.03720 + the project page (all
+    electric; per-string 6-track MIDI via Fishman Triple Play; categories
+    techniques / excerpts / chords / scales; 3 performers). Heuristics:
+
+    - one 6-track ``.mid`` per clip, paired with a same-stem audio file
+      (DI/clean preferred);
+    - tier is always ``clean_electric`` (SPEC §1.4 has no electric
+      single-line/strummed split);
+    - stretch-goal technique clips (bends/vibrato/harmonics/…) are skipped;
+    - split by performer (player ``03`` → validation by default).
+
+    Returns ``[]`` gracefully when no MIDI is found — i.e. the real layout
+    differs from the assumption. **Verify against the first real download
+    (the acquirer prints the tree) and adjust the globs/keywords above.**
+    """
+    if not root.is_dir():
+        return []
+
+    audio_index = [path for ext in _GT_AUDIO_EXTS for path in root.rglob(f"*{ext}")]
+    entries: list[ClipEntry] = []
+    seen: set[str] = set()
+    midis = sorted(root.rglob("*.mid")) + sorted(root.rglob("*.midi"))
+    for midi_path in midis:
+        if any(kw in str(midi_path).lower() for kw in _GT_SKIP_KEYWORDS):
+            continue
+        audio_path = _guitar_techs_pick_audio(
+            midi_path.stem, midi_path.parent, audio_index
+        )
+        if audio_path is None:
+            continue
+        rel = midi_path.relative_to(root)
+        clip_id = f"guitar-techs/{rel.with_suffix('').as_posix()}"
+        if clip_id in seen:
+            continue
+        seen.add(clip_id)
+        player = _guitar_techs_player(midi_path.parts)
+        split = "validation" if player == validation_player else "train"
+        entries.append(
+            ClipEntry(
+                id=clip_id,
+                tier="clean_electric",
+                source="GuitarTECHS",
+                split=split,
+                media_path=str(audio_path.resolve()),
+                annotation_path=str(midi_path.resolve()),
+                annotation_format="guitar_techs_midi",
+            )
+        )
+    return entries
 
 
 def apply_limits(
