@@ -121,45 +121,51 @@ The targets above are aggregate over the full eval set. Per-difficulty-tier expe
 
 If the aggregate hits 0.88 but distorted electric scores below 0.75, treat that as a partial pass and prioritize Phase 7 distortion-augmented fine-tuning before final acceptance.
 
-### 1.4.1 v1 acceptance — committed to the §1.4 targets (2026-06-01)
+### 1.4.1 v1 acceptance — acoustic scope; electric deferred to v2 (2026-06-02)
 
-This section **supersedes and reverses** the 2026-05-13 amendment, which
-had relaxed v1 acceptance to per-tier 0.85 / 0.90 / 0.87 / 0.80 and
-retired the aggregate. Per user direction (2026-06-01), v1 commits to the
-**highest** bar: the original §1.4 targets stand, unchanged, as the single
-acceptance gate.
+This section **supersedes** the 2026-06-01 "highest targets including
+electric" amendment. Per user direction (2026-06-02), **v1 is scoped to
+acoustic guitar.** This is an **evidence-based** scope decision, not a
+relaxation: electric was measured (see below) and found to be blocked on a
+model that does not yet exist.
 
-| Tier | v1 acceptance (committed) |
+**v1 acceptance (the highest acoustic targets, unchanged):**
+
+| Tier | v1 acceptance |
 |---|---:|
 | Clean acoustic single-line | ≥ 0.94 |
 | Clean acoustic strummed | ≥ 0.86 |
-| Clean electric | ≥ 0.90 |
-| Distorted electric | ≥ 0.82 |
 
-- **Aggregate Tab F1 ≥ 0.88 is retained** as an acceptance metric — it is
-  *not* retired. Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90, chord-instance accuracy
-  ≥ 0.85, and latency ≤ 5 min are unchanged.
-- The relaxed 0.85 / 0.90 / 0.87 / 0.80 table is **withdrawn**. It survives
-  only as a historical waypoint in the design plan, not as a gate.
+Plus aggregate Tab F1 ≥ 0.88, Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90,
+chord-instance accuracy ≥ 0.85, latency ≤ 5 min — all **over the acoustic
+eval set** (GuitarSet held-out player 05). Acceptance test:
+`lower_95_CI ≥ target` over clips (95 % bootstrap CIs). Personal clips
+remain banned as a gate.
 
-**What carries over from the 2026-05-13 plan (methodology, not targets):**
-acceptance evidence is a **public-corpus composite** (GuitarSet held-out +
-Guitar-TECHS + EGDB + qualifying synthetic dev material), reported **per
-tier** with **95 % bootstrap CIs** over clips, and the acceptance test is
-`lower_95_CI ≥ target` (not `mean ≥ target`). Personal clips remain banned
-as an acceptance gate. See the design plan §5 for composite policy
-(per-tier minimums, splits, leakage rules).
+**Electric tiers (clean electric 0.90, distorted electric 0.82) — deferred
+to v2.** Evidence (`docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md`):
+the highres backbone is acoustic-trained (GAPS); on electric (Guitar-TECHS)
+pitch F1 collapses 0.93 → **0.73** and clean-electric Tab F1 is **0.12**.
+The off-the-shelf `guitar_fl` checkpoint does not help (≈ same). There is no
+highres **training** code in-repo, so closing electric requires a fine-tune
+that is a bounded v2 project — not a v1 gate.
 
-**Gap to close (honest framing).** The 2026-05-08 GuitarSet baseline is
-aggregate Tab F1 0.61 (comp 0.67 / solo 0.51) against the 0.88 aggregate;
-the clean-acoustic single-line tier must rise from ~0.51 to **0.94**. This
-is by far the hardest target in the project, and the highest-bar commitment
-is accepted with that difficulty in full view — it is a stretch goal
-adopted as the gate, not a forecast.
+**Electric is on the roadmap, not abandoned.** v1 ships the **tone toggle**:
+`SessionConfig.instrument == "electric"` routes to a separate
+`highres-electric` backend (a v2 checkpoint), so the acoustic model is never
+disturbed and the electric model drops in non-disruptively when trained. See
+`docs/plans/2026-06-02-electric-backbone-finetune-design.md` (v2 fine-tune
+plan + separate-checkpoint rationale).
 
-**§1.4 is the single source of truth for acceptance.** Where any other
-document (CLAUDE.md, AGENTS.md, design plans, DECISIONS.md) disagrees,
-§1.4 governs.
+**Gap to close for v1 (honest framing).** Single-line acoustic must rise
+from ~0.51 to **0.94** and strummed from ~0.67 to **0.86** — tractable,
+**in-domain** work (fusion/prior, pitch-ceiling post-processing; no model
+training to ship). These are stretch goals adopted as the gate, not
+forecasts.
+
+**§1.4 is the single source of truth for acceptance** (read with this
+acoustic-scope amendment). Where any other document (CLAUDE.md, AGENTS.md,
+design plans, DECISIONS.md) disagrees, §1.4 + §1.4.1 govern.
 
 ### 1.5 Hard constraints
 

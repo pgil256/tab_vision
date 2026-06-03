@@ -579,3 +579,33 @@ Guitar-TECHS/EGDB) before any further fusion/prior work on the electric tiers.
 The prior remains justified for the acoustic tiers (in-domain +22 pp). Caveats:
 GT subset is chord-dominant (P1+P2; no P3/scales/EGDB), single electric corpus,
 long-form clips.
+
+## 2026-06-02 — Scope v1 to acoustic; electric → v2 behind a tone toggle
+
+**Phase:** Accuracy work / v1 scope (SPEC §1.4.1 amendment)
+**Decision tree:** "is electric reachable for v1?" — after measuring it
+**Branch taken:** Scope **v1 to acoustic**. Defer the electric tiers (clean
+0.90, distorted 0.82) to **v2**, delivered as a **separate fine-tuned
+`guitar-electric` checkpoint routed by the declared instrument** (tone
+toggle), so the acoustic model is never disturbed.
+
+**Evidence:**
+- `docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md` — clean-electric Tab
+  F1 0.12, pitch F1 0.73 (vs acoustic 0.93); `guitar_fl` swap doesn't help.
+- No highres **training** code in-repo (inference-only packages;
+  `audio_finetune.py` is a scaffold) → electric is a bounded v2 project, not
+  a v1 gate. v2 plan: `docs/plans/2026-06-02-electric-backbone-finetune-design.md`.
+- Toggle landed: `tabvision/audio/backend.py` registers `highres-electric`;
+  `tabvision/pipeline.audio_backend_for_session` routes electric →
+  `highres-electric` (used when `run_pipeline(audio_backend_name="auto")`);
+  the electric backend fails fast until `TABVISION_HIGHRES_ELECTRIC_CKPT` is
+  set. Tests: `tabvision/tests/unit/test_audio_routing.py`.
+
+**Reasoning:** Committing v1 to where the system can excel (acoustic, already
+near-spec on onset/pitch, +22 pp prior) ships an honest, reproducible
+artifact; electric stays on the roadmap without blocking v1. Separate
+checkpoints + routing (not one shared model) avoid catastrophic forgetting of
+the acoustic 0.93 — the architecture already routes by checkpoint
+(`highres` / `highres-fl`). This supersedes the 2026-06-01 "highest targets
+including electric" amendment with an evidence-based scope; SPEC §1.4.1
+updated to match.

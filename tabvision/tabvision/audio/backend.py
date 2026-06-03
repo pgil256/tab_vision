@@ -58,9 +58,19 @@ def _highres_fl_factory(**kwargs):  # type: ignore[no-untyped-def]
     return HighResBackend(**kwargs)
 
 
+def _highres_electric_factory(**kwargs):  # type: ignore[no-untyped-def]
+    # Separately fine-tuned electric checkpoint (v2). The acoustic checkpoints are
+    # never disturbed; routing by the session's declared instrument selects this.
+    from tabvision.audio.highres import HighResBackend
+
+    kwargs.setdefault("checkpoint", "guitar_electric")
+    return HighResBackend(**kwargs)
+
+
 register("basicpitch", _basicpitch_factory)
 register("highres", _highres_factory)
 register("highres-fl", _highres_fl_factory)
+register("highres-electric", _highres_electric_factory)
 
 
 __all__ = ["AudioBackend", "register", "make", "available_backends"]

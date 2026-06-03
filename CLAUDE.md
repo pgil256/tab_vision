@@ -119,12 +119,15 @@ pytest tests/    # 17 v0 tests
 
 ## Acceptance targets (SPEC §1.4)
 
-**Committed bar (2026-06-01):** v1 targets the **highest** numbers — the
-original SPEC §1.4 per-tier table (0.94 / 0.86 / 0.90 / 0.82) **and**
-aggregate Tab F1 ≥ 0.88. The 2026-05-13 relaxation (per-tier 0.85–0.90,
-aggregate retired) is **withdrawn** (see SPEC §1.4.1). **SPEC §1.4 is the
-single source of truth**; do not re-relax targets without a SPEC edit + user
-approval.
+**v1 scope (2026-06-02): acoustic.** v1 targets the highest *acoustic* tiers
+(single-line 0.94, strummed 0.86) + aggregate Tab F1 ≥ 0.88 and onset/pitch/
+chord/latency — over GuitarSet. **Electric tiers are deferred to v2**
+(evidence-based: clean-electric measured **0.12** — the backbone is
+acoustic-trained and there's no in-repo training code; see
+`docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md`). v1 ships the **tone
+toggle**: electric routes to a separate `highres-electric` checkpoint (a v2
+deliverable), acoustic untouched. **SPEC §1.4 + §1.4.1 are the single source
+of truth**; don't change scope/targets without a SPEC edit + user approval.
 
 | Metric | Target | Definition |
 |---|---|---|
