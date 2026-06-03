@@ -87,6 +87,10 @@ def run_pipeline(
     logger.info("demuxing %s", video_path)
     demuxed = demux(video_path)
 
+    # Tone toggle: "auto" routes to the backend for the session's instrument
+    # (electric → highres-electric, else acoustic highres). Explicit names pass through.
+    if audio_backend is None and audio_backend_name == "auto":
+        audio_backend_name = audio_backend_for_session(session)
     audio = audio_backend if audio_backend is not None else _make_audio_backend(audio_backend_name)
     logger.info("transcribing audio with %s", audio.name)
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
@@ -225,6 +229,20 @@ def _detect_neck_anchor(
 # Backend factories — deferred imports so audio-only callers don't pay the
 # vision-extras cost.
 # ---------------------------------------------------------------------------
+
+
+def audio_backend_for_session(session: SessionConfig) -> str:
+    """Audio backend for a session's declared instrument — the user-facing toggle.
+
+    Electric → the separately fine-tuned electric checkpoint (``highres-electric``);
+    acoustic / classical → the acoustic ``highres`` default. Separate checkpoints,
+    so the acoustic model is never disturbed (see
+    ``docs/plans/2026-06-02-electric-backbone-finetune-design.md``). Used when
+    ``run_pipeline`` is called with ``audio_backend_name="auto"``.
+    """
+    if session.instrument == "electric":
+        return "highres-electric"
+    return "highres"
 
 
 def _make_audio_backend(name: str) -> AudioBackend:

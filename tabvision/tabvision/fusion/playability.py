@@ -16,6 +16,7 @@ hand-anchor/position-shift logic.
 from __future__ import annotations
 
 import math
+import os
 from collections.abc import Sequence
 
 from tabvision.fusion.candidates import Candidate
@@ -46,10 +47,13 @@ SAME_STRING_BONUS = 0.5
 """Cost subtracted when ``prev.string_idx == curr.string_idx``. Direct
 port of legacy ``STRING_CONTINUITY_BONUS``."""
 
-POSITION_SHIFT_COST = 0.05
+POSITION_SHIFT_COST = float(os.environ.get("TABVISION_POSITION_SHIFT_COST", "2.5"))
 """Cost per fret of ``|curr.fret - prev.fret|`` (after normalisation by
-``SPAN_NORM``). Mild — encourages staying close on the neck without
-forbidding jumps."""
+``SPAN_NORM``). Hand-position-continuity weight. **Default 2.5** (raised from
+0.05 on 2026-06-02): on GuitarSet validation it lifts single-line Tab F1
+0.508 → 0.523 and strummed 0.671 → 0.676 with no regression — the old 0.05
+left continuity effectively off. Env-overridable (``TABVISION_POSITION_SHIFT_COST``)
+for sweeps. See docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md."""
 
 SPAN_NORM = 12
 """Normalisation for ``POSITION_SHIFT_COST`` — one octave."""

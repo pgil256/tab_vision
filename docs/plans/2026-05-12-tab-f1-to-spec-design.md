@@ -1,8 +1,20 @@
 # Tab F1 v1 acceptance — Strategy & Decision Record
 
-**Date:** 2026-05-12 (revised 2026-05-13 per PR #10 review)
+> **⚠️ SUPERSEDED IN PART (2026-06-01).** The user committed v1 to the
+> **highest** acceptance bar: the original SPEC §1.4 per-tier targets
+> (0.94 / 0.86 / 0.90 / 0.82) plus the aggregate Tab F1 ≥ 0.88. Decisions
+> **D1** (retire the aggregate) and **D2** (relax per-tier to
+> 0.85 / 0.90 / 0.87 / 0.80) below are **withdrawn** and kept only as a
+> historical waypoint. See `SPEC.md` §1.4.1 (2026-06-01) — it governs.
+> Everything else here (license gate §0, composite eval policy §5, phase
+> outline §6, risks §7, lessons §4.5) remains in force as the
+> **methodology** for reaching the committed bar.
+
+**Date:** 2026-05-12 (revised 2026-05-13 per PR #10 review; targets
+superseded 2026-06-01 — see banner)
 **Author:** Patrick (brainstormed with Claude)
-**Status:** v3 — strategy / decision-record only; **not** an implementation plan
+**Status:** v3 — strategy / decision-record only; **not** an implementation plan.
+**Targets in D1/D2 withdrawn 2026-06-01; SPEC §1.4 governs.**
 **Scope note:** This is a **SPEC §1.4 amendment proposal** plus
               strategy. Implementation detail lives in companion docs.
 **Companions:**
@@ -213,7 +225,7 @@ phase's evidence justifies starting it.
   the composite eval. Acquire Guitar-TECHS; send EGDB email; verify free
   compute accounts. **No production code changes.** Acceptance: per-tier
   baseline numbers exist for ≥ 3 of 4 tiers with bootstrap CIs;
-  per-tier 7-bucket error breakdown exists. [Companion:
+  per-tier six-bucket error breakdown exists. [Companion:
   `2026-05-13-tab-f1-phase-0-implementation.md`.]
 - **Phase 1 — Pitch ceiling lift (cheap moves).** Voicing/silence gate
   + peak-picking + Basic Pitch pitch-only ensemble. Acceptance: Pitch

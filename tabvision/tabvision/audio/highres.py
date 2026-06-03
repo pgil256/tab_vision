@@ -20,6 +20,7 @@ F1 over the eval set.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
@@ -36,7 +37,23 @@ HIGHRES_SAMPLE_RATE = 16_000
 
 DEFAULT_HF_REPO = "xavriley/midi-transcription-models"
 
-GUITAR_VARIANTS = ("guitar", "guitar_gaps", "guitar_fl")
+GUITAR_VARIANTS = ("guitar", "guitar_gaps", "guitar_fl", "guitar_electric")
+
+# Env var holding the path (or HF repo/file) of the fine-tuned electric checkpoint.
+# The electric backbone is a v2 deliverable (see the electric fine-tune design doc);
+# until it's trained, selecting highres-electric raises a clear, actionable error.
+HIGHRES_ELECTRIC_CKPT_ENV = "TABVISION_HIGHRES_ELECTRIC_CKPT"
+
+# The pinned hf_midi_transcription only exposes instrument="guitar" (which maps
+# to guitar-gaps.pth). The other guitar checkpoints live in the same HF repo and
+# are loaded via checkpoint_path (the package downloads by filename if not local).
+_CHECKPOINT_FILE: dict[str, str | None] = {
+    "guitar": None,  # package default → guitar-gaps.pth
+    "guitar_gaps": "guitar-gaps.pth",
+    # Not a built-in default, so give the full HF "repo/file" path: the package
+    # only auto-downloads its own defaults or a "<user>/<repo>/<file>" path.
+    "guitar_fl": f"{DEFAULT_HF_REPO}/guitar-fl.pth",  # Francois Leduc; electric timbre
+}
 
 
 class HighResBackend:
@@ -85,6 +102,20 @@ class HighResBackend:
         if self._model is not None:
             return self._model
 
+        # Resolve the checkpoint first so a misconfigured electric backend fails
+        # fast with a clear message — before the (heavy) package import.
+        if self.checkpoint == "guitar_electric":
+            checkpoint_path = os.environ.get(HIGHRES_ELECTRIC_CKPT_ENV)
+            if not checkpoint_path:
+                raise BackendError(
+                    "highres-electric: the electric backbone is not trained yet "
+                    "(v2 — see docs/plans/2026-06-02-electric-backbone-finetune-design.md). "
+                    f"Set {HIGHRES_ELECTRIC_CKPT_ENV} to a guitar-electric.pth (local "
+                    "path or HF repo/file), or use the acoustic backend (--backend highres)."
+                )
+        else:
+            checkpoint_path = _CHECKPOINT_FILE[self.checkpoint]
+
         try:
             from hf_midi_transcription import MidiTranscriptionModel
         except ImportError as exc:
@@ -100,8 +131,12 @@ class HighResBackend:
         # the checkpoint when given an instrument name, so we use that.
         # ``self.hf_repo`` is unused for now; the constructor hard-codes
         # ``xavriley/midi-transcription-models`` as the default repo.
+
+        # instrument="guitar" selects the guitar architecture; checkpoint_path
+        # overrides the weights (None → package default guitar-gaps.pth).
         self._model = MidiTranscriptionModel(
-            instrument=self.checkpoint,
+            instrument="guitar",
+            checkpoint_path=checkpoint_path,
             device=self.device,
             batch_size=self.batch_size,
             onset_threshold=self.onset_threshold,

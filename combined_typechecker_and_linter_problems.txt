@@ -1,6 +1,0 @@
-$ bun run type-check
-error: Script not found "type-check"
-
-
-$ bun run lint
-error: Script not found "lint"

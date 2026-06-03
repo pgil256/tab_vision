@@ -164,9 +164,77 @@ def _cluster_by_gap(events: Sequence[TabEvent], gap_s: float) -> list[list[TabEv
     return clusters
 
 
+@dataclass(frozen=True)
+class EventF1Result:
+    """Onset-only or onset+pitch F1 over two ``TabEvent`` sequences.
+
+    Mirrors the structure of :class:`TabF1Result` but represents the
+    looser matchers used to track audio-side performance independent
+    of string/fret assignment.
+    """
+
+    precision: float
+    recall: float
+    f1: float
+    true_positives: int
+    false_positives: int
+    false_negatives: int
+
+
+def event_f1(
+    predicted: Sequence[TabEvent],
+    gold: Sequence[TabEvent],
+    *,
+    match_pitch: bool = True,
+    onset_tolerance_s: float = 0.05,
+) -> EventF1Result:
+    """F1 over predicted-vs-gold events on onset (optionally + pitch).
+
+    With ``match_pitch=False`` this is onset F1 (SPEC §1.4 line 1).
+    With ``match_pitch=True`` (default) it is pitch F1 (SPEC §1.4 line 2).
+    String / fret agreement is ignored — that is what :func:`tab_f1` is for.
+    """
+    pred_sorted = sorted(predicted, key=lambda t: t.onset_s)
+    gold_sorted = sorted(gold, key=lambda t: t.onset_s)
+    gold_used = [False] * len(gold_sorted)
+    tp = 0
+    fp = 0
+    for p in pred_sorted:
+        best_j = -1
+        best_dt = onset_tolerance_s + 1e-9
+        for j, g in enumerate(gold_sorted):
+            if gold_used[j]:
+                continue
+            if match_pitch and g.pitch_midi != p.pitch_midi:
+                continue
+            dt = abs(g.onset_s - p.onset_s)
+            if dt <= onset_tolerance_s and dt < best_dt:
+                best_j = j
+                best_dt = dt
+        if best_j >= 0:
+            gold_used[best_j] = True
+            tp += 1
+        else:
+            fp += 1
+    fn = sum(1 for used in gold_used if not used)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+    return EventF1Result(
+        precision=precision,
+        recall=recall,
+        f1=f1,
+        true_positives=tp,
+        false_positives=fp,
+        false_negatives=fn,
+    )
+
+
 __all__ = [
-    "TabF1Result",
     "ChordAccuracyResult",
-    "tab_f1",
+    "EventF1Result",
+    "TabF1Result",
     "chord_instance_accuracy",
+    "event_f1",
+    "tab_f1",
 ]

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for Claude Code when working in this repository.
+Guidance for Codex when working in this repository.
 
 ## Project status (2026-05-05)
 
@@ -53,7 +53,7 @@ tab_vision/
 ├── AUDIT.md
 ├── LICENSES.md
 ├── SPEC.md                 ← canonical specification
-└── CLAUDE.md               ← this file
+└── AGENTS.md               ← this file
 ```
 
 ## Operating rules (per SPEC §0)
@@ -119,27 +119,16 @@ pytest tests/    # 17 v0 tests
 
 ## Acceptance targets (SPEC §1.4)
 
-**v1 scope (2026-06-02): acoustic, audio-only.** Honest audio-only targets on
-GuitarSet (see SPEC §1.4.1): single-line Tab F1 ≥ 0.45, strummed ≥ 0.60,
-aggregate ≥ 0.55, + onset ≥ 0.92 / pitch ≥ 0.90 / chord ≥ 0.85 / latency ≤ 5 min.
-**Single-line is information-limited** — audio can't resolve which string a pitch
-is on; 0.94 is a **v1.1 video** target (`docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md`).
-**Electric tiers → v2** (clean-electric measured **0.12**; acoustic-trained
-backbone, no in-repo training code — `cross_dataset_prior_2026-06-02.md`). v1
-ships the **tone toggle** (electric → separate `highres-electric` checkpoint).
-**SPEC §1.4 + §1.4.1 are the single source of truth**; don't change
-scope/targets without a SPEC edit + user approval.
-
-| Metric | Target (v1, audio-only acoustic) | Definition |
+| Metric | Target | Definition |
 |---|---|---|
 | Onset F1 (50 ms) | ≥ 0.92 | mir_eval onset_f_measure |
 | Pitch F1 (50 ms, no offset) | ≥ 0.90 | mir_eval note_f_measure |
-| Tab F1 (string + fret + onset), aggregate | ≥ 0.55 | TP iff string + fret + onset all match |
+| Tab F1 (string + fret + onset) | ≥ 0.88 | TP iff string + fret + onset all match |
 | Chord-instance accuracy | ≥ 0.85 | Full fingering set per chord |
 | End-to-end latency for 60 s clip on laptop CPU | ≤ 5 min | Wall-clock |
 
-Per-tier acoustic targets (single-line ≥ 0.45 / strummed ≥ 0.60) + the v1.1
-video stretch (0.94 / 0.86): see SPEC §1.4.1.
+Per-tier (clean acoustic single-line / strummed / clean electric / distorted
+electric): see SPEC §1.4 table.
 
 ## Glossary (selective)
 
