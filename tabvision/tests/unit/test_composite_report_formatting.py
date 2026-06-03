@@ -17,7 +17,7 @@ from tabvision.eval.composite import (
 )
 from tabvision.eval.error_decomposition import ErrorDecomposition
 from tabvision.eval.manifest import ManifestValidation
-from tabvision.eval.metrics import EventF1Result, TabF1Result
+from tabvision.eval.metrics import ChordAccuracyResult, EventF1Result, TabF1Result
 
 
 def _bootstrap(value: float, lower: float, upper: float) -> BootstrapResult:
@@ -53,6 +53,12 @@ def _tab_f1(value: float) -> TabF1Result:
     )
 
 
+def _chord(value: float) -> ChordAccuracyResult:
+    return ChordAccuracyResult(
+        accuracy=value, matched_chords=int(round(value * 10)), total_chords=10
+    )
+
+
 def _clip(tier: str, source: str, tab_value: float) -> ClipEvalResult:
     return ClipEvalResult(
         clip_id=f"{source}-{tier}-x",
@@ -63,6 +69,7 @@ def _clip(tier: str, source: str, tab_value: float) -> ClipEvalResult:
         onset=_event_f1(0.95),
         pitch=_event_f1(0.92),
         tab=_tab_f1(tab_value),
+        chord=_chord(tab_value),
         errors=ErrorDecomposition(correct=10, wrong_position_same_pitch=1, missed_onset=1),
     )
 
@@ -82,6 +89,7 @@ def _report(tmp_path: Path) -> CompositeReport:
             onset_f1=_bootstrap(0.95, 0.93, 0.97),
             pitch_f1=_bootstrap(0.92, 0.90, 0.94),
             tab_f1=_bootstrap(0.93, 0.91, 0.95),
+            chord_accuracy=_bootstrap(0.88, 0.85, 0.91),
             errors=ErrorDecomposition(correct=20, wrong_position_same_pitch=2),
         ),
         "clean_acoustic_single_line": TierReport(
@@ -90,7 +98,8 @@ def _report(tmp_path: Path) -> CompositeReport:
             n_gold_total=24,
             onset_f1=_bootstrap(0.95, 0.92, 0.98),
             pitch_f1=_bootstrap(0.92, 0.90, 0.95),
-            tab_f1=_bootstrap(0.665, 0.55, 0.78),  # gap: mean > 0.85? no, fail
+            tab_f1=_bootstrap(0.40, 0.30, 0.50),  # mean 0.40 < 0.45 target -> fail
+            chord_accuracy=_bootstrap(0.55, 0.45, 0.65),
             errors=ErrorDecomposition(correct=10, wrong_position_same_pitch=10, missed_onset=4),
         ),
     }
@@ -128,13 +137,13 @@ def test_baseline_markdown_status_column(tmp_path: Path) -> None:
     """The status column must categorise as pass / gap / fail / missing."""
     md = format_baseline_markdown(_report(tmp_path))
 
-    # clean_acoustic_strummed: lower_95 = 0.91 >= 0.90 target → pass
+    # clean_acoustic_strummed: lower_95 = 0.91 >= 0.60 target → pass
     strum_row = next(
         line for line in md.split("\n") if line.startswith("| clean_acoustic_strummed")
     )
     assert "| pass |" in strum_row
 
-    # clean_acoustic_single_line: mean=0.665 < 0.85 → fail
+    # clean_acoustic_single_line: mean=0.40 < 0.45 → fail
     single_row = next(
         line for line in md.split("\n") if line.startswith("| clean_acoustic_single_line")
     )
