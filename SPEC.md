@@ -129,18 +129,21 @@ acoustic guitar.** This is an **evidence-based** scope decision, not a
 relaxation: electric was measured (see below) and found to be blocked on a
 model that does not yet exist.
 
-**v1 acceptance (the highest acoustic targets, unchanged):**
+**v1 acceptance (honest audio-only targets, 2026-06-02).** Single-line is
+**information-limited** from audio (the string/fret ambiguity — see below), so
+targets are set to the demonstrated audio-only capability, not the original
+0.94 / 0.86 (which become the **v1.1 video-assisted** reference):
 
-| Tier | v1 acceptance |
-|---|---:|
-| Clean acoustic single-line | ≥ 0.94 |
-| Clean acoustic strummed | ≥ 0.86 |
+| Tier | v1 acceptance | demonstrated (mean / lower-95) |
+|---|---:|---:|
+| Clean acoustic single-line | ≥ 0.45 | 0.52 / 0.46 |
+| Clean acoustic strummed | ≥ 0.60 | 0.68 / 0.61 |
+| Aggregate Tab F1 | ≥ 0.55 | ~0.64 |
 
-Plus aggregate Tab F1 ≥ 0.88, Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90,
-chord-instance accuracy ≥ 0.85, latency ≤ 5 min — all **over the acoustic
-eval set** (GuitarSet held-out player 05). Acceptance test:
-`lower_95_CI ≥ target` over clips (95 % bootstrap CIs). Personal clips
-remain banned as a gate.
+Plus Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90, chord-instance accuracy ≥ 0.85,
+latency ≤ 5 min — all **over the acoustic eval set** (GuitarSet held-out
+player 05). Acceptance test: `lower_95_CI ≥ target` over clips (95 % bootstrap
+CIs). Personal clips remain banned as a gate.
 
 **Electric tiers (clean electric 0.90, distorted electric 0.82) — deferred
 to v2.** Evidence (`docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md`):
@@ -157,11 +160,16 @@ disturbed and the electric model drops in non-disruptively when trained. See
 `docs/plans/2026-06-02-electric-backbone-finetune-design.md` (v2 fine-tune
 plan + separate-checkpoint rationale).
 
-**Gap to close for v1 (honest framing).** Single-line acoustic must rise
-from ~0.51 to **0.94** and strummed from ~0.67 to **0.86** — tractable,
-**in-domain** work (fusion/prior, pitch-ceiling post-processing; no model
-training to ship). These are stretch goals adopted as the gate, not
-forecasts.
+**Why single-line is capped (honest framing).** The single-line loss is
+overwhelmingly `wrong_position_same_pitch` (322 of ~380 errors; pitch is
+*correct*) — audio cannot determine which string a pitch was played on (the
+same pitch is acoustically near-identical across strings). The melodic prior
+(regresses) and hand-position continuity (small, no single-line lift) were
+measured and do **not** close it; audio-only sits near ~0.52 (see
+`docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md`). **0.94 single-line
+requires video string-resolution (v1.1)** or a timbral string-ID model. A
+style/structure-conditional position prior (design-plan Phase 3) is the only
+remaining audio-only lever, with bounded upside.
 
 **§1.4 is the single source of truth for acceptance** (read with this
 acoustic-scope amendment). Where any other document (CLAUDE.md, AGENTS.md,

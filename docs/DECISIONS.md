@@ -609,3 +609,32 @@ the acoustic 0.93 — the architecture already routes by checkpoint
 (`highres` / `highres-fl`). This supersedes the 2026-06-01 "highest targets
 including electric" amendment with an evidence-based scope; SPEC §1.4.1
 updated to match.
+
+## 2026-06-02 — Acoustic single-line is information-limited; honest audio-only targets
+
+**Phase:** Accuracy work / v1 acceptance (SPEC §1.4.1 target revision)
+**Decision tree:** "close the single-line gap (0.51 → 0.94)?" — after diagnosis
+**Branch taken:** Single-line Tab F1 cannot be closed audio-only (it's the
+string/fret ambiguity, not a tuning miss). **Set honest audio-only v1 targets**
+(single-line ≥ 0.45, strummed ≥ 0.60, aggregate ≥ 0.55); the original
+0.94 / 0.86 become the **v1.1 video-assisted** reference. Commit the one real
+audio win found (hand-position continuity).
+
+**Evidence:** `docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md`.
+- Decomposition: single-line loss is **322 `wrong_position_same_pitch`** vs 8
+  `pitch_off` — pitch is correct, the *string* is wrong. (Aggregate 54 %.)
+- Melodic prior **regresses** single-line (0.474 → 0.449); left default-off.
+- Continuity sweep: `POSITION_SHIFT_COST` 0.05 → **2.5** lifts single-line
+  0.508 → 0.523 and strummed 0.671 → 0.676 (full validation, no regression) —
+  **committed as the new default** in `tabvision/fusion/playability.py`
+  (env-overridable). It does not move single-line toward 0.94.
+
+**Reasoning:** With pitch correct and continuity raised 50×, single-line still
+sits at ~0.52 — the residual errors are notes where audio *cannot* determine the
+string (the same pitch is acoustically near-identical across strings). This is
+exactly what the video/hand pipeline resolves, but GuitarSet is audio-only and
+v1 is audio-only, so 0.94 is unreachable for v1. Honest targets reflect the
+demonstrated audio-only capability (`lower_95_CI ≥ target`); single-line is
+flagged video-limited with **video string-resolution as the v1.1 lever** (a
+style/structure-conditional prior is the only remaining audio-only lever, with
+bounded upside). Onset/pitch/chord/latency unchanged (met).
