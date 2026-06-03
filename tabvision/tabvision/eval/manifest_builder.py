@@ -272,6 +272,15 @@ def _relativize_to_data_root(path_str: str, data_root: Path | None) -> str:
     under ``data_root``. Returns the original string when ``data_root`` is
     ``None`` or the path isn't under it.
 
+    ``data_root`` must already be expanded + resolved by the caller
+    (:func:`render_toml` does this once). Matching uses :mod:`pathlib`
+    rather than a ``startswith(abs_root + "/")`` string prefix: the prefix
+    form hard-codes a forward slash, so on Windows -- where absolute paths
+    are backslash-separated -- it never matched and silently leaked
+    ``C:\\...`` paths into checked-in manifests. ``Path.relative_to`` is
+    separator-correct on the native platform, and ``as_posix`` emits the
+    forward-slash ``$TABVISION_DATA_ROOT/<rest>`` token regardless of host.
+
     The composite-eval CLI expands ``$TABVISION_DATA_ROOT`` at eval time
     via the env var or its ``--media-root`` / ``--annotation-root`` args
     (see :func:`tabvision.eval.composite._resolve_path`), so this keeps
@@ -279,13 +288,12 @@ def _relativize_to_data_root(path_str: str, data_root: Path | None) -> str:
     """
     if data_root is None:
         return path_str
-    abs_root = str(data_root.expanduser().resolve())
-    if path_str == abs_root:
-        return "$TABVISION_DATA_ROOT"
-    if path_str.startswith(abs_root + "/"):
-        rest = path_str[len(abs_root) + 1 :]
-        return f"$TABVISION_DATA_ROOT/{rest}"
-    return path_str
+    try:
+        rel = Path(path_str).relative_to(data_root)
+    except ValueError:
+        return path_str
+    posix = rel.as_posix()
+    return "$TABVISION_DATA_ROOT" if posix == "." else f"$TABVISION_DATA_ROOT/{posix}"
 
 
 def render_toml(
@@ -303,6 +311,7 @@ def render_toml(
     that token at eval time. Use this for checked-in manifests.
     """
     sorted_entries = sorted(entries, key=lambda entry: entry.id)
+    resolved_root = data_root.expanduser().resolve() if data_root is not None else None
     lines: list[str] = []
     if header_comment:
         for raw_line in header_comment.splitlines():
@@ -322,7 +331,7 @@ def render_toml(
         for field in fields:
             raw = getattr(entry, field)
             if field in ("media_path", "annotation_path"):
-                raw = _relativize_to_data_root(raw, data_root)
+                raw = _relativize_to_data_root(raw, resolved_root)
             value = _toml_escape(raw)
             lines.append(f'{field} = "{value}"')
         lines.append("")

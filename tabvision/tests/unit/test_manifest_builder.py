@@ -222,7 +222,12 @@ def test_render_toml_leaves_paths_outside_data_root_alone(tmp_path: Path) -> Non
     )
     text = render_toml([entry], data_root=data_root)
     assert "$TABVISION_DATA_ROOT" not in text
-    assert str(other.resolve()) in text
+    # Parse back instead of substring-matching the raw path: _toml_escape doubles
+    # backslashes, so a raw Windows path is not a literal substring of `text`
+    # (this assertion silently only held on POSIX before).
+    clip = tomllib.loads(text)["clips"][0]
+    assert clip["media_path"] == str(other.resolve())
+    assert clip["annotation_path"] == str(other.resolve())
 
 
 def test_render_toml_with_no_data_root_is_unchanged(tmp_path: Path) -> None:
@@ -239,6 +244,57 @@ def test_render_toml_with_no_data_root_is_unchanged(tmp_path: Path) -> None:
     text = render_toml([entry], data_root=None)
     assert "/some/abs/path.wav" in text
     assert "$TABVISION_DATA_ROOT" not in text
+
+
+def test_relativize_to_data_root_rewrites_windows_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows absolute paths (backslash-separated) must still be rewritten to
+    forward-slash ``$TABVISION_DATA_ROOT/...`` tokens.
+
+    Regression: the old ``startswith(abs_root + "/")`` prefix check hard-coded a
+    forward slash, so on Windows it never matched and leaked ``C:\\...`` paths
+    into checked-in manifests. ``PureWindowsPath`` parses backslash paths on any
+    host, so monkeypatching the module ``Path`` to it exercises the Windows
+    behaviour from a POSIX CI runner too. The helper expects an already
+    expanded+resolved root (``render_toml`` does that), so we pass an absolute
+    ``PureWindowsPath`` directly.
+    """
+    import pathlib
+
+    from tabvision.eval import manifest_builder
+
+    monkeypatch.setattr(manifest_builder, "Path", pathlib.PureWindowsPath)
+    data_root = pathlib.PureWindowsPath(r"C:\Users\patri\.tabvision\data")
+
+    media = (
+        r"C:\Users\patri\.tabvision\data\guitar-techs"
+        r"\P1_chords\audio\directinput\directinput_Drop3_7.wav"
+    )
+    annotation = (
+        r"C:\Users\patri\.tabvision\data\guitar-techs"
+        r"\P1_chords\midi\midi_Drop3_7.mid"
+    )
+
+    assert (
+        manifest_builder._relativize_to_data_root(media, data_root)
+        == "$TABVISION_DATA_ROOT/guitar-techs/P1_chords/audio/directinput/"
+        "directinput_Drop3_7.wav"
+    )
+    assert (
+        manifest_builder._relativize_to_data_root(annotation, data_root)
+        == "$TABVISION_DATA_ROOT/guitar-techs/P1_chords/midi/midi_Drop3_7.mid"
+    )
+
+    # A Windows path that is NOT under the data root is returned untouched.
+    outside = r"C:\Users\patri\elsewhere\other.wav"
+    assert manifest_builder._relativize_to_data_root(outside, data_root) == outside
+
+    # The root itself collapses to the bare token (no trailing "/.").
+    assert (
+        manifest_builder._relativize_to_data_root(str(data_root), data_root)
+        == "$TABVISION_DATA_ROOT"
+    )
 
 
 def test_summarise_coverage_reports_per_tier_and_per_split() -> None:
