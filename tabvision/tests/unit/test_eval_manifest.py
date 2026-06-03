@@ -186,6 +186,4 @@ annotation_format = "synthtab_json"
 
     result = validate_manifest(manifest)
 
-    assert not any(
-        item.code == "SYNTHETIC_IN_EVAL_SPLIT" for item in result.items
-    )
+    assert not any(item.code == "SYNTHETIC_IN_EVAL_SPLIT" for item in result.items)

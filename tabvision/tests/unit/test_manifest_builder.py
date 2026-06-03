@@ -336,9 +336,7 @@ def test_build_manifest_splits_filter(tmp_path: Path) -> None:
     both = build_manifest(guitarset_root=tmp_path / "guitarset")
 
     assert {entry.id for entry in train_only} == {"guitarset/00_Rock1-90-C#_comp"}
-    assert {entry.id for entry in validation_only} == {
-        "guitarset/05_Funk1-114-Ab_solo"
-    }
+    assert {entry.id for entry in validation_only} == {"guitarset/05_Funk1-114-Ab_solo"}
     assert len(both) == 2
 
 

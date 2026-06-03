@@ -144,9 +144,7 @@ def _build_two_tier_manifest(tmp_path: Path) -> tuple[Path, dict[str, list[TabEv
         media_path = tmp_path / f"{clip_id}.wav"
         media_path.write_bytes(b"")  # zero-byte placeholder; predictor doesn't read it
         _write_jams(jams_path, notes)
-        gold_by_path[str(media_path)] = [
-            _tab_event(o, d, s, f) for (o, d, s, f) in notes
-        ]
+        gold_by_path[str(media_path)] = [_tab_event(o, d, s, f) for (o, d, s, f) in notes]
         entries.append(
             {
                 "id": clip_id,

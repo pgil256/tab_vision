@@ -133,12 +133,8 @@ def run_composite_eval(
     manifest_path = Path(manifest_path)
     validation = validate_manifest(manifest_path)
     if not validation.passed:
-        fail_messages = [
-            i.message for i in validation.items if i.severity == "fail"
-        ]
-        raise ValueError(
-            f"Manifest {manifest_path} has fail-severity issues: {fail_messages}"
-        )
+        fail_messages = [i.message for i in validation.items if i.severity == "fail"]
+        raise ValueError(f"Manifest {manifest_path} has fail-severity issues: {fail_messages}")
 
     if cfg is None:
         cfg = GuitarConfig()
@@ -174,9 +170,7 @@ def run_composite_eval(
                     predicted, gold, match_pitch=True, onset_tolerance_s=onset_tolerance_s
                 ),
                 tab=tab_f1(predicted, gold, onset_tolerance_s=onset_tolerance_s),
-                errors=decompose_errors(
-                    predicted, gold, onset_tolerance_s=onset_tolerance_s
-                ),
+                errors=decompose_errors(predicted, gold, onset_tolerance_s=onset_tolerance_s),
             )
         )
 
@@ -216,15 +210,9 @@ def _aggregate_per_tier(
             tier=tier,
             n_clips=len(results),
             n_gold_total=sum(r.n_gold for r in results),
-            onset_f1=bootstrap_ci(
-                onset_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed
-            ),
-            pitch_f1=bootstrap_ci(
-                pitch_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed
-            ),
-            tab_f1=bootstrap_ci(
-                tab_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed
-            ),
+            onset_f1=bootstrap_ci(onset_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
+            pitch_f1=bootstrap_ci(pitch_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
+            tab_f1=bootstrap_ci(tab_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
             errors=aggregate_decompositions(r.errors for r in results),
         )
     return reports
@@ -311,9 +299,7 @@ def format_baseline_markdown(
     for tier, target in targets.items():
         tier_report = report.tiers.get(tier)
         if tier_report is None:
-            lines.append(
-                f"| {tier} | 0 | 0 | — | — | {target:.2f} | missing | — | — |"
-            )
+            lines.append(f"| {tier} | 0 | 0 | — | — | {target:.2f} | missing | — | — |")
             continue
         tab_mean = tier_report.tab_f1.statistic
         tab_lo = tier_report.tab_f1.lower
@@ -354,9 +340,7 @@ def format_baseline_markdown(
         f"- Bootstrap: N={report.bootstrap_n:,}, seed={report.bootstrap_seed}, "
         f"95% percentile interval"
     )
-    lines.append(
-        "- Acceptance gate: `lower_95_CI >= target` per design plan §5"
-    )
+    lines.append("- Acceptance gate: `lower_95_CI >= target` per design plan §5")
     lines.append("")
 
     return "\n".join(lines) + "\n"
@@ -447,9 +431,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="tabvision-composite-eval",
-        description=(
-            "Run the v1 per-tier composite eval and write a Markdown report."
-        ),
+        description=("Run the v1 per-tier composite eval and write a Markdown report."),
     )
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--backend", default="highres", help="audio backend name")

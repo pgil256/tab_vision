@@ -44,9 +44,7 @@ def get_parser(format_name: str) -> ParserFn:
     """
     if format_name not in _PARSERS:
         known = ", ".join(sorted(_PARSERS)) or "(none registered)"
-        raise KeyError(
-            f"Unknown annotation format: {format_name!r}. Known: {known}."
-        )
+        raise KeyError(f"Unknown annotation format: {format_name!r}. Known: {known}.")
     return _PARSERS[format_name]
 
 

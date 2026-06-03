@@ -57,15 +57,11 @@ def bootstrap_ci(
     if len(values) == 0:
         raise ValueError("bootstrap_ci requires at least one observation")
     if not 0.0 < confidence < 1.0:
-        raise ValueError(
-            f"confidence must be in (0, 1); got {confidence}"
-        )
+        raise ValueError(f"confidence must be in (0, 1); got {confidence}")
     if n_bootstrap < 1:
         raise ValueError(f"n_bootstrap must be >= 1; got {n_bootstrap}")
 
-    stat_fn: Callable[[np.ndarray], float] = (
-        statistic if statistic is not None else np.mean
-    )
+    stat_fn: Callable[[np.ndarray], float] = statistic if statistic is not None else np.mean
     arr = np.asarray(values, dtype=np.float64).ravel()
     n_obs = arr.shape[0]
     point = float(stat_fn(arr))

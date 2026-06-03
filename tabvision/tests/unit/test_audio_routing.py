@@ -18,10 +18,7 @@ from tabvision.types import SessionConfig
 
 
 def test_routes_electric_to_electric_backend() -> None:
-    assert (
-        audio_backend_for_session(SessionConfig(instrument="electric"))
-        == "highres-electric"
-    )
+    assert audio_backend_for_session(SessionConfig(instrument="electric")) == "highres-electric"
 
 
 def test_routes_acoustic_and_classical_to_highres() -> None:

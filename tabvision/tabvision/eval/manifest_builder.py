@@ -115,13 +115,26 @@ GUITAR_TECHS_VALIDATION_PLAYER = "03"
 # tier scores clean transcription, not expression. Matched case-insensitively
 # anywhere in a clip's path.
 _GT_SKIP_KEYWORDS: tuple[str, ...] = (
-    "bend", "vibrato", "pinch", "harmonic", "palm", "slide", "hammer", "pull", "trill",
+    "bend",
+    "vibrato",
+    "pinch",
+    "harmonic",
+    "palm",
+    "slide",
+    "hammer",
+    "pull",
+    "trill",
 )
 _GT_AUDIO_EXTS: tuple[str, ...] = (".wav", ".flac", ".aiff", ".aif")
 # Audio-capture preference for the clean_electric tier: direct input (clean DI)
 # before mic'd amp. Ranked by first hit in the path (lower index = preferred).
 _GT_AUDIO_PREF: tuple[str, ...] = (
-    "directinput", "direct", "di", "clean", "micamp", "mic",
+    "directinput",
+    "direct",
+    "di",
+    "clean",
+    "micamp",
+    "mic",
 )
 # Performer id from a path component: 'P1_chords', 'player01', 'guitarist3', 'p02'.
 # Anchored at the component start with a trailing separator/end so substrings like
@@ -358,9 +371,7 @@ def summarise_coverage(entries: Iterable[ClipEntry]) -> str:
         total = sum(by_tier[tier].values())
         lines.append(f"  {tier}: {total} clips ({per_source})")
     if by_split:
-        split_summary = ", ".join(
-            f"{split}={count}" for split, count in sorted(by_split.items())
-        )
+        split_summary = ", ".join(f"{split}={count}" for split, count in sorted(by_split.items()))
         lines.append(f"Splits: {split_summary}")
     return "\n".join(lines)
 
@@ -398,9 +409,7 @@ def build_manifest(
     """
     entries: list[ClipEntry] = []
     if guitarset_root is not None:
-        entries.extend(
-            scan_guitarset(guitarset_root, validation_player=validation_player)
-        )
+        entries.extend(scan_guitarset(guitarset_root, validation_player=validation_player))
     if guitar_techs_root is not None:
         entries.extend(scan_guitar_techs(guitar_techs_root))
 
@@ -421,9 +430,7 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point: ``tabvision-build-composite-manifest``."""
     parser = argparse.ArgumentParser(
         prog="build_composite_manifest",
-        description=(
-            "Scan dataset roots on disk and emit a composite-eval TOML manifest."
-        ),
+        description=("Scan dataset roots on disk and emit a composite-eval TOML manifest."),
     )
     parser.add_argument(
         "--guitarset",

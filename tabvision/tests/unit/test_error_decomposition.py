@@ -113,19 +113,19 @@ def test_predicted_far_from_gold_yields_missed_and_extra() -> None:
 def test_mixed_buckets() -> None:
     """A mixed scenario across all buckets at once."""
     gold = [
-        _ev(0.0, 0, 0),             # correct match
-        _ev(0.5, 5, 0, pitch=64),   # wrong-position match (MIDI 64 placed elsewhere)
-        _ev(1.0, 2, 5, pitch=55),   # pitch_off (pred at wrong position with wrong pitch)
-        _ev(1.5, 3, 7),             # timing_only (pred is 100 ms late)
-        _ev(2.0, 4, 3),             # missed_onset
+        _ev(0.0, 0, 0),  # correct match
+        _ev(0.5, 5, 0, pitch=64),  # wrong-position match (MIDI 64 placed elsewhere)
+        _ev(1.0, 2, 5, pitch=55),  # pitch_off (pred at wrong position with wrong pitch)
+        _ev(1.5, 3, 7),  # timing_only (pred is 100 ms late)
+        _ev(2.0, 4, 3),  # missed_onset
     ]
     pred = [
-        _ev(0.01, 0, 0),                  # → correct
-        _ev(0.51, 2, 9, pitch=64),        # → wrong_position_same_pitch
-        _ev(1.01, 0, 3),                  # → pitch_off (low E fret 3 → MIDI 43, ≠ gold's 55)
-        _ev(1.60, 3, 7),                  # → timing_only (100 ms late)
+        _ev(0.01, 0, 0),  # → correct
+        _ev(0.51, 2, 9, pitch=64),  # → wrong_position_same_pitch
+        _ev(1.01, 0, 3),  # → pitch_off (low E fret 3 → MIDI 43, ≠ gold's 55)
+        _ev(1.60, 3, 7),  # → timing_only (100 ms late)
         # Nothing near gold[4] at 2.0 → missed_onset
-        _ev(5.0, 0, 0),                   # → extra_detection (far from any gold)
+        _ev(5.0, 0, 0),  # → extra_detection (far from any gold)
     ]
 
     r = decompose_errors(pred, gold)

@@ -63,9 +63,7 @@ def _clip(tier: str, source: str, tab_value: float) -> ClipEvalResult:
         onset=_event_f1(0.95),
         pitch=_event_f1(0.92),
         tab=_tab_f1(tab_value),
-        errors=ErrorDecomposition(
-            correct=10, wrong_position_same_pitch=1, missed_onset=1
-        ),
+        errors=ErrorDecomposition(correct=10, wrong_position_same_pitch=1, missed_onset=1),
     )
 
 
@@ -93,9 +91,7 @@ def _report(tmp_path: Path) -> CompositeReport:
             onset_f1=_bootstrap(0.95, 0.92, 0.98),
             pitch_f1=_bootstrap(0.92, 0.90, 0.95),
             tab_f1=_bootstrap(0.665, 0.55, 0.78),  # gap: mean > 0.85? no, fail
-            errors=ErrorDecomposition(
-                correct=10, wrong_position_same_pitch=10, missed_onset=4
-            ),
+            errors=ErrorDecomposition(correct=10, wrong_position_same_pitch=10, missed_onset=4),
         ),
     }
     validation = ManifestValidation(

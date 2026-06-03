@@ -81,7 +81,11 @@ def test_drops_notes_outside_fret_range(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(35, 0.0, 0.1), (90, 0.5, 0.6)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
 
     assert parse(midi_path) == []
@@ -92,7 +96,11 @@ def test_events_sorted_by_onset(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(40, 2.00, 2.10), (40, 0.00, 0.10)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
 
     events = parse(midi_path)
@@ -104,7 +112,11 @@ def test_capo_filters_below_capo_fret(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(40, 0.0, 0.1), (42, 0.1, 0.2)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
 
     cfg = GuitarConfig(capo=3)
@@ -118,7 +130,11 @@ def test_extra_tracks_beyond_six_are_ignored(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(40, 0.0, 0.1)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
         [(40, 0.0, 0.1)],  # 7th track — outside the mapping
     )
 
@@ -132,7 +148,11 @@ def test_custom_track_to_string_mapping(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(64, 0.0, 0.1)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
 
     reversed_map: tuple[int, ...] = (5, 4, 3, 2, 1, 0)
@@ -152,7 +172,11 @@ def test_dispatch_via_registry(tmp_path: Path) -> None:
     midi_path = _make_midi(
         tmp_path,
         [(40, 0.0, 0.1)],
-        [], [], [], [], [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
     parser = get_parser("guitar_techs_midi")
     assert parser is parse
