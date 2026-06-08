@@ -638,3 +638,37 @@ demonstrated audio-only capability (`lower_95_CI ≥ target`); single-line is
 flagged video-limited with **video string-resolution as the v1.1 lever** (a
 style/structure-conditional prior is the only remaining audio-only lever, with
 bounded upside). Onset/pitch/chord/latency unchanged (met).
+
+## 2026-06-03 — v1 ACCEPTED (audio-only acoustic); chord-instance acc → v1.1 (video)
+
+**Phase:** Accuracy work / v1 acceptance (SPEC §1.4.1)
+**Decision tree:** "does the formal acceptance run clear §1.4.1?" — all-metrics run
+**Branch taken:** **Stamp v1 ACCEPTED on the audio-only acoustic scope.** Tab F1
+(per-tier + aggregate), onset, pitch, and latency all clear their §1.4.1 gates on
+the GuitarSet player-05 validation set. **Re-scope chord-instance accuracy ≥ 0.85
+to a v1.1 (video) target** — it shares single-line Tab F1's audio string/fret
+information limit, so it was a v1.1 target mis-filed as a v1 gate (the 2026-06-02
+amendment lowered single-line Tab F1 0.94 → 0.45 for the same reason but left
+chord at 0.85). User-approved.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_acceptance_2026-06-03.md` (eval harness
+`292252d`, 60 clips, `--position-prior guitarset-v1`):
+- Tab F1 lower-95: single-line **0.457** (≥ 0.45), strummed **0.606** (≥ 0.60),
+  aggregate **0.600** (≥ 0.55).
+- Onset F1 mean 0.938 / 0.923 (≥ 0.92); Pitch F1 mean 0.930 / 0.901 (≥ 0.90).
+- Latency: 60 clips / 1054 s ⇒ ~17.6 s per ~24 s clip (0.74× realtime) ⇒ ≈ 45 s
+  for a 60 s clip (≤ 5 min).
+- Chord-instance accuracy **0.52 single-line / 0.48 strummed** — tracks per-tier
+  Tab F1 (single-line chord 0.52 ≈ single-line Tab F1 0.52).
+- Harness change (chord metric + model reuse + §1.4.1 targets): commit `292252d`.
+
+**Reasoning:** Whole-chord recovery requires the exact string + fret for every
+note in a chord, so it is bounded by the same audio string-resolution limit that
+caps single-line Tab F1 — which §1.4.1 already accepted by lowering single-line to
+0.45. Measuring it (0.48–0.52, matching Tab F1) confirmed it is information-limited,
+not an implementation gap, so 0.85 belongs with the 0.94 single-line number as a
+v1.1 video-assisted reference. v1 ships an honest, reproducible audio-only acoustic
+artifact; chord ≥ 0.85 returns as a v1.1 gate once video string-resolution lands.
+Two harness bugs were fixed en route to the run: per-clip model reload (OOM ~clip
+17 → build the highres backend once) and a duplicate-OpenMP segfault on Windows
+(`KMP_DUPLICATE_LIB_OK=TRUE`).

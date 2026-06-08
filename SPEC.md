@@ -136,14 +136,31 @@ targets are set to the demonstrated audio-only capability, not the original
 
 | Tier | v1 acceptance | demonstrated (mean / lower-95) |
 |---|---:|---:|
-| Clean acoustic single-line | ≥ 0.45 | 0.52 / 0.46 |
-| Clean acoustic strummed | ≥ 0.60 | 0.68 / 0.61 |
-| Aggregate Tab F1 | ≥ 0.55 | ~0.64 |
+| Clean acoustic single-line | ≥ 0.45 | 0.523 / 0.457 |
+| Clean acoustic strummed | ≥ 0.60 | 0.676 / 0.606 |
+| Aggregate Tab F1 | ≥ 0.55 | 0.600 |
 
-Plus Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90, chord-instance accuracy ≥ 0.85,
-latency ≤ 5 min — all **over the acoustic eval set** (GuitarSet held-out
-player 05). Acceptance test: `lower_95_CI ≥ target` over clips (95 % bootstrap
-CIs). Personal clips remain banned as a gate.
+Plus Onset F1 ≥ 0.92, Pitch F1 ≥ 0.90, latency ≤ 5 min — all **over the
+acoustic eval set** (GuitarSet held-out player 05). Acceptance test:
+`lower_95_CI ≥ target` over clips (95 % bootstrap CIs). Personal clips remain
+banned as a gate.
+
+**v1 ACCEPTED — formal acceptance run 2026-06-03** (eval harness `292252d`,
+GuitarSet player-05 validation, 60 clips, `--position-prior guitarset-v1`):
+single-line Tab F1 0.523 (lo-95 0.457), strummed 0.676 (0.606), aggregate 0.600,
+onset 0.94 / 0.92, pitch 0.93 / 0.90 — all ≥ their §1.4.1 gates — plus latency
+≈ 45 s for a 60 s clip (0.74× realtime, well under 5 min). Report:
+`docs/EVAL_REPORTS/v1_acceptance_2026-06-03.md`.
+
+**Chord-instance accuracy is a v1.1 (video) target, not a v1 gate (2026-06-03).**
+Whole-chord recovery needs the exact string + fret for *every* note in a chord,
+so it carries the **same audio string/fret information limit** that caps
+single-line Tab F1 — the limit this section already used to lower single-line
+from 0.94 to 0.45. The acceptance run measured chord-instance accuracy at **0.52
+single-line / 0.48 strummed** audio-only, tracking per-tier Tab F1 almost exactly
+(single-line chord 0.52 ≈ single-line Tab F1 0.52). The original **≥ 0.85** thus
+joins the **v1.1 video-assisted** reference alongside the 0.94 single-line target;
+v1 records the audio-only baseline. See `docs/DECISIONS.md`.
 
 **Electric tiers (clean electric 0.90, distorted electric 0.82) — deferred
 to v2.** Evidence (`docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md`):

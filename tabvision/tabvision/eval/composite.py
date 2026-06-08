@@ -28,13 +28,15 @@ from tabvision.eval.error_decomposition import (
 )
 from tabvision.eval.manifest import ManifestValidation, validate_manifest
 from tabvision.eval.metrics import (
+    ChordAccuracyResult,
     EventF1Result,
     TabF1Result,
+    chord_instance_accuracy,
     event_f1,
     tab_f1,
 )
 from tabvision.eval.parsers import get_parser
-from tabvision.types import GuitarConfig, SessionConfig, TabEvent
+from tabvision.types import AudioBackend, GuitarConfig, SessionConfig, TabEvent
 
 Predictor = Callable[[Path, SessionConfig], list[TabEvent]]
 """``(media_path, session) -> list[TabEvent]``. The composite-eval harness
@@ -53,6 +55,7 @@ class ClipEvalResult:
     onset: EventF1Result
     pitch: EventF1Result
     tab: TabF1Result
+    chord: ChordAccuracyResult
     errors: ErrorDecomposition
 
 
@@ -66,6 +69,7 @@ class TierReport:
     onset_f1: BootstrapResult
     pitch_f1: BootstrapResult
     tab_f1: BootstrapResult
+    chord_accuracy: BootstrapResult
     errors: ErrorDecomposition  # summed across clips in this tier
 
 
@@ -170,6 +174,7 @@ def run_composite_eval(
                     predicted, gold, match_pitch=True, onset_tolerance_s=onset_tolerance_s
                 ),
                 tab=tab_f1(predicted, gold, onset_tolerance_s=onset_tolerance_s),
+                chord=chord_instance_accuracy(predicted, gold),
                 errors=decompose_errors(predicted, gold, onset_tolerance_s=onset_tolerance_s),
             )
         )
@@ -206,6 +211,7 @@ def _aggregate_per_tier(
         onset_f1s = [r.onset.f1 for r in results]
         pitch_f1s = [r.pitch.f1 for r in results]
         tab_f1s = [r.tab.f1 for r in results]
+        chord_accs = [r.chord.accuracy for r in results]
         reports[tier] = TierReport(
             tier=tier,
             n_clips=len(results),
@@ -213,6 +219,7 @@ def _aggregate_per_tier(
             onset_f1=bootstrap_ci(onset_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
             pitch_f1=bootstrap_ci(pitch_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
             tab_f1=bootstrap_ci(tab_f1s, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
+            chord_accuracy=bootstrap_ci(chord_accs, n_bootstrap=bootstrap_n, seed=bootstrap_seed),
             errors=aggregate_decompositions(r.errors for r in results),
         )
     return reports
@@ -251,16 +258,20 @@ def _session_from_clip(clip: dict[str, object]) -> SessionConfig:
 
 
 DEFAULT_TIER_TARGETS: Mapping[str, float] = {
-    "clean_acoustic_single_line": 0.85,
-    "clean_acoustic_strummed": 0.90,
-    "clean_electric": 0.87,
-    "distorted_electric": 0.80,
+    "clean_acoustic_single_line": 0.45,
+    "clean_acoustic_strummed": 0.60,
+    "clean_electric": 0.90,
+    "distorted_electric": 0.82,
 }
-"""Per-tier Tab F1 acceptance targets from SPEC §1.4.1.
+"""Per-tier Tab F1 acceptance targets.
 
-These are the v1 acceptance bar locked in by the 2026-05-13 design plan
-§0 D2. The original SPEC §1.4 numbers (0.94 / 0.86 / 0.90 / 0.82) are
-the v1.1 / portfolio stretch reference, not used here.
+Acoustic tiers use the v1 honest audio-only gates from SPEC §1.4.1
+(2026-06-02): single-line >= 0.45, strummed >= 0.60. Single-line is
+information-limited from audio (string/fret ambiguity), so the original
+0.94 is the v1.1 video-assisted reference, not a v1 gate. Electric tiers
+are deferred to v2; their numbers here are the SPEC §1.4 stretch reference
+and do not gate the acoustic v1 acceptance (they are "missing" in an
+acoustic-only run).
 """
 
 
@@ -309,6 +320,28 @@ def format_baseline_markdown(
             f"| {tier} | {tier_report.n_clips} | {tier_report.n_gold_total} | "
             f"{tab_mean:.4f} | {tab_lo:.4f} | {target:.2f} | {statuses[tier]} | "
             f"{onset_mean:.4f} | {pitch_mean:.4f} |"
+        )
+    lines.append("")
+
+    lines.append("## Chord-instance accuracy")
+    lines.append("")
+    lines.append(
+        "Whole-fingering recovery per chord cluster. The >= 0.85 bar is a v1.1 "
+        "video-assisted target; audio-only is string-resolution-limited, like "
+        "single-line Tab F1 (SPEC §1.4.1)."
+    )
+    lines.append("")
+    lines.append("| Tier | Clips | Chord acc mean | Lower-95 |")
+    lines.append("|---|---:|---:|---:|")
+    for tier in targets:
+        tier_report = report.tiers.get(tier)
+        if tier_report is None:
+            lines.append(f"| {tier} | 0 | — | — |")
+            continue
+        lines.append(
+            f"| {tier} | {tier_report.n_clips} | "
+            f"{tier_report.chord_accuracy.statistic:.4f} | "
+            f"{tier_report.chord_accuracy.lower:.4f} |"
         )
     lines.append("")
 
@@ -410,11 +443,22 @@ def make_run_pipeline_predictor(
     Imports ``run_pipeline`` lazily so the composite-eval CLI's --help
     works without the audio-highres extras installed.
     """
+    from tabvision.audio.backend import make as make_audio_backend  # noqa: PLC0415
     from tabvision.pipeline import run_pipeline  # noqa: PLC0415
+
+    # Build the audio backend ONCE and reuse it across every clip. The highres
+    # backend caches its model on first transcribe; rebuilding it per clip (the
+    # old behaviour) reloaded the ~0.5 GB checkpoint every clip — ~10x slower,
+    # and the accumulation exhausted memory partway through a 60-clip run.
+    # "auto" routes per session, so it can't be prebuilt; it falls back per-clip.
+    shared_backend: AudioBackend | None = (
+        None if audio_backend_name == "auto" else make_audio_backend(audio_backend_name)
+    )
 
     def predictor(media_path: Path, session: SessionConfig) -> list[TabEvent]:
         return run_pipeline(
             str(media_path),
+            audio_backend=shared_backend,
             audio_backend_name=audio_backend_name,
             position_prior=position_prior,
             melodic_prior_enabled=melodic_prior_enabled,
