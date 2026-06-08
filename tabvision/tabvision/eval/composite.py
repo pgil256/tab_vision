@@ -325,7 +325,11 @@ def format_baseline_markdown(
 
     lines.append("## Chord-instance accuracy")
     lines.append("")
-    lines.append("Whole-fingering recovery per chord cluster (SPEC §1.4 gate >= 0.85).")
+    lines.append(
+        "Whole-fingering recovery per chord cluster. The >= 0.85 bar is a v1.1 "
+        "video-assisted target; audio-only is string-resolution-limited, like "
+        "single-line Tab F1 (SPEC §1.4.1)."
+    )
     lines.append("")
     lines.append("| Tier | Clips | Chord acc mean | Lower-95 |")
     lines.append("|---|---:|---:|---:|")
