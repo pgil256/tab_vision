@@ -35,7 +35,7 @@ def test_default_checkpoint_path_uses_data_root(monkeypatch):
     monkeypatch.setenv("TABVISION_DATA_ROOT", "/tmp/tv-test-root")
     monkeypatch.delenv(DEFAULT_CHECKPOINT_ENV, raising=False)
     p = _default_checkpoint_path()
-    assert str(p).endswith("/tmp/tv-test-root/models/guitar-yolo-obb-finetuned.pt")
+    assert p.as_posix().endswith("/tmp/tv-test-root/models/guitar-yolo-obb-finetuned.pt")
 
 
 def test_env_overrides_default_checkpoint(monkeypatch, tmp_path):

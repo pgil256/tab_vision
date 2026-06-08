@@ -64,7 +64,8 @@ def _write_manifest(
     for entry in entries:
         lines.append("[[clips]]")
         for key, value in entry.items():
-            lines.append(f'{key} = "{value}"')
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'{key} = "{escaped}"')
         lines.append("")
     manifest_path.write_text("\n".join(lines), encoding="utf-8")
 
