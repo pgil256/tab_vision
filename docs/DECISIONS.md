@@ -672,3 +672,29 @@ artifact; chord ≥ 0.85 returns as a v1.1 gate once video string-resolution lan
 Two harness bugs were fixed en route to the run: per-clip model reload (OOM ~clip
 17 → build the highres backend once) and a duplicate-OpenMP segfault on Windows
 (`KMP_DUPLICATE_LIB_OK=TRUE`).
+
+## 2026-06-03 — v1.1 string-resolver already works (oracle-validated); v1.1 is eval-data-gated
+
+**Phase:** v1.1 (video string-resolution) — P1 validation
+**Decision tree:** v1.1 design §9 ("test the resolver on a clean signal first")
+**Branch taken:** **Validate before building.** Probed the *existing* fusion with a
+gold-derived oracle `FrameFingering` rather than building the §5 "new resolver."
+The resolver is already wired and correct, so v1.1 P1 needs **no new code**; the
+milestone reduces to **P0 (eval data)**.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_oracle_string_probe_2026-06-03.md`,
+`scripts/eval/v1_1_oracle_string_probe.py`, `tests/unit/test_video_string_resolution.py`.
+- Oracle (perfect hand signal), 60-clip player-05 validation: single-line Tab F1
+  **0.57 → 0.995** (> 0.94 target), strummed **0.75 → 0.978** (> 0.85), aggregate
+  0.66 → 0.986 — pure fusion, no audio model / video / rendering.
+- Path: `fuse → playability.find_fingering_at(onset) → emission_cost` vision term
+  `lambda_vision · -log(marginal_string_fret[s, f])`, candidate-restricted by Viterbi.
+- No-regression confirmed by test: absent/zero fingerings == the audio-only decode.
+
+**Reasoning:** The 2026-06-03 v1.1 design §4 mis-stated the gap — it described the
+fret-only *neck-anchor* path; the `FrameFingering` path was already consumed per
+note. The probe is the §9 "clean-signal" test and passes overwhelmingly, proving
+the lever and the code. v1.1 is now an **eval-data** problem: synthetic-from-
+GuitarSet to prove on clean rendered video, then a license-clean public
+video+string corpus as the acceptance gate (§6) — directly analogous to
+v2-electric being gated on the missing upstream trainer.
