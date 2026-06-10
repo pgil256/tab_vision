@@ -672,3 +672,61 @@ artifact; chord ≥ 0.85 returns as a v1.1 gate once video string-resolution lan
 Two harness bugs were fixed en route to the run: per-clip model reload (OOM ~clip
 17 → build the highres backend once) and a duplicate-OpenMP segfault on Windows
 (`KMP_DUPLICATE_LIB_OK=TRUE`).
+
+## 2026-06-03 — v1.1 string-resolver already works (oracle-validated); v1.1 is eval-data-gated
+
+**Phase:** v1.1 (video string-resolution) — P1 validation
+**Decision tree:** v1.1 design §9 ("test the resolver on a clean signal first")
+**Branch taken:** **Validate before building.** Probed the *existing* fusion with a
+gold-derived oracle `FrameFingering` rather than building the §5 "new resolver."
+The resolver is already wired and correct, so v1.1 P1 needs **no new code**; the
+milestone reduces to **P0 (eval data)**.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_oracle_string_probe_2026-06-03.md`,
+`scripts/eval/v1_1_oracle_string_probe.py`, `tests/unit/test_video_string_resolution.py`.
+- Oracle (perfect hand signal), 60-clip player-05 validation: single-line Tab F1
+  **0.57 → 0.995** (> 0.94 target), strummed **0.75 → 0.978** (> 0.85), aggregate
+  0.66 → 0.986 — pure fusion, no audio model / video / rendering.
+- Path: `fuse → playability.find_fingering_at(onset) → emission_cost` vision term
+  `lambda_vision · -log(marginal_string_fret[s, f])`, candidate-restricted by Viterbi.
+- No-regression confirmed by test: absent/zero fingerings == the audio-only decode.
+
+**Reasoning:** The 2026-06-03 v1.1 design §4 mis-stated the gap — it described the
+fret-only *neck-anchor* path; the `FrameFingering` path was already consumed per
+note. The probe is the §9 "clean-signal" test and passes overwhelmingly, proving
+the lever and the code. v1.1 is now an **eval-data** problem: synthetic-from-
+GuitarSet to prove on clean rendered video, then a license-clean public
+video+string corpus as the acceptance gate (§6) — directly analogous to
+v2-electric being gated on the missing upstream trainer.
+
+## 2026-06-03 — v1.1 eval dataset = Kaggle UT-Austin (NC ok for eval); real-video data pipeline locked
+
+**Phase:** v1.1 (video string-resolution) — P0 eval data + chunk-1
+**Decision tree:** v1.1 design §9 ("no §1.5-clean public video+string dataset → escalate")
+**Branch taken:** A deep-research pass confirmed **no portfolio-clean public dataset has
+both fretting-hand video AND per-string labels**. Rather than block, **use the Kaggle
+UT-Austin "guitar-transcription-dataset" (CC-BY-NC-SA)** as the v1.1 eval set: a
+non-commercial license does not bar an *eval* corpus, because SPEC §1.5 governs the
+**shipping pipeline** (which bundles no dataset), not the offline acceptance set.
+Synthetic-from-GuitarSet stays the fully-clean fallback.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_dataset_search_2026-06-03.md` (deep-research run
+`wf_d6833878-6c5`: 98 agents / 16 sources / 19 verified claims).
+- Two disjoint buckets, empty intersection: per-string-labelled corpora (GuitarSet MIT,
+  Guitar-TECHS CC-BY, GOAT, EGDB, IDMT) are all audio-only; video+per-string corpora
+  (Kaggle UT-Austin, GAPS, TapToTab) are all NC / gated. Guitar-TECHS was the named gap
+  → verified audio-only (arXiv:2501.03720).
+- §1.5 reading corrected: the rule is on the shipping default pipeline; an eval set is
+  downloaded to produce a metric, never shipped/redistributed (as GuitarSet/EGDB are).
+- **Chunk-1** (`scripts/eval/v1_1_kaggle_oracle_probe.py`): the Kaggle per-frame finger
+  labels parse to per-note gold (new-placement = onset; highest-fret-per-string sounds;
+  `our_idx = 6 − their_string`, audio-verified), and the oracle lift reproduces on REAL
+  clips — audio-only **0.42 → oracle 1.00** (25 clips / 527 notes).
+
+**Reasoning:** The lever (string from video) is now proven twice (GuitarSet 0.52→0.99,
+Kaggle 0.42→1.00) and the resolver needs no new code. The eval-data gate is resolved
+with a real-video corpus whose only flaw is a non-commercial license that does not apply
+to offline eval use. Remaining work is purely the MediaPipe CV chain (chunk 2: does real
+hand/fretboard detection on this footage produce good fingerings) + the real-audio eval
+(chunk 3). Caveats: single-source student dataset (a proof, not a robust headline); do
+not commit the data; revisit if TabVision is ever commercialised.
