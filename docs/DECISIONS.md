@@ -698,3 +698,35 @@ the lever and the code. v1.1 is now an **eval-data** problem: synthetic-from-
 GuitarSet to prove on clean rendered video, then a license-clean public
 video+string corpus as the acceptance gate (§6) — directly analogous to
 v2-electric being gated on the missing upstream trainer.
+
+## 2026-06-03 — v1.1 eval dataset = Kaggle UT-Austin (NC ok for eval); real-video data pipeline locked
+
+**Phase:** v1.1 (video string-resolution) — P0 eval data + chunk-1
+**Decision tree:** v1.1 design §9 ("no §1.5-clean public video+string dataset → escalate")
+**Branch taken:** A deep-research pass confirmed **no portfolio-clean public dataset has
+both fretting-hand video AND per-string labels**. Rather than block, **use the Kaggle
+UT-Austin "guitar-transcription-dataset" (CC-BY-NC-SA)** as the v1.1 eval set: a
+non-commercial license does not bar an *eval* corpus, because SPEC §1.5 governs the
+**shipping pipeline** (which bundles no dataset), not the offline acceptance set.
+Synthetic-from-GuitarSet stays the fully-clean fallback.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_dataset_search_2026-06-03.md` (deep-research run
+`wf_d6833878-6c5`: 98 agents / 16 sources / 19 verified claims).
+- Two disjoint buckets, empty intersection: per-string-labelled corpora (GuitarSet MIT,
+  Guitar-TECHS CC-BY, GOAT, EGDB, IDMT) are all audio-only; video+per-string corpora
+  (Kaggle UT-Austin, GAPS, TapToTab) are all NC / gated. Guitar-TECHS was the named gap
+  → verified audio-only (arXiv:2501.03720).
+- §1.5 reading corrected: the rule is on the shipping default pipeline; an eval set is
+  downloaded to produce a metric, never shipped/redistributed (as GuitarSet/EGDB are).
+- **Chunk-1** (`scripts/eval/v1_1_kaggle_oracle_probe.py`): the Kaggle per-frame finger
+  labels parse to per-note gold (new-placement = onset; highest-fret-per-string sounds;
+  `our_idx = 6 − their_string`, audio-verified), and the oracle lift reproduces on REAL
+  clips — audio-only **0.42 → oracle 1.00** (25 clips / 527 notes).
+
+**Reasoning:** The lever (string from video) is now proven twice (GuitarSet 0.52→0.99,
+Kaggle 0.42→1.00) and the resolver needs no new code. The eval-data gate is resolved
+with a real-video corpus whose only flaw is a non-commercial license that does not apply
+to offline eval use. Remaining work is purely the MediaPipe CV chain (chunk 2: does real
+hand/fretboard detection on this footage produce good fingerings) + the real-audio eval
+(chunk 3). Caveats: single-source student dataset (a proof, not a robust headline); do
+not commit the data; revisit if TabVision is ever commercialised.
