@@ -780,3 +780,36 @@ no-regression gate: sparse evidence should become no evidence. The real highres
 number is low even with oracle video, so further video-gate tuning is the wrong next
 move; the next accuracy work should target highres audio transcription/alignment on
 the UT-Austin WAVs or a better audio backbone for that corpus.
+
+## 2026-06-11 - v1.1 chunk-4 audio alignment favors a global highres correction
+
+**Phase:** v1.1 (video string-resolution) - chunk 4
+**Decision tree:** v1.1 chunk-4 plan ("raise the UT-Austin real-audio ceiling
+before more video fusion work")
+**Branch taken:** Add a cached audio-alignment diagnostic and prefer the measured
+global highres correction over the earlier per-clip calibration for the next
+implementation pass.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_audio_alignment_probe_2026-06-11.md`,
+`scripts/eval/v1_1_audio_alignment_probe.py`,
+`tests/unit/test_v1_1_audio_alignment_probe.py`.
+- highres raw audio is effectively unaligned: onset F1 **0.0409**, pitch F1
+  **0.0000**, Tab F1 **0.0000**, oracle-video Tab F1 **0.0000**.
+- highres per-clip calibration reproduces the previous low ceiling: Tab F1
+  **0.0603**, oracle-video **0.1979**.
+- highres global calibration (`pitch_shift=-1`, `time_shift_s=+0.14`) is better:
+  onset F1 **0.4598**, pitch F1 **0.3613**, Tab F1 **0.1415**, oracle-video
+  **0.3535**.
+- Real-chain rerun with that global correction scored audio-only **0.1415**,
+  audio+real-video **0.1656**, oracle-video **0.3535**.
+- `highres-fl` ran but trailed highres; Basic Pitch could not be compared in the
+  current Windows Python 3.12 venv because `basic-pitch` depends on TensorFlow
+  and no matching TensorFlow distribution is available.
+
+**Reasoning:** The repeated `-1` semitone preference is a corpus/reference-pitch
+signal, but the clip-local time search overfits the alignment proxy: clips 0 and
+1 prefer ~`+1.25s`, yet the aggregate score is much better with one shared
+`+0.14s` time correction. The next implementation should therefore promote/test
+a global highres calibration path first, then inspect retained video evidence
+under corrected timing. Tuning generic video weights remains secondary until the
+audio calibration path is explicit and regression-tested.
