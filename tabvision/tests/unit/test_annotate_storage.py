@@ -12,7 +12,7 @@ from scripts.annotate import storage
 
 
 def test_clip_id_strips_extensions_and_normalises_special_chars():
-    assert storage.clip_id("/path/to/training-01.MOV") == "training-01"
+    assert storage.clip_id("/path/to/public-clip-01.MOV") == "public-clip-01"
     assert storage.clip_id("clip with spaces.mp4") == "clip-with-spaces"
     assert storage.clip_id("foo!!bar.mov") == "foo-bar"
 

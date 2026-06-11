@@ -17,7 +17,7 @@ evidence is the v1 gate.
 From anywhere on the box:
 
 ```bash
-bash tabvision/scripts/annotate/launch.sh
+bash tabvision/scripts/annotate/launch.sh /path/to/clips
 # → opens http://127.0.0.1:5005/
 ```
 
@@ -27,9 +27,9 @@ That's the whole setup.  The launcher:
    `$TABVISION_VENV`, then `./venv`, then `./tabvision-server/venv`).
 2. `cd`s into the v1 package directory so `python -m scripts.annotate.label_clips`
    resolves correctly.
-3. Defaults `--clips` to
-   `test-data/training-tabs/training-tabs-video` (the existing 20
-   training clips) — pass an explicit dir to override.
+3. Requires an explicit `--clips` source. The old personal training-video
+   directory was removed from the repo and must not be used as a gate, dev set,
+   or label source.
 
 If no suitable venv exists, the script tells you the exact command to
 prepare one:
@@ -48,7 +48,7 @@ will refuse.  Always go through a venv.)
 bash tabvision/scripts/annotate/launch.sh /path/to/clips 5005
 ```
 
-Position 1 = clip directory (default = the training-tabs videos).
+Position 1 = clip directory.
 Position 2 = port (default 5005).  For more control invoke the module
 directly:
 

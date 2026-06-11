@@ -65,9 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     good_quad = 0
     total = 0
     for cid in args.clips.split(","):
-        paths = sorted(
-            frames_dir.glob(f"{cid}_*.png"), key=lambda p: int(p.stem.split("_")[1])
-        )
+        paths = sorted(frames_dir.glob(f"{cid}_*.png"), key=lambda p: int(p.stem.split("_")[1]))
         for p in paths[:: max(1, len(paths) // args.per_clip)][: args.per_clip]:
             frame = cv2.imread(str(p))
             if frame is None:
@@ -77,11 +75,7 @@ def main(argv: list[str] | None = None) -> int:
             preds = yolo.predict_all(frame)
             neck = preds.best_neck()
             homography = fb.detect(frame, None)  # GuitarBBox unused by keypoint backend
-            qw, qh = (
-                _quad_extent(homography.H, w, h)
-                if homography.confidence > 0
-                else (0.0, 0.0)
-            )
+            qw, qh = _quad_extent(homography.H, w, h) if homography.confidence > 0 else (0.0, 0.0)
             if neck is not None:
                 neck_hits += 1
             # "good" = localized strip: covers <85% of at least one axis and H is confident

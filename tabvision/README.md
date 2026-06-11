@@ -113,8 +113,8 @@ bash scripts/test_fresh_install.sh
 the repository, creates a venv, installs `.[dev]`, checks `tabvision --version`,
 runs the default license policy check, and runs render tests.
 
-Full hand-labeled, user-recorded eval remains useful future validation, but it
-is not a v1 release prerequisite. v1 release evidence must be automated:
+Full hand-labeled private-video eval is no longer part of the roadmap. v1
+release evidence must be automated:
 deterministic smoke fixtures, public/programmatic dataset reports such as
 GuitarSet validation, license checks, fresh-install checks, and renderer tests.
 

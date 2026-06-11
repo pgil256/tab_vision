@@ -1,6 +1,7 @@
 """Build basic_pitch-compatible TFRecords from sideloaded GuitarSet data.
 
-Phase 1 Week 1 deliverable per docs/plans/2026-04-24-audio-backbone-finetune-design.md §7.
+Historical Phase 1 GuitarSet fine-tune helper. The old April plan that introduced
+this helper was removed on 2026-06-11 because its private-video gate is invalid.
 
 Why this exists: Spotify's `basic_pitch.data.datasets.guitarset` Beam pipeline
 relies on `mirdata` to read JAMS + WAV pairs, and `mirdata.initialize('guitarset')`

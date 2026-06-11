@@ -52,8 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     paths = _clip_frame_paths(args.root, args.clip)
     sampled = paths[:: args.stride][: args.limit]
     print(
-        f"clip {args.clip}: {len(paths)} frames, sampling {len(sampled)} "
-        f"(stride {args.stride})\n"
+        f"clip {args.clip}: {len(paths)} frames, sampling {len(sampled)} (stride {args.stride})\n"
     )
 
     print(f"{'frame':>8} {'hand?':>5} {'label':>6} {'conf':>5} {'wrist_xy%':>14} {'fingertips_x%'}")
@@ -82,10 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     n = len(sampled)
-    print(
-        f"\ndetected {detected}/{n} ({detected / n:.0%})"
-        f"  fretting-hand labels: {dict(labels)}"
-    )
+    print(f"\ndetected {detected}/{n} ({detected / n:.0%})  fretting-hand labels: {dict(labels)}")
     print(
         "NOTE: 'left'=HandSample.is_left_hand (MediaPipe 'Right', mirror convention)."
         " On this rig the neck/fretting hand should sit at higher wrist_x% (toward image right)."

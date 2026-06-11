@@ -1,9 +1,7 @@
 """5-epoch overfit smoke test for the basic_pitch fine-tune loop.
 
-Phase 1 Week 1 deliverable per docs/plans/2026-04-24-audio-backbone-finetune-design.md §7
-("Friday gate"): confirm the training loop runs and the loss decreases on a
-5-clip overfit. If this can't be made to run cleanly, the plan's bailout is
-to pivot to a frozen-encoder + new-head approach (HuBERT / MusicFM).
+Historical Phase 1 GuitarSet fine-tune helper. Confirms the training loop runs
+and the loss decreases on a 5-clip overfit.
 
 Inputs: TFRecords produced by `tools/build_guitarset_tfrecords.py` (under
 `tools/outputs/tfrecords/guitarset/splits/{train,validation}/`).

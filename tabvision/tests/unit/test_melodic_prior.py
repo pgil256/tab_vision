@@ -32,7 +32,7 @@ def test_apply_melodic_segment_prior_attaches_candidate_prior():
 
 
 def test_long_scale_run_prior_prefers_compact_mid_neck_window():
-    # E minor 3-note-per-string run from training-14. Low-fret equivalents
+    # E minor 3-note-per-string run. Low-fret equivalents
     # exist for most notes, but the compact playable shape is around frets 7-10.
     pitches = [47, 48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 67, 69, 71, 72, 74]
     events = [_ev(index * 0.2, pitch) for index, pitch in enumerate(pitches)]

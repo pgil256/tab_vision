@@ -1,7 +1,8 @@
 """Phase 5 video-evidence diagnostic.
 
 Usage:
-    python -m scripts.eval.phase5_video_diagnostics --clip-id training-01
+    python -m scripts.eval.phase5_video_diagnostics --clip-id sample-video
+    python -m scripts.eval.phase5_video_diagnostics --video /path/to/public-clip.mp4
 """
 
 from __future__ import annotations
@@ -23,14 +24,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Inspect Phase 5 video evidence for one benchmark clip."
     )
-    parser.add_argument("--clip-id", default="training-01")
+    parser.add_argument("--clip-id", default=None)
     parser.add_argument("--video", type=Path, default=None)
     parser.add_argument("--sample-frames", type=int, default=10)
     args = parser.parse_args(argv)
 
-    video = args.video if args.video is not None else _video_for_clip(args.clip_id)
+    if args.video is None and args.clip_id is None:
+        parser.error("provide --clip-id from the benchmark index or --video")
+
+    label = args.clip_id or "explicit-video"
+    if args.video is None:
+        assert args.clip_id is not None
+        video = _video_for_clip(args.clip_id)
+    else:
+        video = args.video
     report = diagnose_video_evidence(video, sample_frames=args.sample_frames)
-    print(_format_report(args.clip_id, video, report))
+    print(_format_report(label, video, report))
     return 0
 
 

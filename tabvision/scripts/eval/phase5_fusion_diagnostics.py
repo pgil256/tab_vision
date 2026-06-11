@@ -1,7 +1,8 @@
 """Phase 5 fusion-consumption diagnostic.
 
 Usage:
-    python -m scripts.eval.phase5_fusion_diagnostics --clip-id training-01
+    python -m scripts.eval.phase5_fusion_diagnostics --clip-id sample-video
+    python -m scripts.eval.phase5_fusion_diagnostics --video /path/to/public-clip.mp4
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Inspect whether Phase 5 fusion consumes video evidence."
     )
-    parser.add_argument("--clip-id", default="training-01")
+    parser.add_argument("--clip-id", default=None)
     parser.add_argument("--video", type=Path, default=None)
     parser.add_argument(
         "--lambdas",
@@ -41,15 +42,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sample-events", type=int, default=5)
     args = parser.parse_args(argv)
 
-    bench = None if args.video is not None else _benchmark_for_clip(args.clip_id)
-    video = args.video if args.video is not None else REPO_ROOT / bench["video_path"]
+    if args.video is None and args.clip_id is None:
+        parser.error("provide --clip-id from the benchmark index or --video")
+
+    label = args.clip_id or "explicit-video"
+    if args.video is None:
+        assert args.clip_id is not None
+        bench = _benchmark_for_clip(args.clip_id)
+        video = REPO_ROOT / bench["video_path"]
+    else:
+        bench = None
+        video = args.video
     report = diagnose_fusion_consumption(
         video,
         benchmark=bench,
         lambdas=args.lambdas,
         sample_events=args.sample_events,
     )
-    print(_format_report(args.clip_id, video, report))
+    print(_format_report(label, video, report))
     return 0
 
 

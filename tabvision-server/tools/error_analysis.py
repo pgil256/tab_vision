@@ -1,6 +1,6 @@
 """Subprocess-per-video error-bucket harness.
 
-Parent: python tools/error_analysis.py [--id training-01]
+Parent: python tools/error_analysis.py [--id sample-video]
   -> runs each video in a fresh subprocess (--worker), aggregates.
 
 Worker: python tools/error_analysis.py --worker --id <bm_id>

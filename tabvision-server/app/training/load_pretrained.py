@@ -2,10 +2,8 @@
 returned by ``basic_pitch.models.model()``.
 
 Without this, ``basic_pitch.train.main`` fits a fresh-weight model — that is
-training-from-scratch, not fine-tuning. Plan
-docs/plans/2026-04-24-audio-backbone-finetune-design.md §7 calls explicitly
-for fine-tuning the pretrained backbone, so this module is the missing
-prerequisite for Week 2.
+training-from-scratch, not fine-tuning. This helper belongs to the historical
+Phase 1 GuitarSet fine-tune path.
 
 Why a custom loader: the shipped model is a TF SavedModel
 (`basic_pitch/saved_models/icassp_2022/nmp/`). The Keras 2.x install we use

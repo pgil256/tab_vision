@@ -97,7 +97,7 @@ def _phase_debt(eval_root: str | Path) -> dict[str, object]:
         "phase_1_5": {
             "status": "optional_future",
             "gate": (
-                "public/programmatic manifest completeness; hand-annotated user clips "
+                "public/programmatic manifest completeness; hand-annotated private clips "
                 "removed_from_v1"
             ),
             "command": "tabvision-eval --manifest tabvision/data/eval/manifest.toml --check",

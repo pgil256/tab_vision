@@ -162,7 +162,7 @@ checked-in fixtures, and already-generated reports.
 | Clean acoustic strummed | GuitarSet "comp" excerpts | Same source, comp/chord-mode subset |
 | Clean electric | Public/programmatic source if available | Registration-only datasets are optional future |
 | Distorted electric | EGDB held-out | Multi-amp, ground-truth tab |
-| **Bonus tier: iPhone OOD** | Existing 11/20 self-recorded videos | Already-annotated; **not a v1 acceptance gate**, but a tracked metric so we know iPhone-domain regressions when they happen |
+| **Optional real-video research tier** | GAPS / Kaggle UT-Austin-style offline corpora | Public/offline replacement sources only; private recordings are not a gate or dev set |
 
 **Phase 1.5 deliverables (revised):**
 
@@ -177,7 +177,7 @@ checked-in fixtures, and already-generated reports.
 **Phase 1.5 acceptance gate (revised again 2026-05-07):** deterministic smoke
 eval runs, the optional manifest validator reports missing tiers as
 informational, and any full/public eval uses datasets that can be acquired
-non-interactively. Missing hand-labeled user clips are not a v1 blocker.
+informational, and no private clips are a v1 blocker.
 
 **Acknowledged blind spot:** distorted-electric §1.4 target is measured on
 EGDB (studio domain), not iPhone-recorded distortion. Documented here so
@@ -194,9 +194,9 @@ log, `docs/plans/`), so the actual interactive interview is short.
 | Q | Pre-filled answer | Confidence |
 |---|---|---|
 | 1. Where is the project? | `/home/gilhooleyp/projects/tab_vision`, single repo, contains backend + Electron client | High |
-| 2. State? | Backend works end-to-end; 91.6% Exact F1 on 11-video set; mid-experiment on Phase 1 audio finetune (H2 untested) | High |
+| 2. State? | Backend works end-to-end; old private-video metrics invalidated 2026-06-11; use public/fixture reports for current evidence | High |
 | 3. Prior approach? | Audio (Basic Pitch) + vision (MediaPipe + geometric fretboard) + heuristic fusion. Worked: melodic segment correction, string compactness, 2-pass anchoring. Didn't ship: video hand anchor, learned-fusion LightGBM (NO_SHIP), Phase 0 RMS truncation (no-op on iPhone audio) | High |
-| 4. Datasets/weights/annotations to preserve? | 11 + 20 self-recorded videos + ground-truth, GuitarSet TFRecords at `tabvision-server/tools/outputs/tfrecords/guitarset/splits/`, fine-tuned checkpoints (TBD H2 outcome), benchmark results | High |
+| 4. Datasets/weights/annotations to preserve? | GuitarSet TFRecords at `tabvision-server/tools/outputs/tfrecords/guitarset/splits/`, fine-tuned checkpoints (TBD H2 outcome), public/offline eval manifests | High |
 | 5. Branches with abandoned approaches worth revisiting? | `agent-farm-improvements` (learned-fusion), `feature/audio-finetune` (Phase 0 RMS) — both `NO_SHIP` | High |
 | 6. Don't touch? | `tabvision-client/` and `tabvision-server/` per Q4 — frozen, not deleted | High |
 | 7. Python version + tooling? | **NEEDS VERIFICATION** during Phase 0 — read existing `requirements.txt` + venv | Medium |
@@ -225,12 +225,12 @@ log, `docs/plans/`), so the actual interactive interview is short.
 | MediaPipe Hands | Apache 2.0 | ✅ |
 | OpenCV | Apache 2.0 | ✅ |
 | ffmpeg-python | Apache 2.0 | ✅ |
-| Riley/Edwards High-Res | research weights — verify | ⚠️ check before Phase 2 swap |
-| trimplexx CRNN | verify | ⚠️ |
-| YOLOv8n (ultralytics) | AGPL — caution for portfolio | ⚠️ pin to weights-only path or pick alternative |
+| Riley/Edwards High-Res | research weights — verify | ⚠ï¸ check before Phase 2 swap |
+| trimplexx CRNN | verify | ⚠ï¸ |
+| YOLOv8n (ultralytics) | AGPL — caution for portfolio | ⚠ï¸ pin to weights-only path or pick alternative |
 | GuitarSet | CC-BY-4.0 | ✅ for training; no redistribution issue |
-| IDMT-SMT-Guitar | research-use, registration | ⚠️ training only, not redistributed |
-| EGDB | verify | ⚠️ |
+| IDMT-SMT-Guitar | research-use, registration | ⚠ï¸ training only, not redistributed |
+| EGDB | verify | ⚠ï¸ |
 
 Two-flag risks for portfolio: Riley/Edwards research license (Phase 2) and
 YOLOv8 / ultralytics AGPL (Phase 3). Resolve before each phase commits.
@@ -291,14 +291,14 @@ original Path-2 plan called out (Basic Pitch's last-pitched-note timestamp).
 
 **Phase 7 acceptance gate** is automated evidence only for v1. Aggregate +
 per-tier targets may be reported from public/programmatic datasets and existing
-GuitarSet validation, but missing hand-labeled user clips do not block release.
+GuitarSet validation, but private clips do not block release.
 
 ## 9. Risks specific to this hybrid
 
 | # | Risk | Mitigation |
 |---|---|---|
 | 1 | **Port drift.** Wrapping existing modules to fit §8 contracts may surface refactors that turn "Port" into "Build." Phase 1 timeline could blow up. | Treat §8 contracts as the gate. If porting > 1 week per module, downgrade to "Build" and note in `DECISIONS.md`. |
-| 2 | **License blocker at Phase 2 / 3.** Riley/Edwards research weights or ultralytics AGPL could block default-pipeline use. | LICENSES.md flags both `⚠️` at Phase 0. Resolve before each phase commits. Have a fallback (GAPS for audio, alternative detector for guitar). |
+| 2 | **License blocker at Phase 2 / 3.** Riley/Edwards research weights or ultralytics AGPL could block default-pipeline use. | LICENSES.md flags both `⚠ï¸` at Phase 0. Resolve before each phase commits. Have a fallback (GAPS for audio, alternative detector for guitar). |
 | 3 | **Eval tier coverage gap.** Existing 11/20 videos are clean-acoustic-leaning. Distorted-electric tier exists only on EGDB (studio domain). | Document explicitly: distorted-electric §1.4 target measured on EGDB held-out, not iPhone. iPhone-domain distortion is acknowledged blind spot. |
 | 4 | **Frozen rot.** `tabvision-server/` + `tabvision-client/` get stale (deps drift, Python version moves). Demo silently breaks. | Phase-0 deliverable: capture current dep versions in `tabvision-server/FROZEN.md` + `make demo` smoke test that runs the v0 pipeline once on a fixture. CI runs nightly. |
 | 5 | **H2 outcome drags.** "Finish-then-pivot" assumes ~1 week. If it bleeds, Phase 0 starts late. | Hard timebox: by **2026-05-12**, document H2 status. If inconclusive, freeze branch with current findings and proceed to Phase 0 anyway. |
@@ -337,15 +337,15 @@ GuitarSet validation, but missing hand-labeled user clips do not block release.
 ## 12. Cross-references
 
 - `TAB_SPEC_UPDATE.md` — canonical spec; renamed to `SPEC.md` in Phase 0.
-- `docs/plans/2026-04-24-audio-backbone-finetune-design.md` — Path 2
-  (Basic Pitch fine-tune) plan. Outcome feeds Phase 7 per §8 above.
-- `docs/plans/2026-04-24-learned-fusion-design.md` — shelved; revisit after
-  spec Phase 5 fusion gate.
-- `docs/plans/2026-04-23-training-video-pipeline-refinement-design.md` —
-  context for Phase 3 fretboard work.
-- `docs/plans/2026-04-23-video-hand-anchor-design.md` — context for
-  Phase 4 hand work; `use_video_hand_anchor` defaulted off (memory:
-  `project_video_hand_anchor.md`).
+- Removed 2026-06-11: the April Basic Pitch fine-tune design used the private video gate.
+
+- Removed 2026-06-11: the April learned-fusion design depended on the private position dataset.
+
+- Removed 2026-06-11: the old training-video refinement plan depended on inaccurate private recordings.
+
+- Removed 2026-06-11: the April video-hand-anchor design depended on private training videos.
+
+
 - `CLAUDE.md` — to be updated post-Phase-0 with new module references.
 
 ---

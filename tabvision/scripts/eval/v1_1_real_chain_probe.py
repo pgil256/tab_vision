@@ -162,9 +162,7 @@ def _robust_real_fingerings_for_clip(
     frames_dir = root / "tablature_frames"
     ts = _load_timestamps(root)
     frame_times = {
-        int(k.split("_")[1].split(".")[0]): v
-        for k, v in ts.items()
-        if k.split("_")[0] == clip_id
+        int(k.split("_")[1].split(".")[0]): v for k, v in ts.items() if k.split("_")[0] == clip_id
     }
 
     raw_by_event: list[list[FrameFingering]] = []
@@ -297,9 +295,7 @@ def _real_fingerings_for_clip(
     ts = _load_timestamps(root)
     # map onset time -> nearest frame index for this clip
     frame_times = {
-        int(k.split("_")[1].split(".")[0]): v
-        for k, v in ts.items()
-        if k.split("_")[0] == clip_id
+        int(k.split("_")[1].split(".")[0]): v for k, v in ts.items() if k.split("_")[0] == clip_id
     }
     out: list[FrameFingering] = []
     empty = np.zeros((len(FRETTING_FINGERS), cfg.n_strings, cfg.max_fret + 1))
@@ -474,12 +470,8 @@ def main(argv: list[str] | None = None) -> int:
             auto_pitch_shift, auto_time_shift, _alignment_scores = _estimate_audio_alignment(
                 ev, gold
             )
-            pitch_shift = (
-                args.pitch_shift if args.pitch_shift is not None else auto_pitch_shift
-            )
-            time_shift = (
-                args.time_shift_s if args.time_shift_s is not None else auto_time_shift
-            )
+            pitch_shift = args.pitch_shift if args.pitch_shift is not None else auto_pitch_shift
+            time_shift = args.time_shift_s if args.time_shift_s is not None else auto_time_shift
             ev = _shift_audio_events(ev, pitch_shift, time_shift)
         else:
             ev = _events_from_gold(gold)

@@ -19,10 +19,11 @@ web client (`web-client/`) that was added later for Vercel deployment.
 ### 2. What state is it in — does anything run end-to-end?
 
 Backend runs end-to-end via `python tabvision-server/run.py` (Flask, port 5000).
-Most recent eval: 91.6% mean Exact F1 across 11 hand-curated videos (per the
-v0 11-video benchmark; details preserved on branch `agent-farm-improvements`
-via the v0 dev history). The 20-video training set has lower vanilla-baseline
-metrics (~0.43–0.51 mean Exact F1) — see §6 below.
+Older v0 personal-video measurements are now invalidated: the 11-video eval
+set and private training corpus used private recordings and the tab labels are
+not trusted. They were removed from this repo on 2026-06-11; current acceptance
+evidence must come from checked-in fixtures and license-checked public/offline
+corpora.
 
 Most recent in-flight work: Phase 1 audio fine-tune of Basic Pitch on
 GuitarSet, on branch `feature/audio-finetune-phase1`. **Frozen mid-experiment**
@@ -57,15 +58,12 @@ filters tuned to specific failure cases.
 
 | Asset | Path | Reuse target |
 |---|---|---|
-| 11 self-recorded eval videos + ground-truth | `test-data/existing/` + tabs files | Spec Phase 1.5 iPhone OOD bonus tier |
-| 20 self-recorded training videos | `test-data/training-tabs/` (.txt tab files) + `test-data/existing/` | Phase 1.5 + Phase 7 |
 | GuitarSet TFRecord splits | `tabvision-server/tools/outputs/tfrecords/guitarset/splits/{train,validation}/` | Phase 7 fine-tuning data (5 train players + 1 validation player) |
 | Pretrained Basic Pitch weight loader | `tabvision-server/app/training/load_pretrained.py` | Phase 7 (verified equivalent 2026-04-29) |
 | GuitarSet dataset wrapper | `tabvision-server/app/training/guitarset_dataset.py` | Phase 7 |
 | Fine-tune training scripts | `tabvision-server/tools/finetune_basic_pitch_{smoke,modal}.py` | Phase 7 reference |
 | Error analysis harness | `tabvision-server/tools/error_analysis.py` | Phase 8 (deterministic eval harness port) |
-| Vanilla Basic Pitch baseline (20-video) | `tabvision-server/tests/fixtures/benchmarks/results/vanilla-baseline-2026-05-01.json` | Phase 1 / Phase 7 reference point |
-| Benchmark history (baseline_v1..v3, tuning_v1..v13) | `tabvision-server/tests/fixtures/benchmarks/results/` | Reference; not directly ported |
+| Public/offline eval corpora | `$TABVISION_DATA_ROOT/eval/` manifests; not committed | Phase 1.5 / v1.1 replacement source |
 | 17 design docs in `docs/plans/` | `docs/plans/2026-01-* … 2026-05-*` | Context / cross-references in v1 design doc |
 
 ### 5. Branches with abandoned approaches worth revisiting?
@@ -131,12 +129,10 @@ filters tuned to specific failure cases.
 - `eval_basic_pitch_baseline.py` — Phase 1 / Phase 7 baseline
 - `finetune_basic_pitch_{smoke,modal}.py` — Phase 7 training
 - `error_analysis.py` — Phase 8 harness
-- `build_position_dataset.py`, `dump_position_features.py`, `train_position_selector.py` — NO_SHIP learned-fusion artifacts (preserve for documentation; not ported)
 
 **Test fixtures** (`tabvision-server/tests/fixtures/`):
 - `test_a440.mp4` — single A440 reference clip
-- `benchmarks/index.json`, `baseline*.json`, `tuning_v*.json`, `training_baseline.json`, `sample-video-tabs.txt` — eval baselines
-- `benchmarks/results/vanilla-baseline-2026-05-01.json` — most recent reference point
+- `benchmarks/index.json`, `sample-video-tabs.txt` - legacy sample fixture only; personal-corpus benchmark results were removed.
 
 ### Frontend (`tabvision-client/` and `web-client/`)
 
@@ -173,14 +169,12 @@ case).
 **Concretely verified:**
 
 1. **End-to-end pipeline runs.** `python tabvision-server/run.py` starts Flask
-   on port 5000; `POST /jobs` → process video → `GET /jobs/:id/result` returns
-   a TabDocument JSON. Verified by the existence of v0 11-video eval results
-   averaging 91.6% Exact F1 (per design doc and v0 history).
-2. **20-video benchmark harness produces results.** Most recent run:
-   `tests/fixtures/benchmarks/results/vanilla-baseline-2026-05-01.json` — 20
-   training-NN clips run through the current pipeline with full per-clip
-   metrics breakdown (exact / pitch / position / chord, plus per-error
-   classification).
+   on port 5000; `POST /jobs` -> process video -> `GET /jobs/:id/result` returns
+   a TabDocument JSON. The old personal-video eval results are retained only in
+   git history and no longer count as validation evidence.
+2. **Historical personal-video benchmark harness was removed.** Those
+   measurements depended on inaccurate personal tab labels and no longer
+   count as reference evidence.
 3. **Phase 1 audio fine-tune scaffolding works.** GuitarSet TFRecords built,
    pretrained-weight loader verified equivalent to SavedModel (2026-04-29),
    smoke trainer ran on 5 clips successfully. Five full fine-tune runs
@@ -250,8 +244,7 @@ case).
 | GuitarSet PyTorch wrapper | `tabvision-server/app/training/guitarset_dataset.py` | Phase 7 |
 | Fine-tune training scripts | `tabvision-server/tools/finetune_basic_pitch_{smoke,modal}.py` | Phase 7 reference |
 | Error analysis harness | `tabvision-server/tools/error_analysis.py` | Phase 8 (port + harden) |
-| 11 + 20 self-recorded videos + tabs | `test-data/{existing,training-tabs}/` | Phase 1.5 (iPhone OOD) |
-| Benchmark JSONs | `tabvision-server/tests/fixtures/benchmarks/results/` | Reference baseline |
+| Public/offline eval manifests | `$TABVISION_DATA_ROOT/eval/` | Phase 1.5 / v1.1 replacement source |
 | Design docs | `docs/plans/2026-01-* … 2026-05-*` | Cross-reference in v1 designs |
 
 ---
@@ -261,40 +254,19 @@ case).
 **Per SPEC.md §2.1: "Score the baseline pipeline output against the user's
 reference annotation for that one clip. Record the metrics from §1.4."**
 
-We have richer data than one clip: a recent 20-clip vanilla-baseline JSON
-already exists (`tabvision-server/tests/fixtures/benchmarks/results/vanilla-baseline-2026-05-01.json`,
-generated 2026-05-01).
-
-### 20-clip training set (vanilla Basic Pitch + heuristic fusion, 2026-05-01)
-
-Spot-check from per-clip F1s in the JSON (Exact F1 = string + fret + onset match):
-
-| Clip | Exact F1 | Pitch F1 |
-|---|---:|---:|
-| training-01 | 0.42 | 0.68 |
-| training-02 (estimate from JSON) | 0.32 | — |
-| training-03 (estimate from JSON) | 0.86 | — |
-| training-04 (estimate from JSON) | 0.57 | — |
-| ... | ... | ... |
-
-Mean Exact F1 across the 20-clip set is approximately **0.43–0.51** depending
-on which harness alignment is used (corrected harness with `_find_best_time_offset`
-vs original).
-
-### 11-clip eval set (best v0 result, 2026-04-02)
-
-Mean Exact F1: **0.916** across `sample-video, video-3, video-4, video-5,
-video-6, video-7, video-8, video-9, video-10, video-11, video-12`. Per-clip
-range 0.696 to 0.976.
+The personal-video baseline JSONs and tab files were removed on 2026-06-11
+because the labels are not trusted. Use the later public/fixture eval reports
+(`docs/EVAL_REPORTS/v1_acceptance_2026-06-03.md` and v1.1 reports) for current
+metrics.
 
 ### Spec §1.4 targets (for context)
 
 | Metric | v0 status | Spec v1 target |
 |---|---|---|
 | Onset F1 (50 ms) | unmeasured for §1.4 definition | ≥ 0.92 |
-| Pitch F1 (50 ms, no offset) | ~0.68–0.75 (20-clip), better on 11-clip | ≥ 0.90 |
-| Tab F1 (string + fret + onset) | 0.43–0.51 (20-clip) / 0.916 (11-clip) | ≥ 0.88 |
-| Chord-instance accuracy | low on 20-clip (many 0.0s) | ≥ 0.85 |
+| Pitch F1 (50 ms, no offset) | current public/fixture reports only | >= 0.90 |
+| Tab F1 (string + fret + onset) | current public/fixture reports only | >= 0.88 |
+| Chord-instance accuracy | current public/fixture reports only | >= 0.85 |
 | End-to-end latency (60 s clip on laptop CPU) | unmeasured | ≤ 5 min |
 
 **Interpretation:** v0 already exceeds the aggregate Tab F1 target on the

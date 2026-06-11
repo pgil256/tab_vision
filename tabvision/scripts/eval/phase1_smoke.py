@@ -1,7 +1,7 @@
-"""Phase 1 smoke eval — run the new pipeline on a few user clips, report counts.
+"""Phase 1 smoke eval - run the new pipeline on a few public/offline clips, report counts.
 
-Per SPEC §7 Phase 1 acceptance: "Eval harness reports any numbers on at
-least 3 user clips." We report detected event counts vs. ground-truth
+Per SPEC Phase 1 acceptance: "Eval harness reports any numbers on at
+least 3 public/offline clips." We report detected event counts vs. ground-truth
 fret-count. Real mir_eval-based metrics (Onset F1, Tab F1) come in
 Phase 8 harness hardening.
 
@@ -104,7 +104,6 @@ def _find_gt(gt_dir: Path, video: Path) -> Path | None:
     candidates = [
         gt_dir / f"{video.stem}-tabs.txt",
         video.with_name(f"{video.stem}-tabs.txt"),
-        video.parent.parent / "training-tabs" / f"{video.stem}-tabs.txt",
     ]
     for c in candidates:
         if c.exists():

@@ -1,8 +1,7 @@
 """GuitarSet dataset loader for the audio-finetune Phase 1.
 
-Phase 1 Week 1 deliverable per
-docs/plans/2026-04-24-audio-backbone-finetune-design.md §7. Reads JAMS
-files directly from disk and returns (onset, duration, midi, string, fret)
+Historical Phase 1 GuitarSet fine-tune helper. Reads JAMS files directly from
+disk and returns (onset, duration, midi, string, fret)
 notes — no mirdata dependency at parse time, so the parser works equally
 well whether the data was sideloaded from HuggingFace
 (`tools/sideload_guitarset_from_hf.py`) or downloaded from Zenodo via

@@ -674,12 +674,8 @@ def print_metrics(metrics: EvalMetrics, label: str = ""):
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate guitar transcription accuracy')
-    parser.add_argument('video_path', nargs='?',
-                       default='/home/gilhooleyp/projects/tab_vision/test-data/existing/sample-video.mp4',
-                       help='Path to video file')
-    parser.add_argument('ground_truth_path', nargs='?',
-                       default='/home/gilhooleyp/projects/tab_vision/test-data/existing/sample-video-tabs.txt',
-                       help='Path to ground truth tab file')
+    parser.add_argument('video_path', help='Path to video file')
+    parser.add_argument('ground_truth_path', help='Path to ground truth tab file')
     parser.add_argument('--time-tolerance', type=float, default=0.5,
                        help='Timing tolerance in seconds')
     parser.add_argument('--output', type=str, default=None,

@@ -87,7 +87,7 @@
   "phase_debt": {
     "phase_1_5": {
       "command": "tabvision-eval --manifest tabvision/data/eval/manifest.toml --check",
-      "gate": "public/programmatic manifest completeness; hand-annotated user clips removed_from_v1",
+      "gate": "public/programmatic manifest completeness; hand-annotated private clips removed_from_v1",
       "status": "optional_future"
     },
     "phase_3": {

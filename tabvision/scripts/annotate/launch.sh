@@ -2,7 +2,6 @@
 # Launch the labeling tool with the right venv + working dir already
 # set up.  Run from anywhere::
 #
-#   bash tabvision/scripts/annotate/launch.sh             # auto-discovers ~/projects/tab_vision/test-data/training-tabs/training-tabs-video
 #   bash tabvision/scripts/annotate/launch.sh /path/to/clips
 #   bash tabvision/scripts/annotate/launch.sh /path/to/clips 5005
 #
@@ -16,7 +15,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PKG_ROOT="$REPO_ROOT/tabvision"
 
-CLIPS="${1:-$REPO_ROOT/test-data/training-tabs/training-tabs-video}"
+if [ "${1:-}" = "" ]; then
+  cat >&2 <<EOF
+[label] missing clip directory.
+        Usage: bash tabvision/scripts/annotate/launch.sh /path/to/clips [port]
+        Personal training videos were removed from this repo; pass an explicit
+        public/offline validation corpus directory when using this optional tool.
+EOF
+  exit 2
+fi
+
+CLIPS="$1"
 PORT="${2:-5005}"
 
 # Pick the first venv that has flask + cv2.
