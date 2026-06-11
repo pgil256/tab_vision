@@ -16,6 +16,7 @@ from tabvision.eval.manifest_builder import (
     render_toml,
     scan_guitar_techs,
     scan_guitarset,
+    scan_utaustin,
     summarise_coverage,
 )
 
@@ -40,6 +41,20 @@ def _make_guitarset_layout(
         jams_path.write_text(json.dumps(payload or {"annotations": []}), encoding="utf-8")
         if payload is not None:
             (audio_dir / f"{track_id}_mic.wav").write_bytes(b"")
+
+
+def _make_utaustin_layout(root: Path, clip_ids: list[str]) -> None:
+    label_dir = root / "tablature_labels"
+    audio_dir = root / "tablature_audio"
+    label_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    (root / "timestamps.csv").write_text(
+        "frame,timestamp\n" + "\n".join(f"{clip_id}_0.png,0.0" for clip_id in clip_ids) + "\n",
+        encoding="utf-8",
+    )
+    for clip_id in clip_ids:
+        (audio_dir / f"{clip_id}.wav").write_bytes(b"")
+        (label_dir / f"{clip_id}.npy").write_bytes(b"fake-npy")
 
 
 def test_scan_guitarset_classifies_comp_and_solo(tmp_path: Path) -> None:
@@ -107,6 +122,25 @@ def test_scan_guitarset_returns_empty_for_partial_layout(tmp_path: Path) -> None
     """Root with annotation/ but no audio_mono-mic/ returns empty."""
     (tmp_path / "annotation").mkdir()
     assert scan_guitarset(tmp_path) == []
+
+
+def test_scan_utaustin_discovers_audio_label_pairs(tmp_path: Path) -> None:
+    _make_utaustin_layout(tmp_path, ["0", "1"])
+
+    entries = scan_utaustin(tmp_path)
+
+    assert [entry.id for entry in entries] == ["utaustin/0", "utaustin/1"]
+    assert {entry.tier for entry in entries} == {"clean_acoustic_single_line"}
+    assert {entry.source for entry in entries} == {"KaggleUTAustin"}
+    assert {entry.split for entry in entries} == {"validation"}
+    assert {entry.annotation_format for entry in entries} == {"utaustin_tablature_npy"}
+
+
+def test_scan_utaustin_skips_missing_audio(tmp_path: Path) -> None:
+    _make_utaustin_layout(tmp_path, ["0"])
+    (tmp_path / "tablature_audio" / "0.wav").unlink()
+
+    assert scan_utaustin(tmp_path) == []
 
 
 def test_scan_guitar_techs_returns_empty_stub(tmp_path: Path) -> None:
@@ -338,6 +372,15 @@ def test_build_manifest_splits_filter(tmp_path: Path) -> None:
     assert {entry.id for entry in train_only} == {"guitarset/00_Rock1-90-C#_comp"}
     assert {entry.id for entry in validation_only} == {"guitarset/05_Funk1-114-Ab_solo"}
     assert len(both) == 2
+
+
+def test_build_manifest_includes_utaustin_root(tmp_path: Path) -> None:
+    _make_utaustin_layout(tmp_path / "utaustin", ["0"])
+
+    entries = build_manifest(utaustin_root=tmp_path / "utaustin")
+
+    assert [entry.id for entry in entries] == ["utaustin/0"]
+    assert entries[0].annotation_format == "utaustin_tablature_npy"
 
 
 def test_build_manifest_emits_synthetic_train_clip_ok(tmp_path: Path) -> None:

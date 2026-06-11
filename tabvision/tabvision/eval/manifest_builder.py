@@ -109,6 +109,42 @@ def scan_guitarset(
     return entries
 
 
+def scan_utaustin(root: Path) -> list[ClipEntry]:
+    """Scan the Kaggle/UT-Austin tablature dataset into eval clip entries.
+
+    Expected layout::
+
+        <root>/tablature_audio/<clip>.wav
+        <root>/tablature_labels/<clip>.npy
+        <root>/timestamps.csv
+
+    All entries are validation entries because this corpus is NC eval evidence,
+    not training material for shipped weights.
+    """
+    label_dir = root / "tablature_labels"
+    audio_dir = root / "tablature_audio"
+    if not label_dir.is_dir() or not audio_dir.is_dir() or not (root / "timestamps.csv").is_file():
+        return []
+
+    entries: list[ClipEntry] = []
+    for label_path in sorted(label_dir.glob("*.npy"), key=lambda p: int(p.stem)):
+        audio_path = audio_dir / f"{label_path.stem}.wav"
+        if not audio_path.is_file():
+            continue
+        entries.append(
+            ClipEntry(
+                id=f"utaustin/{label_path.stem}",
+                tier="clean_acoustic_single_line",
+                source="KaggleUTAustin",
+                split="validation",
+                media_path=str(audio_path.resolve()),
+                annotation_path=str(label_path.resolve()),
+                annotation_format="utaustin_tablature_npy",
+            )
+        )
+    return entries
+
+
 GUITAR_TECHS_VALIDATION_PLAYER = "03"
 
 # Stretch-goal articulations (SPEC §1.4 → v1.1). Skipped so the clean_electric
@@ -394,6 +430,7 @@ def _refuse_synthetic_in_eval_splits(entries: Iterable[ClipEntry]) -> None:
 def build_manifest(
     *,
     guitarset_root: Path | None = None,
+    utaustin_root: Path | None = None,
     guitar_techs_root: Path | None = None,
     splits: tuple[str, ...] | None = None,
     max_clips_per_tier: int | None = None,
@@ -410,6 +447,8 @@ def build_manifest(
     entries: list[ClipEntry] = []
     if guitarset_root is not None:
         entries.extend(scan_guitarset(guitarset_root, validation_player=validation_player))
+    if utaustin_root is not None:
+        entries.extend(scan_utaustin(utaustin_root))
     if guitar_techs_root is not None:
         entries.extend(scan_guitar_techs(guitar_techs_root))
 
@@ -439,10 +478,16 @@ def main(argv: list[str] | None = None) -> int:
         help="GuitarSet root directory (with annotation/ and audio_mono-mic/)",
     )
     parser.add_argument(
+        "--utaustin",
+        type=Path,
+        default=None,
+        help="UT-Austin tablature dataset root (with tablature_audio/ and tablature_labels/)",
+    )
+    parser.add_argument(
         "--guitar-techs",
         type=Path,
         default=None,
-        help="Guitar-TECHS root directory (scanner is currently a stub)",
+        help="Guitar-TECHS root directory",
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -482,8 +527,8 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if args.guitarset is None and args.guitar_techs is None:
-        parser.error("specify at least one of --guitarset or --guitar-techs")
+    if args.guitarset is None and args.utaustin is None and args.guitar_techs is None:
+        parser.error("specify at least one of --guitarset, --utaustin, or --guitar-techs")
 
     splits_filter: tuple[str, ...] | None = None
     if args.splits:
@@ -492,6 +537,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         entries = build_manifest(
             guitarset_root=args.guitarset,
+            utaustin_root=args.utaustin,
             guitar_techs_root=args.guitar_techs,
             splits=splits_filter,
             max_clips_per_tier=args.max_clips_per_tier,
@@ -504,7 +550,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not entries:
         print(
-            "No clips discovered. Check --guitarset / --guitar-techs paths.",
+            "No clips discovered. Check --guitarset / --utaustin / --guitar-techs paths.",
             flush=True,
         )
         return 1
@@ -519,6 +565,7 @@ def main(argv: list[str] | None = None) -> int:
     args.output.write_text(
         render_toml(entries, header_comment=header, data_root=args.data_root),
         encoding="utf-8",
+        newline="\n",
     )
 
     print(f"Wrote {len(entries)} clips to {args.output}", flush=True)
@@ -545,6 +592,7 @@ __all__ = [
     "render_toml",
     "scan_guitar_techs",
     "scan_guitarset",
+    "scan_utaustin",
     "summarise_coverage",
 ]
 
