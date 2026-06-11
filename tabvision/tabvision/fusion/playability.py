@@ -80,6 +80,8 @@ def find_fingering_at(t: float, fingerings: Sequence[FrameFingering]) -> FrameFi
     best: FrameFingering | None = None
     best_dt = math.inf
     for f in fingerings:
+        if f.homography_confidence <= 0.0:
+            continue
         if f.finger_pos_logits is None or f.finger_pos_logits.size == 0:
             continue
         if not (f.finger_pos_logits != 0).any():
@@ -122,7 +124,8 @@ def emission_cost(
     if fingering is not None:
         marginal = fingering.marginal_string_fret()
         p = float(marginal[candidate.string_idx, candidate.fret])
-        cost += lambda_vision * (-math.log(max(p, VISION_FLOOR)))
+        vision_weight = lambda_vision * max(0.0, min(1.0, fingering.homography_confidence))
+        cost += vision_weight * (-math.log(max(p, VISION_FLOOR)))
 
     cost += LOW_FRET_BIAS * candidate.fret
     if candidate.fret == 0:

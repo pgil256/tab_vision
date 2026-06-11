@@ -195,6 +195,18 @@ def test_find_fingering_at_skips_empty_logits():
     assert chosen is real
 
 
+def test_find_fingering_at_skips_zero_confidence_logits():
+    """Nonzero floor logits with zero homography confidence are no evidence."""
+    empty = FrameFingering(
+        t=0.5,
+        finger_pos_logits=np.full((4, 6, 25), -10.0),
+        homography_confidence=0.0,
+    )
+    real = _peaked_fingering(t=2.0, target_string=2, target_fret=7)
+    chosen = find_fingering_at(0.6, [empty, real])
+    assert chosen is real
+
+
 def test_find_fingering_at_returns_none_when_all_empty():
     empty = FrameFingering(
         t=0.5,

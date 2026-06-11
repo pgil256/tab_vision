@@ -30,12 +30,12 @@ _DEFAULT_ROOT = (
 )
 
 
-def _quad_extent(H: np.ndarray, w: int, h: int) -> tuple[float, float]:
-    """Project the canonical unit square through H and return its bbox extent
+def _quad_extent(homography: np.ndarray, w: int, h: int) -> tuple[float, float]:
+    """Project the canonical unit square through homography and return its bbox extent
     as a fraction of (frame_w, frame_h). A real neck is a narrow diagonal strip
     (small in at least one axis); a full-frame mis-fire is ~1.0 x ~1.0."""
     corners = np.array([[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]], dtype=np.float64).T
-    proj = H @ corners
+    proj = homography @ corners
     proj = proj[:2] / proj[2]
     dx = (proj[0].max() - proj[0].min()) / w
     dy = (proj[1].max() - proj[1].min()) / h
@@ -57,7 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     frames_dir = args.root / "tablature_frames"
 
     print(f"checkpoint: {yolo.checkpoint_path}")
-    print(f"{'frame':>8} {'neck':>5} {'conf':>5} {'frets':>5} {'nut':>4} {'H.conf':>6} {'quad_w%':>7} {'quad_h%':>7}")
+    print(
+        f"{'frame':>8} {'neck':>5} {'conf':>5} {'frets':>5} {'nut':>4} "
+        f"{'H.conf':>6} {'quad_w%':>7} {'quad_h%':>7}"
+    )
     neck_hits = 0
     good_quad = 0
     total = 0
@@ -73,17 +76,21 @@ def main(argv: list[str] | None = None) -> int:
             h, w = frame.shape[:2]
             preds = yolo.predict_all(frame)
             neck = preds.best_neck()
-            H = fb.detect(frame, None)  # GuitarBBox unused by keypoint backend
-            qw, qh = _quad_extent(H.H, w, h) if H.confidence > 0 else (0.0, 0.0)
+            homography = fb.detect(frame, None)  # GuitarBBox unused by keypoint backend
+            qw, qh = (
+                _quad_extent(homography.H, w, h)
+                if homography.confidence > 0
+                else (0.0, 0.0)
+            )
             if neck is not None:
                 neck_hits += 1
             # "good" = localized strip: covers <85% of at least one axis and H is confident
-            if H.confidence > 0 and (qw < 0.85 or qh < 0.85):
+            if homography.confidence > 0 and (qw < 0.85 or qh < 0.85):
                 good_quad += 1
             print(
                 f"{p.stem:>8} {('Y' if neck else 'n'):>5} "
                 f"{(neck.confidence if neck else 0):>5.2f} {len(preds.frets):>5} "
-                f"{('Y' if preds.best_nut() else 'n'):>4} {H.confidence:>6.2f} "
+                f"{('Y' if preds.best_nut() else 'n'):>4} {homography.confidence:>6.2f} "
                 f"{qw:>7.2f} {qh:>7.2f}"
             )
 

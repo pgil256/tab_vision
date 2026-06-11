@@ -730,3 +730,31 @@ to offline eval use. Remaining work is purely the MediaPipe CV chain (chunk 2: d
 hand/fretboard detection on this footage produce good fingerings) + the real-audio eval
 (chunk 3). Caveats: single-source student dataset (a proof, not a robust headline); do
 not commit the data; revisit if TabVision is ever commercialised.
+
+## 2026-06-11 — v1.1 chunk-3 video robustness complete; highres audio is the current bottleneck
+
+**Phase:** v1.1 (video string-resolution) — chunk 3
+**Decision tree:** v1.1 design §9 ("Video regresses audio-only tiers → the
+confidence gate (§5.3) is mis-tuned; it must collapse to weight 0")
+**Branch taken:** Make orientation and confidence gating automatic before judging
+the real-video chain. Keep the gate conservative by default: per-event evidence
+must support the audio pitch, and clips with less than 71% surviving video coverage
+fall back to audio-only.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_chunk3_real_video_robustness_2026-06-11.md`,
+`tabvision/fusion/vision_evidence.py`, `scripts/eval/v1_1_real_chain_probe.py`.
+- Gold-pitch real-video eval (24 scored clips / 527 notes): audio-only **0.4243**
+  → audio+real-video **0.5453**, oracle **1.0000**, no per-clip regressions.
+- Real highres WAV eval now runs with pitch/time calibration: highres audio-only
+  **0.0583** → audio+real-video **0.0657**, oracle-video ceiling **0.1959**.
+- The highres wrapper needed a Windows stdio encoding guard because
+  `hf_midi_transcription` prints a Unicode status glyph during checkpoint download.
+
+**Reasoning:** Chunk 2's manual `--flip-fret --flip-string` was real but
+rig-specific. Chunk 3 resolves that by selecting orientation from audio-compatible
+candidate support, then voting multiple nearby frame posteriors and scaling/skipping
+video by confidence. The conservative 0.71 clip-coverage floor is intentionally a
+no-regression gate: sparse evidence should become no evidence. The real highres
+number is low even with oracle video, so further video-gate tuning is the wrong next
+move; the next accuracy work should target highres audio transcription/alignment on
+the UT-Austin WAVs or a better audio backbone for that corpus.

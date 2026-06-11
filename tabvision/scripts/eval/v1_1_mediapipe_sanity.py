@@ -19,9 +19,7 @@ from collections import Counter
 from pathlib import Path
 
 import cv2
-import numpy as np
 
-from tabvision.types import GuitarConfig
 from tabvision.video.hand.fingertip_to_fret import FRETTING_FINGERS
 from tabvision.video.hand.mediapipe_backend import MediaPipeHandBackend
 
@@ -49,12 +47,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=20, help="max frames to report")
     args = ap.parse_args(argv)
 
-    cfg = GuitarConfig()
     backend = MediaPipeHandBackend()
 
     paths = _clip_frame_paths(args.root, args.clip)
     sampled = paths[:: args.stride][: args.limit]
-    print(f"clip {args.clip}: {len(paths)} frames, sampling {len(sampled)} (stride {args.stride})\n")
+    print(
+        f"clip {args.clip}: {len(paths)} frames, sampling {len(sampled)} "
+        f"(stride {args.stride})\n"
+    )
 
     print(f"{'frame':>8} {'hand?':>5} {'label':>6} {'conf':>5} {'wrist_xy%':>14} {'fingertips_x%'}")
     detected = 0
