@@ -187,3 +187,19 @@ annotation_format = "synthtab_json"
     result = validate_manifest(manifest)
 
     assert not any(item.code == "SYNTHETIC_IN_EVAL_SPLIT" for item in result.items)
+
+
+def test_guitartechs_highres_smoke_manifest_is_valid() -> None:
+    manifest = (
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "eval"
+        / "guitartechs_highres_smoke.toml"
+    )
+
+    result = validate_manifest(manifest)
+
+    assert result.passed
+    assert result.clip_count == 1
+    assert result.present_tiers == ["clean_electric"]
+    assert result.clip_ids == ["guitar-techs/P1_chords/midi/midi_Set1_aug"]

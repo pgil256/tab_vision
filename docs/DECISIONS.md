@@ -16,6 +16,68 @@ Format:
 
 ---
 
+## 2026-06-17 — Chunk 4 complete: highres cross-corpus diagnosis on Guitar-TECHS
+
+**Phase:** v1.1 audio transcription/alignment (chunk 4)
+**Decision tree:** Second-corpus gate — UT-Austin-specific alignment vs highres
+note grouping vs broader cross-corpus transcription behavior
+**Branch taken:** Keep `highres`; do not switch audio models. Attribute the
+residual Tab F1 ceiling to the audio-only string-resolution limit (the v1.1
+video chain's job), and the UT-Austin raw-audio collapse to corpus-specific
+alignment — completing and superseding the 2026-06-11 "validate on a second
+dataset" decision below.
+**Evidence:** Full 12-clip Guitar-TECHS chord run via the new cached runner
+`scripts/eval/v1_1_second_corpus_probe.py` (`highres`, `--position-prior none`,
+`--splits train`, no pitch/time calibration): onset F1 `0.7321`, pitch F1
+`0.6787`, Tab F1 `0.0700` (lower-95 `0.0377`), chord acc `0.0207` across
+1292 notes; decomposition wrong_position_same_pitch `788` (43.4%) +
+extra_detection `634` (34.9%) dominate. Reports:
+`docs/EVAL_REPORTS/v1_1_highres_guitartechs_chords_2026-06-17.md` and
+`..._decomposition_2026-06-17.md`. Contrast: UT-Austin raw highres (onset `0.04`,
+pitch `0.00`) and global-calibrated (onset `0.4598`, pitch `0.3613`, Tab
+`0.1415`, oracle-video `0.3535`) in
+`docs/EVAL_REPORTS/v1_1_audio_alignment_probe_2026-06-11.md`.
+**Reasoning:** Uncalibrated highres lands onsets/pitches on a second corpus
+(0.73/0.68) where UT-Austin raw is ~0, so highres is not globally broken and the
+UT-Austin failure is corpus-specific tuning/time-origin alignment (22/24 clips
+prefer a −1 semitone shift). The Tab F1 ceiling reproduces the
+`wrong_position_same_pitch` string-ambiguity shape on both corpora (SPEC
+§1.4.1), so the largest lever is the v1.1 video string-resolution chain, not an
+audio-model switch. Honesty bounds: 0.68 pitch still fails the 0.90 audio gate
+(electric-domain penalty — "not broken," not "acceptable"); Guitar-TECHS is
+electric / out-of-domain / n=12, a diagnostic and not an acceptance baseline; and
+extra_detection (35%) is chord over-detection that video does not directly fix.
+
+---
+
+## 2026-06-11 - Keep highres; validate on a better second dataset
+
+**Phase:** v1.1 audio transcription/alignment
+**Decision tree:** User direction after chunk-4 audio-alignment probe
+**Branch taken:** Keep `highres` as the active audio model and pause model-switch
+work. Test `highres` against a stronger second corpus before drawing more
+conclusions from the UT-Austin real-audio failure.
+**Evidence:** User instruction on 2026-06-11: "Keep highres. Do not switch audio
+models yet. Test highres against a better second dataset." New smoke artifact:
+`tabvision/data/eval/guitartechs_highres_smoke.toml` and
+`docs/EVAL_REPORTS/v1_1_highres_guitartechs_smoke_2026-06-11.md`, run with
+`--backend highres --position-prior none`, scored one Guitar-TECHS direct-input
+clip at onset F1 `0.7187`, pitch F1 `0.6562`, Tab F1 `0.0000`. The paired
+decomposition report shows 18 wrong-position-same-pitch, 5 pitch-off, 1
+timing-only, 3 missed-onset, and 13 extra-detection errors. A same-settings
+12-clip Guitar-TECHS chord run exceeded the 30-minute local interactive budget
+before writing a report; older full Guitar-TECHS evidence remains in
+`docs/EVAL_REPORTS/local_guitartechs_noprior.md`.
+**Reasoning:** UT-Austin remains useful for video string/fret evidence, but its
+real-audio path has corpus-specific pitch/time alignment issues. Guitar-TECHS is
+local, public, CC-BY-4.0, and has per-string MIDI labels, so it is the best
+runnable second-corpus audio check today even though it is electric and
+out-of-domain for the GAPS-trained highres checkpoint. Keep highres while adding
+cross-corpus evidence; revisit GAPS as the stronger real-performance offline
+eval when data acquisition and parsing are wired.
+
+---
+
 ## 2026-06-11 - Remove private video/tab corpus from v1.1 evidence
 
 **Phase:** v1.1 video string-resolution / eval data
