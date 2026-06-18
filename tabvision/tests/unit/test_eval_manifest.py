@@ -191,10 +191,7 @@ annotation_format = "synthtab_json"
 
 def test_guitartechs_highres_smoke_manifest_is_valid() -> None:
     manifest = (
-        Path(__file__).resolve().parents[2]
-        / "data"
-        / "eval"
-        / "guitartechs_highres_smoke.toml"
+        Path(__file__).resolve().parents[2] / "data" / "eval" / "guitartechs_highres_smoke.toml"
     )
 
     result = validate_manifest(manifest)
