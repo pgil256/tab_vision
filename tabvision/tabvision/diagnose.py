@@ -5,8 +5,12 @@ from __future__ import annotations
 import html
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tabvision.types import GuitarConfig, SessionConfig, TabEvent
+
+if TYPE_CHECKING:
+    from tabvision.audio.filters import AudioFilterConfig
 
 
 def write_diagnose_report(
@@ -18,6 +22,7 @@ def write_diagnose_report(
     video_stride: int = 3,
     video_enabled: bool = True,
     preflight_enabled: bool = True,
+    audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
 ) -> Path:
@@ -39,6 +44,7 @@ def write_diagnose_report(
         lambda_vision=lambda_vision,
         video_stride=video_stride,
         video_enabled=video_enabled,
+        audio_filters=audio_filters,
         cfg=cfg,
         session=session,
     )
@@ -80,6 +86,7 @@ def _run_pipeline_for_report(
     lambda_vision: float,
     video_stride: int,
     video_enabled: bool,
+    audio_filters: bool | AudioFilterConfig | None,
     cfg: GuitarConfig,
     session: SessionConfig,
 ) -> tuple[list[TabEvent], str]:
@@ -92,6 +99,7 @@ def _run_pipeline_for_report(
             lambda_vision=lambda_vision,
             video_stride=video_stride,
             video_enabled=video_enabled,
+            audio_filters=audio_filters,
             cfg=cfg,
             session=session,
         )

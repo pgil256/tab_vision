@@ -125,6 +125,18 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--audio-filters",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help=(
+            "post-detection audio-event filtering (low-quality drop, same-pitch "
+            "merge, sustain/harmonic artifact removal — see tabvision.audio.filters). "
+            "'auto' (default) keeps each backend's built-in default (basicpitch on, "
+            "highres off); 'on'/'off' force it. Use 'on' to curb highres "
+            "over-detection."
+        ),
+    )
+    t.add_argument(
         "--instrument",
         choices=["acoustic", "classical", "electric"],
         default="acoustic",
@@ -204,6 +216,15 @@ def _build_parser() -> argparse.ArgumentParser:
     d.add_argument("--tone", choices=["clean", "distorted"], default="clean")
     d.add_argument("--style", choices=["fingerstyle", "strumming", "mixed"], default="mixed")
     d.add_argument(
+        "--audio-filters",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help=(
+            "post-detection audio-event filtering for the diagnostic decode. "
+            "'auto' (default) keeps the backend default; 'on'/'off' force it."
+        ),
+    )
+    d.add_argument(
         "--no-preflight",
         action="store_true",
         help="skip preflight section generation",
@@ -237,6 +258,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
         position_prior=args.position_prior,
+        audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,
         session=session,
     )
@@ -258,6 +280,19 @@ def _make_audio_backend(name: str):
     from tabvision.audio.backend import make
 
     return make(name)
+
+
+def _resolve_audio_filters(choice: str) -> bool | None:
+    """Map the ``--audio-filters`` CLI choice to a ``run_pipeline`` value.
+
+    ``auto`` → ``None`` (keep each backend's built-in default); ``on`` → ``True``;
+    ``off`` → ``False`` (explicit overrides).
+    """
+    if choice == "on":
+        return True
+    if choice == "off":
+        return False
+    return None
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
@@ -287,6 +322,7 @@ def _cmd_diagnose(args: argparse.Namespace) -> int:
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
         preflight_enabled=not args.no_preflight,
+        audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,
         session=session,
     )

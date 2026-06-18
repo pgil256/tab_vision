@@ -94,3 +94,45 @@ def test_position_prior_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--position-prior", "guitarset-v1"])
+
+
+# ---------- --audio-filters ----------
+
+
+def test_audio_filters_default_auto():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.audio_filters == "auto"
+
+
+@pytest.mark.parametrize("choice", ["auto", "on", "off"])
+def test_audio_filters_choices_parsed(choice):
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--audio-filters", choice])
+    assert args.audio_filters == choice
+
+
+def test_audio_filters_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--audio-filters", "maybe"])
+
+
+def test_audio_filters_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--audio-filters", "on"])
+    assert args.audio_filters == "on"
+
+
+def test_audio_filters_not_on_check():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--audio-filters", "on"])
+
+
+def test_resolve_audio_filters_maps_choices():
+    from tabvision.cli import _resolve_audio_filters
+
+    assert _resolve_audio_filters("auto") is None
+    assert _resolve_audio_filters("on") is True
+    assert _resolve_audio_filters("off") is False

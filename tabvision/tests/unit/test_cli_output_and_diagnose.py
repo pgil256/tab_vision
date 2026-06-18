@@ -41,11 +41,14 @@ def test_diagnose_writes_html_report(tmp_path, monkeypatch: pytest.MonkeyPatch) 
         video_stride: int,
         video_enabled: bool,
         preflight_enabled: bool,
+        audio_filters,
         cfg,
         session,
     ) -> Path:
         assert video_path == input_path
         assert output_path_arg == output_path
+        # No --audio-filters flag passed → 'auto' → None (backend default kept).
+        assert audio_filters is None
         output_path_arg.write_text(
             "<html><section id='overlay'></section><section id='audio'></section>"
             "<section id='tab'></section><section id='confidence'></section></html>"

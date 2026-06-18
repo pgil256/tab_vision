@@ -48,3 +48,29 @@ def test_highres_rejects_unknown_checkpoint():
 
     with pytest.raises(InvalidInputError):
         HighResBackend(checkpoint="banjo")
+
+
+def test_make_forwards_filter_config_to_backend():
+    """``make(name, filter_config=...)`` reaches the backend's filter wiring.
+
+    basicpitch defaults filters on; ``filter_config=False`` disables them.
+    highres defaults filters off; ``filter_config=True`` enables the
+    conservative config. This is the CLI/pipeline → backend plumbing path.
+    """
+    bp_default = make("basicpitch")
+    assert bp_default.filter_config is not None  # type: ignore[attr-defined]
+    bp_off = make("basicpitch", filter_config=False)
+    assert bp_off.filter_config is None  # type: ignore[attr-defined]
+
+    hr_default = make("highres")
+    assert hr_default.filter_config is None  # type: ignore[attr-defined]
+    hr_on = make("highres", filter_config=True)
+    assert hr_on.filter_config is not None  # type: ignore[attr-defined]
+
+
+def test_make_forwards_explicit_filter_config_instance():
+    from tabvision.audio.filters import AudioFilterConfig
+
+    cfg = AudioFilterConfig(min_confidence=0.42)
+    b = make("highres", filter_config=cfg)
+    assert b.filter_config is cfg  # type: ignore[attr-defined]

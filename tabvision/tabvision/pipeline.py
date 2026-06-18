@@ -25,7 +25,7 @@ import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -46,6 +46,9 @@ from tabvision.types import (
     SessionConfig,
     TabEvent,
 )
+
+if TYPE_CHECKING:
+    from tabvision.audio.filters import AudioFilterConfig
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +76,7 @@ def run_pipeline(
     video_enabled: bool = True,
     position_prior: str | None = None,
     melodic_prior_enabled: bool = False,
+    audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
 ) -> list[TabEvent]:
@@ -80,6 +84,13 @@ def run_pipeline(
 
     Backends are injectable for testing; when omitted, the function
     constructs production backends on demand.
+
+    ``audio_filters`` controls the constructed backend's post-detection
+    filtering (``tabvision.audio.filters``): ``None`` (default) keeps each
+    backend's built-in default — basicpitch on, highres off — so the default
+    path is unchanged; ``True``/``False`` or an explicit ``AudioFilterConfig``
+    forces it. Ignored when ``audio_backend`` is supplied (the injected
+    backend carries its own filter config).
     """
     cfg = cfg or GuitarConfig()
     session = session or SessionConfig()
@@ -91,7 +102,13 @@ def run_pipeline(
     # (electric → highres-electric, else acoustic highres). Explicit names pass through.
     if audio_backend is None and audio_backend_name == "auto":
         audio_backend_name = audio_backend_for_session(session)
-    audio = audio_backend if audio_backend is not None else _make_audio_backend(audio_backend_name)
+    if audio_backend is not None:
+        audio = audio_backend
+    else:
+        # audio_filters None ⇒ keep the backend's built-in default (basicpitch
+        # on, highres off); a bool / AudioFilterConfig overrides it.
+        filter_kwargs = {} if audio_filters is None else {"filter_config": audio_filters}
+        audio = _make_audio_backend(audio_backend_name, **filter_kwargs)
     logger.info("transcribing audio with %s", audio.name)
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
     logger.info("audio backend produced %d events", len(audio_events))
@@ -245,10 +262,10 @@ def audio_backend_for_session(session: SessionConfig) -> str:
     return "highres"
 
 
-def _make_audio_backend(name: str) -> AudioBackend:
+def _make_audio_backend(name: str, **kwargs) -> AudioBackend:  # type: ignore[no-untyped-def]
     from tabvision.audio.backend import make
 
-    return make(name)
+    return make(name, **kwargs)
 
 
 def _make_guitar_backend() -> GuitarBackend:

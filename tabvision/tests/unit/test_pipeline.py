@@ -396,8 +396,9 @@ def test_run_pipeline_constructs_audio_backend_by_name_when_not_provided(monkeyp
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
     captured: dict = {}
 
-    def fake_factory(name):
+    def fake_factory(name, **kwargs):
         captured["name"] = name
+        captured["kwargs"] = kwargs
         return _FakeAudioBackend()
 
     monkeypatch.setattr(pipeline, "_make_audio_backend", fake_factory)
@@ -409,3 +410,62 @@ def test_run_pipeline_constructs_audio_backend_by_name_when_not_provided(monkeyp
         hand_backend=_FakeHandBackend(),
     )
     assert captured["name"] == "basicpitch"
+
+
+def test_run_pipeline_keeps_backend_default_filters_when_audio_filters_none(monkeypatch):
+    """audio_filters=None (default) ⇒ no filter_config kwarg ⇒ backend default kept."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+    captured: dict = {}
+
+    def fake_factory(name, **kwargs):
+        captured["kwargs"] = kwargs
+        return _FakeAudioBackend()
+
+    monkeypatch.setattr(pipeline, "_make_audio_backend", fake_factory)
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend_name="highres",
+        video_enabled=False,
+    )
+    assert captured["kwargs"] == {}
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_run_pipeline_forwards_audio_filters_override_to_factory(monkeypatch, value):
+    """A bool audio_filters override is forwarded as filter_config to the factory."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+    captured: dict = {}
+
+    def fake_factory(name, **kwargs):
+        captured["kwargs"] = kwargs
+        return _FakeAudioBackend()
+
+    monkeypatch.setattr(pipeline, "_make_audio_backend", fake_factory)
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend_name="highres",
+        video_enabled=False,
+        audio_filters=value,
+    )
+    assert captured["kwargs"] == {"filter_config": value}
+
+
+def test_run_pipeline_ignores_audio_filters_when_backend_injected(monkeypatch):
+    """An injected backend carries its own filter config; audio_filters is ignored."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+
+    def fail_if_called(name, **kwargs):  # pragma: no cover - must not run
+        pytest.fail("factory should not be called when a backend is injected")
+
+    monkeypatch.setattr(pipeline, "_make_audio_backend", fail_if_called)
+    out = pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(
+            events=[
+                AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)
+            ]
+        ),
+        video_enabled=False,
+        audio_filters=True,
+    )
+    assert len(out) == 1
