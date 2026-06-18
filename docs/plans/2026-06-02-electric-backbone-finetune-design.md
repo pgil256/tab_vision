@@ -37,9 +37,9 @@ trivial.
 - **No highres training code exists in this repo or the installed packages.**
   `hf_midi_transcription` / `piano_transcription_inference` are **inference-only**
   (no optimizer / loss / training loop). `scripts/train/audio_finetune.py` is a
-  **scaffold** that writes a plan JSON, not a trainer. The existing fine-tune
-  design (`2026-04-24-audio-backbone-finetune-design.md`) targets **Basic Pitch
-  (TF)** — a different, older model.
+  **scaffold** that writes a plan JSON, not a trainer. The removed April Basic
+  Pitch fine-tune design targeted an older TF model and depended on the now-deleted
+  private video gate.
 - So fine-tuning highres requires the **upstream training code** for its
   architecture (xavriley/`hf_midi_transcription` source + the underlying
   hFT-Transformer / bytedance `piano_transcription` training repo). **Step 0 is

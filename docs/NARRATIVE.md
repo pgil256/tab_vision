@@ -23,7 +23,7 @@ What remains before a public v1 release:
 - Final license gate after all default backends are selected.
 - Release tag only after coordinator integration and user sign-off.
 
-Full hand-labeled evaluation on newly recorded user clips is intentionally
-future validation, not a v1 prerequisite. The release story should be explicit:
-manual annotation was removed from the critical path so the project can ship
-with reproducible automated evidence rather than private/manual gates.
+Full hand-labeled private-video evaluation is no longer planned as a v1 gate.
+The release story should be explicit: manual annotation was removed from the
+critical path so the project can ship with reproducible automated evidence
+rather than private/manual gates.

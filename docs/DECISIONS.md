@@ -16,6 +16,91 @@ Format:
 
 ---
 
+## 2026-06-17 — Chunk 4 complete: highres cross-corpus diagnosis on Guitar-TECHS
+
+**Phase:** v1.1 audio transcription/alignment (chunk 4)
+**Decision tree:** Second-corpus gate — UT-Austin-specific alignment vs highres
+note grouping vs broader cross-corpus transcription behavior
+**Branch taken:** Keep `highres`; do not switch audio models. Attribute the
+residual Tab F1 ceiling to the audio-only string-resolution limit (the v1.1
+video chain's job), and the UT-Austin raw-audio collapse to corpus-specific
+alignment — completing and superseding the 2026-06-11 "validate on a second
+dataset" decision below.
+**Evidence:** Full 12-clip Guitar-TECHS chord run via the new cached runner
+`scripts/eval/v1_1_second_corpus_probe.py` (`highres`, `--position-prior none`,
+`--splits train`, no pitch/time calibration): onset F1 `0.7321`, pitch F1
+`0.6787`, Tab F1 `0.0700` (lower-95 `0.0377`), chord acc `0.0207` across
+1292 notes; decomposition wrong_position_same_pitch `788` (43.4%) +
+extra_detection `634` (34.9%) dominate. Reports:
+`docs/EVAL_REPORTS/v1_1_highres_guitartechs_chords_2026-06-17.md` and
+`..._decomposition_2026-06-17.md`. Contrast: UT-Austin raw highres (onset `0.04`,
+pitch `0.00`) and global-calibrated (onset `0.4598`, pitch `0.3613`, Tab
+`0.1415`, oracle-video `0.3535`) in
+`docs/EVAL_REPORTS/v1_1_audio_alignment_probe_2026-06-11.md`.
+**Reasoning:** Uncalibrated highres lands onsets/pitches on a second corpus
+(0.73/0.68) where UT-Austin raw is ~0, so highres is not globally broken and the
+UT-Austin failure is corpus-specific tuning/time-origin alignment (22/24 clips
+prefer a −1 semitone shift). The Tab F1 ceiling reproduces the
+`wrong_position_same_pitch` string-ambiguity shape on both corpora (SPEC
+§1.4.1), so the largest lever is the v1.1 video string-resolution chain, not an
+audio-model switch. Honesty bounds: 0.68 pitch still fails the 0.90 audio gate
+(electric-domain penalty — "not broken," not "acceptable"); Guitar-TECHS is
+electric / out-of-domain / n=12, a diagnostic and not an acceptance baseline; and
+extra_detection (35%) is chord over-detection that video does not directly fix.
+
+---
+
+## 2026-06-11 - Keep highres; validate on a better second dataset
+
+**Phase:** v1.1 audio transcription/alignment
+**Decision tree:** User direction after chunk-4 audio-alignment probe
+**Branch taken:** Keep `highres` as the active audio model and pause model-switch
+work. Test `highres` against a stronger second corpus before drawing more
+conclusions from the UT-Austin real-audio failure.
+**Evidence:** User instruction on 2026-06-11: "Keep highres. Do not switch audio
+models yet. Test highres against a better second dataset." New smoke artifact:
+`tabvision/data/eval/guitartechs_highres_smoke.toml` and
+`docs/EVAL_REPORTS/v1_1_highres_guitartechs_smoke_2026-06-11.md`, run with
+`--backend highres --position-prior none`, scored one Guitar-TECHS direct-input
+clip at onset F1 `0.7187`, pitch F1 `0.6562`, Tab F1 `0.0000`. The paired
+decomposition report shows 18 wrong-position-same-pitch, 5 pitch-off, 1
+timing-only, 3 missed-onset, and 13 extra-detection errors. A same-settings
+12-clip Guitar-TECHS chord run exceeded the 30-minute local interactive budget
+before writing a report; older full Guitar-TECHS evidence remains in
+`docs/EVAL_REPORTS/local_guitartechs_noprior.md`.
+**Reasoning:** UT-Austin remains useful for video string/fret evidence, but its
+real-audio path has corpus-specific pitch/time alignment issues. Guitar-TECHS is
+local, public, CC-BY-4.0, and has per-string MIDI labels, so it is the best
+runnable second-corpus audio check today even though it is electric and
+out-of-domain for the GAPS-trained highres checkpoint. Keep highres while adding
+cross-corpus evidence; revisit GAPS as the stronger real-performance offline
+eval when data acquisition and parsing are wired.
+
+---
+
+## 2026-06-11 - Remove private video/tab corpus from v1.1 evidence
+
+**Phase:** v1.1 video string-resolution / eval data
+**Decision tree:** Dataset replacement after user correction
+**Branch taken:** Remove the private eval and training/tab
+corpora from tracked data, benchmark fixtures, and active documentation. Use
+license-checked public/offline sources by role: GuitarSet for clean audio/tab
+labels, Kaggle UT-Austin for current real-video string/fret eval, and GAPS as
+the best optional real performance video/audio replacement when NC offline eval
+is acceptable. Keep GOAT as a candidate only if access and dataset license terms
+are explicitly verified.
+**Evidence:** User correction on 2026-06-11 that the private recordings/tabs
+are inaccurate; v1.1 chunk-3 report
+`docs/EVAL_REPORTS/v1_1_chunk3_real_video_robustness_2026-06-11.md` shows
+video robustness improved gold-pitch Tab F1 0.4243 -> 0.5453 while real highres
+audio remains 0.0583 -> 0.0657 with oracle ceiling 0.1959.
+**Reasoning:** The old personal labels create misleading metrics and are not a
+reproducible portfolio gate. Public/offline corpora keep the project auditable,
+license-trackable, and comparable, while chunk-3 says the next accuracy work
+should target audio transcription/alignment before adding more video fusion.
+
+---
+
 ## 2026-05-13 — Tab F1 v1 acceptance: per-tier targets + public-corpus composite
 
 **Phase:** Accuracy work (cross-cuts Phases 1, 2, 3, 5, 7, 8 of the SPEC)
@@ -147,16 +232,16 @@ doc §8. The frozen branch state is git-recoverable indefinitely.
 
 **Phase:** 1.5 (recorded at Phase 0 for reference)
 **Decision tree:** spec adoption / Phase 1.5 scope (design doc §6)
-**Branch taken:** **Use existing public datasets + already-recorded historical
-clips only.** Drop the spec's "15+ new user-recorded clips" requirement.
-Eval split: GuitarSet (clean acoustic), IDMT-SMT-Guitar (clean electric),
-EGDB (distorted electric), existing 11/20 self-recorded videos (iPhone OOD
-bonus tier).
+**Branch taken:** **Use existing public datasets only.** Superseded on
+2026-06-11 for private recordings: the historical private corpus was removed
+because the labels are not trusted. Current eval split: GuitarSet (clean
+acoustic), public/offline electric corpora, Kaggle UT-Austin for current
+real-video string/fret eval, and GAPS as optional NC offline video/audio eval.
 **Evidence:** Design doc §6 (revised Phase 1.5 table).
 **Reasoning:** User declined to record new clips during brainstorm. Existing
-historical self-recordings preserve iPhone-domain ground truth without new
-recording effort. Acknowledged blind spot: distorted-electric tier is
-measured on EGDB studio data, not iPhone-recorded distortion.
+public/programmatic sources preserve reproducibility and keep the release story
+auditable. Private recording labels are no longer trusted as validation data.
+Known blind spot: any studio-domain electric metric must say so explicitly.
 
 ---
 
@@ -345,7 +430,7 @@ the box quality is good across IoU thresholds, not just the lenient
 keypoint fretboard backend will have plenty of fret OBBs to work with.
 **Effect:** Phase 3 detector deliverable is acceptance-passed. The
 remaining acceptance pieces (preflight 9/10 on labeled framing set;
-fretboard ≤ 5 px median homography error on 5 user clips) are blocked
+fretboard <= 5 px median homography error on license-checked public/offline clips) are blocked
 on hand-labeled ground-truth data, not on detector quality.
 
 ---
@@ -355,15 +440,14 @@ on hand-labeled ground-truth data, not on detector quality.
 **Phase:** 3 (acceptance) → 4 (entry)
 **Decision tree:** SPEC §7 Phase 3 acceptance checklist (preflight ≥ 9/10
 on labeled good/bad framing set; fretboard ≤ 5 px median homography
-error on 5 user clips).
+error on license-checked public/offline clips).
 **Branch taken:** **Defer the two label-dependent gates; advance to
 Phase 4.** The detector gate (the one capacity-limited deliverable)
 already passed at `neck mAP50 = 0.995`. The remaining gates are
 data-collection tasks, not engineering tasks.
 **Reasoning:** Engineering Phase 4 in parallel with the hand-labeling
-work is strictly faster than blocking on it. Pat will come back and
-collect the ground truth (5 clips × 4 fret-intersection clicks; ~10
-clips of intentionally good vs bad framing) before Phase 9 hardening.
+work is strictly faster than blocking on it. The remaining labels must come
+from license-checked public/offline clips before any future hard gate.
 The Phase 3 code is stable and won't drift while the labels are being
 collected — re-running the eval is a one-line pytest invocation when
 the fixtures arrive.
@@ -371,8 +455,8 @@ the fixtures arrive.
 - Build the labeling harness (a small click-to-mark-fret-intersections
   tool — tkinter or web — saving JSON; plus a "framing: good/bad"
   classifier doc).
-- Collect 5 user clips × 4 fret-intersection clicks each (frets 5 + 12,
-  top + bottom edges) for the fretboard gate.
+- Collect/license-check public/offline clips with fret-intersection labels for
+  the fretboard gate.
 - Collect ~10 clips intentionally framed well and badly (off-centre,
   partially occluded, dim lighting, oblique angle) for the preflight gate.
 - Wire the two pytest harnesses (`-m fretboard_eval`, `-m preflight_eval`)
@@ -407,7 +491,7 @@ homography that didn't exist in v0's coupled Hough pipeline) and the
 per-cell posterior over (string, fret). Net new code is the projection
 + posterior layer; v0's MediaPipe plumbing is wrapped, not rewritten.
 **Open questions (will be resolved by acceptance run):**
-- Distance kernel σ for the fingertip-to-cell prior; default = 0.5
+- Distance kernel Ïƒ for the fingertip-to-cell prior; default = 0.5
   fret-widths, will calibrate against the 100-frame labeled set.
 - Whether the curl prior helps or hurts; ablation will tell us.
 - Fretting-hand identification — start with v0's handedness logic;
@@ -532,7 +616,7 @@ remaining data-bound acceptance debt.
 
 **Phase:** Remaining v1 / release hardening
 **Decision tree:** Remaining-plan cleanup after Phase 8 smoke report
-**Branch taken:** **Remove manual work from v1 gates.** Phase 1.5 user-recorded
+**Branch taken:** **Remove manual work from v1 gates.** Phase 1.5 private-corpus
 manifest completeness, Phase 3 preflight labels, Phase 3 fretboard click labels,
 Phase 4 fretting labels, manual dataset downloads, new recordings, and
 user-corrected self-labeling are now `removed_from_v1` or `optional_future`.
@@ -540,8 +624,8 @@ user-corrected self-labeling are now `removed_from_v1` or `optional_future`.
 that requires manual annotation or work." Current automated baseline is green:
 `pytest -q` reported `272 passed, 12 skipped` before this change, and the Phase
 8 smoke runner already exercises report generation without external data.
-**Reasoning:** Manual annotation and private home-video assets are valuable for
-future validation but make v1 unshippable as a reproducible portfolio artifact.
+**Reasoning:** Manual annotation and the retired private media corpus are useful
+historical context but make v1 unshippable as a reproducible portfolio artifact.
 The remaining release plan must depend on automated evidence only: deterministic
 smoke fixtures, checked-in fixtures, public/programmatic datasets such as
 GuitarSet, existing Modal/public-data reports, license policy checks,
@@ -730,3 +814,64 @@ to offline eval use. Remaining work is purely the MediaPipe CV chain (chunk 2: d
 hand/fretboard detection on this footage produce good fingerings) + the real-audio eval
 (chunk 3). Caveats: single-source student dataset (a proof, not a robust headline); do
 not commit the data; revisit if TabVision is ever commercialised.
+
+## 2026-06-11 — v1.1 chunk-3 video robustness complete; highres audio is the current bottleneck
+
+**Phase:** v1.1 (video string-resolution) — chunk 3
+**Decision tree:** v1.1 design §9 ("Video regresses audio-only tiers → the
+confidence gate (§5.3) is mis-tuned; it must collapse to weight 0")
+**Branch taken:** Make orientation and confidence gating automatic before judging
+the real-video chain. Keep the gate conservative by default: per-event evidence
+must support the audio pitch, and clips with less than 71% surviving video coverage
+fall back to audio-only.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_chunk3_real_video_robustness_2026-06-11.md`,
+`tabvision/fusion/vision_evidence.py`, `scripts/eval/v1_1_real_chain_probe.py`.
+- Gold-pitch real-video eval (24 scored clips / 527 notes): audio-only **0.4243**
+  → audio+real-video **0.5453**, oracle **1.0000**, no per-clip regressions.
+- Real highres WAV eval now runs with pitch/time calibration: highres audio-only
+  **0.0583** → audio+real-video **0.0657**, oracle-video ceiling **0.1959**.
+- The highres wrapper needed a Windows stdio encoding guard because
+  `hf_midi_transcription` prints a Unicode status glyph during checkpoint download.
+
+**Reasoning:** Chunk 2's manual `--flip-fret --flip-string` was real but
+rig-specific. Chunk 3 resolves that by selecting orientation from audio-compatible
+candidate support, then voting multiple nearby frame posteriors and scaling/skipping
+video by confidence. The conservative 0.71 clip-coverage floor is intentionally a
+no-regression gate: sparse evidence should become no evidence. The real highres
+number is low even with oracle video, so further video-gate tuning is the wrong next
+move; the next accuracy work should target highres audio transcription/alignment on
+the UT-Austin WAVs or a better audio backbone for that corpus.
+
+## 2026-06-11 - v1.1 chunk-4 audio alignment favors a global highres correction
+
+**Phase:** v1.1 (video string-resolution) - chunk 4
+**Decision tree:** v1.1 chunk-4 plan ("raise the UT-Austin real-audio ceiling
+before more video fusion work")
+**Branch taken:** Add a cached audio-alignment diagnostic and prefer the measured
+global highres correction over the earlier per-clip calibration for the next
+implementation pass.
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_audio_alignment_probe_2026-06-11.md`,
+`scripts/eval/v1_1_audio_alignment_probe.py`,
+`tests/unit/test_v1_1_audio_alignment_probe.py`.
+- highres raw audio is effectively unaligned: onset F1 **0.0409**, pitch F1
+  **0.0000**, Tab F1 **0.0000**, oracle-video Tab F1 **0.0000**.
+- highres per-clip calibration reproduces the previous low ceiling: Tab F1
+  **0.0603**, oracle-video **0.1979**.
+- highres global calibration (`pitch_shift=-1`, `time_shift_s=+0.14`) is better:
+  onset F1 **0.4598**, pitch F1 **0.3613**, Tab F1 **0.1415**, oracle-video
+  **0.3535**.
+- Real-chain rerun with that global correction scored audio-only **0.1415**,
+  audio+real-video **0.1656**, oracle-video **0.3535**.
+- `highres-fl` ran but trailed highres; Basic Pitch could not be compared in the
+  current Windows Python 3.12 venv because `basic-pitch` depends on TensorFlow
+  and no matching TensorFlow distribution is available.
+
+**Reasoning:** The repeated `-1` semitone preference is a corpus/reference-pitch
+signal, but the clip-local time search overfits the alignment proxy: clips 0 and
+1 prefer ~`+1.25s`, yet the aggregate score is much better with one shared
+`+0.14s` time correction. The next implementation should therefore promote/test
+a global highres calibration path first, then inspect retained video evidence
+under corrected timing. Tuning generic video weights remains secondary until the
+audio calibration path is explicit and regression-tested.

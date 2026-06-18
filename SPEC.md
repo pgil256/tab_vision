@@ -367,7 +367,7 @@ tabvision/
 ├── data/
 │   ├── README.md           # how to acquire (do not commit large files)
 │   ├── fixtures/           # tiny clips checked in for unit tests
-│   ├── eval/               # held-out user-recorded clips + annotations
+│   ├── eval/               # public/offline eval manifests + annotations
 │   └── augmented/          # generated; .gitignored
 ├── scripts/
 │   ├── acquire/            # one script per dataset/model in §6
@@ -579,12 +579,12 @@ flowchart TD
 5. `tabvision.render.ascii` producing readable ASCII tab.
 6. `tabvision` CLI: `tabvision transcribe input.mov -o output.tab`.
 7. End-to-end integration test on a fixture clip.
-8. First eval-harness run on user clips — record metrics, **even if bad**.
+8. First eval-harness run on public/offline clips - record metrics, **even if bad**.
 
 **Acceptance test:**
 - `tabvision transcribe data/fixtures/scale_clean.wav` produces non-empty ASCII tab.
 - Integration test passes.
-- Eval harness reports **any** numbers on at least 3 user clips. Metrics logged to `docs/EVAL_REPORTS/phase1_<date>.md`.
+- Eval harness reports **any** numbers on at least 3 public/offline clips. Metrics logged to `docs/EVAL_REPORTS/phase1_<date>.md`.
 
 **Acceptance does NOT require** good metrics. The point is the harness, not the score.
 
@@ -605,15 +605,15 @@ flowchart TD
 
 ### Phase 1.5 — Annotation tool & eval set
 
-**Goal:** Build the user-recorded eval set so subsequent phases have something to optimize against.
+**Goal:** Build a public/offline eval manifest so subsequent phases have something to optimize against without private home-video labels.
 
 **Deliverables:**
 1. `scripts/annotate/cli.py` — interactive annotator. Plays clip, shows candidate onsets, lets user correct pitch/string/fret per onset, writes `.jams`.
-2. 15 user-recorded clips with annotations under `$TABVISION_DATA_ROOT/eval/`.
-3. Manifest `data/eval/manifest.toml` listing clips + checksums + difficulty tier (easy/med/hard).
+2. Public/offline corpus adapters with annotations under `$TABVISION_DATA_ROOT/eval/`.
+3. Manifest `data/eval/manifest.toml` listing clips + checksums + source, license, split, and difficulty tier (easy/med/hard).
 
 **Acceptance test:**
-- 15 annotated clips exist.
+- Public/offline annotated clips exist for each enabled eval tier.
 - `pytest -m eval` runs end-to-end.
 - A baseline metrics report is generated and checked in.
 
@@ -777,7 +777,7 @@ flowchart TD
 5. Tunable mixing weight λ_v between audio and vision evidence (CLI: `--fusion-lambda-vision 1.0`).
 
 **Acceptance test:**
-- On user eval set, **Tab F1 ≥ 0.85** (target: 0.88 by Phase 9).
+- On enabled public/offline eval set, **Tab F1 >= 0.85** (target: 0.88 by Phase 9).
 - Chord-instance accuracy ≥ 0.80 (target: 0.85 by Phase 9).
 - Ablation report: audio-only vs. audio+vision. The audio+vision configuration must beat audio-only by **≥ 8 points** on Tab F1.
 
@@ -817,8 +817,8 @@ flowchart TD
 
 **Acceptance test:**
 - All four formats round-trip on snapshot fixtures.
-- A user-recorded clip's output `.gp5` opens correctly in TuxGuitar (free) and Guitar Pro 7 if available.
-- A user-recorded clip's output `.mid` plays back at correct pitches and timing in any standard MIDI player.
+- A fixture or public/offline eval clip's output `.gp5` opens correctly in TuxGuitar (free) and Guitar Pro 7 if available.
+- A fixture or public/offline eval clip's output `.mid` plays back at correct pitches and timing in any standard MIDI player.
 
 **Decision tree:**
 
@@ -848,16 +848,16 @@ flowchart TD
    - **Distorted-electric oversampling.** Distorted variants are rendered with multiple amp + cab IR pairs and oversampled in fine-tune batches relative to their share of the source set, since the §1.4 distorted-electric tier target is the most likely to be the long-pole.
 
 2. **Video augmentation pipeline** (`scripts/augment/video.py`):
-   - Source: user-recorded clips (eval set + any additional training clips the user has recorded).
+   - Source: license-checked public/offline video corpora only; personal recordings are not an accuracy gate, dev set, or label source.
    - Augmentations: color jitter, brightness/contrast, hue shift, slight perspective warp (±5°), slight rotation, motion blur, simulated lens distortion, time-domain crops, frame dropout to simulate FPS variation.
    - Aligned annotations preserved (transformed where appropriate — e.g., perspective warp updates the homography ground truth so the fretboard regressor sees consistent labels).
 
 3. **Fine-tuning recipes** (`scripts/train/audio_finetune.py`, `scripts/train/hand_finetune.py`):
-   - Audio: fine-tune the chosen audio backend on the augmented DadaGP set + user clips. Distorted-electric variants oversampled. Run on Kaggle T4 (or Lightning Studios for longer jobs).
-   - Vision: fine-tune the fingertip-to-fret head on augmented user clips. The fretboard detector and guitar detector are normally good after Phase 3 and rarely need refining in Phase 7; if Phase 5 fusion exposes systematic vision errors, retrain those too.
+   - Audio: fine-tune the chosen audio backend on the augmented DadaGP set plus license-checked public/offline corpora. Distorted-electric variants oversampled. Run on Kaggle T4 (or Lightning Studios for longer jobs).
+   - Vision: fine-tune the fingertip-to-fret head on augmented public/offline video corpora. The fretboard detector and guitar detector are normally good after Phase 3 and rarely need refining in Phase 7; if Phase 5 fusion exposes systematic vision errors, retrain those too.
 
 4. **Self-labeling loop** (`scripts/train/self_label.py`):
-   - Run pipeline on a corpus of unlabeled user clips → pipeline emits TabEvents with confidences.
+   - Run pipeline on a corpus of unlabeled public/offline clips -> pipeline emits TabEvents with confidences.
    - High-confidence outputs (per-note confidence > 0.9) are auto-accepted as pseudo-labels.
    - Low-confidence outputs are flagged for the user via the Phase 1.5 annotator; user corrects.
    - Both auto-labels and corrected-labels are added to the training set with appropriate weights (corrected: 1.0, auto: 0.5).
@@ -1109,7 +1109,7 @@ A single source of truth so Claude Code does not drift:
 |---|---|---|
 | 0 | `AUDIT.md` exists; CI green; `LICENSES.md` initial map | `make ci` |
 | 1 | `docs/EVAL_REPORTS/phase1_*.md` exists | `pytest -m integration && pytest -m eval -k phase1` |
-| 1.5 | 15 user clips in manifest, all 4 tiers represented | `tabvision-eval --manifest data/eval/manifest.toml --check` |
+| 1.5 | Public/offline clips in manifest, enabled tiers represented | `tabvision-eval --manifest data/eval/manifest.toml --check` |
 | 2 | Highres beats baseline ≥ 5 pts Pitch F1 | `pytest -m eval -k phase2 --compare baseline` |
 | 3 | Guitar IoU ≥ 0.95; preflight ≥ 9/10; homography median error < 5 px | `pytest -m guitar_eval -m preflight_eval -m fretboard_eval` |
 | 4 | Fingertip top-1 ≥ 0.75 on 100 labeled frames | `pytest -m hand_eval` |

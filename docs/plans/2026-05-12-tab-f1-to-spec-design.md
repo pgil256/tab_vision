@@ -1,6 +1,6 @@
 # Tab F1 v1 acceptance — Strategy & Decision Record
 
-> **⚠️ SUPERSEDED IN PART (2026-06-01).** The user committed v1 to the
+> **⚠ï¸ SUPERSEDED IN PART (2026-06-01).** The user committed v1 to the
 > **highest** acceptance bar: the original SPEC §1.4 per-tier targets
 > (0.94 / 0.86 / 0.90 / 0.82) plus the aggregate Tab F1 ≥ 0.88. Decisions
 > **D1** (retire the aggregate) and **D2** (relax per-tier to
@@ -35,7 +35,7 @@ that are NOT shipped. Each resource is verified 2026-05-13:
 |---|---|---|---|
 | GuitarSet | CC-BY-4.0 | **yes** | https://zenodo.org/records/3371780 |
 | Guitar-TECHS | CC-BY-4.0 | **yes** | arXiv:2501.03720 §4 distribution |
-| EGDB | none on repo — **author email pending** | **gated** | https://ss12f32v.github.io/Guitar-Transcription/ (LICENSES.md ⚠️) |
+| EGDB | none on repo — **author email pending** | **gated** | https://ss12f32v.github.io/Guitar-Transcription/ (LICENSES.md ⚠ï¸) |
 | GOAT | request-only, research-only | **no — DROPPED** | arXiv:2509.22655 §4.2 *"made available by request to better control its use for research purposes only"* |
 | SynthTab dataset | **CC-BY-NC-4.0** | **no — DROPPED** | github.com/yongyizang/SynthTab README *"SynthTab is released with CC BY-NC 4.0 license"* |
 | SynthTab rendering code | CC-BY-4.0 | n/a (we're not redistributing the code) | repo `LICENSE` file |
@@ -159,7 +159,7 @@ on a public corpus and must be acquired in Phase 0.
 
 | Attempt | Outcome | Lesson |
 |---|---|---|
-| Learned-fusion LightGBM ranker (2026-04-29) | +0.3 pp LOOCV vs +5 pp gate; **-27.8 pp** regression on training-17 | Catastrophic single-fold regression with small data. **Re-try only with strict per-fold regression guard AND with video features actually populated**, which the apr-29 run lacked. |
+| Learned-fusion LightGBM ranker (2026-04-29) | +0.3 pp LOOCV vs +5 pp gate; **-27.8 pp** regression on one private-corpus fold | Catastrophic single-fold regression with small data. The private-corpus artifacts were removed on 2026-06-11; re-try only on license-checked public/offline features with strict per-fold regression guard. |
 | Basic Pitch fine-tune (2026-04-30) | Superseded by highres backend swap | Fine-tune infra reusable; ceiling lift now lives in highres post-processing and possibly a GuitarSet-only highres fine-tune. |
 | Melodic prior | Regresses aggregate by 1.15 pp | Helps solo, hurts comp. Needs solo-density gating. |
 | Position prior `guitarset-v1` | +22 pp Tab F1 | Per-pitch tabular priors are the largest cheap intervention. Style/structure-conditional priors are the natural extension. |

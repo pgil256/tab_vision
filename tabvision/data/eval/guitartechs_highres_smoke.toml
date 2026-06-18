@@ -1,0 +1,13 @@
+# Highres second-dataset smoke manifest.
+# This is a deliberately tiny Guitar-TECHS slice for interactive v1.1 audio
+# checks. The broader Guitar-TECHS manifests remain the full second-corpus
+# evidence; this file keeps a short direct-input clip runnable on Windows.
+
+[[clips]]
+id = "guitar-techs/P1_chords/midi/midi_Set1_aug"
+tier = "clean_electric"
+source = "GuitarTECHS"
+split = "validation"
+media_path = "$TABVISION_DATA_ROOT/guitar-techs/P1_chords/audio/directinput/directinput_Set1_aug.wav"
+annotation_path = "$TABVISION_DATA_ROOT/guitar-techs/P1_chords/midi/midi_Set1_aug.mid"
+annotation_format = "guitar_techs_midi"

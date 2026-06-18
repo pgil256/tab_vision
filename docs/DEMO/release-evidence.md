@@ -15,10 +15,10 @@ portfolio demo without manual annotation, new recordings, or private media.
 - `../EVAL_REPORTS/phase5_position_prior_2026-05-07.md` — GuitarSet
   high-resolution audio evidence for the optional `guitarset-v1` position
   prior.
-- `../EVAL_REPORTS/phase2_2026-05-05.md` — Phase 2 high-resolution backend
+- `../EVAL_REPORTS/v1_acceptance_2026-06-03.md` - accepted v1 public/fixture
   evidence.
-- `../EVAL_REPORTS/phase1_2026-05-05.md` — Phase 1 baseline harness evidence.
-
+- `../EVAL_REPORTS/v1_1_chunk3_real_video_robustness_2026-06-11.md` - current
+  v1.1 real-video robustness evidence.
 ## Release Checks
 
 Run from `tabvision/`:

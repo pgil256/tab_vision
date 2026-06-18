@@ -20,22 +20,21 @@ What `tabvision.fusion` looks like right now on `refactor/v1`:
 
 Phase 4 already produces `FrameFingering.marginal_string_fret() → (6, 25)` softmax per frame (`tabvision.video.hand.fingertip_to_fret`). Phase 5 consumes that.
 
-Legacy reference: `tabvision-server/app/fusion_engine.py` (2,216 lines, 23 functions) and `tabvision-server/app/chord_shapes.py` (790 lines). Per the SPEC §3.3 module-boundary plan, we **port selectively** (hand-span, slide, monophony heuristics) rather than wholesale-translate. The Apr-24 learned-fusion attempt (LightGBM ranker) **did not ship** (LOOCV +0.3 pp vs +5 pp gate per `tools/outputs/position_selector_report-2026-04-29.md`); the lesson is that small ML on top of weak features doesn't beat structured search with informative evidence — Phase 5 takes the structured-search path.
+Legacy reference: `tabvision-server/app/fusion_engine.py` (2,216 lines, 23 functions) and `tabvision-server/app/chord_shapes.py` (790 lines). Per the SPEC module-boundary plan, we **port selectively** (hand-span, slide, monophony heuristics) rather than wholesale-translate. The Apr-24 learned-fusion attempt did not ship and its private-corpus artifacts were removed on 2026-06-11; the lesson is that small ML on top of weak features does not beat structured search with informative evidence.
 
 ## 1. Goal & acceptance bars
 
 From SPEC §5 Phase 5:
 
-- **Tab F1 ≥ 0.85** on the user eval set. Target 0.88 by Phase 9.
+- **Tab F1 >= 0.85** on the enabled public/offline eval set. Target 0.88 by Phase 9.
 - **Chord-instance accuracy ≥ 0.80**. Target 0.85 by Phase 9.
 - **Audio+vision must beat audio-only by ≥ 8 pp on Tab F1** (ablation report).
 
-The original user eval set was the 20-video iPhone-recorded training set plus
-future Phase 1.5 annotations. As of 2026-05-07, that manual/home-video
-acceptance path is `optional_future`, not a v1 blocker. Phase 5 v1 evidence is
-the automated path: deterministic smoke eval, checked-in fixtures, GuitarSet
-validation reports, and any public/programmatic datasets that can be acquired
-without manual work. Home-video ablation remains useful future validation.
+The old private-video eval path was removed on 2026-06-11 because the tab
+labels are not trusted. Phase 5 v1 evidence is the automated path:
+deterministic smoke eval, checked-in fixtures, GuitarSet validation reports,
+and license-checked public/offline datasets that can be acquired without
+manual work.
 
 ## 2. Cost function
 

@@ -1,7 +1,6 @@
 """Vanilla Basic Pitch baseline on the held-out GuitarSet player split.
 
-Phase 1 Week 2 deliverable per
-docs/plans/2026-04-24-audio-backbone-finetune-design.md §7.
+Historical Phase 1 GuitarSet fine-tune helper.
 
 What this measures:
   - Frame note F1 at thresholds {0.3, 0.5, 0.7} — per-cell binary match
@@ -461,11 +460,10 @@ def _write_report(
     lines.append('')
     lines.append(
         '- **Scope reminder.** This is *in-distribution* GuitarSet held-out (split '
-        'by player). The plan §0 ship gate is on our **20-video iPhone set** '
-        '(out-of-distribution), where the current exact F1 is ~0.51 and the '
-        'target is ≥ 0.60. Use the present number (note-event F1 ≈ 0.87) only as '
-        'the within-GuitarSet reference — improvement here is a *necessary but '
-        'not sufficient* condition for OOD improvement.'
+        'by player). The private-video OOD gate was removed on 2026-06-11 '
+        'because its labels are not trusted. Use this number only as the '
+        'within-GuitarSet reference; real-video/audio replacement gates must '
+        'come from license-checked public/offline corpora.'
     )
 
     with open(md_path, 'w') as f:

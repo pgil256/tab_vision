@@ -134,6 +134,7 @@ class HighResBackend:
 
         # instrument="guitar" selects the guitar architecture; checkpoint_path
         # overrides the weights (None → package default guitar-gaps.pth).
+        _ensure_utf8_stdio_for_dependency_logs()
         self._model = MidiTranscriptionModel(
             instrument="guitar",
             checkpoint_path=checkpoint_path,
@@ -181,6 +182,23 @@ def _resample_if_needed(wav: np.ndarray, sr: int, target_sr: int) -> np.ndarray:
     g = gcd(sr, target_sr)
     up, down = target_sr // g, sr // g
     return resample_poly(wav, up=up, down=down).astype(np.float32, copy=False)
+
+
+def _ensure_utf8_stdio_for_dependency_logs() -> None:
+    """Avoid Windows cp1252 crashes from dependency status glyphs."""
+
+    import sys
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if encoding != "utf8":
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
 
 
 def _parse_midi(midi_path: Path) -> list[AudioEvent]:

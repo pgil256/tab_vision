@@ -41,8 +41,8 @@ class PositionDecision:
     """One position-selection event for the learned-fusion training set.
 
     Per-event header + per-candidate rows. Emitted by fusion when
-    `FusionConfig.emit_position_features` is True. See
-    docs/plans/2026-04-24-learned-fusion-design.md §4.2.
+    `FusionConfig.emit_position_features` is True. The old private-corpus
+    learned-fusion plan and generated artifacts were removed on 2026-06-11.
     """
     event_id: str
     onset_time: float
