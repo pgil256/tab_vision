@@ -875,3 +875,41 @@ signal, but the clip-local time search overfits the alignment proxy: clips 0 and
 a global highres calibration path first, then inspect retained video evidence
 under corrected timing. Tuning generic video weights remains secondary until the
 audio calibration path is explicit and regression-tested.
+
+## 2026-06-19 - v1.1 chunk-5 GAPS gold via per-pitch match-maximizing MIDI alignment
+
+**Phase:** v1.1 (video string-resolution) - chunk 5 (GAPS integration, audio half)
+**Decision tree:** v1.1 chunk-5 (recon "implied chunk-5"); design
+`2026-06-03-v1.1-video-string-resolution-design.md` §6 eval-data gate.
+**Branch taken:** Derive GAPS onset-timed gold tab by walking the MusicXML TAB
+part (staff-tuning aware) and **snapping each score note to the exact aligned-MIDI
+onset** via a per-pitch, match-maximizing monotonic alignment - rather than the
+recon's per-cluster onset match (too fragile) or a raw syncpoint warp (too coarse
+for the 50 ms gate). Restrict the eval set with two logged per-clip filters
+(standard tuning; gold/MIDI coverage >= 80%).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_chunk5_2026-06-19.md`,
+`tabvision/eval/parsers/gaps_musicxml_tab.py`, `tabvision/data/eval/gaps.toml`,
+`docs/EVAL_REPORTS/v1_1_gaps_chunk5_audio_only{,_decomp}_2026-06-18.md`.
+- GAPS audio is **in-domain**: 8 clean clips average onset F1 **0.952**, pitch F1
+  **0.946** (vs UT-Austin's ~0); audio-only Tab F1 mean 0.768.
+- 22-clip test split (audio-only, no prior): Tab F1 **0.647** (lower-95 0.573) -
+  **passes** the single-line 0.45 gate. Onset F1 0.828 / pitch F1 0.819.
+- Error decomposition: after `extra_detection` (51.5%, the repeat-coverage
+  artifact the coverage filter flags), the dominant real loss is
+  `wrong_position_same_pitch` (34.1%) - the audio string-resolution limit the
+  v1.1 video chain targets.
+
+**Reasoning:** The recon spike validated on one clean clip; the full corpus adds
+voice-major MusicXML ordering, scordatura, repeats/voltas, and rubato. A raw
+per-measure syncpoint warp has p95 onset error 70-900 ms (fails the 50 ms gate),
+so onsets must come from the high-resolution MIDI; the open problem is the
+score<->MIDI correspondence. Per-pitch monotonic alignment that *maximizes
+matches* (gaps cost >> time term) reaches the ~94% multiset ceiling (~90% median
+on standard clips) with exact MIDI onsets, and is robust to rubato (it is an
+alignment, not interpolation) and to repeats (extra MIDI notes become gaps).
+Scordatura clips can't be scored by the standard-tuning pipeline, and
+repeat-heavy clips' score-centric gold under-covers the performance (FP
+deflation) - both are filtered with logged drop lists, not silently capped. The
+video real-chain (yt-dlp + video<->audio crop-offset alignment + chunk-3 gated CV
+chain) is the next chunk; yt-dlp feasibility is confirmed.
