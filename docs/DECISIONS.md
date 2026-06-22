@@ -913,3 +913,53 @@ repeat-heavy clips' score-centric gold under-covers the performance (FP
 deflation) - both are filtered with logged drop lists, not silently capped. The
 video real-chain (yt-dlp + video<->audio crop-offset alignment + chunk-3 gated CV
 chain) is the next chunk; yt-dlp feasibility is confirmed.
+
+## 2026-06-22 - v1.1 chunk-5 GAPS video real-chain: alignment works; CV chain does not transfer
+
+**Phase:** v1.1 (video string-resolution) - chunk 5 (GAPS integration, video half)
+**Decision tree:** v1.1 chunk-5 video half; design
+`2026-06-03-v1.1-video-string-resolution-design.md` §6; supersedes the "video
+real-chain is the next chunk" note in the 2026-06-19 entry.
+**Branch taken:** Acquire GAPS source video via yt-dlp and recover the
+video<->audio crop offset by **onset-strength-envelope cross-correlation**
+(`video_time = gold_onset + offset`), rather than trusting the metadata CSV's
+`duration`/`cropped_duration` columns (inconsistent) or a raw-waveform xcorr
+(self-similar guitar energy → weak peak). Run the chunk-3 confidence-gated CV
+chain over the clean-12 and report `audio-only` / `+real (auto)` /
+`+real (best-fixed-orientation)` / `+oracle`, for gold-pitch audio (string axis
+isolated — the 0.94 frame) and highres audio (honest end-to-end). Keep the
+chunk-3 §5.3 no-regression coverage gate at **0.71** (a looser 0.5 leaked
+corrupting evidence and regressed ~0.05).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_video_chain_2026-06-22.md` (+ raw
+`*_auto_*`), `tabvision/scripts/acquire/gaps_video.py`,
+`tabvision/scripts/eval/v1_1_gaps_video_chain_probe.py`,
+`tabvision/tests/unit/test_gaps_video_align.py` (10 tests; 428 unit pass).
+- **Alignment works:** all 12 offsets sub-frame (+0.01..+0.05 s; one 24 fps frame
+  ≈ 42 ms), xcorr peak ratios 2.3-11.2, wav/video durations match < 0.1 s. The
+  upload *is* the GAPS crop on these clips; the feared large offset is absent.
+- **Video does not lift Tab F1.** Gold audio: audio-only **0.8148** ->
+  +real(auto) **0.8148** (lo-95 0.768) == +real(best-orient) == audio-only;
+  **below the 0.94 bar**. highres: 0.7612 -> 0.7612 (oracle 0.910, pitch-capped).
+- **The lever is real:** gold-audio **oracle 0.9726** (~clears 0.94); residual
+  loss is **98.3% wrong_position_same_pitch** - exactly the string axis video
+  targets - but the CV chain captures none of it.
+- **Sweep (gold, cache-only):** under no gate/orientation setting does video beat
+  audio-only; ungated with the per-clip *oracle* orientation it still hurts 10/12
+  (mean -0.052). So the bottleneck is the CV-derived string *evidence*, not
+  gating or orientation selection.
+
+**Reasoning:** The chunk-2/3 CV chain was tuned to the non-mirrored Kaggle
+UT-Austin rig; GAPS is in-the-wild classical-guitar footage (diverse camera
+geometry, neck angle, framing). On clean single-line pieces the audio-only
+playability prior is already strong (0.815 gold), and the CV's string evidence is
+either incompatible with the audio pitch (per-event gate drops it -> coverage
+< 0.71 -> no-regression fallback) or confidently wrong (the dense orientation
+assigns the wrong string). Voting over more frames cannot fix systematically
+wrong evidence (vote_frames=1 here; homography is 0.99-stable, offset sub-frame).
+This is a clean negative, verified: `+oracle` 0.973 confirms the gold/fusion path,
+and the smoke reproduced the chunk-5 audio baseline (179 = 0.857). The next chunk
+is CV-chain transfer to in-the-wild footage (per-clip fretboard/fret-cell
+calibration, orientation-agnostic string-axis homography, perspective-robust
+fingertip->string), not audio tuning - the string axis is worth ~0.16 (gold) on
+GAPS clean-12.
