@@ -27,6 +27,15 @@ The expensive layers (highres transcription ~70 s/clip; per-frame CV ~0.5 s) are
 cached under ``--cache-dir`` keyed by clip + settings, so fusion/orientation/gate
 tuning and report regeneration are cheap.
 
+As of v1.1 chunk-6 (WS0) the per-frame CV cache is the *rich* v2 cache
+(:mod:`scripts.eval.gaps_cv_cache`): instead of only the final ``FrameFingering``
+it persists the raw intermediates each frame's fingering is built from — the YOLO
+``OBBPredictions`` (nut/fret/neck anchors), the fitted ``Homography``, and the
+selected fretting ``HandSample``. ``FrameFingering``s are reconstructed from that
+cache via ``fingering_from_raw``, so per-clip board calibration, orientation, and
+posterior changes (chunk-6 WS1/WS2/WS4) become re-runnable from cache rather than
+needing a full MediaPipe/YOLO re-run.
+
 Net-new acquisition + alignment live in ``scripts.acquire.gaps_video``; the
 fusion / vision-evidence / scoring helpers are reused verbatim from the v1
 package and the chunk-2/3 probes. GAPS is non-commercial offline-eval-only:
@@ -53,12 +62,18 @@ import argparse
 import datetime
 import os
 import pickle
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 from scripts.acquire.gaps_video import CLEAN_12, AlignmentResult, estimate_offset
+from scripts.eval.gaps_cv_cache import (
+    RawFrameCV,
+    fingering_from_raw,
+    needed_frames,
+    rawcv_cache_path,
+)
 from scripts.eval.v1_1_kaggle_oracle_probe import _events_from_gold, _oracle_fingerings
 from scripts.eval.v1_1_real_chain_probe import _select_fretting_hand_geometric
 from tabvision.demux import _frame_iterator, _probe_metadata
@@ -170,44 +185,28 @@ def _offset(stem: str, wav_path: Path, video_path: Path, cache_dir: Path) -> Ali
     return res
 
 
-def _needed_frames(
-    onsets: list[float],
-    offset_s: float,
-    fps: float,
-    *,
-    window_s: float,
-    max_frames: int,
-) -> tuple[set[int], dict[int, list[int]]]:
-    """Union of frame indices near each onset (+ per-onset nearest-frame lists)."""
-    needed: set[int] = set()
-    per_onset: dict[int, list[int]] = {}
-    span = int(np.ceil(window_s * fps))
-    for i, onset in enumerate(onsets):
-        vt = onset + offset_s
-        center = int(round(vt * fps))
-        cands = [fi for fi in range(center - span, center + span + 1) if fi >= 0]
-        cands.sort(key=lambda fi: abs(fi / fps - vt))
-        cands = sorted(cands[:max_frames], key=lambda fi: fi / fps)
-        per_onset[i] = cands
-        needed.update(cands)
-    return needed, per_onset
-
-
-def _raw_fingering_for_frame(
+def _raw_cv_for_frame(
     frame: np.ndarray,
-    t: float,
-    cfg: GuitarConfig,
-    fb,  # noqa: ANN001 - KeypointFretboardBackend
+    yolo,  # noqa: ANN001 - YoloOBBBackend
     landmarker,  # noqa: ANN001 - mediapipe HandLandmarker
-) -> FrameFingering | None:
-    """YOLO homography + MediaPipe -> raw (un-oriented) FrameFingering, or None."""
+) -> RawFrameCV | None:
+    """Run the CV stack on one frame -> raw intermediates, or None.
+
+    Captures the YOLO ``OBBPredictions`` + fitted ``Homography`` + selected
+    fretting ``HandSample`` — everything ``compute_fingering`` consumes — so the
+    fingering can be rebuilt downstream without re-running the models (the WS0
+    enabler). The None-return conditions exactly mirror the chunk-5 chain (no
+    neck/low-confidence homography, no hands, no fretting hand), so the derived
+    fingerings reproduce the chunk-5 cache.
+    """
     import cv2
     import mediapipe as mp
 
-    from tabvision.video.hand.fingertip_to_fret import compute_fingering
+    from tabvision.video.fretboard.keypoint import predictions_to_homography
     from tabvision.video.hand.mediapipe_backend import _build_hand_sample
 
-    homography = fb.detect(frame, None)
+    preds = yolo.predict_all(frame)
+    homography = predictions_to_homography(preds)
     if homography.confidence <= 0.0:
         return None
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -222,24 +221,27 @@ def _raw_fingering_for_frame(
     hand = _select_fretting_hand_geometric(hands, np.linalg.inv(homography.H))
     if hand is None:
         return None
-    ff = compute_fingering(hand, homography, cfg)
-    return replace(ff, t=t)
+    return RawFrameCV(preds=preds, homography=homography, hand=hand)
 
 
-def _raw_frame_cache(
+def _raw_cv_cache(
     stem: str,
     video_path: Path,
     fps: float,
     needed: set[int],
-    cfg: GuitarConfig,
-    fb,  # noqa: ANN001
+    yolo,  # noqa: ANN001 - YoloOBBBackend
     landmarker,  # noqa: ANN001
     cache_dir: Path,
     conf: float,
-) -> dict[int, FrameFingering | None]:
-    """Raw per-frame fingerings for ``needed`` indices (incremental pickle cache)."""
-    cache_path = cache_dir / f"{stem}.frames.c{conf:.2f}.pkl"
-    cache: dict[int, FrameFingering | None] = {}
+) -> dict[int, RawFrameCV | None]:
+    """Raw per-frame CV intermediates for ``needed`` indices (incremental pickle).
+
+    The v2 rich cache (``{stem}.rawcv.c{conf}.pkl``) — see
+    :mod:`scripts.eval.gaps_cv_cache`. Decoding is the expensive part, so frames
+    are accumulated incrementally and only missing indices are (re)computed.
+    """
+    cache_path = rawcv_cache_path(cache_dir, stem, conf)
+    cache: dict[int, RawFrameCV | None] = {}
     if cache_path.exists():
         with open(cache_path, "rb") as fh:
             cache = pickle.load(fh)
@@ -247,11 +249,11 @@ def _raw_frame_cache(
     if missing:
         target = set(missing)
         max_fi = missing[-1]
-        for fi, (t, frame) in enumerate(_frame_iterator(video_path, fps)):
+        for fi, (_t, frame) in enumerate(_frame_iterator(video_path, fps)):
             if fi > max_fi:
                 break
             if fi in target:
-                cache[fi] = _raw_fingering_for_frame(frame, t, cfg, fb, landmarker)
+                cache[fi] = _raw_cv_for_frame(frame, yolo, landmarker)
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as fh:
             pickle.dump(cache, fh)
@@ -311,7 +313,7 @@ def _score_clip(
     data_root: Path,
     video_cache: Path,
     cfg: GuitarConfig,
-    fb,  # noqa: ANN001
+    yolo,  # noqa: ANN001 - YoloOBBBackend
     landmarker,  # noqa: ANN001
     cache_dir: Path,
     *,
@@ -344,19 +346,25 @@ def _score_clip(
         src_events["highres"] = _audio_events(stem, wav, cache_dir)
 
     all_onsets = sorted({ev.onset_s for evs in src_events.values() for ev in evs})
-    needed, _ = _needed_frames(
+    needed, _ = needed_frames(
         all_onsets,
         align.offset_s,
         fps,
         window_s=params.vote_window_s,
         max_frames=params.vote_frames,
     )
-    raw_cache = _raw_frame_cache(stem, vid, fps, needed, cfg, fb, landmarker, cache_dir, conf)
+    rawcv = _raw_cv_cache(stem, vid, fps, needed, yolo, landmarker, cache_dir, conf)
+    # Reconstruct the chunk-5 FrameFingerings from the rich cache. This is the
+    # WS0 split: the fit/orient/project layer now runs from cached intermediates,
+    # so later geometry/posterior changes re-derive ``raw_cache`` without CV.
+    raw_cache: dict[int, FrameFingering | None] = {
+        fi: fingering_from_raw(rec, cfg, t=fi / fps) for fi, rec in rawcv.items()
+    }
 
     oracle = _oracle_fingerings(gold, cfg)
     scores: dict[str, SourceScore] = {}
     for src, events in src_events.items():
-        _, per_onset = _needed_frames(
+        _, per_onset = needed_frames(
             [e.onset_s for e in events],
             align.offset_s,
             fps,
@@ -602,12 +610,10 @@ def main(argv: list[str] | None = None) -> int:
         ("gold", "highres") if args.audio_source == "both" else (args.audio_source,)
     )
 
-    from tabvision.video.fretboard.keypoint import KeypointFretboardBackend
     from tabvision.video.guitar.yolo_backend import YoloOBBBackend
 
     ckpt = args.checkpoint or os.environ.get("TABVISION_GUITAR_YOLO_CHECKPOINT")
     yolo = YoloOBBBackend(checkpoint_path=ckpt, conf=args.conf, device="cpu")
-    fb = KeypointFretboardBackend(backend=yolo)
     landmarker = _build_landmarker()
 
     clips = _resolve_clips(args.clips)
@@ -622,7 +628,7 @@ def main(argv: list[str] | None = None) -> int:
             args.data_root,
             args.video_cache,
             cfg,
-            fb,
+            yolo,
             landmarker,
             args.cache_dir,
             conf=args.conf,

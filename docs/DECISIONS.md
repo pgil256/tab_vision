@@ -963,3 +963,54 @@ is CV-chain transfer to in-the-wild footage (per-clip fretboard/fret-cell
 calibration, orientation-agnostic string-axis homography, perspective-robust
 fingertip->string), not audio tuning - the string axis is worth ~0.16 (gold) on
 GAPS clean-12.
+
+## 2026-06-22 - v1.1 chunk-6 WS0: rich CV-intermediate cache enables cache-only geometry iteration
+
+**Phase:** v1.1 (video string-resolution) - chunk 6 (CV-chain transfer), WS0 (enabler)
+**Decision tree:** chunk-6 design
+`2026-06-03-v1.1-video-string-resolution-design.md` decision tree +
+`2026-06-22-v1.1-chunk6-cv-transfer-design.md` (geometry-first ordering, confirmed
+by the user 2026-06-22); follows the 2026-06-22 chunk-5 entry.
+**Branch taken:** Before any geometry work, change the GAPS video probe's per-frame
+cache from the final `FrameFingering` to a **rich v2 cache** of the raw CV
+intermediates — YOLO `OBBPredictions` (nut/fret/neck anchors), the fitted
+`Homography`, and the selected fretting `HandSample` — and reconstruct the
+fingering downstream via `fingering_from_raw` (= `replace(compute_fingering(hand,
+H, cfg), t=t)`). Split the light (numpy-only) cache layer into
+`scripts/eval/gaps_cv_cache.py` so the diagnostic and tests do not import
+cv2/mediapipe/ultralytics. Codify the chunk-5 `_diag` analysis into a reusable
+cache-only diagnostic (`scripts/eval/v1_1_gaps_string_diag.py`). Build the v2 cache
+at the current **360p** (one-time CV re-run; 720p deferred to WS3, per the
+confirmed plan).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws0_2026-06-22.md`;
+`tabvision/scripts/eval/gaps_cv_cache.py`,
+`tabvision/scripts/eval/v1_1_gaps_string_diag.py`,
+`tabvision/scripts/eval/v1_1_gaps_video_chain_probe.py` (refactor),
+`tabvision/tests/unit/test_gaps_string_diag.py` (12 tests; full suite 440 pass / 4
+skip; ruff + mypy clean).
+- **Behaviour-preserving:** scoring from the v2 cache reproduces chunk-5 exactly —
+  gold `audio-only 0.8148 -> +real(auto) 0.8148` (lo-95 0.7679), oracle **0.9726**;
+  highres `0.7612 -> 0.7612` (lo-95 0.7063), oracle 0.9099; per-clip values
+  identical to `_run2.log`.
+- **Diagnostic reproduces the `_diag` baseline:** ambiguous-note string accuracy
+  **4191/7697 = 0.544** (chunk-5 reported 0.543), per-clip `best_orient` + `haveCV`
+  match exactly; identical from the rich or legacy cache (`fingering_from_raw` is
+  bit-faithful). Full offset histograms recorded (string −1..−4 bias; fret swings
+  +5/+4/+9/+14 — the pitch-preserving mirror).
+- **Bonus:** the rich cache is *smaller* than the legacy one (6.2 MB vs 35 MB over
+  the clean-12) — compact raw inputs vs a dense `(4,6,25)` float64 grid per frame.
+
+**Reasoning:** The chunk-5 cache stored only the final, already-string-resolved
+`FrameFingering`; its logit grid is re-orientable cache-only but only by four
+discrete whole-grid flips, which cannot undo GAPS's graded −1..−4 string offset
+(why the chunk-5 sweep found no win). The real string-axis levers — per-clip board
+calibration, image-cued orientation, perspective-robust projection — all act
+upstream of that grid (in `predictions_to_homography` / `compute_fingering`),
+whose inputs the old cache discarded, so every geometry iteration cost a full
+MediaPipe/YOLO re-run. Persisting those inputs once makes WS1/WS2/WS4 re-runnable
+from cache in seconds, with the cache-only diagnostic as the fast leading
+indicator (target 0.544 -> ≥ 0.75) and the existing probe as the lagging headline.
+The refactor stays on the implementation side of the §8 contracts (no
+type/Protocol/signature change); the work is harness-only and behaviour-preserving,
+verified by exact reproduction of the chunk-5 numbers.
