@@ -1074,3 +1074,33 @@ axis from the nut-OBB edge) targets the nut-detected, fret-sparse clips, and gat
 re-derivation (WS5) is required to convert the evidence gain into a gated Tab-F1
 lift. Stays entirely on the implementation side of §8 (fret evidence still rides
 `marginal_string_fret`; no type/Protocol/signature change).
+
+## 2026-06-25 — Chunk-6 WS2: nut-OBB cross-string axis is a measured negative (deferred)
+
+**Phase:** v1.1 chunk-6, WS2 (cross-string axis) of the merged board-calibration step.
+**Decision tree:** chunk-6 §5 WS2 — re-anchor the canonical *string* axis to the
+detected nut OBB edge; §8 detection-limited risk + the geometry-aware-confidence
+pairing.
+**Branch taken:** Implemented the nut-axis homography re-fit
+(`keypoint.predictions_to_homography_nut_axis` + `calibrate.calibrate_board`, opt-in
+`--calibrate-board`, default off) and **measured it before promoting**. It is a net
+negative in this first form, so it is **deferred behind a geometry-aware confidence /
+fret-richness selection gate** and kept opt-in; the default pipeline and the WS1
+result are unchanged.
+**Evidence:** The nut OBB's cross-string width is 14–29% narrower than the neck-OBB
+edge the homography uses (ratio 0.71–0.86) and its center is offset by 0.15–1.09
+neck-edge-lengths — real signal. But the full re-fit regresses the leading indicator
+**0.574 (WS1) → 0.547**: it helps the big nut-only clips (235 0.419→0.435, 179
+0.598→0.609, 212 0.835→0.848) yet hurts the fret-rich ones (104 0.619→0.468, 142
+0.526→0.464, 027) and 294 (0.584→0.541, a misdetected nut). Report:
+`docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws1_2026-06-25.md` §4. Suite 467 pass / 4 skip;
+ruff + mypy clean.
+**Reasoning:** Re-fitting the *whole* homography from the nut edge perturbs the
+along-neck (x) axis WS1 already calibrated, and the nut OBB is itself noisy, so
+without a quality gate the bad re-fits drag down the good ones — exactly why the
+design pairs the cross-string axis with geometry-aware confidence. The honest wall:
+~68% of ambiguous notes are on clips with ~0 detected frets at conf=0.25, so the
+geometry-first path plateaus ~0.57–0.58; clearing 0.75/0.94 needs a cost/STOP lever
+(lower-conf re-detect + cache rebuild, 720p, or the WS4 learned model) — to be
+decided explicitly per SPEC §0 rule 8. WS2 stays impl-side of §8 (new keypoint
+function is unused by production until promoted).

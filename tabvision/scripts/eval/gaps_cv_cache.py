@@ -120,6 +120,23 @@ def make_fret_xs_calibrator(cfg: GuitarConfig) -> CalibrateFn:
     return _calibrate
 
 
+def make_board_calibrator(cfg: GuitarConfig) -> CalibrateFn:
+    """Build the chunk-6 WS2 calibrate hook: nut-axis homography re-fit + fret map.
+
+    Unlike :func:`make_fret_xs_calibrator` (which keeps the cached homography),
+    this **re-fits** the homography from the cached ``preds`` with the
+    cross-string axis anchored to the detected nut OBB, then derives the WS1
+    nonlinear fret map in that frame — all from cache (no MediaPipe/YOLO re-run).
+    Lazily imports the calibration so this module's top stays cv2-free.
+    """
+    from tabvision.video.fretboard.calibrate import calibrate_board
+
+    def _calibrate(rec: RawFrameCV) -> tuple[Homography, np.ndarray | None]:
+        return calibrate_board(rec.preds, cfg)
+
+    return _calibrate
+
+
 def rawcv_cache_path(cache_dir: Path, stem: str, conf: float) -> Path:
     """Path of the v2 rich cache for ``stem`` at YOLO confidence ``conf``."""
     return cache_dir / f"{stem}.rawcv.c{conf:.2f}.pkl"
@@ -218,6 +235,7 @@ __all__ = [
     "RawFrameCV",
     "fingering_from_raw",
     "make_fret_xs_calibrator",
+    "make_board_calibrator",
     "rawcv_cache_path",
     "legacy_frames_cache_path",
     "load_frame_fingerings",

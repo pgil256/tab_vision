@@ -282,10 +282,33 @@ def calibrate_fret_xs(
     return fit_fret_map(wires_from_nut, x0, cfg.max_fret)
 
 
+def calibrate_board(
+    preds: OBBPredictions,
+    cfg: GuitarConfig,
+) -> tuple[Homography, np.ndarray | None]:
+    """Full per-clip board calibration (chunk-6 WS2): nut-axis homography + fret map.
+
+    Re-fits the homography with the **cross-string axis anchored to the detected
+    nut OBB** (:func:`keypoint.predictions_to_homography_nut_axis`), then derives
+    the WS1 nonlinear fret map in that re-fit frame. Returns ``(homography,
+    fret_xs)`` ready for the eval ``calibrate`` hook; ``fret_xs`` is ``None`` when
+    the fret detections don't support a rule-of-18 fit (the cross-string axis
+    still improves, with the uniform fret partition). cv2 is used only via the
+    lazy import inside the keypoint homography fit, so this module's top stays
+    import-light.
+    """
+    from tabvision.video.fretboard.keypoint import predictions_to_homography_nut_axis
+
+    homography = predictions_to_homography_nut_axis(preds)
+    fret_xs = calibrate_fret_xs(preds, homography, cfg)
+    return homography, fret_xs
+
+
 __all__ = [
     "RULE_OF_18_RATIO",
     "project_to_canonical",
     "nut_at_high_canonical_x",
     "fit_fret_map",
     "calibrate_fret_xs",
+    "calibrate_board",
 ]

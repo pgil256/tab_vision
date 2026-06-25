@@ -19,6 +19,7 @@ from tabvision.video.fretboard.keypoint import (
     _order_corners_by_neck_anatomy,
     _orient_string_axis_for_lap_framing,
     predictions_to_homography,
+    predictions_to_homography_nut_axis,
 )
 from tabvision.video.guitar.yolo_backend import (
     CLASS_FRET,
@@ -366,3 +367,43 @@ def test_predictions_canonical_top_maps_to_lower_edge_when_nut_on_right():
     proj_bot = proj_bot[:, :2] / proj_bot[:, 2:]
 
     assert proj_top[0, 1] > proj_bot[0, 1]
+
+
+# ----- predictions_to_homography_nut_axis (chunk-6 WS2) -----
+
+
+def test_nut_axis_sets_cross_string_span_from_nut_obb():
+    """The nut-side canonical y-span follows the *nut* OBB's narrower cross edge,
+    not the wider neck box. Neck cross-extent h=60 (y in [170,230]); nut OBB
+    spans 40 px across strings (vertical major axis), so canonical x=0 maps the
+    nut edge to y in ~[180,220]."""
+    preds = OBBPredictions(
+        neck=[_neck(250, 200, 400, 60, conf=0.8)],
+        nut=[_nut(50, 200, w=40.0, h=8.0, rot=90.0, conf=0.6)],
+    )
+    homog = predictions_to_homography_nut_axis(preds)
+    top = (homog.H @ np.array([[0.0, 0.0, 1.0]]).T).T
+    top = top[:, :2] / top[:, 2:]
+    bot = (homog.H @ np.array([[0.0, 1.0, 1.0]]).T).T
+    bot = bot[:, :2] / bot[:, 2:]
+    # nut edge centred at y=200 with the nut OBB's 40-px span (not the neck's 60).
+    assert top[0, 0] == pytest.approx(50.0, abs=1.0)
+    assert bot[0, 0] == pytest.approx(50.0, abs=1.0)
+    assert abs(bot[0, 1] - top[0, 1]) == pytest.approx(40.0, abs=2.0)
+    assert (top[0, 1] + bot[0, 1]) / 2 == pytest.approx(200.0, abs=1.0)
+
+
+def test_nut_axis_no_nut_falls_back_to_base():
+    """Without a nut OBB the nut-axis path equals the base homography."""
+    preds = OBBPredictions(neck=[_neck(250, 200, 400, 60, conf=0.8)])
+    a = predictions_to_homography_nut_axis(preds)
+    b = predictions_to_homography(preds)
+    assert np.allclose(a.H, b.H)
+    assert a.confidence == pytest.approx(b.confidence)
+
+
+def test_nut_axis_no_neck_returns_zero_confidence_identity():
+    preds = OBBPredictions(frets=[_fret(100, 100)], neck=[], nut=[_nut(50, 200)])
+    homog = predictions_to_homography_nut_axis(preds)
+    assert homog.confidence == 0.0
+    assert np.allclose(homog.H, np.eye(3))

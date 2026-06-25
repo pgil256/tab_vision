@@ -43,6 +43,7 @@ from scripts.acquire.gaps_video import CLEAN_12
 from scripts.eval.gaps_cv_cache import (
     CalibrateFn,
     load_frame_fingerings,
+    make_board_calibrator,
     make_fret_xs_calibrator,
     needed_frames,
 )
@@ -216,16 +217,31 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="apply chunk-6 WS1 per-clip nonlinear fret-map calibration (cache-only)",
     )
+    ap.add_argument(
+        "--calibrate-board",
+        action="store_true",
+        help="apply chunk-6 WS2 board calibration: nut-axis homography re-fit + fret map",
+    )
     ap.add_argument("--limit", type=int, default=None, help="first N clips (smoke)")
     args = ap.parse_args(argv)
 
     cfg = GuitarConfig()
-    calibrate = make_fret_xs_calibrator(cfg) if args.calibrate else None
+    if args.calibrate_board:
+        calibrate: CalibrateFn | None = make_board_calibrator(cfg)
+    elif args.calibrate:
+        calibrate = make_fret_xs_calibrator(cfg)
+    else:
+        calibrate = None
     clips = _resolve_clips(args.clips)
     if args.limit is not None:
         clips = clips[: args.limit]
 
-    print(f"mode: {'WS1 calibrated (nonlinear fret-map)' if calibrate else 'baseline (uniform)'}")
+    _mode = (
+        "WS2 board (nut-axis + fret-map)"
+        if args.calibrate_board
+        else ("WS1 calibrated (nonlinear fret-map)" if args.calibrate else "baseline (uniform)")
+    )
+    print(f"mode: {_mode}")
     print(
         f"{'clip':>12} {'notes':>6} {'ambig':>6} {'haveCV':>7} {'str_acc':>7}  "
         "best_orient  hist(pred-gold)"

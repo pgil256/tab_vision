@@ -15,6 +15,7 @@ import pytest
 from tabvision.types import GuitarConfig, Homography
 from tabvision.video.fretboard.calibrate import (
     RULE_OF_18_RATIO,
+    calibrate_board,
     calibrate_fret_xs,
     fit_fret_map,
     nut_at_high_canonical_x,
@@ -190,3 +191,41 @@ def test_calibrate_fret_xs_no_frets_returns_none():
     cfg = GuitarConfig(max_fret=19)
     H = _make_homography()
     assert calibrate_fret_xs(OBBPredictions(frets=[], neck=[], nut=[]), H, cfg) is None
+
+
+# ----- calibrate_board (WS2: nut-axis homography + fret map) -----
+
+
+def test_calibrate_board_returns_homography_and_fret_map():
+    cfg = GuitarConfig(max_fret=19)
+    neck = OBBDetection(
+        "neck", cx=250.0, cy=200.0, w=400.0, h=60.0, rotation_deg=0.0, confidence=0.8
+    )
+    nut = OBBDetection("nut", cx=60.0, cy=200.0, w=44.0, h=8.0, rotation_deg=90.0, confidence=0.6)
+    # frets at rule-of-18 canonical x under the nut-axis homography are hard to
+    # pre-place without the fitted H, so just assert the board returns a valid
+    # homography (cross-string axis from the nut) and a fret map shape when frets
+    # form a plausible sequence in image space along the neck.
+    frets = [
+        OBBDetection("fret", cx=cx, cy=200.0, w=6.0, h=44.0, rotation_deg=90.0, confidence=0.5)
+        for cx in (95.0, 135.0, 172.0, 206.0, 237.0, 265.0)
+    ]
+    preds = OBBPredictions(frets=frets, neck=[neck], nut=[nut])
+    homography, fret_xs = calibrate_board(preds, cfg)
+    assert homography.method == "keypoint"
+    assert homography.confidence > 0.0
+    # cross-string span at the nut follows the nut OBB (44 px), centred at cy=200.
+    top = (homography.H @ np.array([[0.0, 0.0, 1.0]]).T).T
+    top = top[:, :2] / top[:, 2:]
+    bot = (homography.H @ np.array([[0.0, 1.0, 1.0]]).T).T
+    bot = bot[:, :2] / bot[:, 2:]
+    assert abs(bot[0, 1] - top[0, 1]) == pytest.approx(44.0, abs=3.0)
+    # fret map is either a valid nonlinear array or None (detection-dependent).
+    assert fret_xs is None or fret_xs.shape == (cfg.max_fret + 1,)
+
+
+def test_calibrate_board_no_neck_returns_zero_conf_and_none():
+    cfg = GuitarConfig(max_fret=19)
+    homography, fret_xs = calibrate_board(OBBPredictions(frets=[], neck=[], nut=[]), cfg)
+    assert homography.confidence == 0.0
+    assert fret_xs is None

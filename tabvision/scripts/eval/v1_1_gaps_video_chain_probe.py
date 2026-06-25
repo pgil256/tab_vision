@@ -72,6 +72,7 @@ from scripts.eval.gaps_cv_cache import (
     CalibrateFn,
     RawFrameCV,
     fingering_from_raw,
+    make_board_calibrator,
     make_fret_xs_calibrator,
     needed_frames,
     rawcv_cache_path,
@@ -629,6 +630,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="apply chunk-6 WS1 per-clip nonlinear fret-map calibration (cache-only)",
     )
+    ap.add_argument(
+        "--calibrate-board",
+        action="store_true",
+        help="apply chunk-6 WS2 board calibration: nut-axis homography re-fit + fret map",
+    )
     ap.add_argument("--limit", type=int, default=None, help="first N clips (smoke)")
     ap.add_argument(
         "--output",
@@ -651,7 +657,12 @@ def main(argv: list[str] | None = None) -> int:
         gate=not args.no_gate,
     )
     orientation = None if args.orientation == "auto" else ORIENTATION_BY_NAME[args.orientation]
-    calibrate = make_fret_xs_calibrator(cfg) if args.calibrate else None
+    if args.calibrate_board:
+        calibrate: CalibrateFn | None = make_board_calibrator(cfg)
+    elif args.calibrate:
+        calibrate = make_fret_xs_calibrator(cfg)
+    else:
+        calibrate = None
     audio_sources: tuple[str, ...] = (
         ("gold", "highres") if args.audio_source == "both" else (args.audio_source,)
     )
@@ -666,7 +677,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit is not None:
         clips = clips[: args.limit]
 
-    print(f"mode: {'WS1 calibrated (nonlinear fret-map)' if calibrate else 'baseline (uniform)'}")
+    _mode = (
+        "WS2 board (nut-axis + fret-map)"
+        if args.calibrate_board
+        else ("WS1 calibrated (nonlinear fret-map)" if args.calibrate else "baseline (uniform)")
+    )
+    print(f"mode: {_mode}")
     print(f"{'clip':>12} {'gold':>5} {'offset':>7}  src:audio/+real(auto)/+best/+oracle")
     results: list[ClipResult] = []
     for stem in clips:
