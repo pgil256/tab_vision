@@ -40,7 +40,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from scripts.acquire.gaps_video import CLEAN_12
-from scripts.eval.gaps_cv_cache import load_frame_fingerings, needed_frames
+from scripts.eval.gaps_cv_cache import (
+    CalibrateFn,
+    load_frame_fingerings,
+    make_fret_xs_calibrator,
+    needed_frames,
+)
 from scripts.eval.v1_1_kaggle_oracle_probe import _events_from_gold
 from tabvision.demux import _probe_metadata
 from tabvision.eval.parsers.gaps_musicxml_tab import parse as parse_gaps
@@ -151,6 +156,7 @@ def _diagnose_clip(
     conf: float,
     window_s: float,
     max_frames: int,
+    calibrate: CalibrateFn | None = None,
 ) -> ClipStringDiag | None:
     gaps = data_root / "gaps"
     xml = gaps / "musicxml" / f"{stem}.xml"
@@ -173,7 +179,9 @@ def _diagnose_clip(
         return None
     _dur, fps = _probe_metadata(vid)
     try:
-        per_frame = load_frame_fingerings(cache_dir, stem, conf=conf, cfg=cfg, fps=fps)
+        per_frame = load_frame_fingerings(
+            cache_dir, stem, conf=conf, cfg=cfg, fps=fps, calibrate=calibrate
+        )
     except FileNotFoundError as exc:
         print(f"  [skip] {stem}: {exc}")
         return None
@@ -203,14 +211,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--conf", type=float, default=0.25, help="YOLO conf (cache key)")
     ap.add_argument("--vote-frames", type=int, default=1, help="frames per onset (chunk-5 used 1)")
     ap.add_argument("--vote-window-s", type=float, default=0.06)
+    ap.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="apply chunk-6 WS1 per-clip nonlinear fret-map calibration (cache-only)",
+    )
     ap.add_argument("--limit", type=int, default=None, help="first N clips (smoke)")
     args = ap.parse_args(argv)
 
     cfg = GuitarConfig()
+    calibrate = make_fret_xs_calibrator(cfg) if args.calibrate else None
     clips = _resolve_clips(args.clips)
     if args.limit is not None:
         clips = clips[: args.limit]
 
+    print(f"mode: {'WS1 calibrated (nonlinear fret-map)' if calibrate else 'baseline (uniform)'}")
     print(
         f"{'clip':>12} {'notes':>6} {'ambig':>6} {'haveCV':>7} {'str_acc':>7}  "
         "best_orient  hist(pred-gold)"
@@ -226,6 +241,7 @@ def main(argv: list[str] | None = None) -> int:
             conf=args.conf,
             window_s=args.vote_window_s,
             max_frames=args.vote_frames,
+            calibrate=calibrate,
         )
         if d is None:
             continue

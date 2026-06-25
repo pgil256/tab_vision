@@ -97,6 +97,8 @@ def compute_fingering(
     H: Homography,  # noqa: N803
     cfg: GuitarConfig,
     posterior_cfg: PosteriorConfig | None = None,
+    *,
+    fret_xs: np.ndarray | None = None,
 ) -> FrameFingering:
     """Build a :class:`FrameFingering` from a hand sample + homography.
 
@@ -105,6 +107,16 @@ def compute_fingering(
     Per-finger softmax of these logits is the position posterior over
     fret-cells; :meth:`FrameFingering.marginal_string_fret` aggregates
     across fingers.
+
+    Args:
+        fret_xs: optional per-clip canonical-x fret-cell centers, shape
+            ``(cfg.max_fret + 1,)`` (e.g. the rule-of-18 map from
+            :func:`tabvision.video.fretboard.calibrate.calibrate_fret_xs`). When
+            ``None`` (the default) the legacy **uniform** partition is used —
+            bit-identically to before this hook existed, so cached baselines
+            reproduce exactly. When supplied, the distance-kernel σ becomes
+            per-fret (scaled by the local cell width) so a nonlinear partition
+            keeps "≈1 fret-cell wide" kernels.
     """
     pcfg = posterior_cfg or PosteriorConfig()
 
@@ -123,7 +135,6 @@ def compute_fingering(
     H_inv = np.linalg.inv(H.H)  # noqa: N806 — math-convention name
 
     # Pre-compute the fret-cell-centre and string-y coordinates in canonical space.
-    fret_xs = (np.arange(cfg.max_fret + 1) + 0.5) / (cfg.max_fret + 1)  # (F,)
     # cfg.tuning_midi is low-E -> high-E (idx 0 = low-E).  Canonical y:
     # 0 = high-E side, 1 = low-E side.  So idx 0 → y near 1; idx n-1 → y near 0.
     string_ys = (np.arange(cfg.n_strings - 1, -1, -1) + 0.5) / cfg.n_strings  # (S,)
@@ -137,10 +148,20 @@ def compute_fingering(
 
     # Spacing constants for the kernel — converting "cells" back to canonical
     # units so callers can think in "1 fret-cell wide".
-    fret_cell_size = 1.0 / (cfg.max_fret + 1)
     string_cell_size = 1.0 / cfg.n_strings
-    sigma_x = pcfg.sigma_fret_cells * fret_cell_size
     sigma_y = pcfg.sigma_string_cells * string_cell_size
+    if fret_xs is None:
+        # Legacy uniform partition — kept as the exact pre-WS1 float ops so
+        # cached baselines reproduce bit-for-bit (scalar sigma_x).
+        fret_xs = (np.arange(cfg.max_fret + 1) + 0.5) / (cfg.max_fret + 1)  # (F,)
+        sigma_x: np.ndarray | float = pcfg.sigma_fret_cells * (1.0 / (cfg.max_fret + 1))
+    else:
+        fret_xs = np.asarray(fret_xs, dtype=np.float64)
+        if fret_xs.shape != (cfg.max_fret + 1,):
+            raise ValueError(f"fret_xs must have shape {(cfg.max_fret + 1,)}, got {fret_xs.shape}")
+        # Nonlinear partition: per-fret σ from local cell width so the kernel is
+        # still ~1 fret-cell wide everywhere (broadcasts against (1, F) below).
+        sigma_x = pcfg.sigma_fret_cells * np.abs(np.gradient(fret_xs))
 
     for fi, name in enumerate(FRETTING_FINGERS):
         sample = hand.fingers.get(name)

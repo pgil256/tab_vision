@@ -1014,3 +1014,63 @@ indicator (target 0.544 -> ≥ 0.75) and the existing probe as the lagging headl
 The refactor stays on the implementation side of the §8 contracts (no
 type/Protocol/signature change); the work is harness-only and behaviour-preserving,
 verified by exact reproduction of the chunk-5 numbers.
+
+## 2026-06-25 — Chunk-6 WS1: per-clip nonlinear (rule-of-18) fret-map calibration
+
+**Phase:** v1.1 chunk-6 (CV-chain string-resolution transfer), WS1 of the merged
+WS1/WS2 board-calibration step.
+**Decision tree:** chunk-6 §5 WS1 — anchor the canonical fret axis to detected
+per-clip cues vs the rig-baked uniform partition; §6 per-step gate (leading
+diagnostic + lagging probe); §8 detection-limited risk.
+**Branch taken:** Replace `compute_fingering`'s **uniform** fret partition with a
+per-clip **rule-of-18** map fit from the detected fret-OBB sequence + nut anchor,
+behind the eval `calibrate` hook (training-free, cache-only, detected-cues-only).
+New impl module `tabvision/video/fretboard/calibrate.py`; optional keyword
+`fret_xs` on `compute_fingering` (default `None` ⇒ bit-identical uniform path);
+opt-in `calibrate`/`posterior_cfg` hook on `fingering_from_raw` /
+`load_frame_fingerings` + `make_fret_xs_calibrator`; `--calibrate` flag on the
+diagnostic and probe; per-clip no-regression check added to the probe. The
+homography is reused as-is (only the fret partition is re-derived); a **robust
+inlier-consensus (RANSAC-style)** fit tolerates spurious/high-fret detections, and
+frames with too few/garbled frets return `fret_xs=None` ⇒ uniform fallback ⇒ the
+chunk-3 fall-back-to-audio invariant is preserved exactly.
+
+**Evidence:** (clean-12, gold pitch, `--vote-frames 1`)
+- **Leading indicator ↑:** ambiguous-note string accuracy **0.544 → 0.574**
+  (`scripts/eval/v1_1_gaps_string_diag --calibrate`). Per-clip wins where the
+  detector fires frets: 031 0.434→0.635 (+0.20), 104 0.479→0.619 (+0.14), 142
+  0.475→0.526; deep −3 string-offset bucket 583→386, −1 bucket 1702→1666.
+- **Fusion-relevant (ungated A/B, firing clips 031/104/142):** gold `+real` auto
+  **0.586 → 0.684** (+0.098), best-orient **0.713 → 0.753** (+0.040) — the fret-map
+  improves the actual Tab-F1 video contribution, not just the diagnostic argmax.
+- **Lagging gated = no-op, no regression:** gold `+real(auto)` **0.8148 → 0.8148**,
+  per-clip no-regression holds **12/12**. The 0.71 coverage gate suppresses video on
+  every clip (calibration improves the string *within* surviving evidence, not the
+  survival rate), so the lift cannot materialise until the gate is re-derived (WS5),
+  exactly as the design anticipated.
+- **Detection-limited ceiling (honest framing, SPEC §0 rule 7):** ~68% of ambiguous
+  notes are on clips where YOLO detects ~0 fret OBBs at conf=0.25 (043/063/118/179/
+  235/294), so the fret lever physically cannot fire there and falls back to uniform.
+  Several of those *do* have nut detections (235 68%, 179 99%, 294 70%) — the WS2
+  cross-string-axis lever's target.
+- **Quality:** new `tests/unit/test_fretboard_calibrate.py` (17) + additions to
+  `test_fingertip_to_fret.py` / `test_gaps_string_diag.py`; full unit suite **462
+  pass / 4 skip**; ruff + ruff format + `mypy tabvision` clean. Default (`fret_xs=
+  None` / no `--calibrate`) path reproduces the WS0 baseline bit-for-bit (string acc
+  4191/7697 = 0.544; gold probe 0.8148/0.8148/0.9726).
+
+**Reasoning:** The canonical x-axis is proportional to physical along-neck distance,
+so the uniform partition systematically over-estimates fret number toward the body
+(real wires follow `D_k = S(1−r^k)`, `r = 2^(−1/12)`); a fingertip physically at
+fret 12 (canonical x ≈ 0.67 of a nut→fret-24 span) is read as ~fret 16, and the
+pitch constraint then drags the predicted string to the bass side — exactly the
++4/+5 fret / −1..−4 string bias the WS0 diagnostic measured. Fitting the rule-of-18
+shape per clip from the detected wires + nut anchor is parameter-free physics (no
+per-clip constants, so no clean-12 overfitting); the affine `x = x0 + b(1−r^k)` is
+anchored at the nut because a finite geometric sequence is scale-invariant in its
+absolute fret index. The lever is real and fusion-relevant where the detector
+cooperates, but detection-limited at conf=0.25; the next lever (WS2 cross-string
+axis from the nut-OBB edge) targets the nut-detected, fret-sparse clips, and gate
+re-derivation (WS5) is required to convert the evidence gain into a gated Tab-F1
+lift. Stays entirely on the implementation side of §8 (fret evidence still rides
+`marginal_string_fret`; no type/Protocol/signature change).

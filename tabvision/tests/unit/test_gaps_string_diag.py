@@ -15,6 +15,8 @@ CV models:
 All synthetic — no media, no MediaPipe/YOLO, no ffmpeg.
 """
 
+# ruff: noqa: N803, N806 — H is the math-convention name for the homography matrix
+
 from __future__ import annotations
 
 import pickle
@@ -27,12 +29,13 @@ from scripts.eval.gaps_cv_cache import (
     fingering_from_raw,
     legacy_frames_cache_path,
     load_frame_fingerings,
+    make_fret_xs_calibrator,
     needed_frames,
     rawcv_cache_path,
 )
 from scripts.eval.v1_1_gaps_string_diag import diagnose_clip_strings
 from tabvision.types import FrameFingering, GuitarConfig, Homography, TabEvent
-from tabvision.video.guitar.yolo_backend import OBBPredictions
+from tabvision.video.guitar.yolo_backend import OBBDetection, OBBPredictions
 from tabvision.video.hand.fingertip_to_fret import (
     FingerSample,
     HandSample,
@@ -108,6 +111,82 @@ def test_fingering_from_raw_survives_pickle_roundtrip() -> None:
 def test_fingering_from_raw_none_passthrough() -> None:
     # ``None`` is the sentinel for "no usable detection" — preserved verbatim.
     assert fingering_from_raw(None, CFG, t=0.0) is None
+
+
+# --------------------------------------------------------------------------- #
+# Calibrate hook (chunk-6 WS1)
+# --------------------------------------------------------------------------- #
+def test_fingering_from_raw_calibrate_none_is_unchanged() -> None:
+    # The explicit calibrate=None path equals the no-hook default (bit-for-bit).
+    rec = _raw_record()
+    base = fingering_from_raw(rec, CFG, t=0.0)
+    none_hook = fingering_from_raw(rec, CFG, t=0.0, calibrate=None)
+    assert base is not None and none_hook is not None
+    np.testing.assert_array_equal(none_hook.finger_pos_logits, base.finger_pos_logits)
+
+
+def test_fingering_from_raw_calibrate_hook_applies_fret_xs() -> None:
+    # A hook that supplies a custom (non-uniform) fret_xs must change the result.
+    rec = _raw_record()
+    custom = np.linspace(0.1, 0.9, CFG.max_fret + 1) ** 1.5  # monotone, non-uniform
+    got = fingering_from_raw(rec, CFG, t=0.0, calibrate=lambda r: (r.homography, custom))
+    expected = compute_fingering(rec.hand, rec.homography, CFG, fret_xs=custom)
+    assert got is not None
+    np.testing.assert_array_equal(got.finger_pos_logits, expected.finger_pos_logits)
+    # And it differs from the uniform default (the hook is actually in effect).
+    base = fingering_from_raw(rec, CFG, t=0.0)
+    assert not np.array_equal(got.finger_pos_logits, base.finger_pos_logits)
+
+
+def test_load_frame_fingerings_forwards_calibrate(tmp_path) -> None:
+    rec = _raw_record()
+    rawcv_cache_path(tmp_path, "clip", 0.25).write_bytes(pickle.dumps({4: rec}))
+    custom = np.linspace(0.1, 0.9, CFG.max_fret + 1) ** 1.5
+    out = load_frame_fingerings(
+        tmp_path, "clip", conf=0.25, cfg=CFG, fps=25.0, calibrate=lambda r: (r.homography, custom)
+    )
+    expected = compute_fingering(rec.hand, rec.homography, CFG, fret_xs=custom)
+    np.testing.assert_array_equal(out[4].finger_pos_logits, expected.finger_pos_logits)
+
+
+def _ruleof18_fret_preds(H: Homography) -> OBBPredictions:
+    """Fret OBBs at rule-of-18 wire positions under ``H`` (canonical y = 0.5)."""
+    from tabvision.video.fretboard.calibrate import RULE_OF_18_RATIO
+
+    frets = []
+    for k in range(1, 11):
+        cx_canon = 0.02 + 1.4 * (1.0 - RULE_OF_18_RATIO**k)
+        proj = H.H @ np.array([cx_canon, 0.5, 1.0])
+        frets.append(
+            OBBDetection(
+                "fret", float(proj[0] / proj[2]), float(proj[1] / proj[2]), 4.0, 80.0, 0.0, 0.5
+            )
+        )
+    return OBBPredictions(frets=frets, neck=[], nut=[])
+
+
+def test_make_fret_xs_calibrator_returns_map_for_ruleof18_preds() -> None:
+    import cv2
+
+    src = np.array([[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
+    dst = np.array([[100, 200], [500, 200], [500, 320], [100, 320]], dtype=np.float32)
+    H = Homography(
+        H=cv2.getPerspectiveTransform(src, dst).astype(np.float64), confidence=0.9, method="t"
+    )
+    rec = RawFrameCV(preds=_ruleof18_fret_preds(H), homography=H, hand=_hand())
+
+    cal = make_fret_xs_calibrator(CFG)
+    h_out, fret_xs = cal(rec)
+    assert h_out is rec.homography  # WS1 keeps the cached homography
+    assert fret_xs is not None
+    assert fret_xs.shape == (CFG.max_fret + 1,)
+    assert np.all(np.diff(fret_xs) > 0)  # monotone
+
+
+def test_make_fret_xs_calibrator_falls_back_to_none_without_frets() -> None:
+    cal = make_fret_xs_calibrator(CFG)
+    _h, fret_xs = cal(_raw_record())  # _raw_record has empty OBBPredictions
+    assert fret_xs is None
 
 
 # --------------------------------------------------------------------------- #

@@ -69,8 +69,10 @@ import numpy as np
 
 from scripts.acquire.gaps_video import CLEAN_12, AlignmentResult, estimate_offset
 from scripts.eval.gaps_cv_cache import (
+    CalibrateFn,
     RawFrameCV,
     fingering_from_raw,
+    make_fret_xs_calibrator,
     needed_frames,
     rawcv_cache_path,
 )
@@ -321,6 +323,7 @@ def _score_clip(
     orientation: Orientation | None,
     params: GateParams,
     audio_sources: tuple[str, ...],
+    calibrate: CalibrateFn | None = None,
 ) -> ClipResult | None:
     gaps = data_root / "gaps"
     xml = gaps / "musicxml" / f"{stem}.xml"
@@ -358,7 +361,8 @@ def _score_clip(
     # WS0 split: the fit/orient/project layer now runs from cached intermediates,
     # so later geometry/posterior changes re-derive ``raw_cache`` without CV.
     raw_cache: dict[int, FrameFingering | None] = {
-        fi: fingering_from_raw(rec, cfg, t=fi / fps) for fi, rec in rawcv.items()
+        fi: fingering_from_raw(rec, cfg, t=fi / fps, calibrate=calibrate)
+        for fi, rec in rawcv.items()
     }
 
     oracle = _oracle_fingerings(gold, cfg)
@@ -491,6 +495,39 @@ def _fmt_source_table(results: list[ClipResult], src: str) -> list[str]:
     return lines
 
 
+def _regressions(
+    results: list[ClipResult], src: str, *, tol: float = 1e-9
+) -> list[tuple[str, float]]:
+    """Clips where +real(auto) drops below audio-only for ``src`` (per-clip).
+
+    The chunk-6 hard invariant: video must stay additive — any clip with weak or
+    wrong evidence must fall back to audio-only *exactly*, so ``real_auto`` must
+    be ``>= audio_only`` on every clip. ``tol`` absorbs float noise. Returns
+    ``(stem, delta)`` for each regressing clip (``delta < 0``).
+    """
+    out = []
+    for r in results:
+        s = r.scores[src]
+        delta = s.real_auto - s.audio_only
+        if delta < -tol:
+            out.append((r.stem, delta))
+    return out
+
+
+def _fmt_no_regression(results: list[ClipResult], src: str) -> list[str]:
+    regs = _regressions(results, src)
+    if not regs:
+        return [
+            f"No-regression invariant (`{src}`): **HOLDS** (+real(auto) ≥ audio-only on all "
+            f"{len(results)} clips)."
+        ]
+    detail = ", ".join(f"{stem} ({delta:+.4f})" for stem, delta in regs)
+    return [
+        f"No-regression invariant (`{src}`): **VIOLATED** on {len(regs)}/{len(results)} "
+        f"clip(s): {detail}."
+    ]
+
+
 def _write_report(
     results: list[ClipResult],
     output: Path,
@@ -539,6 +576,9 @@ def _write_report(
     ]
     for src in audio_sources:
         lines.extend(_fmt_source_table(results, src))
+        lines.append("")
+        lines.extend(_fmt_no_regression(results, src))
+        lines.append("")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\nwrote {output}")
@@ -584,6 +624,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--min-candidate-support", type=float, default=0.02)
     ap.add_argument("--min-best-ratio", type=float, default=1.2)
     ap.add_argument("--min-clip-coverage", type=float, default=0.71)
+    ap.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="apply chunk-6 WS1 per-clip nonlinear fret-map calibration (cache-only)",
+    )
     ap.add_argument("--limit", type=int, default=None, help="first N clips (smoke)")
     ap.add_argument(
         "--output",
@@ -606,6 +651,7 @@ def main(argv: list[str] | None = None) -> int:
         gate=not args.no_gate,
     )
     orientation = None if args.orientation == "auto" else ORIENTATION_BY_NAME[args.orientation]
+    calibrate = make_fret_xs_calibrator(cfg) if args.calibrate else None
     audio_sources: tuple[str, ...] = (
         ("gold", "highres") if args.audio_source == "both" else (args.audio_source,)
     )
@@ -620,6 +666,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit is not None:
         clips = clips[: args.limit]
 
+    print(f"mode: {'WS1 calibrated (nonlinear fret-map)' if calibrate else 'baseline (uniform)'}")
     print(f"{'clip':>12} {'gold':>5} {'offset':>7}  src:audio/+real(auto)/+best/+oracle")
     results: list[ClipResult] = []
     for stem in clips:
@@ -635,6 +682,7 @@ def main(argv: list[str] | None = None) -> int:
             orientation=orientation,
             params=params,
             audio_sources=audio_sources,
+            calibrate=calibrate,
         )
         if res is None:
             continue
@@ -661,6 +709,12 @@ def main(argv: list[str] | None = None) -> int:
             f"[{src}] audio-only {np.mean(ao):.4f} -> +real(auto) {np.mean(auto):.4f} "
             f"(lower-95 {ci.lower:.4f})  best-orient {np.mean(best):.4f}{tag}"
         )
+        regs = _regressions(results, src)
+        if regs:
+            detail = ", ".join(f"{stem}({delta:+.4f})" for stem, delta in regs)
+            print(f"    NO-REGRESSION VIOLATED on {len(regs)}/{len(results)}: {detail}")
+        else:
+            print(f"    no-regression holds on all {len(results)} clips")
 
     _write_report(results, args.output, audio_sources=audio_sources, params=params)
     return 0
