@@ -168,6 +168,23 @@ def read_yt_ids(csv_path: str | Path, stems: tuple[str, ...] | None = None) -> d
     return out
 
 
+def read_split_stems(csv_path: str | Path, split: str) -> tuple[str, ...]:
+    """Stems in a GAPS metadata ``split`` (``train`` / ``test``), yt_id required.
+
+    ``split='all'`` returns every stem with a ``yt_id`` regardless of split. Used
+    by the v1.1 chunk-6 WS4 learned-model training pipeline to enumerate the
+    official train clips (no eval leakage: clean-12 ⊂ the ``test`` split).
+    """
+    out: list[str] = []
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            if not (row.get("yt_id") or "").strip():
+                continue
+            if split == "all" or (row.get("split") or "").strip() == split:
+                out.append(row["id"])
+    return tuple(out)
+
+
 def download_video(
     yt_id: str,
     dst: str | Path,
@@ -210,24 +227,52 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data-root", type=Path, default=Path.home() / ".tabvision" / "data")
     ap.add_argument("--cache-dir", type=Path, default=DEFAULT_VIDEO_CACHE)
-    ap.add_argument("--clips", default="clean12", help="'clean12' or comma-separated stems")
+    ap.add_argument(
+        "--clips",
+        default="clean12",
+        help="'clean12', a metadata split ('train'/'test'/'all'), or comma-separated stems",
+    )
     ap.add_argument("--ffmpeg-location", type=Path, default=None)
     ap.add_argument("--download", action="store_true", help="download missing videos")
+    ap.add_argument("--limit", type=int, default=None, help="cap to first N clips (batching)")
     ap.add_argument("--offsets", action="store_true", help="estimate + print per-clip offsets")
     ap.add_argument("--offsets-json", type=Path, default=None, help="write offsets to JSON")
     args = ap.parse_args(argv)
 
     gaps = args.data_root / "gaps"
-    stems = _resolve_stems(args.clips)
-    yt = read_yt_ids(gaps / "gaps_metadata_with_splits.csv", stems)
+    csv_path = gaps / "gaps_metadata_with_splits.csv"
+    if args.clips in ("train", "test", "all"):
+        stems = read_split_stems(csv_path, args.clips)
+    else:
+        stems = _resolve_stems(args.clips)
+    if args.limit is not None:
+        stems = stems[: args.limit]
+    yt = read_yt_ids(csv_path, stems)
 
     if args.download:
-        for stem in stems:
+        ok = fail = skip = 0
+        failures: list[str] = []
+        for i, stem in enumerate(stems):
             dst = args.cache_dir / f"{stem}.mp4"
-            status = "skip" if dst.exists() else "get"
-            print(f"[{status}] {stem}  yt={yt.get(stem, '?')}")
-            if status == "get":
-                download_video(yt[stem], dst, ffmpeg_location=args.ffmpeg_location)
+            if dst.exists() and dst.stat().st_size > 0:
+                skip += 1
+                continue
+            yt_id = yt.get(stem)
+            if not yt_id:
+                fail += 1
+                failures.append(f"{stem}:no_yt_id")
+                continue
+            try:
+                download_video(yt_id, dst, ffmpeg_location=args.ffmpeg_location)
+                ok += 1
+                print(f"[ok {i + 1}/{len(stems)}] {stem}  yt={yt_id}", flush=True)
+            except Exception as exc:  # noqa: BLE001 — dead links / geo-blocks are expected at scale
+                fail += 1
+                failures.append(f"{stem}:{type(exc).__name__}")
+                print(f"[FAIL {i + 1}/{len(stems)}] {stem}  yt={yt_id}  {exc}", flush=True)
+        print(f"\ndownload summary: {ok} ok, {skip} skipped (cached), {fail} failed", flush=True)
+        if failures:
+            print("failures: " + ", ".join(failures), flush=True)
 
     offsets: dict[str, dict] = {}
     if args.offsets:

@@ -1104,3 +1104,32 @@ geometry-first path plateaus ~0.57–0.58; clearing 0.75/0.94 needs a cost/STOP 
 (lower-conf re-detect + cache rebuild, 720p, or the WS4 learned model) — to be
 decided explicitly per SPEC §0 rule 8. WS2 stays impl-side of §8 (new keypoint
 function is unused by production until promoted).
+
+## 2026-06-25 — Chunk-6 WS4: APPROVED — train a learned string-resolution model (GAPS)
+
+**Phase:** v1.1 chunk-6, WS4 (the training lever the design gated behind a HARD STOP).
+**Decision tree:** chunk-6 §5 WS4 + §8 — the geometry-first path (WS1/WS2) plateaus
+~0.57 because ~68% of ambiguous notes are on clips with ~0 detected frets at
+conf=0.25; the next lever is a learned model, which is **training** (data + compute +
+money) → SPEC §0 rules 6 & 8 require explicit user approval.
+**Branch taken:** **User explicitly approved the training run** (2026-06-25), after a
+data assessment, with three confirmed choices: (1) **full 270-clip GAPS train split**
+(not a pilot); (2) **Modal** GPU, reusing the YOLO-OBB Modal infra; (3) **NC license
+accepted** (TabVision is non-commercial → an NC-tainted model artifact is acceptable,
+recorded in LICENSES.md). Approach: a pretrained backbone over the YOLO **neck-crop**
+→ 6-way string posterior, pitch-conditioned at fusion, fed through the existing
+`marginal_string_fret` → `AudioEvent.fret_prior` channel (no §8 change). Train on the
+`train` split, eval on held-out `test` (clean-12 ⊂ test — no leakage). Go/no-go on the
+first checkpoint vs the geometric leading 0.574.
+**Evidence:** GAPS `gaps_metadata_with_splits.csv` — 270 train / 30 test / 101
+unassigned, all train with `yt_id` + syncpoints; ~216K ambiguous-note string labels
+(free from gold tab); clean-12 confirmed ⊂ `test`. Design:
+`docs/plans/2026-06-25-v1.1-ws4-learned-string-model-design.md`. Geometry baseline:
+`docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws1_2026-06-25.md`.
+**Reasoning:** Labels, URLs, alignment, and an official train/test split all exist, so
+the binding cost is compute (download + CV-extract + GPU), not data or annotation. A
+learned model resolves strings from pixels, sidestepping the fret-detection wall that
+caps geometry. The honest risks (label noise from alignment, download attrition,
+transfer beyond GAPS, NC/AGPL taint) are recorded in the design §7; the eval is on the
+clean held-out test split with the no-regression invariant intact (absent/low-conf →
+audio-only). New deps (`torch`/`torchvision`/`timm`, `modal`) are training/eval-only.
