@@ -9,12 +9,18 @@ Requires ``pip install modal`` + ``modal token new`` (the user's Modal account).
 ``torch``/``torchvision``/``opencv`` are training-only; the runtime inference path
 needs only ``torch`` to load the checkpoint.
 
+The dataset is shipped as a single ``.tar.gz`` (153K small JPEGs upload + read
+far faster as one file than loose); the GPU function extracts it to local
+container disk and trains from there.
+
 Steps::
 
-    # 1. one-time: upload the extracted dataset to the volume (CLI is fastest)
+    # 1. one-time: tar the dataset, then upload the tarball to the volume
+    tar czf ~/.tabvision/cache/gaps_string_dataset.tar.gz \
+        -C ~/.tabvision/cache/gaps_string_dataset .
     modal volume create tabvision-string-dataset
     modal volume put tabvision-string-dataset \
-        ~/.tabvision/cache/gaps_string_dataset /dataset
+        ~/.tabvision/cache/gaps_string_dataset.tar.gz /dataset.tar.gz
 
     # 2. smoke (wiring check) then the full run
     modal run scripts/train/string_resolver_modal.py --smoke
@@ -34,7 +40,8 @@ import modal
 
 VOLUME_NAME = "tabvision-string-dataset"
 REMOTE_MOUNT = "/vol"
-REMOTE_DATASET = f"{REMOTE_MOUNT}/dataset"
+REMOTE_DATASET_TAR = f"{REMOTE_MOUNT}/dataset.tar.gz"
+REMOTE_DATASET = "/root/data"  # extracted from the tarball onto local container disk
 REMOTE_OUTPUT = "/output"
 
 # Bring the package + training script into the image so the remote function can
@@ -73,9 +80,23 @@ def finetune(
     if smoke:
         epochs, batch = 2, 64
 
+    # Extract the dataset tarball from the volume onto fast local container disk.
+    data_dir = Path(REMOTE_DATASET)
+    if not (data_dir / "manifest.jsonl").exists():
+        tar_path = Path(REMOTE_DATASET_TAR)
+        if not tar_path.exists():
+            raise FileNotFoundError(
+                f"{tar_path} not found on the volume; upload it first: "
+                "modal volume put tabvision-string-dataset "
+                "~/.tabvision/cache/gaps_string_dataset.tar.gz /dataset.tar.gz"
+            )
+        data_dir.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(tar_path, "r:gz") as tar:
+            tar.extractall(data_dir)  # noqa: S202 — our own dataset tarball
+
     out = Path(REMOTE_OUTPUT)
     train_string_resolver(
-        Path(REMOTE_DATASET),
+        data_dir,
         out,
         epochs=epochs,
         batch=batch,
