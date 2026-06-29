@@ -1133,3 +1133,33 @@ caps geometry. The honest risks (label noise from alignment, download attrition,
 transfer beyond GAPS, NC/AGPL taint) are recorded in the design §7; the eval is on the
 clean held-out test split with the no-regression invariant intact (absent/low-conf →
 audio-only). New deps (`torch`/`torchvision`/`timm`, `modal`) are training/eval-only.
+
+## 2026-06-29 — Chunk-6 WS4: learned model is a measured NEGATIVE; bank + stop
+
+**Phase:** v1.1 chunk-6, WS4 (the approved learned-model lever).
+**Decision tree:** chunk-6 §5 WS4 + the go/no-go gate (does `+learned` beat the
+geometric leading 0.574 / lift audio-only 0.8148 on held-out clean-12?).
+**Branch taken:** Trained the model (full pipeline on Modal L4) and **evaluated it;
+the result is a clear negative, so — at the user's direction (2026-06-29) — record
+the measured negative and STOP** rather than chase it further. Geometry WS1 (fret-map,
+0.544 → 0.574, committed `587c174`) stands as chunk-6's positive deliverable. The
+WS4 pipeline stays committed + reusable.
+**Evidence:** Go/no-go eval (`scripts/eval/v1_1_gaps_learned_probe.py`, held-out
+clean-12, gold frame): **audio-only 0.8148 → +learned 0.6974 (oracle 0.9726)** — the
+learned string evidence is **net-negative**, dragging Tab F1 down −0.117. Training
+(153,482 crops from 251 GAPS train clips, clip-disjoint val) **plateaued at raw 6-way
+val_acc ~0.30** by epoch 8 while train loss kept falling (1.63 → 0.66) — overfit to
+training players, no transferable string signal. Report:
+`docs/EVAL_REPORTS/v1_1_gaps_ws4_learned_2026-06-29.md`.
+**Reasoning:** A model only ~1.8× chance on raw 6-way yields pitch-restricted
+predictions worse than the audio playability prior. Likely root cause: the whole-neck
+crop starves the model (the fretting hand is small in a 224²-squished wide crop, so
+the across-string finger position — the actual signal — is too coarse), compounded by
+onset-frame alignment label noise and the intrinsic difficulty of string-from-image
+across players. The one promising fix (a hand-tight crop, re-extract + re-train) is
+speculative against a *large* gap (net-negative, not marginal) and was not authorized
+for further spend. Honest conclusion (SPEC §0 rule 7): audio-only single-line string
+resolution on in-the-wild GAPS is information-limited, and neither the geometric chain
+nor a GAPS-trained ResNet-18 neck-crop classifier reliably beats audio-only; WS1 is the
+sole measurable, no-regression positive. NC/AGPL artifacts (GAPS-trained weights, the
+1.38 GB crop dataset) stay local/offline-only, never committed.

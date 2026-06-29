@@ -46,7 +46,11 @@ REMOTE_OUTPUT = "/output"
 
 # Bring the package + training script into the image so the remote function can
 # import ``tabvision.*`` and ``scripts.train.*``. Run from the repo's tabvision/.
-_REPO = Path(__file__).resolve().parents[2]  # .../tabvision (the project subdir)
+# NB: this module is re-imported *on the remote* (script at /root, a shallow path),
+# so guard the parents[2] lookup — the built image is cached and these local paths
+# are only read at image-build time (locally), never on the remote.
+_here = Path(__file__).resolve()
+_REPO = _here.parents[2] if len(_here.parents) > 2 else _here.parent
 
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 image = (
@@ -59,7 +63,7 @@ image = (
 app = modal.App("tabvision-string-resolver", image=image)
 
 
-@app.function(gpu="L4", timeout=60 * 90, volumes={REMOTE_MOUNT: volume})
+@app.function(gpu="L4", timeout=60 * 180, volumes={REMOTE_MOUNT: volume})
 def finetune(
     *,
     smoke: bool = False,
@@ -104,8 +108,21 @@ def finetune(
         min_peak_ratio=min_peak_ratio,
         seed=seed,
         device="cuda",
-        num_workers=4,
+        num_workers=8,
     )
+    # Persist the run to the VOLUME before returning, so a long run survives a
+    # local client disconnect (the checkpoint otherwise lives only on the
+    # container's ephemeral disk and is lost if `modal run` drops). With
+    # `--detach` the result is then always retrievable via `modal volume get
+    # tabvision-string-dataset run_output <local>`.
+    import shutil
+
+    vol_run = Path(REMOTE_MOUNT) / "run_output"
+    if vol_run.exists():
+        shutil.rmtree(vol_run)
+    shutil.copytree(out, vol_run)
+    volume.commit()
+
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         tar.add(str(out), arcname="run")
