@@ -1191,3 +1191,42 @@ on this corpus; chunk-6's honest net is the geometry WS1 improvement (real but
 sub-prior) plus this clarifying measurement. Implication for v1.1: the single-line
 video stretch is not just hard but *information-dominated by audio* here — revisit the
 target/scope in SPEC §1.4.1 before further video string-resolution spend.
+
+## 2026-06-30 — `--audio-filters on` for `highres` is a measured regression; leave default off
+
+**Phase:** v1 accuracy hardening (unattended `/loop`, audio-only pipeline tuning lane).
+**Decision tree:** the `--audio-filters` flag (commit `bf61d4e`, 2026-06-18) added a way
+to force the v0-ported post-detection filter suite (`tabvision.audio.filters`:
+low-confidence/short/quiet drop, same-pitch merge, sustain-redetection drop,
+harmonic/ghost-note drop, end-trim) on for the `highres` backend, which has it off by
+default (only `basicpitch` has it on by default). The flag's own commit message named
+it as "the chunk-4 lever for highres extra_detection (~35%)" but no eval report or
+DECISIONS.md entry ever actually measured it on `highres` before this entry.
+**Branch taken:** **Measured it on the 24-clip fast validation manifest
+(`data/eval/local_gs_val24.toml`, `highres` + `guitarset-v1` prior) before touching the
+default — it regresses sharply, so the default (`auto` → off for `highres`) is
+unchanged.**
+**Evidence:** `--audio-filters off` (current default): single_line Tab F1 0.4820
+(onset 0.9227, pitch 0.9140), strummed Tab F1 0.7951 (onset 0.9359, pitch 0.9184) —
+both consistent with the official 60-clip acceptance numbers. `--audio-filters on`:
+single_line Tab F1 0.4744 (onset 0.8706, pitch 0.8643), strummed Tab F1 **0.4596**
+(onset **0.5822**, pitch 0.5592) — strummed drops from passing the 0.60 SPEC target to
+failing it outright. Six-bucket decomposition (aggregate counts): `extra_detection`
+did fall as hoped (150 → 69), but `missed_onset` exploded **7×** (199 → 1392, from
+18.6% to 68.2% of total loss). Reports:
+`docs/EVAL_REPORTS/v1_1_audiofilters_{off,on}_val24_2026-06-30{,_decomp}.md`.
+**Reasoning:** the filter suite's tuned constants (e.g. `min_confidence=0.3`,
+`sustain_amplitude_ratio=0.95`) were ported from v0 and dialed in for `basicpitch`'s
+note-density/confidence distribution; applied unmodified to `highres` they prune large
+numbers of real onsets in dense/strummed passages, not just the spurious detections
+they were designed to catch. The lever is real (filters *do* cut `extra_detection`)
+but the default config is the wrong instrument for `highres` — it would need separate
+retuning against `highres`'s own confidence/density distribution to be net-positive,
+which is out of scope here (SPEC §0 rule 7: flag, don't hallucinate a quick win).
+Banked negative, no code or default changed. The eval-harness `--audio-filters` plumbing
+added to test this (commit `5091a09`) stays — useful for any future retuning attempt.
+**Next candidate (untested, flagged not pursued this round):** `HighResBackend`'s own
+`onset_threshold`/`frame_threshold` constructor defaults (0.3/0.1) are never overridden
+anywhere in the repo and are a more surgical, unexplored lever for the same
+`missed_onset`/`extra_detection` buckets — flagged for follow-up, not yet implemented
+or measured.
