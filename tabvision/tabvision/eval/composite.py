@@ -437,11 +437,17 @@ def make_run_pipeline_predictor(
     position_prior: str | None,
     melodic_prior_enabled: bool = False,
     video_enabled: bool = False,
+    audio_filters: bool | None = None,
 ) -> Predictor:
     """Wrap :func:`tabvision.pipeline.run_pipeline` for composite-eval use.
 
     Imports ``run_pipeline`` lazily so the composite-eval CLI's --help
     works without the audio-highres extras installed.
+
+    ``audio_filters`` mirrors the ``tabvision`` CLI's ``--audio-filters``:
+    ``None`` keeps each backend's built-in default (basicpitch on, highres
+    off); ``True``/``False`` forces post-detection filtering on/off — see
+    ``tabvision.audio.filters``.
     """
     from tabvision.audio.backend import make as make_audio_backend  # noqa: PLC0415
     from tabvision.pipeline import run_pipeline  # noqa: PLC0415
@@ -452,7 +458,12 @@ def make_run_pipeline_predictor(
     # and the accumulation exhausted memory partway through a 60-clip run.
     # "auto" routes per session, so it can't be prebuilt; it falls back per-clip.
     shared_backend: AudioBackend | None = (
-        None if audio_backend_name == "auto" else make_audio_backend(audio_backend_name)
+        None
+        if audio_backend_name == "auto"
+        else make_audio_backend(
+            audio_backend_name,
+            **({} if audio_filters is None else {"filter_config": audio_filters}),
+        )
     )
 
     def predictor(media_path: Path, session: SessionConfig) -> list[TabEvent]:
@@ -463,10 +474,24 @@ def make_run_pipeline_predictor(
             position_prior=position_prior,
             melodic_prior_enabled=melodic_prior_enabled,
             video_enabled=video_enabled,
+            audio_filters=audio_filters,
             session=session,
         )
 
     return predictor
+
+
+def _resolve_audio_filters(choice: str) -> bool | None:
+    """Map the ``--audio-filters`` CLI choice to a backend-config override.
+
+    Mirrors ``tabvision.cli._resolve_audio_filters``: ``auto`` keeps each
+    backend's built-in default, ``on``/``off`` force it.
+    """
+    if choice == "on":
+        return True
+    if choice == "off":
+        return False
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -489,6 +514,16 @@ def main(argv: list[str] | None = None) -> int:
         "--enable-video",
         action="store_true",
         help="enable video stack (default: off — Phase 0 ships audio-only)",
+    )
+    parser.add_argument(
+        "--audio-filters",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help=(
+            "post-detection audio-event filtering (see tabvision.audio.filters). "
+            "'auto' (default) keeps each backend's built-in default (basicpitch "
+            "on, highres off); 'on'/'off' force it."
+        ),
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -523,6 +558,7 @@ def main(argv: list[str] | None = None) -> int:
         position_prior=position_prior,
         melodic_prior_enabled=args.melodic_prior,
         video_enabled=args.enable_video,
+        audio_filters=_resolve_audio_filters(args.audio_filters),
     )
 
     splits = tuple(s.strip() for s in args.splits.split(",") if s.strip())
