@@ -144,6 +144,22 @@ class HighResBackend:
             offset_threshold=self.offset_threshold,
             frame_threshold=self.frame_threshold,
         )
+        # hf_midi_transcription's MidiTranscriptionModel.__init__ accepts
+        # onset_threshold/offset_threshold/frame_threshold above but drops them:
+        # it calls self._init_transcriptor(instrument) with only the instrument
+        # name, so the underlying piano_transcription_inference.PianoTranscription
+        # always falls back to its own hard-coded defaults (0.3/0.3/0.1) — our
+        # constructor kwargs are silently inert (confirmed by an eval probe that
+        # found onset_threshold/frame_threshold changes produced bit-identical
+        # output). PianoTranscription DOES read these as plain instance attributes
+        # fresh on every transcribe() call (it rebuilds RegressionPostProcessor
+        # from self.onset_threshold / self.offset_threshod [sic — upstream typo,
+        # not ours] / self.frame_threshold each time), so set them directly on
+        # the underlying transcriptor to make our constructor args actually take
+        # effect. No-op today since our defaults equal the library's.
+        self._model.transcriptor.onset_threshold = self.onset_threshold
+        self._model.transcriptor.offset_threshod = self.offset_threshold
+        self._model.transcriptor.frame_threshold = self.frame_threshold
         return self._model
 
     def transcribe(self, wav: np.ndarray, sr: int, session: SessionConfig) -> Sequence[AudioEvent]:
