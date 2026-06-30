@@ -1230,3 +1230,46 @@ added to test this (commit `5091a09`) stays — useful for any future retuning a
 anywhere in the repo and are a more surgical, unexplored lever for the same
 `missed_onset`/`extra_detection` buckets — flagged for follow-up, not yet implemented
 or measured.
+
+## 2026-06-30 — `HighResBackend` threshold kwargs were silently inert (dependency bug); fixed. `onset_threshold=0.2` is a wash, default unchanged
+
+**Phase:** v1 accuracy hardening (unattended `/loop`, audio-only pipeline tuning lane);
+follow-up to the `--audio-filters` entry above.
+**Decision tree:** measure the flagged `onset_threshold`/`frame_threshold` candidate
+before changing any default (same discipline as the audio-filters entry).
+**Branch taken:** **First probe (frame_threshold 0.1→0.2) and second probe
+(onset_threshold 0.3→0.2) both produced bit-identical Tab F1 and six-bucket
+decomposition output to the untouched defaults — a methodology red flag, not a
+genuine null result.** Traced it to a real bug in the `hf_midi_transcription`
+dependency: `MidiTranscriptionModel.__init__` accepts and stores
+`onset_threshold`/`offset_threshold`/`frame_threshold` in `self.config`, but
+`_init_transcriptor(instrument)` — the call that builds the underlying
+`piano_transcription_inference.PianoTranscription` — only ever receives the
+instrument name, so `PianoTranscription` always falls back to its own
+hard-coded defaults (0.3/0.3/0.1) regardless of what `HighResBackend` was
+constructed with. **Fixed** (`tabvision/audio/highres.py::_load_model`,
+commit `e5ea355`): `PianoTranscription.transcribe()` rebuilds
+`RegressionPostProcessor` fresh from `self.onset_threshold` /
+`self.offset_threshod` [sic, upstream typo] / `self.frame_threshold` on every
+call (not just at construction), so setting those attributes directly on
+`self._model.transcriptor` after construction makes our thresholds actually
+take effect. Default behavior is unchanged (`HighResBackend`'s own defaults
+equal the library's), so the fix is a no-op for current production traffic —
+it only unlocks tuning that was previously impossible. 4 new tests
+(`test_highres_threshold_wiring.py`) use a fake `MidiTranscriptionModel` that
+reproduces the real library's broken wiring, so they'd fail if the patch were
+removed. 551 tests pass, ruff+mypy clean.
+**With the fix in place, re-measured `onset_threshold=0.2`** (24-clip fast
+validation manifest, `highres` + `guitarset-v1`): `correct` 1981→1997 (+16),
+`missed_onset` 199→188 (−11), but `extra_detection` 150→188 (**+38**) —
+lowering the threshold recovers a few missed onsets at the cost of 3-4× as
+many new false positives. Net Tab F1: single_line 0.4820→0.4838 (+0.0018,
+noise-level), strummed 0.7951→0.7909 (−0.0042). **Verdict: a wash, not a
+clear win — leave `onset_threshold` at its 0.3 default.** Not pursued further
+(no intermediate-value sweep, e.g. 0.25): the trade-off direction (more new
+false positives than recovered misses) argues against this being a fruitful
+single-knob lever, and SPEC §0 rule 7 argues for banking a marginal result
+over chasing it. `frame_threshold` is confirmed to have **zero effect on Tab
+F1 specifically** (it only gates note duration/offset, which this eval's
+onset+pitch+string+fret matching doesn't score) — not just untested, a
+structurally inert lever for this metric.
