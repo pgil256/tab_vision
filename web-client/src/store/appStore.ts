@@ -155,7 +155,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Playback actions
   setCurrentTime: (time) => set({ currentTime: time }),
 
-  setDuration: (duration) => set({ duration }),
+  // MediaRecorder clips report Infinity until seeked; never let a non-finite
+  // duration into the store (it would freeze the tab canvas layout).
+  setDuration: (duration) => set({ duration: Number.isFinite(duration) && duration > 0 ? duration : 0 }),
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 

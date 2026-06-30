@@ -12,7 +12,7 @@ type InputMode = 'upload' | 'record';
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [inputMode, setInputMode] = useState<InputMode>('upload');
+  const [inputMode, setInputMode] = useState<InputMode>('record');
   const { jobStatus, videoUrl, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
 
   const showEditor = jobStatus === 'completed';
