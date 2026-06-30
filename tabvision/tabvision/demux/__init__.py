@@ -43,6 +43,11 @@ def demux(video_path: str | Path, *, sample_rate: int = DEFAULT_SAMPLE_RATE) -> 
 
     duration_s, fps = _probe_metadata(path)
     wav = _extract_audio(path, sample_rate)
+    # MediaRecorder WebM (and other live/streaming containers) often omit the
+    # duration from the header, so ffprobe reports N/A and _probe_metadata
+    # returns 0.0. Recover it from the decoded audio length.
+    if duration_s <= 0.0 and wav.size:
+        duration_s = wav.size / float(sample_rate)
     frames = _frame_iterator(path, fps)
 
     return DemuxResult(
@@ -54,8 +59,23 @@ def demux(video_path: str | Path, *, sample_rate: int = DEFAULT_SAMPLE_RATE) -> 
     )
 
 
+def _as_float(value: str) -> float | None:
+    """Parse a float, returning None for non-numeric tokens (e.g. ``N/A``)."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _probe_metadata(path: Path) -> tuple[float, float]:
-    """Return (duration_s, fps) via ffprobe."""
+    """Return (duration_s, fps) via ffprobe.
+
+    Robust to audio-only inputs (no ``v:0`` stream, so no frame rate) and to
+    containers that report ``N/A`` for frame rate or duration — notably the
+    live/streaming WebM that browser ``MediaRecorder`` produces, which carries
+    no duration in its header. ``fps`` falls back to ``0.0`` (the frame
+    iterator and downstream video stack treat that as "no usable frames").
+    """
     cmd = [
         "ffprobe",
         "-v",
@@ -72,19 +92,23 @@ def _probe_metadata(path: Path) -> tuple[float, float]:
     if proc.returncode != 0:
         raise BackendError(f"ffprobe failed: {proc.stderr.strip()}")
 
-    lines = [line for line in proc.stdout.splitlines() if line.strip()]
     fps = 0.0
     duration_s = 0.0
-    for line in lines:
+    for raw in proc.stdout.splitlines():
+        line = raw.strip()
+        if not line or line == "N/A":
+            continue
         if "/" in line:
-            num, den = line.split("/")
-            denom = float(den) or 1.0
-            fps = float(num) / denom
+            # r_frame_rate is a "num/den" fraction; ignore it if either side
+            # is non-numeric or the denominator is zero (e.g. "0/0", "N/A").
+            num, _, den = line.partition("/")
+            n, d = _as_float(num), _as_float(den)
+            if n is not None and d:
+                fps = n / d
         else:
-            try:
-                duration_s = float(line)
-            except ValueError:
-                pass
+            v = _as_float(line)
+            if v is not None:
+                duration_s = v
     return duration_s, fps
 
 

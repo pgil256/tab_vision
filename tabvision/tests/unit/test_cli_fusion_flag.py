@@ -39,6 +39,27 @@ def test_lambda_vision_only_on_transcribe():
         parser.parse_args(["check", "in.mp4", "--fusion-lambda-vision", "1.0"])
 
 
+def test_lambda_vision_negative_rejected():
+    """A negative weight flips the sign of the vision term in
+    ``playability.emission_cost`` instead of disabling it (that's what 0.0
+    is for) — silently wrong output, so reject it at the parser."""
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", "-1.0"])
+
+
+def test_lambda_vision_non_numeric_rejected():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", "high"])
+
+
+def test_lambda_vision_negative_rejected_on_diagnose():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["diagnose", "in.mp4", "--fusion-lambda-vision", "-0.5"])
+
+
 # ---------- --no-video ----------
 
 
@@ -73,6 +94,61 @@ def test_video_stride_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--video-stride", "5"])
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_video_stride_below_one_rejected(value):
+    """``stride < 1`` would crash the pipeline mid-run; reject it up front."""
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video-stride", value])
+
+
+def test_video_stride_non_integer_rejected():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video-stride", "half"])
+
+
+def test_video_stride_validated_on_diagnose():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["diagnose", "in.mp4", "--video-stride", "0"])
+
+
+# ---------- --audio-backend ----------
+
+
+def test_audio_backend_default_is_basicpitch():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.audio_backend == "basicpitch"
+
+
+@pytest.mark.parametrize(
+    "choice", ["basicpitch", "highres", "highres-fl", "highres-electric", "auto"]
+)
+def test_audio_backend_choices_parsed(choice):
+    """``highres-electric`` and ``auto`` are registered in
+    ``tabvision.audio.backend`` / consumed by ``run_pipeline``'s tone-toggle
+    routing (``audio_backend_for_session``, the SPEC v1 "tone toggle"
+    feature), but were missing from the CLI's ``choices`` — making both
+    unreachable from ``tabvision transcribe``/``diagnose``."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--audio-backend", choice])
+    assert args.audio_backend == choice
+
+
+def test_audio_backend_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--audio-backend", "tensorflow-magic"])
+
+
+def test_audio_backend_auto_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--audio-backend", "auto"])
+    assert args.audio_backend == "auto"
 
 
 # ---------- --position-prior ----------

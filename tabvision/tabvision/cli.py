@@ -11,7 +11,7 @@ import logging
 import sys
 from pathlib import Path
 
-from tabvision.errors import TabVisionError
+from tabvision.errors import InvalidInputError, TabVisionError
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,60 @@ def main(argv: list[str] | None = None) -> int:
     return 2
 
 
+def _capo_arg(value: str) -> int:
+    """argparse type for ``--capo``: an integer fret in the documented 0-7 range.
+
+    A negative or out-of-range capo silently corrupts the rendered tab (every
+    pitch is shifted past the playable range), so reject it at the CLI boundary
+    with a clear message instead of letting it flow into ``GuitarConfig``.
+    """
+    try:
+        capo = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"capo must be an integer, got {value!r}") from None
+    if not 0 <= capo <= 7:
+        raise argparse.ArgumentTypeError(f"capo must be between 0 and 7, got {capo}")
+    return capo
+
+
+def _video_stride_arg(value: str) -> int:
+    """argparse type for ``--video-stride``: an integer frame stride >= 1.
+
+    The pipeline raises ``ValueError`` for ``stride < 1``, but only after demux
+    and the audio backend have already run, and that error escapes the CLI's
+    ``TabVisionError`` handler as a raw traceback. Reject it up front instead.
+    """
+    try:
+        stride = int(value)
+    except ValueError:
+        msg = f"video-stride must be an integer, got {value!r}"
+        raise argparse.ArgumentTypeError(msg) from None
+    if stride < 1:
+        raise argparse.ArgumentTypeError(f"video-stride must be >= 1, got {stride}")
+    return stride
+
+
+def _lambda_vision_arg(value: str) -> float:
+    """argparse type for ``--fusion-lambda-vision``: a float >= 0.
+
+    A negative weight doesn't disable the vision term the way 0.0 does — it
+    flips its sign in ``playability.emission_cost``, so the decoder rewards
+    fingerings the vision model considers *unlikely*. That's a silent
+    correctness bug (wrong tab, no error), so reject it at the CLI boundary.
+    """
+    try:
+        lam = float(value)
+    except ValueError:
+        msg = f"fusion-lambda-vision must be a number, got {value!r}"
+        raise argparse.ArgumentTypeError(msg) from None
+    if lam < 0.0:
+        msg = (
+            f"fusion-lambda-vision must be >= 0 (0 disables vision; negative inverts it), got {lam}"
+        )
+        raise argparse.ArgumentTypeError(msg)
+    return lam
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tabvision")
     parser.add_argument("--version", action="store_true", help="print version and exit")
@@ -72,19 +126,22 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl"],
+        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
         default="basicpitch",
         help=(
             "audio transcription backend. 'basicpitch' (Phase 1, Apache-2.0) "
             "is fast/CPU-only. 'highres' (Phase 2) wraps Riley/Edwards + "
             "Cwitkowitz GAPS via hf-midi-transcription (MIT) — needs torch + "
-            "extras. 'highres-fl' uses the Francois Leduc checkpoint."
+            "extras. 'highres-fl' uses the Francois Leduc checkpoint. "
+            "'highres-electric' uses the separately fine-tuned electric "
+            "checkpoint. 'auto' is the tone toggle: routes to "
+            "'highres-electric' when --instrument electric, else 'highres'."
         ),
     )
-    t.add_argument("--capo", type=int, default=0, help="capo fret (0-7)")
+    t.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
     t.add_argument(
         "--fusion-lambda-vision",
-        type=float,
+        type=_lambda_vision_arg,
         default=1.0,
         metavar="FLOAT",
         help=(
@@ -105,7 +162,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--video-stride",
-        type=int,
+        type=_video_stride_arg,
         default=3,
         metavar="N",
         help=(
@@ -184,14 +241,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl"],
+        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
         default="basicpitch",
         help="audio transcription backend used for the diagnostic decode",
     )
-    d.add_argument("--capo", type=int, default=0, help="capo fret (0-7)")
+    d.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
     d.add_argument(
         "--fusion-lambda-vision",
-        type=float,
+        type=_lambda_vision_arg,
         default=1.0,
         metavar="FLOAT",
         help="weight on vision evidence in fusion (default 1.0)",
@@ -203,7 +260,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument(
         "--video-stride",
-        type=int,
+        type=_video_stride_arg,
         default=3,
         metavar="N",
         help="run video backends on every Nth frame (default 3)",
@@ -266,6 +323,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
 
     output = render(tab_events, args.format, cfg)
     if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(output)
         logger.info("wrote %s", args.output)
     elif args.format == "ascii":
@@ -336,6 +394,12 @@ def _run_preflight_gate(args: argparse.Namespace) -> int:
 
     try:
         report = check(args.input, strict=args.strict)
+    except InvalidInputError:
+        # A missing/bad input file is a real, actionable error, not a degraded
+        # environment — re-raise so main()'s TabVisionError handler prints it
+        # once, cleanly, instead of logging a confusing "preflight skipped"
+        # warning here and then hitting the same error again from demux().
+        raise
     except Exception as exc:  # noqa: BLE001 — preflight should not block transcribe in degraded environments
         logger.warning("preflight skipped due to error: %s", exc)
         return 0
