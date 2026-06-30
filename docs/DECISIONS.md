@@ -1163,3 +1163,31 @@ resolution on in-the-wild GAPS is information-limited, and neither the geometric
 nor a GAPS-trained ResNet-18 neck-crop classifier reliably beats audio-only; WS1 is the
 sole measurable, no-regression positive. NC/AGPL artifacts (GAPS-trained weights, the
 1.38 GB crop dataset) stay local/offline-only, never committed.
+
+## 2026-06-29 — Chunk-6 capstone: the audio prior beats the video chain (no lift to ship)
+
+**Phase:** v1.1 chunk-6 — the "make WS1 real" / WS5 gate-materialisation question.
+**Decision tree:** before threading WS1's nonlinear fret-map through the §8
+`Homography` contract to production + recalibrating the gate (WS5), measure whether
+a net-positive Tab-F1 lift is even possible.
+**Branch taken:** **Measured first; the lift does not exist, so do NOT change the §8
+contract** (it would ship better geometry but zero headline gain). WS1 stands as a
+documented geometric improvement; chunk-6 lands + pauses.
+**Evidence (decisive):** on the clean-12 **ambiguous** notes, the **audio playability
+prior** resolves the string correctly **7859/10103 = 0.778**, vs WS1 video
+**0.574** (baseline uniform 0.544) — the audio prior is **~0.20 better** than the
+video chain at string resolution. Fusion adds the video term to the audio emission
+cost, so any non-trivial `lambda_vision` pulls the decision toward the *worse* source
+(0.574) and degrades Tab F1; a tiny weight is a no-op. This is exactly why the gated
+probe sat at audio-only 0.8148 (no-op) and ungated *hurt* (geometric net-negative;
+learned 0.6974). No per-event gate keyed on video *confidence* can selectively apply
+video only where audio fails, so none yields a lift.
+**Reasoning / reframe:** the 0.94 single-line **video** target (SPEC §1.4.1) assumed
+video resolves strings *better* than audio. On in-the-wild GAPS clean-12 the ordering
+is the opposite — **audio 0.778 > geometry-video 0.574 > learned-video (worse)** —
+and video only "wins" via the *oracle* (perfect strings → 0.973), which no real chain
+approaches. So string-resolution video is not an additive lever over the audio prior
+on this corpus; chunk-6's honest net is the geometry WS1 improvement (real but
+sub-prior) plus this clarifying measurement. Implication for v1.1: the single-line
+video stretch is not just hard but *information-dominated by audio* here — revisit the
+target/scope in SPEC §1.4.1 before further video string-resolution spend.
