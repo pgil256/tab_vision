@@ -129,21 +129,47 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   (+0.05–0.15 if real; cheap definitive negative if not). Needs: pretrained
   weights confirmed to exist (else it becomes a rule-8 spend), license check,
   user sign-off. The WS4 negative does not cover it (visual vs timbral).
-- **A15. Tab-corpus fingering prior** *(added 2026-07-02, user-proposed)*: a
-  sequence/convention prior learned from a large corpus of real tabs ("how
-  guitar is normally played"), biasing the Viterbi string/fret decode before
+- **A15. Fingering-sequence prior** *(added 2026-07-02, user-proposed;
+  dataset candidates supplied by user same day)*: a sequence/convention prior
+  learned from real fingerings — line passages, arpeggios, barre-vs-open
+  voicings, not just chords — biasing the Viterbi string/fret decode before
   the user ever corrects. Attacks the same wrong-string bucket as A12 but from
-  convention (statistics) rather than timbre (physics) — they compose. Staged,
-  cheapest-first: (1) **license/feasibility review only** of candidate corpora
-  (e.g. DadaGP ~26k GuitarPro songs; §1.5 gate — tabs are user transcriptions
-  of copyrighted music; NO downloads before the review); (2) count-based
-  position-transition prior (n-gram over (string,fret) conditioned on pitch),
-  CPU-trainable, wired as a weighted Viterbi term on A3's knob; (3) neural
-  sequence model only on measured n-gram signal (Modal spend → rule-8
-  sign-off). **Hard gates from the 2026-07-02 A2 negative:** priors are
-  domain-sensitive, so no-regression required on BOTH val24 and GAPS clean-12,
-  and consider keying on the existing `--style`/`--instrument` inputs. Not
-  covered by banked negatives (melodic prior was hand-coded, WS4 was visual).
+  convention (statistics) rather than timbre (physics) — they compose.
+  **Dataset map (user-supplied candidates, triaged):**
+  - *GuitarSet* — already licensed + in hand (the shipped unigram prior is
+    built from it). **Step 1 is free:** upgrade unigram → sequence/transition
+    statistics on data we already have; tests the mechanism in-domain with
+    zero acquisition. Small (360 excerpts) but n-grams are sample-efficient.
+  - *DadaGP* (26,181 GP songs, 739 genres, tokenizer included) — the **right
+    data type** (full per-note string/fret + techniques; voicings and lines
+    emerge from the statistics, no labels needed). Request-access research
+    terms → likely **experiment-only, not shippable** under the repo's
+    NC-artifact policy (same treatment as GAPS-trained WS4 weights); still
+    decisive as a corpus-scale signal probe + genre conditioning.
+  - *PDMX* (250k+ public-domain MusicXML) — the **shippable-corpus
+    candidate**: filter to parts carrying `<technical><string>/<fret>` (the
+    in-repo GAPS MusicXML tab parser already extracts exactly this); use the
+    `no_license_conflict` subset per the dataset's own caveat. Subset size
+    unknown → needs a feasibility scan. Classical-skewed → doubles as a
+    *shippable* classical-convention prior (the niche skipped-A7 could never
+    ship for; would need its own approval to pursue as such).
+  - *Chordonomicon* (666k chord progressions) — **not for this item**: chord
+    symbols carry no fingering/voicing info, so it can't teach string
+    resolution. Parked for later harmony-context features (e.g. a
+    chord-conditioned position prior — speculative, second-order).
+  - *Guitar-TECHS* — already in the local data root; **evaluation** asset
+    (electric v2, techniques stretch), not prior-training material.
+  **Staging:** (1) GuitarSet sequence-prior probe (free, no new data);
+  (2) license/feasibility review of DadaGP access terms + PDMX tab-subset
+  yield + Chordonomicon/Guitar-TECHS terms (read-only, NO downloads before it
+  clears — §1.5 gate); (3) DadaGP n-gram probe (experiment-only) +
+  PDMX extraction if the yield is real; (4) neural sequence model only on
+  measured n-gram signal (Modal spend → rule-8 sign-off). **Hard gates from
+  the 2026-07-02 A2 negative:** priors are domain-sensitive → no-regression
+  required on BOTH val24 and GAPS clean-12; key on the existing
+  `--style`/`--instrument` inputs (and corpus genre metadata) rather than one
+  global prior. Not covered by banked negatives (melodic prior was
+  hand-coded, WS4 was visual).
 - **Electric v2 fine-tune** — largest absolute gap (0.12 vs 0.90), design doc
   exists, spend-gated. Sequence the go/no-go explicitly (see D2) rather than
   leaving it unowned while the UI offers an "Electric" option.
