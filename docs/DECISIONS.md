@@ -1373,3 +1373,35 @@ license-review → CPU n-gram → (rule-8 gated) neural model, with hard
 no-regression gates on both val24 and GAPS clean-12 given the A2
 domain-sensitivity result. Not covered by banked negatives (melodic prior was
 hand-coded; WS4 was visual).
+
+## 2026-07-02 — A15 step 1: GuitarSet sequence prior has real in-domain signal; gated to singleton moves + tied to the unigram config family
+
+**Phase:** v1.1 accuracy roadmap A15 (fingering-sequence prior), staging step 1
+(free in-domain probe) executed per the user's 2026-07-02 plan (merge PR #19 →
+GuitarSet probe → PDMX-only license review → gated n-gram probes → neural only
+on signal + sign-off).
+**Decision tree:** roadmap A15 hard gates (no-regression on BOTH val24 and GAPS;
+key the prior rather than shipping one global default).
+**Branch taken:** implemented `fusion/transition_prior.py` — Δstring|Δpitch
+n-gram (schemes `delta`, `delta_fret` with count-backoff), learned from
+anchor-to-anchor cluster transitions, default OFF, env-keyed
+(`TABVISION_TRANSITION_PRIOR[_WEIGHT]`), artifact `guitarset-seq-v1` (train
+players 00–04, singleton moves only). Two design decisions measured, not
+assumed:
+(1) **Ungated application is a banked negative** — applying the learned term to
+chord-to-chord transitions costs strummed Tab F1 (0.8564→0.8187 at w=4) and
+chord accuracy (0.792→0.733); the decode now hard-gates the term to
+singleton→singleton cluster moves (chords stay hand-coded — A5
+chord-dictionary territory, per the user's A15/A5 complement framing).
+(2) **Standalone GAPS transfer is a wash-to-negative** (GuitarSet-trained
+0.7782→0.7653; even GAPS-trained in-domain is a 0.7778 wash — classical
+single-line hand-coded transitions are already near-optimal), BUT under the
+product default (unigram on) the sequence term helps BOTH corpora (val24
+0.7777→0.7936, GAPS 0.6213→0.6422/0.6721 oracle) by partially repairing the
+unigram's cross-domain damage. Deployment therefore ties the sequence prior to
+the `guitarset-v1` config family (active only when the pitch-position prior
+is), leaving GAPS's accepted `--position-prior none` config untouched.
+**Evidence:** `docs/EVAL_REPORTS/a15_guitarset_sequence_probe_2026-07-02.md`,
+`a15_gaps_sequence_probe_transfer_2026-07-02.md`,
+`a15_gaps_sequence_probe_indomain_2026-07-02.md` (all oracle-audio; real-audio
+gated runs are staging step 4, pending).
