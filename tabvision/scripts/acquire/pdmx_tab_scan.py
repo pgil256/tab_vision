@@ -110,7 +110,8 @@ def validate_tab_walk(xml_bytes: bytes) -> dict:
     """
     part = _tab_part(ET.fromstring(xml_bytes))
     notes, _measure_starts, _total = _walk_tab_notes(part)
-    tuning = _staff_tuning(part) or STANDARD_TUNING
+    declared = _staff_tuning(part)
+    tuning = declared or STANDARD_TUNING
     consistent = sum(
         1 for n in notes if n.mxml_string in tuning and n.pitch == tuning[n.mxml_string] + n.fret
     )
@@ -118,7 +119,10 @@ def validate_tab_walk(xml_bytes: bytes) -> dict:
         "n_tab_notes": len(notes),
         "n_pitch_consistent": consistent,
         "consistency": (consistent / len(notes)) if notes else 0.0,
-        "nonstandard_tuning": bool(_staff_tuning(part)),
+        # MuseScore always writes <staff-tuning>, so "declares" is not
+        # "nonstandard" — compare against standard EADGBE explicitly.
+        "declares_staff_tuning": bool(declared),
+        "tuning_is_standard": not declared or declared == STANDARD_TUNING,
     }
 
 

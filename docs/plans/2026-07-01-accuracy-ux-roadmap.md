@@ -173,10 +173,12 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   0.3761→0.4144), strummed wash** at w=4.0. GAPS standalone =
   wash-to-negative even GAPS-trained → ships tied to the guitarset-v1
   config family (GAPS accepted config untouched). PDMX license review:
-  **CLEAR-WITH-CONDITIONS** (CC-BY; MXL files, not MusicRender JSON) and the
-  yield scan is now **RESOLVED: 3,435** clean+MXL guitar songs (1,068
-  all-guitar / 798 solo; TAB-staff fraction still needs MXL sampling —
-  `docs/2026-07-02-pdmx-license-yield-review.md`). Step-4 gates banked:
+  **CLEAR-WITH-CONDITIONS** (CC-BY; MXL files, not MusicRender JSON); yield
+  fully **RESOLVED: 3,435** clean+MXL guitar songs, of which **734 carry a
+  TAB staff (21.4%)** — ~340k tab notes ≈ 20× the guitarset-seq-v1 sample
+  base; walk-validated, standard tunings
+  (`docs/2026-07-02-pdmx-license-yield-review.md`,
+  `scripts/acquire/pdmx_tab_scan.py`). Step-4 gates banked:
   60-clip confirm **PASS** (lo-95 0.457→0.4748), uncoupled GAPS **FAIL**
   (0.6468→0.5931) → **default-on SHIPPED as a coupled default**
   (`--sequence-prior auto`: active iff the position prior is; DECISIONS.md

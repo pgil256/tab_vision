@@ -115,7 +115,42 @@ def test_tab_walk_counts_and_pitch_consistency():
     assert result["n_tab_notes"] == 3
     assert result["n_pitch_consistent"] == 3
     assert result["consistency"] == 1.0
-    assert result["nonstandard_tuning"] is False
+    assert result["declares_staff_tuning"] is False
+    assert result["tuning_is_standard"] is True
+
+
+def test_tab_walk_distinguishes_declared_standard_from_nonstandard():
+    # MuseScore always writes <staff-tuning>; declaring standard EADGBE must
+    # not read as a nonstandard-tuning score. Line 1 = bottom tab line =
+    # MusicXML string 6 (low E).
+    def attrs(low_e_step: str, low_e_octave: int) -> bytes:
+        lines = [
+            (1, low_e_step, low_e_octave),
+            (2, "A", 2),
+            (3, "D", 3),
+            (4, "G", 3),
+            (5, "B", 3),
+            (6, "E", 4),
+        ]
+        tunings = b"".join(
+            b'<staff-tuning line="%d"><tuning-step>%s</tuning-step>'
+            b"<tuning-octave>%d</tuning-octave></staff-tuning>" % (line, step.encode(), octave)
+            for line, step, octave in lines
+        )
+        return b"<attributes><staff-details>" + tunings + b"</staff-details></attributes>"
+
+    standard = _TAB_XML.replace(
+        b'<part id="P2"><measure number="1">', b'<part id="P2"><measure number="1">' + attrs("E", 2)
+    )
+    result = validate_tab_walk(standard)
+    assert result["declares_staff_tuning"] is True
+    assert result["tuning_is_standard"] is True
+
+    drop_d = _TAB_XML.replace(
+        b'<part id="P2"><measure number="1">', b'<part id="P2"><measure number="1">' + attrs("D", 2)
+    )
+    result = validate_tab_walk(drop_d)
+    assert result["tuning_is_standard"] is False
 
 
 def test_tab_walk_flags_inconsistent_fret():

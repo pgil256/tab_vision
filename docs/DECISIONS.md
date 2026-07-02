@@ -1453,3 +1453,27 @@ classical/acoustic-leaning as predicted). Mid-range of the estimate → the
 **Not taken:** neural sequence model — rule-8 spend still awaiting user
 sign-off; recommendation stands (corpus scale, not model capacity, is the
 bottleneck → PDMX n-gram extraction first).
+
+## 2026-07-02 — A15 PDMX acquisition step 2: TAB-staff yield = 734 scores (21.4%) → n-gram corpus is REAL; neural stays no-go
+
+**Phase:** v1.1 roadmap A15, PDMX acquisition (user approved the mxl.tar.gz
+fetch + TAB-staff sampling in lieu of neural training spend; PR #20 merged
+the same day, so the coupled default is on `main`).
+**Branch taken:** fetched `mxl.tar.gz` (1.89 GB → local data root, never the
+repo) and scanned it with the new committed scanner
+(`scripts/acquire/pdmx_tab_scan.py`, streaming, CSV-filtered): **734 of the
+3,435 guitar×clean×MXL songs carry a TAB staff (21.4%)** — inside the
+predicted 10–50% band. Validation through the GAPS MusicXML tab walk (the
+exact extraction code path): 10/10 parse, 9/10 at pitch-consistency 1.000
+(one 0.942 → per-note filter at extraction), all sampled tunings standard
+EADGBE (MuseScore always *declares* staff-tuning; declaring ≠ nonstandard).
+Scale: ~460 tab notes/score sampled mean → **~340k tab notes vs the 14,003
+transition samples behind `guitarset-seq-v1`** (~20×, full pieces not 30 s
+excerpts). Genre lean confirmed classical/untagged, rock/pop present.
+**Consequence:** corpus-scale bottleneck has a real, license-clean fix
+without training spend — next step is PDMX extraction + n-gram build through
+`scripts/eval/a15_sequence_prior_probe.py` under the same val24 + GAPS dual
+no-regression gates (expect a classical-leaning prior; config-keying is the
+guard). Neural remains not-started per the standing no-spend recommendation.
+**Evidence:** `docs/2026-07-02-pdmx-license-yield-review.md` (TAB-staff
+section); scan summary JSON regenerable via the committed scanner.
