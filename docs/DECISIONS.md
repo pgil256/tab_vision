@@ -1425,3 +1425,31 @@ default is a banked negative. Default flip itself = user decision, not taken.
 `a15_gs60_seq_w4_2026-07-02.md`, `a15_gaps22_none_seq_w4_2026-07-02.md`
 (+ decomps). Neural step (rule-8 spend) not started — recommendation queued:
 corpus scale (PDMX), not model capacity, is the bottleneck.
+
+## 2026-07-02 — A15 step 4b: default-on flip shipped as a coupled default; PDMX guitar yield resolved at 3,435
+
+**Phase:** v1.1 roadmap A15, post-gate deployment (user-directed 2026-07-02:
+"wire the seq prior into the CLI/pipeline so it's active iff the position
+prior is active").
+**Branch taken:** `run_pipeline` gained `sequence_prior="auto"` (CLI
+`--sequence-prior {auto,none,guitarset-seq-v1}`): `auto` resolves to
+`guitarset-seq-v1` at the gate-accepted w=4.0 **iff the position prior is
+active**, else clears the install. The coupling is structural, not advisory —
+the uncoupled GAPS real-audio FAIL (0.6468→0.5931, banked step-4 entry) means
+a global default was never on the table; the 60-clip lower-95 confirm
+(0.457→0.4748) is the measurement bar the flip stands on. Production (Modal
+`v1_adapter`) and the composite-eval harness inherit the coupling through
+`run_pipeline`'s default; `TABVISION_TRANSITION_PRIOR[_WEIGHT]` env vars
+override the flag for sweeps (and `=none` reproduces the pre-A15 baseline).
+val24 (`guitarset_audio.py`) drives `fuse()` directly and is untouched — its
+numbers stay env-knob-controlled. Tests: coupling branches + env precedence
+(`test_pipeline.py`), parser (`test_cli_fusion_flag.py`), plus a conftest
+save/restore of the process-global prior install.
+**Also resolved:** the Zenodo `PDMX.csv` retry succeeded — **3,435**
+`no_license_conflict`+MXL guitar-program songs (1,068 all-guitar, 798 solo;
+classical/acoustic-leaning as predicted). Mid-range of the estimate → the
+`mxl.tar.gz` TAB-staff sampling step is justified
+(`docs/2026-07-02-pdmx-license-yield-review.md`).
+**Not taken:** neural sequence model — rule-8 spend still awaiting user
+sign-off; recommendation stands (corpus scale, not model capacity, is the
+bottleneck → PDMX n-gram extraction first).

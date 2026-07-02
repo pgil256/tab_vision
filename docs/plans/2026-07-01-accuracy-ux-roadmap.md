@@ -173,11 +173,17 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   0.3761→0.4144), strummed wash** at w=4.0. GAPS standalone =
   wash-to-negative even GAPS-trained → ships tied to the guitarset-v1
   config family (GAPS accepted config untouched). PDMX license review:
-  **CLEAR-WITH-CONDITIONS** (CC-BY; MXL files, not MusicRender JSON; yield
-  scan pending Zenodo reachability —
-  `docs/2026-07-02-pdmx-license-yield-review.md`). Default-on flip needs the
-  60-clip confirm (run started) + user call; neural step awaits rule-8
-  sign-off. Reports: `a15_*_2026-07-02.md` in EVAL_REPORTS. **Hard gates from
+  **CLEAR-WITH-CONDITIONS** (CC-BY; MXL files, not MusicRender JSON) and the
+  yield scan is now **RESOLVED: 3,435** clean+MXL guitar songs (1,068
+  all-guitar / 798 solo; TAB-staff fraction still needs MXL sampling —
+  `docs/2026-07-02-pdmx-license-yield-review.md`). Step-4 gates banked:
+  60-clip confirm **PASS** (lo-95 0.457→0.4748), uncoupled GAPS **FAIL**
+  (0.6468→0.5931) → **default-on SHIPPED as a coupled default**
+  (`--sequence-prior auto`: active iff the position prior is; DECISIONS.md
+  2026-07-02 step-4b). Neural step awaits rule-8 sign-off — recommendation:
+  no spend yet, PDMX n-gram extraction first (corpus scale, not model
+  capacity, is the bottleneck). Reports: `a15_*_2026-07-02.md` in
+  EVAL_REPORTS. **Hard gates from
   the 2026-07-02 A2 negative:** priors are domain-sensitive → no-regression
   required on BOTH val24 and GAPS clean-12; key on the existing
   `--style`/`--instrument` inputs (and corpus genre metadata) rather than one

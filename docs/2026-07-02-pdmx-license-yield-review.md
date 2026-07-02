@@ -29,7 +29,33 @@ GitHub repo + raw source files, and search-indexed Zenodo record snippets.
   reachable (unreachable from this network on 2026-07-02, twice confirmed) to
   eyeball the license field; the paper + search-indexed snippets already agree.
 
-## Yield assessment: format risk resolved, count still unquantified
+## Yield assessment: format risk resolved; guitar count RESOLVED (metadata scan, 2026-07-02 retry)
+
+**`PDMX.csv` fetched on the 2026-07-02 retry (225 MB, metadata only — no score
+content). Scan (`tracks` MIDI programs 24–31 × `subset:no_license_conflict` ×
+has-MXL):**
+
+| Filter | Songs |
+|---|---|
+| Total rows | 254,077 |
+| `no_license_conflict` | 222,856 (matches the dataset's own count) |
+| Guitar program in `tracks` | 4,446 |
+| × `no_license_conflict` | 3,437 |
+| × has MXL | **3,435** |
+| — of which all tracks are guitar | 1,068 |
+| — of which single-track solo guitar | 798 |
+
+Per-program (clean+MXL songs, a song can carry several): nylon 1,628 · steel
+755 · clean-electric 832 · jazz 208 · distortion 183 · overdrive 151 · muted
+120 · harmonics 16. Genres: 58% untagged, then classical (524), soundtrack
+(199), rock (150), folk (111) — the predicted classical/acoustic lean is real
+but rock/pop is not zero. **3,435 lands mid-range of the prior "hundreds to a
+few thousand" estimate → the mxl.tar.gz step is justified.** The TAB-staff
+fraction (10–50% of these) is still the open variable — resolved only by
+sampling actual MXLs (step 2 below). Even at the pessimistic 10%, ~340 scores
+≈ 1.9× the GuitarSet track count behind `guitarset-seq-v1`; at 50%, ~1,700.
+
+### Original pre-scan assessment (kept for the record)
 
 - **Do NOT use the primary JSON ("MusicRender") files** — verified from
   `reading/classes.py`: the Note class has no string/fret/tablature fields;
@@ -57,11 +83,10 @@ GitHub repo + raw source files, and search-indexed Zenodo record snippets.
 
 ## Next acquisition steps (license-cleared; smallest-first)
 
-1. **`PDMX.csv` only** (`https://zenodo.org/records/15571083/files/PDMX.csv?download=1`)
-   — metadata, no score content. Filter guitar programs (24–31) ×
-   `no_license_conflict` × has-MXL for the exact guitar count. **Attempted
-   2026-07-02: Zenodo unreachable from this network (connect timeout); retry
-   later.**
+1. ~~**`PDMX.csv` only**~~ **DONE (2026-07-02 retry)** — fetched and scanned;
+   results in the yield table above. The scan script is
+   session-scratch (guitar programs 24–31 over the `tracks` column ×
+   `no_license_conflict` × has-MXL); counts are derived facts, safe to commit.
 2. If the guitar count is real: fetch the `mxl.tar.gz` archive once (per-score
    fetch impossible on Zenodo; total size unverified), extract only the
    CSV-filtered guitar paths locally, grep for `<technical>`/`<fret>` to get
