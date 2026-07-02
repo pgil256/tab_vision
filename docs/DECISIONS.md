@@ -1405,3 +1405,23 @@ is), leaving GAPS's accepted `--position-prior none` config untouched.
 `a15_gaps_sequence_probe_transfer_2026-07-02.md`,
 `a15_gaps_sequence_probe_indomain_2026-07-02.md` (all oracle-audio; real-audio
 gated runs are staging step 4, pending).
+
+## 2026-07-02 — A15 step 4: gated n-gram real-audio results — 60-clip confirm PASSES, uncoupled GAPS FAILS → coupling is load-bearing
+
+**Phase:** v1.1 roadmap A15, staging step 4 (real-audio no-regression gates).
+**Branch taken:** `guitarset-seq-v1` w=4.0 measured on all three real-audio sets:
+(1) val24 accepted config: single-line 0.4820→0.5140 (lo95 0.3761→0.4144),
+strummed wash, onset/pitch bit-identical. (2) **60-clip player-05 confirm
+(accepted config + seq): single-line 0.523→0.5418, lower-95 0.457→0.4748
+(above the 0.45 gate); strummed 0.676→0.6783 wash (lo95 0.606→0.6029)** — the
+measurement-discipline bar for a default flip is met for the guitarset-v1
+config family. (3) **GAPS test-22 uncoupled (prior=none + seq): 0.6468→0.5931
+(−5.4pp), a hard gate FAIL** — real audio amplifies the oracle −0.4pp (extra
+detections create spurious singleton transitions the prior then distorts).
+**Consequence:** the sequence prior must ship tied to the guitarset-v1
+position-prior config (off when the position prior is off); a global/uncoupled
+default is a banked negative. Default flip itself = user decision, not taken.
+**Evidence:** `docs/EVAL_REPORTS/a15_val24_seq_w4_2026-07-02.md`,
+`a15_gs60_seq_w4_2026-07-02.md`, `a15_gaps22_none_seq_w4_2026-07-02.md`
+(+ decomps). Neural step (rule-8 spend) not started — recommendation queued:
+corpus scale (PDMX), not model capacity, is the bottleneck.
