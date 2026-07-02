@@ -1344,3 +1344,32 @@ Honest caveat recorded in the report (not actioned): this is a *cross-domain
 transfer* negative and doesn't by itself falsify an *in-domain* GAPS prior; per the
 pre-registered branch logic A7 is nonetheless out of the roadmap, and reopening it
 needs fresh justification plus the A6 gold-coverage fix first.
+
+## 2026-07-02 — SPEC §1.4.1: the 0.94 single-line video-assisted reference is retired (user-approved); B8 dropped; A15 (tab-corpus fingering prior) added as a gated item
+
+**Phase:** v1.1 scope maintenance (the chunk-6 capstone's pending directive, D1
+packet part 1).
+**Decision tree:** CLAUDE.md operating rule 3 / SPEC §1.4: scope/target changes
+need a SPEC edit + explicit user approval. The capstone (2026-06-29) recommended
+revisiting the 0.94 single-line video target; the user approved lowering it on
+2026-07-02 ("Ok lower video target").
+**Branch taken:** **SPEC §1.4.1 amended (dated block, append-style): the 0.94
+single-line video-assisted reference is RETIRED.** The binding v1 single-line gate
+stays ≥ 0.45; **no new stretch number is set until one is demonstrated** (rule 7 —
+don't promise what nothing has measured). The strummed 0.86 and chord 0.85
+video-assisted references stay open pending A14 (chord-frame video, the one
+unmeasured axis where video plausibly beats audio) and the rest of D1.
+**Evidence:** chunk-6 capstone (audio prior 0.778 > geometry video 0.574 > learned
+video, ungated fusion hurts, no gate recovers a lift) + the A2 cross-domain prior
+negative above (string resolution is convention/evidence-limited, not
+decode-limited).
+**Related user decisions same session (recorded here, roadmap edited):**
+(1) **B8 (remove vestigial video UI) DROPPED** — the user wants video playback kept
+as correction context; B1 already removed the actively-misleading fake
+"Tracking fingers" progress stage for audio-only runs. (2) **A15 added** (roadmap
+Tier 3, user-proposed): a tab-corpus fingering/sequence prior ("how guitar is
+normally played") biasing the decode before user correction — staged
+license-review → CPU n-gram → (rule-8 gated) neural model, with hard
+no-regression gates on both val24 and GAPS clean-12 given the A2
+domain-sensitivity result. Not covered by banked negatives (melodic prior was
+hand-coded; WS4 was visual).

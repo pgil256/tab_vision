@@ -129,6 +129,21 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   (+0.05–0.15 if real; cheap definitive negative if not). Needs: pretrained
   weights confirmed to exist (else it becomes a rule-8 spend), license check,
   user sign-off. The WS4 negative does not cover it (visual vs timbral).
+- **A15. Tab-corpus fingering prior** *(added 2026-07-02, user-proposed)*: a
+  sequence/convention prior learned from a large corpus of real tabs ("how
+  guitar is normally played"), biasing the Viterbi string/fret decode before
+  the user ever corrects. Attacks the same wrong-string bucket as A12 but from
+  convention (statistics) rather than timbre (physics) — they compose. Staged,
+  cheapest-first: (1) **license/feasibility review only** of candidate corpora
+  (e.g. DadaGP ~26k GuitarPro songs; §1.5 gate — tabs are user transcriptions
+  of copyrighted music; NO downloads before the review); (2) count-based
+  position-transition prior (n-gram over (string,fret) conditioned on pitch),
+  CPU-trainable, wired as a weighted Viterbi term on A3's knob; (3) neural
+  sequence model only on measured n-gram signal (Modal spend → rule-8
+  sign-off). **Hard gates from the 2026-07-02 A2 negative:** priors are
+  domain-sensitive, so no-regression required on BOTH val24 and GAPS clean-12,
+  and consider keying on the existing `--style`/`--instrument` inputs. Not
+  covered by banked negatives (melodic prior was hand-coded, WS4 was visual).
 - **Electric v2 fine-tune** — largest absolute gap (0.12 vs 0.90), design doc
   exists, spend-gated. Sequence the go/no-go explicitly (see D2) rather than
   leaving it unowned while the UI offers an "Electric" option.
@@ -159,8 +174,11 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
 - **B2. Accept audio uploads + the recorder's own webm.**
   `UploadPanel.tsx ALLOWED_TYPES` blocks all audio and `video/webm` — the app
   rejects its own recordings. Add wav/mp3/m4a/webm client + server.
-- **B8. Remove vestigial video UI** (ROI fields, "Video Tracking" card, finger
-  stages) — the capstone measured that video doesn't ship; stop advertising it.
+- ~~**B8. Remove vestigial video UI**~~ — **DROPPED per user decision
+  (2026-07-02):** the video UI stays; the user values video playback as
+  correction context (watch the take while fixing the tab). B1 already stopped
+  the fake "Tracking fingers" progress stage for audio-only runs, which was
+  the actively-misleading part.
 - **B11a. Rewrite the root README** around the three real entry points (live
   site, `studio.ps1`, CLI) — it currently misdirects every new user to frozen
   v0. Pairs with D4/Phase 9.
@@ -207,14 +225,15 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
 
 ## 4. Decisions needed from the user (one packet)
 
-- **D1. SPEC §1.4.1 revision** *(the capstone's pending directive)*: retire or
-  re-frame the dead 0.94 single-line video target; decide the 0.85
-  chord-instance reference (audio-only path can't reach it; the unmeasured
-  chord-frame-video probe is the one axis where video plausibly beats audio —
-  in or out?); decide expressive markings (≥0.70 F1 stretch, GuitarSet JAMS
-  labels exist, fully automated) in or out; optionally add a studio-condition
-  eval tier defined by A8's harness; close the stale §15 open questions.
-  A2/A14 results should be attached as evidence.
+- **D1. SPEC §1.4.1 revision** — **partially resolved 2026-07-02:** the 0.94
+  single-line video-assisted reference is RETIRED (user-approved; SPEC §1.4.1
+  amended, A2 attached as evidence; binding gate stays ≥0.45, no new stretch
+  number until demonstrated). **Still open:** the 0.85 chord-instance
+  reference (chord-frame-video probe A14 is the one axis where video plausibly
+  beats audio — in or out?); expressive markings (≥0.70 F1 stretch, GuitarSet
+  JAMS labels exist, fully automated) in or out; optionally a studio-condition
+  eval tier defined by A8's harness; the stale §15 open questions. Attach A14
+  when it runs.
 - **D2. Electric v2 go/no-go sequencing** — spend-gated fine-tune; decide when
   (or whether) to schedule the zero-spend feasibility step.
 - **D3. Export deps license review** — music21 + PyGuitarPro into the Modal
@@ -228,8 +247,10 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
 
 - **Week 1** (all hours-class, independent, no approvals):
   A0 land branch → A1 CLI defaults, A2 GAPS prior run, B1 progress/errors,
-  B2 upload types, B8 de-video UI, A10 pitch_off instrumentation, A14
-  complementarity probe; draft the D1 packet with A2/A14 attached.
+  B2 upload types, ~~B8~~ (dropped per user 2026-07-02), A10 pitch_off
+  instrumentation, A14 complementarity probe; draft the D1 packet with A2/A14
+  attached. *(Status 2026-07-02: A0–A2, B1, B2 done; 0.94 retirement of D1
+  resolved; A15 license review queued behind A10/A14.)*
 - **Week 2**: A3+A4 sweep harness (the load-bearing infra — A5's bonus
   magnitude and per-tier configs ride it); B4 margin confidence → B3 string
   editor (ship as a pair); A6 GAPS gold fix.
