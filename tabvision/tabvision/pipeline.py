@@ -22,6 +22,7 @@ the design.
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -33,7 +34,9 @@ from tabvision.demux import demux
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
+from tabvision.fusion.playability import set_transition_prior
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
+from tabvision.fusion.transition_prior import load_transition_prior
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
@@ -57,6 +60,43 @@ class _VideoImportError(RuntimeError):
     """Internal signal: a soft-optional video dep failed to import."""
 
 
+SEQUENCE_PRIOR_DEFAULT = "guitarset-seq-v1"
+"""Artifact the ``"auto"`` sequence-prior setting resolves to (A15)."""
+
+SEQUENCE_PRIOR_WEIGHT = 4.0
+"""Gate-accepted weight for the coupled sequence-prior default — the
+val24 real-audio + 60-clip confirm runs both measured w=4.0
+(DECISIONS.md 2026-07-02)."""
+
+
+def _install_sequence_prior(sequence_prior: str | None, *, position_prior_active: bool) -> None:
+    """Install (or clear) the learned fingering-sequence prior (A15).
+
+    ``"auto"`` couples the prior to the position prior: active iff the
+    position prior is. The coupling is load-bearing — uncoupled
+    (position prior off) the sequence prior is a banked GAPS regression
+    (0.647→0.593), while under the guitarset-v1 config it passes the
+    val24 + 60-clip gates (DECISIONS.md 2026-07-02). An explicit
+    ``TABVISION_TRANSITION_PRIOR`` env var wins over the argument and
+    keeps its own weight semantics (sweep knob — see
+    :mod:`tabvision.fusion.playability`).
+    """
+    if os.environ.get("TABVISION_TRANSITION_PRIOR", "").strip():
+        return  # env-driven install path; playability's lazy loader owns it
+    resolved = sequence_prior or "none"
+    if resolved == "auto":
+        resolved = SEQUENCE_PRIOR_DEFAULT if position_prior_active else "none"
+    if resolved == "none":
+        # Explicit clear: a prior installed by an earlier run_pipeline call
+        # in this process must not leak into a prior-less run (the banked
+        # uncoupled regression).
+        set_transition_prior(None)
+        return
+    weight = None if "TABVISION_TRANSITION_PRIOR_WEIGHT" in os.environ else SEQUENCE_PRIOR_WEIGHT
+    set_transition_prior(load_transition_prior(resolved), weight=weight)
+    logger.info("installed fingering-sequence prior %s", resolved)
+
+
 @dataclass(frozen=True)
 class _VideoStackResult:
     fingerings: list[FrameFingering]
@@ -75,6 +115,7 @@ def run_pipeline(
     video_stride: int = 3,
     video_enabled: bool = True,
     position_prior: str | None = None,
+    sequence_prior: str | None = "auto",
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -92,6 +133,11 @@ def run_pipeline(
     path is unchanged; ``True``/``False`` or an explicit ``AudioFilterConfig``
     forces it. Ignored when ``audio_backend`` is supplied (the injected
     backend carries its own filter config).
+
+    ``sequence_prior`` selects the learned fingering-sequence prior (A15):
+    ``"auto"`` (default) activates it iff ``position_prior`` is active —
+    see :func:`_install_sequence_prior` for why the coupling is mandatory;
+    ``"none"`` disables it; an artifact name forces it on.
 
     ``progress_callback``, when given, is invoked with a stage name as each
     pipeline stage *starts*: ``demux`` → ``model_load`` → ``audio_inference``
@@ -135,10 +181,14 @@ def run_pipeline(
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
     logger.info("audio backend produced %d events", len(audio_events))
 
+    position_prior_active = False
     if position_prior and position_prior != "none":
+        position_prior_active = True
         prior = load_pitch_position_prior(position_prior, cfg=cfg)
         audio_events = apply_pitch_position_prior(audio_events, prior)
         logger.info("attached pitch-position prior %s", position_prior)
+
+    _install_sequence_prior(sequence_prior, position_prior_active=position_prior_active)
 
     if melodic_prior_enabled:
         audio_events = apply_melodic_segment_prior(audio_events, cfg)

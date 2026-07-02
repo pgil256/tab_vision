@@ -184,6 +184,22 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--sequence-prior",
+        choices=["auto", "none", "guitarset-seq-v1"],
+        default="auto",
+        help=(
+            "learned fingering-sequence prior on the decode's transitions "
+            "(A15). 'auto' (default) couples it to --position-prior: active "
+            "iff the position prior is, at the gate-accepted weight "
+            "(single-line +3.2pp real-audio Tab F1, strummed unchanged). "
+            "The coupling is mandatory — uncoupled use is a banked GAPS "
+            "regression (DECISIONS.md 2026-07-02). 'none' disables; an "
+            "explicit artifact name forces it on. The "
+            "TABVISION_TRANSITION_PRIOR env var overrides this flag for "
+            "sweeps."
+        ),
+    )
+    t.add_argument(
         "--audio-filters",
         choices=["auto", "on", "off"],
         default="auto",
@@ -317,6 +333,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
         position_prior=args.position_prior,
+        sequence_prior=args.sequence_prior,
         audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,
         session=session,

@@ -178,6 +178,36 @@ def test_position_prior_only_on_transcribe():
         parser.parse_args(["check", "in.mp4", "--position-prior", "guitarset-v1"])
 
 
+# ---------- --sequence-prior ----------
+
+
+def test_sequence_prior_default_auto():
+    """Default-on flip (A15, 2026-07-02): 'auto' couples the sequence prior
+    to --position-prior — active iff the position prior is."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.sequence_prior == "auto"
+
+
+@pytest.mark.parametrize("choice", ["auto", "none", "guitarset-seq-v1"])
+def test_sequence_prior_choices_parsed(choice):
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--sequence-prior", choice])
+    assert args.sequence_prior == choice
+
+
+def test_sequence_prior_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--sequence-prior", "dadagp-v1"])
+
+
+def test_sequence_prior_only_on_transcribe():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--sequence-prior", "auto"])
+
+
 # ---------- --audio-filters ----------
 
 
