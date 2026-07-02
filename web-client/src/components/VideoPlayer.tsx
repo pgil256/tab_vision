@@ -40,9 +40,24 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
   }, [setCurrentTime, videoRef]);
 
   const handleLoadedMetadata = useCallback(() => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+    const v = videoRef.current;
+    if (!v) return;
+    if (Number.isFinite(v.duration)) {
+      setDuration(v.duration);
+      return;
     }
+    // MediaRecorder WebM (recorded takes) reports duration=Infinity until a
+    // seek forces the browser to scan to the end. Nudge it, read the real
+    // duration on durationchange, then rewind to the start.
+    const fixDuration = () => {
+      if (Number.isFinite(v.duration)) {
+        v.removeEventListener('durationchange', fixDuration);
+        v.currentTime = 0;
+        setDuration(v.duration);
+      }
+    };
+    v.addEventListener('durationchange', fixDuration);
+    v.currentTime = 1e101;
   }, [setDuration, videoRef]);
 
   const handlePlay = useCallback(() => setIsPlaying(true), [setIsPlaying]);

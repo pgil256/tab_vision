@@ -8,9 +8,21 @@ import pytest
 from app.models import Job
 from app.v1_adapter import (
     V1PipelineConfig,
+    humanize_pipeline_error,
+    process_v1_job,
     run_v1_transcription,
     tab_events_to_tab_document,
 )
+
+
+class _RecordingStorage:
+    """Capture every persisted (status, stage, progress) snapshot."""
+
+    def __init__(self):
+        self.history: list[tuple[str, str, float]] = []
+
+    def save(self, job: Job) -> None:
+        self.history.append((job.status, job.current_stage, job.progress))
 
 
 class _TabEvent:
@@ -163,6 +175,117 @@ def test_v1_transcription_does_not_fallback_without_opt_in(tmp_path):
         )
 
     assert calls == ["highres"]
+
+
+def test_process_v1_job_persists_real_pipeline_stages(tmp_path):
+    """The two hardcoded save_stage calls are replaced by run_pipeline's
+    progress callback: each reported stage lands in storage with a
+    monotonically rising progress, and video_enabled is stamped on the job."""
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    storage = _RecordingStorage()
+    config = V1PipelineConfig(
+        audio_backend="highres",
+        position_prior="guitarset-v1",
+        video_enabled=False,
+        accuracy_mode="accurate",
+    )
+
+    def fake_runner(video_path, **kwargs):
+        callback = kwargs["progress_callback"]
+        for stage in ("demux", "model_load", "audio_inference", "decode"):
+            callback(stage)
+        return [
+            _TabEvent(
+                onset_s=0.0,
+                duration_s=0.4,
+                string_idx=4,
+                fret=3,
+                pitch_midi=62,
+                confidence=0.8,
+            )
+        ]
+
+    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+
+    assert job.status == "completed"
+    assert job.video_enabled is False
+    stages = [(stage, progress) for _status, stage, progress in storage.history]
+    assert stages == [
+        ("extracting_audio", 0.05),
+        ("extracting_audio", 0.10),
+        ("analyzing_audio", 0.20),
+        ("analyzing_audio", 0.35),
+        ("fusing", 0.80),
+        ("saving", 0.9),
+        ("complete", 1.0),
+    ]
+    progresses = [progress for _stage, progress in stages]
+    assert progresses == sorted(progresses), "progress must never move backwards"
+
+
+def test_process_v1_job_ignores_unknown_pipeline_stages(tmp_path):
+    """Future/unknown stage names from run_pipeline must not corrupt the
+    poll-visible state."""
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    storage = _RecordingStorage()
+    config = V1PipelineConfig(video_enabled=False)
+
+    def fake_runner(video_path, **kwargs):
+        kwargs["progress_callback"]("some_future_stage")
+        return []
+
+    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+
+    assert job.status == "completed"
+    assert "some_future_stage" not in [stage for _s, stage, _p in storage.history]
+
+
+def test_process_v1_job_maps_failure_to_short_message(tmp_path):
+    """The client sees a one-line humane message; the traceback stays out of
+    the job record (server logs only)."""
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    storage = _RecordingStorage()
+    config = V1PipelineConfig(video_enabled=False)
+
+    def fake_runner(video_path, **kwargs):
+        raise RuntimeError("ffmpeg not on PATH; required by tabvision.demux")
+
+    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+
+    assert job.status == "failed"
+    assert "ffmpeg" in job.error_message
+    assert "Traceback" not in job.error_message
+    assert "tabvision.demux" not in job.error_message
+    assert len(job.error_message) < 300
+
+
+@pytest.mark.parametrize(
+    ("exc", "needle"),
+    [
+        (RuntimeError("ffmpeg not on PATH; required by tabvision.demux"), "audio toolkit"),
+        (RuntimeError("ffprobe not on PATH; required by tabvision.demux"), "audio toolkit"),
+        (RuntimeError("ffmpeg returned empty audio stream"), "No audio"),
+        (
+            RuntimeError("ffmpeg audio decode failed: Output file #0 does not contain any stream"),
+            "No audio",
+        ),
+        (RuntimeError("ffmpeg audio decode failed: Invalid data found"), "format or codec"),
+        (RuntimeError("ffprobe failed: moov atom not found"), "format or codec"),
+        (RuntimeError("video file not found: /tmp/gone.mp4"), "upload it again"),
+        (FileNotFoundError("/tmp/gone.mp4"), "upload it again"),
+        (
+            ConnectionError("HTTPSConnectionPool(host='huggingface.co'): Max retries exceeded"),
+            "could not be downloaded",
+        ),
+        (RuntimeError("getaddrinfo failed"), "could not be downloaded"),
+        (ValueError("v1 string_idx must be 0..5, got 9"), "Transcription failed"),
+    ],
+)
+def test_humanize_pipeline_error_maps_known_failures(exc, needle):
+    message = humanize_pipeline_error(exc)
+    assert needle in message
+    assert "\n" not in message, "client messages must be single-line"
+    assert len(message) < 300
 
 
 def test_v1_transcription_falls_back_to_basicpitch_when_highres_fails(tmp_path):

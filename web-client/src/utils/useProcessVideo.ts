@@ -12,6 +12,7 @@ export function useProcessVideo() {
     roiEnabled,
     roiInput,
     setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl,
+    setPipelineVideoEnabled,
     reset,
   } = useAppStore();
 
@@ -38,6 +39,9 @@ export function useProcessVideo() {
         try {
           const status = await getJobStatus(jobId);
           setProgress(status.progress, status.current_stage);
+          if (typeof status.video_enabled === 'boolean') {
+            setPipelineVideoEnabled(status.video_enabled);
+          }
 
           if (status.status === 'completed') {
             clearInterval(pollInterval);
@@ -63,6 +67,7 @@ export function useProcessVideo() {
     setTabDocument,
     setError,
     setVideoUrl,
+    setPipelineVideoEnabled,
     capoFretInput,
     instrumentInput,
     toneInput,

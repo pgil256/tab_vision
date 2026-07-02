@@ -38,11 +38,27 @@ def render(
         cfg = GuitarConfig()
 
     sorted_events = sorted(events, key=lambda e: e.onset_s)
+    for ev in sorted_events:
+        _validate_event(ev, cfg)
     columns = [_event_column(ev) for ev in sorted_events]
 
     body = _columns_to_lines(columns, cfg.n_strings)
     header = _header(cfg, n_events=len(sorted_events))
     return header + "\n" + body
+
+
+def _validate_event(event: TabEvent, cfg: GuitarConfig) -> None:
+    """Mirror the range checks in gp5/midi/musicxml (see those renderers'
+    ``_validate_event``/``_validate_string``). Without this, a malformed
+    ``string_idx`` (e.g. from an upstream fusion bug) would silently fail to
+    match any row in ``_columns_to_lines`` and the note would vanish from the
+    rendered tab instead of erroring — the worst outcome for the default
+    output format.
+    """
+    if not 0 <= event.string_idx < cfg.n_strings:
+        raise ValueError(f"string_idx out of range: {event.string_idx}")
+    if not 0 <= event.fret <= cfg.max_fret:
+        raise ValueError(f"fret out of range: {event.fret}")
 
 
 def _event_column(ev: TabEvent) -> tuple[int, str]:

@@ -14,6 +14,7 @@ Submodule imports below trigger registration in
 
 # Built-in parsers — importing them registers their FORMAT_NAME.
 from tabvision.eval.parsers import (  # noqa: F401
+    gaps_musicxml_tab,
     guitar_techs_midi,
     guitarset_jams,
     utaustin_tablature_npy,

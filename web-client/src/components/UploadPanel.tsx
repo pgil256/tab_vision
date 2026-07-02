@@ -2,7 +2,18 @@ import React, { useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
 
-const ALLOWED_TYPES = ['video/mp4', 'video/quicktime'];
+const ALLOWED_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm', // the recorder's own output
+  'audio/webm',
+  'audio/wav',
+  'audio/x-wav', // some browsers report .wav this way
+  'audio/wave',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a', // Safari's .m4a type
+];
 
 const PIPELINE_STAGES = [
   { key: 'uploading', label: 'Uploading video', icon: 'upload' },
@@ -53,8 +64,8 @@ function StageIcon({ icon, active, done }: { icon: string; active: boolean; done
   return <>{icons[icon] || null}</>;
 }
 
-function getStageIndex(stage: string): number {
-  const idx = PIPELINE_STAGES.findIndex(s => s.key === stage);
+function getStageIndex(stages: typeof PIPELINE_STAGES, stage: string): number {
+  const idx = stages.findIndex(s => s.key === stage);
   return idx >= 0 ? idx : 0;
 }
 
@@ -96,6 +107,7 @@ export function UploadPanel() {
     jobStatus,
     progress,
     currentStage,
+    pipelineVideoEnabled,
     errorMessage,
     capoFretInput,
     instrumentInput,
@@ -124,7 +136,7 @@ export function UploadPanel() {
 
   const processFile = useCallback(async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Please upload an MP4 or MOV file');
+      setError('Please upload a video (MP4, MOV, WEBM) or audio file (WAV, MP3, M4A)');
       return;
     }
     setFileName(file.name);
@@ -144,7 +156,11 @@ export function UploadPanel() {
   }, [processFile]);
 
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
-  const currentStageIndex = getStageIndex(currentStage);
+  // Audio-only pipelines never run the video stage; don't promise it.
+  const pipelineStages = pipelineVideoEnabled
+    ? PIPELINE_STAGES
+    : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video');
+  const currentStageIndex = getStageIndex(pipelineStages, currentStage);
 
   // === IDLE: Upload form ===
   if (jobStatus === 'idle') {
@@ -200,10 +216,10 @@ export function UploadPanel() {
             </div>
 
             <p className="text-base font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-              Drop a guitar video here
+              Drop a guitar video or audio file here
             </p>
             <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-              or click anywhere to browse &middot; MP4 / MOV
+              or click anywhere to browse &middot; MP4 / MOV / WEBM / WAV / MP3 / M4A
             </p>
 
             <button
@@ -219,7 +235,7 @@ export function UploadPanel() {
             <input
               id="file-input"
               type="file"
-              accept="video/mp4,video/quicktime"
+              accept="video/mp4,video/quicktime,video/webm,audio/webm,audio/wav,audio/x-wav,audio/wave,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a,.webm"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -470,7 +486,7 @@ export function UploadPanel() {
 
           {/* Stage indicators */}
           <div className="space-y-2.5 mb-6">
-            {PIPELINE_STAGES.map((stage, idx) => {
+            {pipelineStages.map((stage, idx) => {
               const isDone = idx < currentStageIndex || (idx === currentStageIndex && progress >= 0.95);
               const isActive = idx === currentStageIndex && !isDone;
               const isPending = idx > currentStageIndex;

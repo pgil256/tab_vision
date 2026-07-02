@@ -9,7 +9,7 @@ from app.result_io import load_result
 
 bp = Blueprint('jobs', __name__)
 
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm'}
+ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm', 'wav', 'mp3', 'm4a'}
 ALLOWED_INSTRUMENTS = {'acoustic', 'electric', 'classical'}
 ALLOWED_TONES = {'clean', 'distorted'}
 ALLOWED_STYLES = {'fingerstyle', 'strumming', 'mixed'}
@@ -67,7 +67,7 @@ def create_job():
         return jsonify({'error': 'No file selected'}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed. Use MP4, MOV, or WEBM.'}), 400
+        return jsonify({'error': 'File type not allowed. Use MP4, MOV, WEBM, WAV, MP3, or M4A.'}), 400
 
     capo_fret = request.form.get('capo_fret', '0')
     try:

@@ -106,6 +106,83 @@ def predictions_to_homography(preds: OBBPredictions) -> Homography:
     return Homography(H=H, confidence=confidence, method="keypoint")
 
 
+def predictions_to_homography_nut_axis(preds: OBBPredictions) -> Homography:
+    """Like :func:`predictions_to_homography`, but anchor the **cross-string**
+    axis to the detected nut OBB's measured edge (chunk-6 WS2).
+
+    The base path fits the homography from the neck OBB alone, so the canonical
+    y-span (string axis) is the neck box's cross-neck extent — which over-states
+    the string span at the nut (the neck box is a loose, untapered rectangle) and
+    can be mis-positioned. The nut OBB directly measures the board's width and
+    position **at the nut**; using its cross-string edge for the nut-side quad
+    edge recalibrates the per-clip string axis, attacking the graded cross-string
+    error on clips where frets are sparse but the nut is detected. Pure geometry,
+    detected-cues-only; reuses the existing corner-ordering + orientation
+    heuristics (high-E/low-E stays a WS3 concern). Falls back to the base
+    behaviour when no nut OBB is present.
+    """
+    neck = preds.best_neck()
+    if neck is None:
+        return Homography(H=np.eye(3, dtype=np.float64), confidence=0.0, method="keypoint")
+
+    corners = _obb_to_corners(neck)
+    nut = preds.best_nut()
+    nut_xy = (nut.cx, nut.cy) if nut else None
+    ordered = _order_corners_by_neck_anatomy(corners, nut_xy)
+    if nut is not None:
+        ordered = _set_nut_edge_from_obb(ordered, nut)
+    ordered = _orient_string_axis_for_lap_framing(ordered)
+    H = _homography_from_quad(ordered)  # noqa: N806
+
+    base_conf = float(neck.confidence)
+    nut_bonus = 0.05 if nut is not None and nut.confidence > 0.25 else 0.0
+    fret_bonus = 0.05 if len(preds.frets) >= 4 else 0.0
+    confidence = float(min(1.0, base_conf + nut_bonus + fret_bonus))
+    return Homography(H=H, confidence=confidence, method="keypoint")
+
+
+def _set_nut_edge_from_obb(ordered_corners: np.ndarray, nut: OBBDetection) -> np.ndarray:
+    """Replace the nut-side quad edge with the nut OBB's measured cross edge.
+
+    The nut OBB spans the strings perpendicular to the neck; its cross-string
+    extent + center give a direct measurement of the board width and position at
+    the nut. We pick whichever of the OBB's two axes is most perpendicular to the
+    neck axis as the cross-string direction (robust to the detector's w/h
+    labelling), build the edge endpoints, and assign them to the ordered quad's
+    nut-top / nut-bottom corners by proximity (preserving the orientation already
+    decided upstream).
+    """
+    out = ordered_corners.astype(np.float64, copy=True)
+    nut_top, nut_bot = out[0], out[3]
+    body_mid = (out[1] + out[2]) / 2.0
+    neck_axis = body_mid - (nut_top + nut_bot) / 2.0
+    norm = float(np.linalg.norm(neck_axis))
+    if norm <= 1e-9:
+        return out
+    neck_u = neck_axis / norm
+
+    rad = float(np.radians(nut.rotation_deg))
+    major = np.array([np.cos(rad), np.sin(rad)], dtype=np.float64)
+    minor = np.array([-np.sin(rad), np.cos(rad)], dtype=np.float64)
+    # Cross-string direction = the OBB axis most perpendicular to the neck.
+    if abs(float(np.dot(major, neck_u))) <= abs(float(np.dot(minor, neck_u))):
+        cross_dir, cross_len = major, nut.w
+    else:
+        cross_dir, cross_len = minor, nut.h
+    center = np.array([nut.cx, nut.cy], dtype=np.float64)
+    e_pos = center + cross_dir * (cross_len / 2.0)
+    e_neg = center - cross_dir * (cross_len / 2.0)
+
+    # Assign endpoints to (nut_top, nut_bot) by the closer total matching.
+    keep = np.linalg.norm(e_pos - nut_top) + np.linalg.norm(e_neg - nut_bot)
+    swap = np.linalg.norm(e_neg - nut_top) + np.linalg.norm(e_pos - nut_bot)
+    if keep <= swap:
+        out[0], out[3] = e_pos, e_neg
+    else:
+        out[0], out[3] = e_neg, e_pos
+    return out
+
+
 def _obb_to_corners(obb: OBBDetection) -> np.ndarray:
     """Return the 4 corners of an oriented bbox in image coordinates.
 
@@ -294,5 +371,6 @@ def detect_keypoint(
 __all__ = [
     "KeypointFretboardBackend",
     "predictions_to_homography",
+    "predictions_to_homography_nut_axis",
     "detect_keypoint",
 ]

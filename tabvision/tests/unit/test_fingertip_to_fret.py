@@ -276,3 +276,63 @@ def test_string_index_max_is_high_e_at_top_of_canonical_y():
     out = compute_fingering(hand, H, cfg)
     s_arg, _ = np.unravel_index(out.finger_pos_logits[0].argmax(), out.finger_pos_logits[0].shape)
     assert int(s_arg) == cfg.n_strings - 1
+
+
+# ----- nonlinear fret_xs hook (chunk-6 WS1) -----
+
+
+def test_explicit_uniform_fret_xs_matches_default_path():
+    """Passing the uniform partition explicitly reproduces the default (None)
+    path: the per-fret σ derived from ``gradient`` of a uniform array equals the
+    legacy scalar σ, so the cached baselines stay intact."""
+    cfg = GuitarConfig(max_fret=12)
+    H = _make_homography()
+    proj = H.H @ np.array([(5 + 0.5) / 13.0, (cfg.n_strings - 1 - 2 + 0.5) / cfg.n_strings, 1.0])
+    hand = _hand_sample_with_fingers(
+        {"index": (float(proj[0] / proj[2]), float(proj[1] / proj[2]))}
+    )
+
+    default_out = compute_fingering(hand, H, cfg)
+    uniform = (np.arange(cfg.max_fret + 1) + 0.5) / (cfg.max_fret + 1)
+    explicit_out = compute_fingering(hand, H, cfg, fret_xs=uniform)
+    np.testing.assert_allclose(
+        explicit_out.finger_pos_logits, default_out.finger_pos_logits, rtol=1e-9, atol=1e-9
+    )
+
+
+def test_fret_xs_wrong_shape_raises():
+    cfg = GuitarConfig(max_fret=12)
+    H = _make_homography()
+    hand = _hand_sample_with_fingers({})
+    with pytest.raises(ValueError, match="fret_xs must have shape"):
+        compute_fingering(hand, H, cfg, fret_xs=np.linspace(0.0, 1.0, 5))
+
+
+def test_nonlinear_fret_xs_moves_the_peak_to_its_calibrated_cell():
+    """A finger at a canonical x where the *uniform* map reads fret A but the
+    supplied nonlinear map places fret B should peak at fret B — proving the
+    custom partition (not the uniform one) drives the fret argmax."""
+    cfg = GuitarConfig(max_fret=12)
+    H = _make_homography()
+    # Rule-of-18 style map (compresses toward the body): fret 8's centre sits at
+    # a canonical x that the uniform map would call a *lower* fret.
+    from tabvision.video.fretboard.calibrate import RULE_OF_18_RATIO
+
+    ks = np.arange(cfg.max_fret + 1) + 0.5
+    fret_xs = 0.02 + 1.4 * (1.0 - RULE_OF_18_RATIO**ks)
+    canon_x = float(fret_xs[8])
+    canon_y = (cfg.n_strings - 1 - 2 + 0.5) / cfg.n_strings
+    proj = H.H @ np.array([canon_x, canon_y, 1.0])
+    hand = _hand_sample_with_fingers(
+        {"index": (float(proj[0] / proj[2]), float(proj[1] / proj[2]))}
+    )
+
+    # With the calibrated map the peak is fret 8 on string 2.
+    cal = compute_fingering(hand, H, cfg, fret_xs=fret_xs).finger_pos_logits[0]
+    s_arg, f_arg = np.unravel_index(cal.argmax(), cal.shape)
+    assert (int(s_arg), int(f_arg)) == (2, 8)
+    # The uniform map, given the same fingertip, reads a different (lower) fret —
+    # i.e. the systematic bias the calibration removes.
+    uni = compute_fingering(hand, H, cfg).finger_pos_logits[0]
+    _, f_uni = np.unravel_index(uni.argmax(), uni.shape)
+    assert int(f_uni) < 8

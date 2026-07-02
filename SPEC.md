@@ -188,6 +188,26 @@ requires video string-resolution (v1.1)** or a timbral string-ID model. A
 style/structure-conditional position prior (design-plan Phase 3) is the only
 remaining audio-only lever, with bounded upside.
 
+**2026-07-02 — the 0.94 single-line video-assisted reference is RETIRED
+(user-approved).** The premise behind it — that video resolves strings better
+than audio — was measured false on in-the-wild GAPS (v1.1 chunk-6 capstone,
+`docs/DECISIONS.md` 2026-06-29): the audio playability prior resolves
+contested strings at **0.778** vs **0.574** for the best real video chain
+(calibrated geometry; a GAPS-trained learned model is *worse*), so fusing
+video degrades Tab F1 at any non-trivial weight and no confidence gate
+recovers a lift. Video string-resolution is therefore **closed as a lever**,
+and the sentence "0.94 single-line requires video string-resolution (v1.1)"
+above is superseded: the remaining single-line stretch paths are audio-side
+only — the timbral string-ID model and convention/position priors (the latter
+now measured as **domain-sensitive**: +22–29pp on GuitarSet, −0.138 on GAPS
+classical; `docs/EVAL_REPORTS/v1_1_gaps_prior_guitarset_v1_2026-07-01.md`).
+The binding v1 single-line gate is unchanged at **≥ 0.45**; no new stretch
+number is set until one is demonstrated. The strummed 0.86 and chord-instance
+0.85 **video-assisted references remain open** pending the chord-frame video
+probe (roadmap A14) and the remainder of the D1 decision packet — chord-frame
+video is the one axis where video plausibly beats audio and is still
+unmeasured.
+
 **§1.4 is the single source of truth for acceptance** (read with this
 acoustic-scope amendment). Where any other document (CLAUDE.md, AGENTS.md,
 design plans, DECISIONS.md) disagrees, §1.4 + §1.4.1 govern.

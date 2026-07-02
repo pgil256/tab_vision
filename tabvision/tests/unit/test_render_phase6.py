@@ -47,6 +47,44 @@ def test_ascii_snapshot_marks_low_confidence_notes() -> None:
 
 
 @pytest.mark.render
+def test_ascii_rejects_out_of_range_string_idx() -> None:
+    """gp5/midi/musicxml all reject an out-of-range ``string_idx`` with a
+    ``ValueError`` (see each renderer's ``_validate_event``/``_validate_string``).
+    ASCII is the default format and previously had no such guard — an
+    out-of-range note silently failed to match any row in
+    ``_columns_to_lines`` and vanished from the tab instead of erroring."""
+    from tabvision.render.ascii import render
+
+    bad_event = TabEvent(
+        onset_s=0.0, duration_s=0.25, string_idx=6, fret=0, pitch_midi=64, confidence=0.9
+    )
+    with pytest.raises(ValueError, match="string_idx out of range"):
+        render([bad_event], GuitarConfig())
+
+
+@pytest.mark.render
+def test_ascii_rejects_negative_string_idx() -> None:
+    from tabvision.render.ascii import render
+
+    bad_event = TabEvent(
+        onset_s=0.0, duration_s=0.25, string_idx=-1, fret=0, pitch_midi=64, confidence=0.9
+    )
+    with pytest.raises(ValueError, match="string_idx out of range"):
+        render([bad_event], GuitarConfig())
+
+
+@pytest.mark.render
+def test_ascii_rejects_out_of_range_fret() -> None:
+    from tabvision.render.ascii import render
+
+    bad_event = TabEvent(
+        onset_s=0.0, duration_s=0.25, string_idx=0, fret=25, pitch_midi=64, confidence=0.9
+    )
+    with pytest.raises(ValueError, match="fret out of range"):
+        render([bad_event], GuitarConfig())
+
+
+@pytest.mark.render
 def test_public_render_entrypoint_returns_bytes_for_ascii() -> None:
     from tabvision.render import render
 

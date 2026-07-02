@@ -39,6 +39,27 @@ def test_lambda_vision_only_on_transcribe():
         parser.parse_args(["check", "in.mp4", "--fusion-lambda-vision", "1.0"])
 
 
+def test_lambda_vision_negative_rejected():
+    """A negative weight flips the sign of the vision term in
+    ``playability.emission_cost`` instead of disabling it (that's what 0.0
+    is for) — silently wrong output, so reject it at the parser."""
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", "-1.0"])
+
+
+def test_lambda_vision_non_numeric_rejected():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", "high"])
+
+
+def test_lambda_vision_negative_rejected_on_diagnose():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["diagnose", "in.mp4", "--fusion-lambda-vision", "-0.5"])
+
+
 # ---------- --no-video ----------
 
 
@@ -75,22 +96,125 @@ def test_video_stride_only_on_transcribe():
         parser.parse_args(["check", "in.mp4", "--video-stride", "5"])
 
 
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_video_stride_below_one_rejected(value):
+    """``stride < 1`` would crash the pipeline mid-run; reject it up front."""
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video-stride", value])
+
+
+def test_video_stride_non_integer_rejected():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video-stride", "half"])
+
+
+def test_video_stride_validated_on_diagnose():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["diagnose", "in.mp4", "--video-stride", "0"])
+
+
+# ---------- --audio-backend ----------
+
+
+def test_audio_backend_default_is_auto():
+    """The accepted v1 config is the default: 'auto' resolves to 'highres'
+    for the default acoustic instrument (``audio_backend_for_session``) and
+    keeps the electric tone-toggle routing live without a flag."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.audio_backend == "auto"
+
+
+@pytest.mark.parametrize(
+    "choice", ["basicpitch", "highres", "highres-fl", "highres-electric", "auto"]
+)
+def test_audio_backend_choices_parsed(choice):
+    """``highres-electric`` and ``auto`` are registered in
+    ``tabvision.audio.backend`` / consumed by ``run_pipeline``'s tone-toggle
+    routing (``audio_backend_for_session``, the SPEC v1 "tone toggle"
+    feature), but were missing from the CLI's ``choices`` — making both
+    unreachable from ``tabvision transcribe``/``diagnose``."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--audio-backend", choice])
+    assert args.audio_backend == choice
+
+
+def test_audio_backend_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--audio-backend", "tensorflow-magic"])
+
+
+def test_audio_backend_auto_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--audio-backend", "auto"])
+    assert args.audio_backend == "auto"
+
+
 # ---------- --position-prior ----------
 
 
-def test_position_prior_default_none():
+def test_position_prior_default_guitarset_v1():
+    """The accepted v1 config ships by default — the guitarset-v1 prior is
+    worth +22-29pp Tab F1 over 'none' (acceptance run, 2026-06)."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
-    assert args.position_prior == "none"
-
-
-def test_position_prior_explicit_guitarset_v1():
-    parser = _build_parser()
-    args = parser.parse_args(["transcribe", "in.mp4", "--position-prior", "guitarset-v1"])
     assert args.position_prior == "guitarset-v1"
+
+
+def test_position_prior_none_reachable():
+    """The bare decode stays reachable for ablations/evals."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--position-prior", "none"])
+    assert args.position_prior == "none"
 
 
 def test_position_prior_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--position-prior", "guitarset-v1"])
+
+
+# ---------- --audio-filters ----------
+
+
+def test_audio_filters_default_auto():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.audio_filters == "auto"
+
+
+@pytest.mark.parametrize("choice", ["auto", "on", "off"])
+def test_audio_filters_choices_parsed(choice):
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--audio-filters", choice])
+    assert args.audio_filters == choice
+
+
+def test_audio_filters_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--audio-filters", "maybe"])
+
+
+def test_audio_filters_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--audio-filters", "on"])
+    assert args.audio_filters == "on"
+
+
+def test_audio_filters_not_on_check():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--audio-filters", "on"])
+
+
+def test_resolve_audio_filters_maps_choices():
+    from tabvision.cli import _resolve_audio_filters
+
+    assert _resolve_audio_filters("auto") is None
+    assert _resolve_audio_filters("on") is True
+    assert _resolve_audio_filters("off") is False

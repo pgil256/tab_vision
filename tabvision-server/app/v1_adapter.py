@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import uuid
@@ -11,6 +12,8 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from app.models import Job
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -169,6 +172,7 @@ def run_v1_transcription(
     *,
     config: V1PipelineConfig | None = None,
     pipeline_runner: Callable[..., list[Any]] | None = None,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> str:
     """Run v1 transcription and write a frontend-compatible result JSON."""
     config = replace(config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode)
@@ -193,6 +197,8 @@ def run_v1_transcription(
             style=job.style,
         ),
     }
+    if progress_callback is not None:
+        common_kwargs["progress_callback"] = progress_callback
 
     effective_config = config
     try:
@@ -230,6 +236,69 @@ def run_v1_transcription(
     return result_path
 
 
+# run_pipeline stage name → (client stage key, progress). Stage keys match the
+# web client's PIPELINE_STAGES checklist. model_load and audio_inference both
+# read as "analyzing audio" to the user; the rising progress distinguishes them.
+_PIPELINE_STAGE_MAP: dict[str, tuple[str, float]] = {
+    "demux": ("extracting_audio", 0.10),
+    "model_load": ("analyzing_audio", 0.20),
+    "audio_inference": ("analyzing_audio", 0.35),
+    "video_analysis": ("analyzing_video", 0.60),
+    "decode": ("fusing", 0.80),
+}
+
+
+def humanize_pipeline_error(exc: BaseException) -> str:
+    """Map a pipeline failure to a short, actionable message for the client.
+
+    The full exception + traceback stay in the server logs; the client only
+    ever sees these one-liners.
+    """
+    low = str(exc).lower()
+    if "ffmpeg not on path" in low or "ffprobe not on path" in low:
+        return (
+            "The server is missing its audio toolkit (ffmpeg), so no uploads can "
+            "be processed right now. This needs an operator fix — not a different file."
+        )
+    if "empty audio stream" in low or "does not contain any stream" in low:
+        return (
+            "No audio could be read from the file. Make sure the recording has an "
+            "audio track (was the microphone enabled?) and try again."
+        )
+    if "audio decode failed" in low or "ffprobe failed" in low or "invalid data found" in low:
+        return (
+            "The file could not be decoded — its format or codec isn't supported. "
+            "Try MP4, MOV, WEBM, WAV, MP3, or M4A."
+        )
+    if "file not found" in low or isinstance(exc, FileNotFoundError):
+        return "The uploaded file went missing on the server. Please upload it again."
+    if _looks_like_model_download_failure(low):
+        return (
+            "The transcription model could not be downloaded. Check the server's "
+            "internet connection and try again in a few minutes."
+        )
+    first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    return f"Transcription failed: {first_line[:200]}"
+
+
+def _looks_like_model_download_failure(low: str) -> bool:
+    # Nothing else in a transcription job touches the network, so network-ish
+    # failures mean the checkpoint download (Hugging Face Hub) broke.
+    markers = (
+        "huggingface",
+        "hf.co",
+        "connection error",
+        "connectionerror",
+        "connection refused",
+        "getaddrinfo",
+        "name resolution",
+        "timed out",
+        "max retries exceeded",
+        "download",
+    )
+    return any(marker in low for marker in markers)
+
+
 def process_v1_job(
     job: Job,
     storage,
@@ -237,8 +306,10 @@ def process_v1_job(
     *,
     config: V1PipelineConfig | None = None,
     result_saved_hook=None,
+    pipeline_runner: Callable[..., list[Any]] | None = None,
 ) -> None:
     """Process a job with v1 while persisting each poll-visible state."""
+    config = config or V1PipelineConfig.from_env()
 
     def save_stage(stage: str, progress: float, *, status: str = "processing") -> None:
         job.status = status
@@ -247,9 +318,22 @@ def process_v1_job(
         job.updated_at = datetime.now(timezone.utc)
         storage.save(job)
 
+    def on_pipeline_stage(stage: str) -> None:
+        mapped = _PIPELINE_STAGE_MAP.get(stage)
+        if mapped is not None:
+            save_stage(*mapped)
+
     try:
-        save_stage("analyzing_audio", 0.25)
-        result_path = run_v1_transcription(job, output_dir, config=config)
+        # Tell pollers which stages to expect before the pipeline starts.
+        job.video_enabled = config.video_enabled
+        save_stage("extracting_audio", 0.05)
+        result_path = run_v1_transcription(
+            job,
+            output_dir,
+            config=config,
+            pipeline_runner=pipeline_runner,
+            progress_callback=on_pipeline_stage,
+        )
 
         save_stage("saving", 0.9)
         if result_saved_hook:
@@ -261,9 +345,10 @@ def process_v1_job(
         job.updated_at = datetime.now(timezone.utc)
         storage.save(job)
     except Exception as exc:
-        import traceback
-
+        # Full traceback to the server logs only; the client gets a short,
+        # humane message instead of a wall of Python.
+        logger.exception("v1 job %s failed", job.id)
         job.status = "failed"
-        job.error_message = f"{exc}\n\nTraceback:\n{traceback.format_exc()}"
+        job.error_message = humanize_pipeline_error(exc)
         job.updated_at = datetime.now(timezone.utc)
         storage.save(job)

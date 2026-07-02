@@ -89,10 +89,22 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   // Zoom-adjusted pixels per second
   const pps = BASE_PPS * zoomLevel;
 
+  // Layout duration MUST be finite. Recorded (MediaRecorder) clips report a
+  // video duration of Infinity until the element is seeked — that would make
+  // the canvas infinitely wide AND make the time-marker loop below never
+  // terminate, freezing the page. Fall back to the tab document's own
+  // duration, which is always finite.
+  const safeDuration =
+    Number.isFinite(duration) && duration > 0
+      ? duration
+      : tabDocument && Number.isFinite(tabDocument.duration) && tabDocument.duration > 0
+        ? tabDocument.duration
+        : 60;
+
   // Calculate canvas width based on duration
   const canvasWidth = Math.max(
     800,
-    duration > 0 ? duration * pps + STRING_LABEL_WIDTH + CANVAS_PADDING * 2 : 800
+    safeDuration * pps + STRING_LABEL_WIDTH + CANVAS_PADDING * 2
   );
 
   // Get note color
@@ -174,7 +186,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     }
 
     // Draw time markers
-    const maxTime = duration > 0 ? duration : (tabDocument.duration || 60);
+    const maxTime = safeDuration;
     const majorInterval = zoomLevel < 0.5 ? 10 : zoomLevel < 1 ? 5 : zoomLevel < 2 ? 5 : 1;
 
     for (let t = 0; t <= maxTime; t++) {
@@ -335,7 +347,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   }, [
     canvasWidth,
     tabDocument,
-    duration,
+    safeDuration,
     currentTime,
     selectedNoteId,
     hoveredNoteId,
@@ -426,11 +438,11 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     // Click on empty area - deselect and seek
     selectNote(null);
     const clickedTime = (clickX - STRING_LABEL_WIDTH - CANVAS_PADDING) / pps;
-    if (clickedTime >= 0 && clickedTime <= duration && videoRef.current) {
+    if (clickedTime >= 0 && clickedTime <= safeDuration && videoRef.current) {
       videoRef.current.currentTime = clickedTime;
       setCurrentTime(clickedTime);
     }
-  }, [selectNote, setCurrentTime, duration, videoRef, canvasWidth, pps]);
+  }, [selectNote, setCurrentTime, safeDuration, videoRef, canvasWidth, pps]);
 
   // Handle mouse move for hover effects
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

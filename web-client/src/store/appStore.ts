@@ -17,6 +17,9 @@ interface AppState {
   jobStatus: JobStatus;
   progress: number;
   currentStage: string;
+  // Whether the server pipeline runs the video stack for this job; true until
+  // the job status says otherwise (v0 always runs video).
+  pipelineVideoEnabled: boolean;
   tabDocument: TabDocument | null;
   errorMessage: string | null;
   videoUrl: string | null;
@@ -52,6 +55,7 @@ interface AppState {
   setJobId: (id: string) => void;
   setStatus: (status: JobStatus) => void;
   setProgress: (progress: number, stage: string) => void;
+  setPipelineVideoEnabled: (enabled: boolean) => void;
   setTabDocument: (doc: TabDocument) => void;
   setError: (message: string) => void;
   setVideoUrl: (url: string | null) => void;
@@ -102,6 +106,7 @@ const initialState = {
   jobStatus: 'idle' as JobStatus,
   progress: 0,
   currentStage: '',
+  pipelineVideoEnabled: true,
   tabDocument: null as TabDocument | null,
   errorMessage: null as string | null,
   videoUrl: null as string | null,
@@ -144,6 +149,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setProgress: (progress, stage) => set({ progress, currentStage: stage }),
 
+  setPipelineVideoEnabled: (enabled) => set({ pipelineVideoEnabled: enabled }),
+
   setTabDocument: (doc) => set({ tabDocument: doc, jobStatus: 'completed' }),
 
   setError: (message) => set({ errorMessage: message, jobStatus: 'failed' }),
@@ -155,7 +162,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Playback actions
   setCurrentTime: (time) => set({ currentTime: time }),
 
-  setDuration: (duration) => set({ duration }),
+  // MediaRecorder clips report Infinity until seeked; never let a non-finite
+  // duration into the store (it would freeze the tab canvas layout).
+  setDuration: (duration) => set({ duration: Number.isFinite(duration) && duration > 0 ? duration : 0 }),
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 

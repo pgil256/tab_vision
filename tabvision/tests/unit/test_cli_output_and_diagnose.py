@@ -19,6 +19,34 @@ def test_transcribe_format_accepts_phase6_formats() -> None:
     assert args.format == "midi"
 
 
+def test_transcribe_creates_missing_output_directory(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``-o nested/dir/out.tab`` must not crash with a raw FileNotFoundError
+    after the (potentially minutes-long) pipeline has already run — mirrors
+    the auto-mkdir that ``diagnose`` already does in ``write_diagnose_report``."""
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "nested" / "dir" / "out.tab"
+    assert not output_path.parent.exists()
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", lambda *a, **k: [])
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "-o",
+            str(output_path),
+            "--no-video",
+            "--no-preflight",
+        ]
+    )
+
+    assert rc == 0
+    assert output_path.exists()
+
+
 def test_diagnose_parser_defaults_to_html_report_next_to_input() -> None:
     parser = _build_parser()
     args = parser.parse_args(["diagnose", "input.mov"])
@@ -41,11 +69,14 @@ def test_diagnose_writes_html_report(tmp_path, monkeypatch: pytest.MonkeyPatch) 
         video_stride: int,
         video_enabled: bool,
         preflight_enabled: bool,
+        audio_filters,
         cfg,
         session,
     ) -> Path:
         assert video_path == input_path
         assert output_path_arg == output_path
+        # No --audio-filters flag passed → 'auto' → None (backend default kept).
+        assert audio_filters is None
         output_path_arg.write_text(
             "<html><section id='overlay'></section><section id='audio'></section>"
             "<section id='tab'></section><section id='confidence'></section></html>"

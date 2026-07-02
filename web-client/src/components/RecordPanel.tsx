@@ -3,18 +3,26 @@ import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
 
 type RecorderState = 'idle' | 'preview' | 'countin' | 'recording';
+type CaptureMode = 'video' | 'audio';
 
 const BPM_MIN = 40;
 const BPM_MAX = 240;
 
-function pickMimeType(): string {
-  const candidates = [
+// Only mime types whose file extension the backend accepts (mp4 / webm).
+function pickMimeType(mode: CaptureMode): string {
+  const video = [
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
     'video/webm;codecs=vp9',
     'video/webm',
     'video/mp4',
   ];
+  const audio = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+  ];
+  const candidates = mode === 'audio' ? audio : video;
   for (const type of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
       return type;
@@ -86,7 +94,12 @@ export function RecordPanel() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const stopMetronomeRef = useRef<(() => void) | null>(null);
   const startTimeRef = useRef<number>(0);
+  // Audio-mode input-level meter
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const meterSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const levelRafRef = useRef<number | null>(null);
 
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('video');
   const [state, setState] = useState<RecorderState>('idle');
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [bpm, setBpm] = useState(80);
@@ -96,9 +109,55 @@ export function RecordPanel() {
   const [pulseBeat, setPulseBeat] = useState<number | null>(null);
   const [countInRemaining, setCountInRemaining] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [inputLevel, setInputLevel] = useState(0);
 
   const { setError } = useAppStore();
   const processVideo = useProcessVideo();
+
+  const stopLevelMeter = useCallback(() => {
+    if (levelRafRef.current !== null) {
+      cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = null;
+    }
+    meterSourceRef.current?.disconnect();
+    meterSourceRef.current = null;
+    analyserRef.current?.disconnect();
+    analyserRef.current = null;
+    setInputLevel(0);
+  }, []);
+
+  const startLevelMeter = useCallback((stream: MediaStream) => {
+    const ctx = audioCtxRef.current ?? new AudioContext();
+    audioCtxRef.current = ctx;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 1024;
+    // Intentionally NOT connected to ctx.destination — monitoring would echo the mic.
+    source.connect(analyser);
+    meterSourceRef.current = source;
+    analyserRef.current = analyser;
+
+    const data = new Uint8Array(analyser.fftSize);
+    const tick = () => {
+      if (!analyserRef.current) return;
+      analyserRef.current.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const v = (data[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      setInputLevel((prev) => {
+        const next = Math.min(1, rms * 2.5);
+        // Fast attack, slow decay so the meter reads naturally.
+        return next > prev ? next : prev * 0.85 + next * 0.15;
+      });
+      levelRafRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+  }, []);
 
   const cleanupStream = useCallback(() => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -116,10 +175,11 @@ export function RecordPanel() {
   useEffect(() => {
     return () => {
       stopEverything();
+      stopLevelMeter();
       cleanupStream();
       audioCtxRef.current?.close().catch(() => {});
     };
-  }, [stopEverything, cleanupStream]);
+  }, [stopEverything, stopLevelMeter, cleanupStream]);
 
   // Elapsed timer during recording
   useEffect(() => {
@@ -133,28 +193,40 @@ export function RecordPanel() {
   const requestPreview = useCallback(async () => {
     setPermissionError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
+      const audioConstraints = {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      };
+      const constraints: MediaStreamConstraints =
+        captureMode === 'audio'
+          ? { audio: audioConstraints }
+          : {
+              video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+              audio: audioConstraints,
+            };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      if (videoRef.current) {
+      if (captureMode === 'video' && videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
         await videoRef.current.play().catch(() => {});
+      } else if (captureMode === 'audio') {
+        startLevelMeter(stream);
       }
       setState('preview');
     } catch (err) {
-      setPermissionError(err instanceof Error ? err.message : 'Unable to access camera/microphone');
+      const what = captureMode === 'audio' ? 'microphone' : 'camera/microphone';
+      setPermissionError(err instanceof Error ? err.message : `Unable to access ${what}`);
     }
-  }, []);
+  }, [captureMode, startLevelMeter]);
 
   const beginRecording = useCallback(() => {
     const stream = streamRef.current;
     if (!stream) return;
 
     chunksRef.current = [];
-    const mimeType = pickMimeType();
+    const mimeType = pickMimeType(captureMode);
     let recorder: MediaRecorder;
     try {
       recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -168,10 +240,12 @@ export function RecordPanel() {
       if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
     };
     recorder.onstop = () => {
-      const type = recorder.mimeType || mimeType || 'video/webm';
+      const type = recorder.mimeType || mimeType || (captureMode === 'audio' ? 'audio/webm' : 'video/webm');
       const ext = type.includes('mp4') ? 'mp4' : 'webm';
+      const prefix = captureMode === 'audio' ? 'audio' : 'recording';
       const blob = new Blob(chunksRef.current, { type });
-      const file = new File([blob], `recording-${Date.now()}.${ext}`, { type });
+      const file = new File([blob], `${prefix}-${Date.now()}.${ext}`, { type });
+      stopLevelMeter();
       cleanupStream();
       setState('idle');
       setElapsed(0);
@@ -185,7 +259,7 @@ export function RecordPanel() {
     startTimeRef.current = performance.now();
     setState('recording');
     setElapsed(0);
-  }, [cleanupStream, processVideo, setError]);
+  }, [captureMode, cleanupStream, processVideo, setError, stopLevelMeter]);
 
   const startWithMetronome = useCallback(async () => {
     if (!streamRef.current) return;
@@ -238,8 +312,25 @@ export function RecordPanel() {
     setCountInRemaining(null);
   }, [stopEverything]);
 
-  const canStart = state === 'preview';
   const isLive = state === 'recording' || state === 'countin';
+
+  // Switching capture mode tears down any live preview so constraints re-acquire.
+  const handleModeChange = useCallback((next: CaptureMode) => {
+    if (next === captureMode || isLive) return;
+    stopEverything();
+    stopLevelMeter();
+    cleanupStream();
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setState('idle');
+    setElapsed(0);
+    setPulseBeat(null);
+    setCountInRemaining(null);
+    setPermissionError(null);
+    setCaptureMode(next);
+  }, [captureMode, isLive, stopEverything, stopLevelMeter, cleanupStream]);
+
+  const canStart = state === 'preview';
+  const isAudio = captureMode === 'audio';
 
   return (
     <div className="w-full max-w-xl animate-slide-up relative">
@@ -266,6 +357,38 @@ export function RecordPanel() {
           </p>
         </div>
 
+        {/* Capture-mode toggle: audio-only or video + audio */}
+        <div className="flex justify-center mb-4">
+          <div
+            className="inline-flex rounded-lg p-1"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            role="radiogroup"
+            aria-label="Capture mode"
+          >
+            {([
+              { id: 'video', label: 'Video + audio' },
+              { id: 'audio', label: 'Audio only' },
+            ] as const).map((opt) => (
+              <button
+                key={opt.id}
+                role="radio"
+                aria-checked={captureMode === opt.id}
+                onClick={() => handleModeChange(opt.id)}
+                disabled={isLive}
+                className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
+                style={{
+                  background: captureMode === opt.id ? 'var(--accent-glow)' : 'transparent',
+                  color: captureMode === opt.id ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+                  cursor: isLive ? 'not-allowed' : 'pointer',
+                  opacity: isLive && captureMode !== opt.id ? 0.5 : 1,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Preview */}
         <div
           className="rounded-xl overflow-hidden relative"
@@ -275,23 +398,69 @@ export function RecordPanel() {
             aspectRatio: '16 / 9',
           }}
         >
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-            style={{ transform: 'scaleX(-1)' }}
-          />
+          {/* Video preview (video mode only) */}
+          {!isAudio && (
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              style={{ transform: 'scaleX(-1)' }}
+            />
+          )}
+
+          {/* Audio-mode visualizer */}
+          {isAudio && state !== 'idle' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+              <div className="flex items-end gap-1.5" style={{ height: '64px' }}>
+                {Array.from({ length: 9 }).map((_, i) => {
+                  // Center bars react most strongly to the input level.
+                  const weight = 1 - Math.abs(i - 4) / 5;
+                  const h = 8 + inputLevel * 56 * (0.4 + weight);
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-full"
+                      style={{
+                        width: '6px',
+                        height: `${Math.min(64, h)}px`,
+                        background: 'linear-gradient(180deg, var(--accent-primary), var(--accent-secondary))',
+                        transition: 'height 60ms linear',
+                        opacity: 0.5 + weight * 0.5,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Microphone live — no camera
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Idle overlay: enable button */}
           {state === 'idle' && (
             <div className="absolute inset-0 flex items-center justify-center">
               <button className="btn btn-primary px-6" onClick={requestPreview}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-                Enable camera &amp; mic
+                {isAudio ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                )}
+                {isAudio ? 'Enable microphone' : 'Enable camera & mic'}
               </button>
             </div>
           )}
+
           {isLive && (
             <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1 rounded-md" style={{ background: 'rgba(0,0,0,0.55)' }}>
               <div

@@ -145,6 +145,100 @@ def scan_utaustin(root: Path) -> list[ClipEntry]:
     return entries
 
 
+# Standard tuning, low E .. high E. GAPS clips in scordatura (e.g. drop-D) are
+# not playable by the standard-tuning pipeline and are filtered out of eval
+# splits (logged, not silently capped) — their gold (string, fret) is
+# unreachable from a standard fretboard, so scoring would be meaningless.
+GAPS_STANDARD_TUNING: tuple[int, ...] = (40, 45, 50, 55, 59, 64)
+
+
+def _gaps_splits_from_csv(csv_path: Path) -> dict[str, str]:
+    """Map GAPS clip stem -> official split from the metadata CSV.
+
+    The CSV ``id`` column carries the ``NNN_<code>`` stem; ``split`` is one of
+    ``train`` / ``test`` / empty (unlabeled). Stems with an empty split are
+    omitted (they are not part of the official train/test partition).
+    """
+    import csv as _csv  # noqa: PLC0415
+
+    out: dict[str, str] = {}
+    with open(csv_path, newline="", encoding="utf-8") as fh:
+        for row in _csv.DictReader(fh):
+            stem = (row.get("id") or "").strip()
+            split = (row.get("split") or "").strip()
+            if stem and split in {"train", "test"}:
+                out[stem] = split
+    return out
+
+
+def _gaps_is_standard_tuning(xml_path: Path) -> bool:
+    """True iff the clip's tab staff uses standard tuning (no scordatura)."""
+    from tabvision.eval.parsers.gaps_musicxml_tab import read_staff_tuning  # noqa: PLC0415
+
+    tuning = read_staff_tuning(xml_path)
+    if len(tuning) != 6:
+        return False
+    # read_staff_tuning keys are MusicXML string numbers 1..6 (1 = high E);
+    # GAPS_STANDARD_TUNING is indexed low E (idx 0) .. high E (idx 5), so
+    # string number s maps to index 6 - s.
+    return all(tuning.get(s) == GAPS_STANDARD_TUNING[6 - s] for s in range(1, 7))
+
+
+def scan_gaps(
+    root: Path,
+    *,
+    standard_tuning_only: bool = True,
+) -> list[ClipEntry]:
+    """Scan a GAPS dataset root into ``clean_acoustic_single_line`` clip entries.
+
+    Expected layout (HF ``xavriley/GAPS`` mirror)::
+
+        <root>/musicxml/<stem>.xml         (TAB part with <string>/<fret>)
+        <root>/midi/<stem>.mid             (aligned performance MIDI)
+        <root>/syncpoints/<stem>.json      (per-measure downbeat seconds)
+        <root>/audio/<stem>.wav            (performance audio)
+        <root>/gaps_metadata_with_splits.csv
+
+    A clip is included only if all four media/annotation files exist AND the CSV
+    assigns it a ``train``/``test`` split. With ``standard_tuning_only`` (the
+    default), scordatura clips are dropped — the gold ``(string, fret)`` is
+    unreachable by the standard-tuning pipeline. Classical solo guitar is
+    single-line. GAPS is NC offline-eval-only: paths point at the local mirror;
+    media is never committed/redistributed.
+    """
+    musicxml_dir = root / "musicxml"
+    csv_path = root / "gaps_metadata_with_splits.csv"
+    if not musicxml_dir.is_dir() or not csv_path.is_file():
+        return []
+
+    splits = _gaps_splits_from_csv(csv_path)
+    entries: list[ClipEntry] = []
+    for xml_path in sorted(musicxml_dir.glob("*.xml")):
+        stem = xml_path.stem
+        split = splits.get(stem)
+        if split is None:
+            continue
+        midi_path = root / "midi" / f"{stem}.mid"
+        sync_path = root / "syncpoints" / f"{stem}.json"
+        audio_path = root / "audio" / f"{stem}.wav"
+        if not (midi_path.is_file() and sync_path.is_file() and audio_path.is_file()):
+            continue
+        if standard_tuning_only and not _gaps_is_standard_tuning(xml_path):
+            continue
+        entries.append(
+            ClipEntry(
+                id=f"gaps/{stem}",
+                tier="clean_acoustic_single_line",
+                source="GAPS",
+                split=split,
+                media_path=str(audio_path.resolve()),
+                annotation_path=str(xml_path.resolve()),
+                annotation_format="gaps_musicxml_tab",
+            )
+        )
+    return entries
+
+
 GUITAR_TECHS_VALIDATION_PLAYER = "03"
 
 # Stretch-goal articulations (SPEC §1.4 → v1.1). Skipped so the clean_electric
@@ -432,6 +526,7 @@ def build_manifest(
     guitarset_root: Path | None = None,
     utaustin_root: Path | None = None,
     guitar_techs_root: Path | None = None,
+    gaps_root: Path | None = None,
     splits: tuple[str, ...] | None = None,
     max_clips_per_tier: int | None = None,
     total_limit: int | None = None,
@@ -451,6 +546,8 @@ def build_manifest(
         entries.extend(scan_utaustin(utaustin_root))
     if guitar_techs_root is not None:
         entries.extend(scan_guitar_techs(guitar_techs_root))
+    if gaps_root is not None:
+        entries.extend(scan_gaps(gaps_root))
 
     _refuse_synthetic_in_eval_splits(entries)
 
@@ -488,6 +585,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=None,
         help="Guitar-TECHS root directory",
+    )
+    parser.add_argument(
+        "--gaps",
+        type=Path,
+        default=None,
+        help="GAPS root directory (with musicxml/, midi/, syncpoints/, audio/, CSV)",
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
@@ -527,8 +630,13 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if args.guitarset is None and args.utaustin is None and args.guitar_techs is None:
-        parser.error("specify at least one of --guitarset, --utaustin, or --guitar-techs")
+    if (
+        args.guitarset is None
+        and args.utaustin is None
+        and args.guitar_techs is None
+        and args.gaps is None
+    ):
+        parser.error("specify at least one of --guitarset, --utaustin, --guitar-techs, or --gaps")
 
     splits_filter: tuple[str, ...] | None = None
     if args.splits:
@@ -539,6 +647,7 @@ def main(argv: list[str] | None = None) -> int:
             guitarset_root=args.guitarset,
             utaustin_root=args.utaustin,
             guitar_techs_root=args.guitar_techs,
+            gaps_root=args.gaps,
             splits=splits_filter,
             max_clips_per_tier=args.max_clips_per_tier,
             total_limit=args.limit,
@@ -590,6 +699,7 @@ __all__ = [
     "build_manifest",
     "main",
     "render_toml",
+    "scan_gaps",
     "scan_guitar_techs",
     "scan_guitarset",
     "scan_utaustin",

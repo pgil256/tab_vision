@@ -47,6 +47,12 @@ Render ASCII tab:
 tabvision transcribe input.mov --format ascii -o output.tab
 ```
 
+`transcribe` defaults to the accepted v1 config: the `highres` audio backend
+(via `--audio-backend auto`, which routes `--instrument electric` to the
+electric checkpoint) plus `--position-prior guitarset-v1`. The first run
+downloads the highres checkpoint once (~37 s); later runs load it from the
+local cache. Requires the `audio-highres` extra (torch).
+
 Fresh-clone fixture smoke with a checked-in file:
 
 ```bash
@@ -70,12 +76,14 @@ Useful context flags:
 ```bash
 tabvision transcribe input.mov --instrument electric --tone clean --style mixed --capo 0
 tabvision transcribe input.mov --no-video --format ascii
-tabvision transcribe input.mov --position-prior guitarset-v1
+tabvision transcribe input.mov --position-prior none --audio-backend basicpitch
 ```
 
-`--position-prior none` is the default. `guitarset-v1` is an explicit
-experimental prior backed by a checked-in artifact; it is not promoted to the
-silent default until automated public/home-domain evidence shows no regression.
+`--position-prior guitarset-v1` is the default (the accepted v1 config,
+measured at +22-29pp Tab F1 over `none` on GuitarSet); `none` preserves the
+bare decode for ablations. `basicpitch` remains available as the lightweight
+CPU baseline (needs the `audio-baseline` extra; Python 3.11 on some
+platforms — see Install).
 
 ## Diagnose
 

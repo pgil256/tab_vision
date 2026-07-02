@@ -875,3 +875,501 @@ signal, but the clip-local time search overfits the alignment proxy: clips 0 and
 a global highres calibration path first, then inspect retained video evidence
 under corrected timing. Tuning generic video weights remains secondary until the
 audio calibration path is explicit and regression-tested.
+
+## 2026-06-19 - v1.1 chunk-5 GAPS gold via per-pitch match-maximizing MIDI alignment
+
+**Phase:** v1.1 (video string-resolution) - chunk 5 (GAPS integration, audio half)
+**Decision tree:** v1.1 chunk-5 (recon "implied chunk-5"); design
+`2026-06-03-v1.1-video-string-resolution-design.md` §6 eval-data gate.
+**Branch taken:** Derive GAPS onset-timed gold tab by walking the MusicXML TAB
+part (staff-tuning aware) and **snapping each score note to the exact aligned-MIDI
+onset** via a per-pitch, match-maximizing monotonic alignment - rather than the
+recon's per-cluster onset match (too fragile) or a raw syncpoint warp (too coarse
+for the 50 ms gate). Restrict the eval set with two logged per-clip filters
+(standard tuning; gold/MIDI coverage >= 80%).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_chunk5_2026-06-19.md`,
+`tabvision/eval/parsers/gaps_musicxml_tab.py`, `tabvision/data/eval/gaps.toml`,
+`docs/EVAL_REPORTS/v1_1_gaps_chunk5_audio_only{,_decomp}_2026-06-18.md`.
+- GAPS audio is **in-domain**: 8 clean clips average onset F1 **0.952**, pitch F1
+  **0.946** (vs UT-Austin's ~0); audio-only Tab F1 mean 0.768.
+- 22-clip test split (audio-only, no prior): Tab F1 **0.647** (lower-95 0.573) -
+  **passes** the single-line 0.45 gate. Onset F1 0.828 / pitch F1 0.819.
+- Error decomposition: after `extra_detection` (51.5%, the repeat-coverage
+  artifact the coverage filter flags), the dominant real loss is
+  `wrong_position_same_pitch` (34.1%) - the audio string-resolution limit the
+  v1.1 video chain targets.
+
+**Reasoning:** The recon spike validated on one clean clip; the full corpus adds
+voice-major MusicXML ordering, scordatura, repeats/voltas, and rubato. A raw
+per-measure syncpoint warp has p95 onset error 70-900 ms (fails the 50 ms gate),
+so onsets must come from the high-resolution MIDI; the open problem is the
+score<->MIDI correspondence. Per-pitch monotonic alignment that *maximizes
+matches* (gaps cost >> time term) reaches the ~94% multiset ceiling (~90% median
+on standard clips) with exact MIDI onsets, and is robust to rubato (it is an
+alignment, not interpolation) and to repeats (extra MIDI notes become gaps).
+Scordatura clips can't be scored by the standard-tuning pipeline, and
+repeat-heavy clips' score-centric gold under-covers the performance (FP
+deflation) - both are filtered with logged drop lists, not silently capped. The
+video real-chain (yt-dlp + video<->audio crop-offset alignment + chunk-3 gated CV
+chain) is the next chunk; yt-dlp feasibility is confirmed.
+
+## 2026-06-22 - v1.1 chunk-5 GAPS video real-chain: alignment works; CV chain does not transfer
+
+**Phase:** v1.1 (video string-resolution) - chunk 5 (GAPS integration, video half)
+**Decision tree:** v1.1 chunk-5 video half; design
+`2026-06-03-v1.1-video-string-resolution-design.md` §6; supersedes the "video
+real-chain is the next chunk" note in the 2026-06-19 entry.
+**Branch taken:** Acquire GAPS source video via yt-dlp and recover the
+video<->audio crop offset by **onset-strength-envelope cross-correlation**
+(`video_time = gold_onset + offset`), rather than trusting the metadata CSV's
+`duration`/`cropped_duration` columns (inconsistent) or a raw-waveform xcorr
+(self-similar guitar energy → weak peak). Run the chunk-3 confidence-gated CV
+chain over the clean-12 and report `audio-only` / `+real (auto)` /
+`+real (best-fixed-orientation)` / `+oracle`, for gold-pitch audio (string axis
+isolated — the 0.94 frame) and highres audio (honest end-to-end). Keep the
+chunk-3 §5.3 no-regression coverage gate at **0.71** (a looser 0.5 leaked
+corrupting evidence and regressed ~0.05).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_video_chain_2026-06-22.md` (+ raw
+`*_auto_*`), `tabvision/scripts/acquire/gaps_video.py`,
+`tabvision/scripts/eval/v1_1_gaps_video_chain_probe.py`,
+`tabvision/tests/unit/test_gaps_video_align.py` (10 tests; 428 unit pass).
+- **Alignment works:** all 12 offsets sub-frame (+0.01..+0.05 s; one 24 fps frame
+  ≈ 42 ms), xcorr peak ratios 2.3-11.2, wav/video durations match < 0.1 s. The
+  upload *is* the GAPS crop on these clips; the feared large offset is absent.
+- **Video does not lift Tab F1.** Gold audio: audio-only **0.8148** ->
+  +real(auto) **0.8148** (lo-95 0.768) == +real(best-orient) == audio-only;
+  **below the 0.94 bar**. highres: 0.7612 -> 0.7612 (oracle 0.910, pitch-capped).
+- **The lever is real:** gold-audio **oracle 0.9726** (~clears 0.94); residual
+  loss is **98.3% wrong_position_same_pitch** - exactly the string axis video
+  targets - but the CV chain captures none of it.
+- **Sweep (gold, cache-only):** under no gate/orientation setting does video beat
+  audio-only; ungated with the per-clip *oracle* orientation it still hurts 10/12
+  (mean -0.052). So the bottleneck is the CV-derived string *evidence*, not
+  gating or orientation selection.
+
+**Reasoning:** The chunk-2/3 CV chain was tuned to the non-mirrored Kaggle
+UT-Austin rig; GAPS is in-the-wild classical-guitar footage (diverse camera
+geometry, neck angle, framing). On clean single-line pieces the audio-only
+playability prior is already strong (0.815 gold), and the CV's string evidence is
+either incompatible with the audio pitch (per-event gate drops it -> coverage
+< 0.71 -> no-regression fallback) or confidently wrong (the dense orientation
+assigns the wrong string). Voting over more frames cannot fix systematically
+wrong evidence (vote_frames=1 here; homography is 0.99-stable, offset sub-frame).
+This is a clean negative, verified: `+oracle` 0.973 confirms the gold/fusion path,
+and the smoke reproduced the chunk-5 audio baseline (179 = 0.857). The next chunk
+is CV-chain transfer to in-the-wild footage (per-clip fretboard/fret-cell
+calibration, orientation-agnostic string-axis homography, perspective-robust
+fingertip->string), not audio tuning - the string axis is worth ~0.16 (gold) on
+GAPS clean-12.
+
+## 2026-06-22 - v1.1 chunk-6 WS0: rich CV-intermediate cache enables cache-only geometry iteration
+
+**Phase:** v1.1 (video string-resolution) - chunk 6 (CV-chain transfer), WS0 (enabler)
+**Decision tree:** chunk-6 design
+`2026-06-03-v1.1-video-string-resolution-design.md` decision tree +
+`2026-06-22-v1.1-chunk6-cv-transfer-design.md` (geometry-first ordering, confirmed
+by the user 2026-06-22); follows the 2026-06-22 chunk-5 entry.
+**Branch taken:** Before any geometry work, change the GAPS video probe's per-frame
+cache from the final `FrameFingering` to a **rich v2 cache** of the raw CV
+intermediates — YOLO `OBBPredictions` (nut/fret/neck anchors), the fitted
+`Homography`, and the selected fretting `HandSample` — and reconstruct the
+fingering downstream via `fingering_from_raw` (= `replace(compute_fingering(hand,
+H, cfg), t=t)`). Split the light (numpy-only) cache layer into
+`scripts/eval/gaps_cv_cache.py` so the diagnostic and tests do not import
+cv2/mediapipe/ultralytics. Codify the chunk-5 `_diag` analysis into a reusable
+cache-only diagnostic (`scripts/eval/v1_1_gaps_string_diag.py`). Build the v2 cache
+at the current **360p** (one-time CV re-run; 720p deferred to WS3, per the
+confirmed plan).
+
+**Evidence:** `docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws0_2026-06-22.md`;
+`tabvision/scripts/eval/gaps_cv_cache.py`,
+`tabvision/scripts/eval/v1_1_gaps_string_diag.py`,
+`tabvision/scripts/eval/v1_1_gaps_video_chain_probe.py` (refactor),
+`tabvision/tests/unit/test_gaps_string_diag.py` (12 tests; full suite 440 pass / 4
+skip; ruff + mypy clean).
+- **Behaviour-preserving:** scoring from the v2 cache reproduces chunk-5 exactly —
+  gold `audio-only 0.8148 -> +real(auto) 0.8148` (lo-95 0.7679), oracle **0.9726**;
+  highres `0.7612 -> 0.7612` (lo-95 0.7063), oracle 0.9099; per-clip values
+  identical to `_run2.log`.
+- **Diagnostic reproduces the `_diag` baseline:** ambiguous-note string accuracy
+  **4191/7697 = 0.544** (chunk-5 reported 0.543), per-clip `best_orient` + `haveCV`
+  match exactly; identical from the rich or legacy cache (`fingering_from_raw` is
+  bit-faithful). Full offset histograms recorded (string −1..−4 bias; fret swings
+  +5/+4/+9/+14 — the pitch-preserving mirror).
+- **Bonus:** the rich cache is *smaller* than the legacy one (6.2 MB vs 35 MB over
+  the clean-12) — compact raw inputs vs a dense `(4,6,25)` float64 grid per frame.
+
+**Reasoning:** The chunk-5 cache stored only the final, already-string-resolved
+`FrameFingering`; its logit grid is re-orientable cache-only but only by four
+discrete whole-grid flips, which cannot undo GAPS's graded −1..−4 string offset
+(why the chunk-5 sweep found no win). The real string-axis levers — per-clip board
+calibration, image-cued orientation, perspective-robust projection — all act
+upstream of that grid (in `predictions_to_homography` / `compute_fingering`),
+whose inputs the old cache discarded, so every geometry iteration cost a full
+MediaPipe/YOLO re-run. Persisting those inputs once makes WS1/WS2/WS4 re-runnable
+from cache in seconds, with the cache-only diagnostic as the fast leading
+indicator (target 0.544 -> ≥ 0.75) and the existing probe as the lagging headline.
+The refactor stays on the implementation side of the §8 contracts (no
+type/Protocol/signature change); the work is harness-only and behaviour-preserving,
+verified by exact reproduction of the chunk-5 numbers.
+
+## 2026-06-25 — Chunk-6 WS1: per-clip nonlinear (rule-of-18) fret-map calibration
+
+**Phase:** v1.1 chunk-6 (CV-chain string-resolution transfer), WS1 of the merged
+WS1/WS2 board-calibration step.
+**Decision tree:** chunk-6 §5 WS1 — anchor the canonical fret axis to detected
+per-clip cues vs the rig-baked uniform partition; §6 per-step gate (leading
+diagnostic + lagging probe); §8 detection-limited risk.
+**Branch taken:** Replace `compute_fingering`'s **uniform** fret partition with a
+per-clip **rule-of-18** map fit from the detected fret-OBB sequence + nut anchor,
+behind the eval `calibrate` hook (training-free, cache-only, detected-cues-only).
+New impl module `tabvision/video/fretboard/calibrate.py`; optional keyword
+`fret_xs` on `compute_fingering` (default `None` ⇒ bit-identical uniform path);
+opt-in `calibrate`/`posterior_cfg` hook on `fingering_from_raw` /
+`load_frame_fingerings` + `make_fret_xs_calibrator`; `--calibrate` flag on the
+diagnostic and probe; per-clip no-regression check added to the probe. The
+homography is reused as-is (only the fret partition is re-derived); a **robust
+inlier-consensus (RANSAC-style)** fit tolerates spurious/high-fret detections, and
+frames with too few/garbled frets return `fret_xs=None` ⇒ uniform fallback ⇒ the
+chunk-3 fall-back-to-audio invariant is preserved exactly.
+
+**Evidence:** (clean-12, gold pitch, `--vote-frames 1`)
+- **Leading indicator ↑:** ambiguous-note string accuracy **0.544 → 0.574**
+  (`scripts/eval/v1_1_gaps_string_diag --calibrate`). Per-clip wins where the
+  detector fires frets: 031 0.434→0.635 (+0.20), 104 0.479→0.619 (+0.14), 142
+  0.475→0.526; deep −3 string-offset bucket 583→386, −1 bucket 1702→1666.
+- **Fusion-relevant (ungated A/B, firing clips 031/104/142):** gold `+real` auto
+  **0.586 → 0.684** (+0.098), best-orient **0.713 → 0.753** (+0.040) — the fret-map
+  improves the actual Tab-F1 video contribution, not just the diagnostic argmax.
+- **Lagging gated = no-op, no regression:** gold `+real(auto)` **0.8148 → 0.8148**,
+  per-clip no-regression holds **12/12**. The 0.71 coverage gate suppresses video on
+  every clip (calibration improves the string *within* surviving evidence, not the
+  survival rate), so the lift cannot materialise until the gate is re-derived (WS5),
+  exactly as the design anticipated.
+- **Detection-limited ceiling (honest framing, SPEC §0 rule 7):** ~68% of ambiguous
+  notes are on clips where YOLO detects ~0 fret OBBs at conf=0.25 (043/063/118/179/
+  235/294), so the fret lever physically cannot fire there and falls back to uniform.
+  Several of those *do* have nut detections (235 68%, 179 99%, 294 70%) — the WS2
+  cross-string-axis lever's target.
+- **Quality:** new `tests/unit/test_fretboard_calibrate.py` (17) + additions to
+  `test_fingertip_to_fret.py` / `test_gaps_string_diag.py`; full unit suite **462
+  pass / 4 skip**; ruff + ruff format + `mypy tabvision` clean. Default (`fret_xs=
+  None` / no `--calibrate`) path reproduces the WS0 baseline bit-for-bit (string acc
+  4191/7697 = 0.544; gold probe 0.8148/0.8148/0.9726).
+
+**Reasoning:** The canonical x-axis is proportional to physical along-neck distance,
+so the uniform partition systematically over-estimates fret number toward the body
+(real wires follow `D_k = S(1−r^k)`, `r = 2^(−1/12)`); a fingertip physically at
+fret 12 (canonical x ≈ 0.67 of a nut→fret-24 span) is read as ~fret 16, and the
+pitch constraint then drags the predicted string to the bass side — exactly the
++4/+5 fret / −1..−4 string bias the WS0 diagnostic measured. Fitting the rule-of-18
+shape per clip from the detected wires + nut anchor is parameter-free physics (no
+per-clip constants, so no clean-12 overfitting); the affine `x = x0 + b(1−r^k)` is
+anchored at the nut because a finite geometric sequence is scale-invariant in its
+absolute fret index. The lever is real and fusion-relevant where the detector
+cooperates, but detection-limited at conf=0.25; the next lever (WS2 cross-string
+axis from the nut-OBB edge) targets the nut-detected, fret-sparse clips, and gate
+re-derivation (WS5) is required to convert the evidence gain into a gated Tab-F1
+lift. Stays entirely on the implementation side of §8 (fret evidence still rides
+`marginal_string_fret`; no type/Protocol/signature change).
+
+## 2026-06-25 — Chunk-6 WS2: nut-OBB cross-string axis is a measured negative (deferred)
+
+**Phase:** v1.1 chunk-6, WS2 (cross-string axis) of the merged board-calibration step.
+**Decision tree:** chunk-6 §5 WS2 — re-anchor the canonical *string* axis to the
+detected nut OBB edge; §8 detection-limited risk + the geometry-aware-confidence
+pairing.
+**Branch taken:** Implemented the nut-axis homography re-fit
+(`keypoint.predictions_to_homography_nut_axis` + `calibrate.calibrate_board`, opt-in
+`--calibrate-board`, default off) and **measured it before promoting**. It is a net
+negative in this first form, so it is **deferred behind a geometry-aware confidence /
+fret-richness selection gate** and kept opt-in; the default pipeline and the WS1
+result are unchanged.
+**Evidence:** The nut OBB's cross-string width is 14–29% narrower than the neck-OBB
+edge the homography uses (ratio 0.71–0.86) and its center is offset by 0.15–1.09
+neck-edge-lengths — real signal. But the full re-fit regresses the leading indicator
+**0.574 (WS1) → 0.547**: it helps the big nut-only clips (235 0.419→0.435, 179
+0.598→0.609, 212 0.835→0.848) yet hurts the fret-rich ones (104 0.619→0.468, 142
+0.526→0.464, 027) and 294 (0.584→0.541, a misdetected nut). Report:
+`docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws1_2026-06-25.md` §4. Suite 467 pass / 4 skip;
+ruff + mypy clean.
+**Reasoning:** Re-fitting the *whole* homography from the nut edge perturbs the
+along-neck (x) axis WS1 already calibrated, and the nut OBB is itself noisy, so
+without a quality gate the bad re-fits drag down the good ones — exactly why the
+design pairs the cross-string axis with geometry-aware confidence. The honest wall:
+~68% of ambiguous notes are on clips with ~0 detected frets at conf=0.25, so the
+geometry-first path plateaus ~0.57–0.58; clearing 0.75/0.94 needs a cost/STOP lever
+(lower-conf re-detect + cache rebuild, 720p, or the WS4 learned model) — to be
+decided explicitly per SPEC §0 rule 8. WS2 stays impl-side of §8 (new keypoint
+function is unused by production until promoted).
+
+## 2026-06-25 — Chunk-6 WS4: APPROVED — train a learned string-resolution model (GAPS)
+
+**Phase:** v1.1 chunk-6, WS4 (the training lever the design gated behind a HARD STOP).
+**Decision tree:** chunk-6 §5 WS4 + §8 — the geometry-first path (WS1/WS2) plateaus
+~0.57 because ~68% of ambiguous notes are on clips with ~0 detected frets at
+conf=0.25; the next lever is a learned model, which is **training** (data + compute +
+money) → SPEC §0 rules 6 & 8 require explicit user approval.
+**Branch taken:** **User explicitly approved the training run** (2026-06-25), after a
+data assessment, with three confirmed choices: (1) **full 270-clip GAPS train split**
+(not a pilot); (2) **Modal** GPU, reusing the YOLO-OBB Modal infra; (3) **NC license
+accepted** (TabVision is non-commercial → an NC-tainted model artifact is acceptable,
+recorded in LICENSES.md). Approach: a pretrained backbone over the YOLO **neck-crop**
+→ 6-way string posterior, pitch-conditioned at fusion, fed through the existing
+`marginal_string_fret` → `AudioEvent.fret_prior` channel (no §8 change). Train on the
+`train` split, eval on held-out `test` (clean-12 ⊂ test — no leakage). Go/no-go on the
+first checkpoint vs the geometric leading 0.574.
+**Evidence:** GAPS `gaps_metadata_with_splits.csv` — 270 train / 30 test / 101
+unassigned, all train with `yt_id` + syncpoints; ~216K ambiguous-note string labels
+(free from gold tab); clean-12 confirmed ⊂ `test`. Design:
+`docs/plans/2026-06-25-v1.1-ws4-learned-string-model-design.md`. Geometry baseline:
+`docs/EVAL_REPORTS/v1_1_gaps_chunk6_ws1_2026-06-25.md`.
+**Reasoning:** Labels, URLs, alignment, and an official train/test split all exist, so
+the binding cost is compute (download + CV-extract + GPU), not data or annotation. A
+learned model resolves strings from pixels, sidestepping the fret-detection wall that
+caps geometry. The honest risks (label noise from alignment, download attrition,
+transfer beyond GAPS, NC/AGPL taint) are recorded in the design §7; the eval is on the
+clean held-out test split with the no-regression invariant intact (absent/low-conf →
+audio-only). New deps (`torch`/`torchvision`/`timm`, `modal`) are training/eval-only.
+
+## 2026-06-29 — Chunk-6 WS4: learned model is a measured NEGATIVE; bank + stop
+
+**Phase:** v1.1 chunk-6, WS4 (the approved learned-model lever).
+**Decision tree:** chunk-6 §5 WS4 + the go/no-go gate (does `+learned` beat the
+geometric leading 0.574 / lift audio-only 0.8148 on held-out clean-12?).
+**Branch taken:** Trained the model (full pipeline on Modal L4) and **evaluated it;
+the result is a clear negative, so — at the user's direction (2026-06-29) — record
+the measured negative and STOP** rather than chase it further. Geometry WS1 (fret-map,
+0.544 → 0.574, committed `587c174`) stands as chunk-6's positive deliverable. The
+WS4 pipeline stays committed + reusable.
+**Evidence:** Go/no-go eval (`scripts/eval/v1_1_gaps_learned_probe.py`, held-out
+clean-12, gold frame): **audio-only 0.8148 → +learned 0.6974 (oracle 0.9726)** — the
+learned string evidence is **net-negative**, dragging Tab F1 down −0.117. Training
+(153,482 crops from 251 GAPS train clips, clip-disjoint val) **plateaued at raw 6-way
+val_acc ~0.30** by epoch 8 while train loss kept falling (1.63 → 0.66) — overfit to
+training players, no transferable string signal. Report:
+`docs/EVAL_REPORTS/v1_1_gaps_ws4_learned_2026-06-29.md`.
+**Reasoning:** A model only ~1.8× chance on raw 6-way yields pitch-restricted
+predictions worse than the audio playability prior. Likely root cause: the whole-neck
+crop starves the model (the fretting hand is small in a 224²-squished wide crop, so
+the across-string finger position — the actual signal — is too coarse), compounded by
+onset-frame alignment label noise and the intrinsic difficulty of string-from-image
+across players. The one promising fix (a hand-tight crop, re-extract + re-train) is
+speculative against a *large* gap (net-negative, not marginal) and was not authorized
+for further spend. Honest conclusion (SPEC §0 rule 7): audio-only single-line string
+resolution on in-the-wild GAPS is information-limited, and neither the geometric chain
+nor a GAPS-trained ResNet-18 neck-crop classifier reliably beats audio-only; WS1 is the
+sole measurable, no-regression positive. NC/AGPL artifacts (GAPS-trained weights, the
+1.38 GB crop dataset) stay local/offline-only, never committed.
+
+## 2026-06-29 — Chunk-6 capstone: the audio prior beats the video chain (no lift to ship)
+
+**Phase:** v1.1 chunk-6 — the "make WS1 real" / WS5 gate-materialisation question.
+**Decision tree:** before threading WS1's nonlinear fret-map through the §8
+`Homography` contract to production + recalibrating the gate (WS5), measure whether
+a net-positive Tab-F1 lift is even possible.
+**Branch taken:** **Measured first; the lift does not exist, so do NOT change the §8
+contract** (it would ship better geometry but zero headline gain). WS1 stands as a
+documented geometric improvement; chunk-6 lands + pauses.
+**Evidence (decisive):** on the clean-12 **ambiguous** notes, the **audio playability
+prior** resolves the string correctly **7859/10103 = 0.778**, vs WS1 video
+**0.574** (baseline uniform 0.544) — the audio prior is **~0.20 better** than the
+video chain at string resolution. Fusion adds the video term to the audio emission
+cost, so any non-trivial `lambda_vision` pulls the decision toward the *worse* source
+(0.574) and degrades Tab F1; a tiny weight is a no-op. This is exactly why the gated
+probe sat at audio-only 0.8148 (no-op) and ungated *hurt* (geometric net-negative;
+learned 0.6974). No per-event gate keyed on video *confidence* can selectively apply
+video only where audio fails, so none yields a lift.
+**Reasoning / reframe:** the 0.94 single-line **video** target (SPEC §1.4.1) assumed
+video resolves strings *better* than audio. On in-the-wild GAPS clean-12 the ordering
+is the opposite — **audio 0.778 > geometry-video 0.574 > learned-video (worse)** —
+and video only "wins" via the *oracle* (perfect strings → 0.973), which no real chain
+approaches. So string-resolution video is not an additive lever over the audio prior
+on this corpus; chunk-6's honest net is the geometry WS1 improvement (real but
+sub-prior) plus this clarifying measurement. Implication for v1.1: the single-line
+video stretch is not just hard but *information-dominated by audio* here — revisit the
+target/scope in SPEC §1.4.1 before further video string-resolution spend.
+
+## 2026-06-30 — `--audio-filters on` for `highres` is a measured regression; leave default off
+
+**Phase:** v1 accuracy hardening (unattended `/loop`, audio-only pipeline tuning lane).
+**Decision tree:** the `--audio-filters` flag (commit `bf61d4e`, 2026-06-18) added a way
+to force the v0-ported post-detection filter suite (`tabvision.audio.filters`:
+low-confidence/short/quiet drop, same-pitch merge, sustain-redetection drop,
+harmonic/ghost-note drop, end-trim) on for the `highres` backend, which has it off by
+default (only `basicpitch` has it on by default). The flag's own commit message named
+it as "the chunk-4 lever for highres extra_detection (~35%)" but no eval report or
+DECISIONS.md entry ever actually measured it on `highres` before this entry.
+**Branch taken:** **Measured it on the 24-clip fast validation manifest
+(`data/eval/local_gs_val24.toml`, `highres` + `guitarset-v1` prior) before touching the
+default — it regresses sharply, so the default (`auto` → off for `highres`) is
+unchanged.**
+**Evidence:** `--audio-filters off` (current default): single_line Tab F1 0.4820
+(onset 0.9227, pitch 0.9140), strummed Tab F1 0.7951 (onset 0.9359, pitch 0.9184) —
+both consistent with the official 60-clip acceptance numbers. `--audio-filters on`:
+single_line Tab F1 0.4744 (onset 0.8706, pitch 0.8643), strummed Tab F1 **0.4596**
+(onset **0.5822**, pitch 0.5592) — strummed drops from passing the 0.60 SPEC target to
+failing it outright. Six-bucket decomposition (aggregate counts): `extra_detection`
+did fall as hoped (150 → 69), but `missed_onset` exploded **7×** (199 → 1392, from
+18.6% to 68.2% of total loss). Reports:
+`docs/EVAL_REPORTS/v1_1_audiofilters_{off,on}_val24_2026-06-30{,_decomp}.md`.
+**Reasoning:** the filter suite's tuned constants (e.g. `min_confidence=0.3`,
+`sustain_amplitude_ratio=0.95`) were ported from v0 and dialed in for `basicpitch`'s
+note-density/confidence distribution; applied unmodified to `highres` they prune large
+numbers of real onsets in dense/strummed passages, not just the spurious detections
+they were designed to catch. The lever is real (filters *do* cut `extra_detection`)
+but the default config is the wrong instrument for `highres` — it would need separate
+retuning against `highres`'s own confidence/density distribution to be net-positive,
+which is out of scope here (SPEC §0 rule 7: flag, don't hallucinate a quick win).
+Banked negative, no code or default changed. The eval-harness `--audio-filters` plumbing
+added to test this (commit `5091a09`) stays — useful for any future retuning attempt.
+**Next candidate (untested, flagged not pursued this round):** `HighResBackend`'s own
+`onset_threshold`/`frame_threshold` constructor defaults (0.3/0.1) are never overridden
+anywhere in the repo and are a more surgical, unexplored lever for the same
+`missed_onset`/`extra_detection` buckets — flagged for follow-up, not yet implemented
+or measured.
+
+## 2026-06-30 — `HighResBackend` threshold kwargs were silently inert (dependency bug); fixed. `onset_threshold=0.2` is a wash, default unchanged
+
+**Phase:** v1 accuracy hardening (unattended `/loop`, audio-only pipeline tuning lane);
+follow-up to the `--audio-filters` entry above.
+**Decision tree:** measure the flagged `onset_threshold`/`frame_threshold` candidate
+before changing any default (same discipline as the audio-filters entry).
+**Branch taken:** **First probe (frame_threshold 0.1→0.2) and second probe
+(onset_threshold 0.3→0.2) both produced bit-identical Tab F1 and six-bucket
+decomposition output to the untouched defaults — a methodology red flag, not a
+genuine null result.** Traced it to a real bug in the `hf_midi_transcription`
+dependency: `MidiTranscriptionModel.__init__` accepts and stores
+`onset_threshold`/`offset_threshold`/`frame_threshold` in `self.config`, but
+`_init_transcriptor(instrument)` — the call that builds the underlying
+`piano_transcription_inference.PianoTranscription` — only ever receives the
+instrument name, so `PianoTranscription` always falls back to its own
+hard-coded defaults (0.3/0.3/0.1) regardless of what `HighResBackend` was
+constructed with. **Fixed** (`tabvision/audio/highres.py::_load_model`,
+commit `e5ea355`): `PianoTranscription.transcribe()` rebuilds
+`RegressionPostProcessor` fresh from `self.onset_threshold` /
+`self.offset_threshod` [sic, upstream typo] / `self.frame_threshold` on every
+call (not just at construction), so setting those attributes directly on
+`self._model.transcriptor` after construction makes our thresholds actually
+take effect. Default behavior is unchanged (`HighResBackend`'s own defaults
+equal the library's), so the fix is a no-op for current production traffic —
+it only unlocks tuning that was previously impossible. 4 new tests
+(`test_highres_threshold_wiring.py`) use a fake `MidiTranscriptionModel` that
+reproduces the real library's broken wiring, so they'd fail if the patch were
+removed. 551 tests pass, ruff+mypy clean.
+**With the fix in place, re-measured `onset_threshold=0.2`** (24-clip fast
+validation manifest, `highres` + `guitarset-v1`): `correct` 1981→1997 (+16),
+`missed_onset` 199→188 (−11), but `extra_detection` 150→188 (**+38**) —
+lowering the threshold recovers a few missed onsets at the cost of 3-4× as
+many new false positives. Net Tab F1: single_line 0.4820→0.4838 (+0.0018,
+noise-level), strummed 0.7951→0.7909 (−0.0042). **Verdict: a wash, not a
+clear win — leave `onset_threshold` at its 0.3 default.** Not pursued further
+(no intermediate-value sweep, e.g. 0.25): the trade-off direction (more new
+false positives than recovered misses) argues against this being a fruitful
+single-knob lever, and SPEC §0 rule 7 argues for banking a marginal result
+over chasing it. `frame_threshold` is confirmed to have **zero effect on Tab
+F1 specifically** (it only gates note duration/offset, which this eval's
+onset+pitch+string+fret matching doesn't score) — not just untested, a
+structurally inert lever for this metric.
+
+## 2026-07-02 — `tabvision transcribe` now defaults to the accepted config (`auto`→highres + `guitarset-v1` prior); measured parity with the banked baseline
+
+**Phase:** v1 shipped-config alignment (2026-07-01 roadmap, item A1; user-directed
+day-one path).
+**Decision tree:** the roadmap's "two biggest gaps aren't model gaps" finding #1:
+`tabvision transcribe` defaulted to `basicpitch` + `--position-prior none` while every
+acceptance number was measured with `highres` + `guitarset-v1` (the prior alone is
+worth +22–29pp Tab F1), so CLI users silently got a much worse pipeline than the one
+we validated. Measure parity through the new default code path before committing.
+**Branch taken:** **Changed the `transcribe` defaults to `--audio-backend auto` +
+`--position-prior guitarset-v1`.** `auto` (not bare `highres`) because
+`run_pipeline`'s tone-toggle routing (`audio_backend_for_session`) resolves `auto` →
+`highres` for the default acoustic/classical instrument and → `highres-electric` for
+`--instrument electric` — so the electric toggle now also works without a backend
+flag. `basicpitch` and `--position-prior none` stay reachable as explicit flags for
+ablations/evals; the composite-eval harness is unaffected (its own defaults were
+already the accepted config).
+**Evidence (measured parity, not assumed):** one composite-eval run on
+`data/eval/local_gs_val24.toml` with `--backend auto` — i.e. through the same
+auto-resolution path the CLI default now takes — reproduces the banked baseline
+**bit-for-bit**: single_line Tab F1 0.4820 (lower-95 0.3761, onset 0.9227, pitch
+0.9140), strummed 0.7951 (lower-95 0.7565, onset 0.9359, pitch 0.9184), identical
+to `v1_1_audiofilters_off_val24_2026-06-30.md`. Report:
+`docs/EVAL_REPORTS/v1_1_cli_default_parity_val24_2026-07-02{,_decomp}.md`. CLI smoke
+on a real GuitarSet clip (`05_BN1-129-Eb_solo_mic.wav`, zero config flags) produces a
+46-note tab end-to-end; the checked-in A440 fixture runs end-to-end but yields 0
+notes under `highres` (guitar-trained model vs synthetic sine — a model behavior, not
+a CLI bug; the fixture's non-empty expectation is basicpitch-specific and its e2e
+test still pins `basicpitch` explicitly).
+**Reasoning / notes:** (1) the first `highres` run downloads the checkpoint once
+(~37 s) — documented in `tabvision/README.md`, which also loses its stale "not
+promoted to the silent default until…" caveat (that gate was met by the 60-clip
+acceptance run + this parity check; promotion is the explicit user-directed point of
+roadmap A1). (2) On Windows py3.12 the old default was outright broken
+(basicpitch/TensorFlow has no py3.12 wheels), so highres-by-default simplifies the
+supported envs. (3) `tabvision diagnose` still defaults to `basicpitch` — left
+untouched (outside A1's stated scope, lines 127–130/174–177 only); flagged as a
+follow-up alignment candidate.
+
+## 2026-07-02 — `guitarset-v1` prior on GAPS is a measured NEGATIVE (−0.138 Tab F1); A7 (GAPS-native prior) skipped per the recorded branch logic
+
+**Phase:** v1.1 accuracy (2026-07-01 roadmap, item A2; user-directed day-one path).
+**Decision tree:** every GAPS eval to date ran `--position-prior none` (baseline Tab
+F1 0.6468, lower-95 0.5734) while `wrong_position` was 34.1% of real GAPS loss and
+the prior is worth +22–29pp on GuitarSet — measure it once, bank either way, with
+pre-registered branch logic: lower-95 lift ⇒ A7 (GAPS-native prior) unblocked after
+A6; wash/negative ⇒ A7 skipped.
+**Branch taken:** **Negative branch fires — A7 is marked SKIPPED in the roadmap.**
+No code or default changed by this measurement.
+**Evidence:** `scripts.eval.v1_1_second_corpus_probe`, GAPS test-22, `highres`,
+identical bootstrap/tolerance settings to the 2026-06-18 baseline; only the prior
+differs. Tab F1 mean **0.6468 → 0.5087** (lower-95 0.5734 → 0.4549 — disjoint from
+the baseline mean, not noise), chord-instance acc 0.6633 → 0.5125. Decomposition is
+a perfectly controlled exchange: onset/pitch F1 and the pitch_off / timing /
+missed_onset / extra_detection buckets are bit-identical; the prior net-flips
+**2,131 notes correct → wrong_position_same_pitch** (2,978 → 5,109; ~16% of
+pitch-matched notes). Reports:
+`docs/EVAL_REPORTS/v1_1_gaps_prior_guitarset_v1_2026-07-01{,_decomp}.md`.
+**Reasoning:** the prior encodes GuitarSet's open-position conventions
+(steel-string pop/comping); GAPS is classical repertoire played up the neck, so the
+cross-domain prior overrides string decisions the playability decode already got
+right — the fusion-side analogue of the electric tier's cross-domain 0.12. This
+does **not** contradict the A1 default (GuitarSet-domain home recording is the v1
+target and measures +22–29pp); it does mean the shipped default is
+domain-sensitive, and classical/GAPS-style input currently decodes better with
+`--position-prior none` — flagged for user docs if classical ever becomes a target.
+Honest caveat recorded in the report (not actioned): this is a *cross-domain
+transfer* negative and doesn't by itself falsify an *in-domain* GAPS prior; per the
+pre-registered branch logic A7 is nonetheless out of the roadmap, and reopening it
+needs fresh justification plus the A6 gold-coverage fix first.
+
+## 2026-07-02 — SPEC §1.4.1: the 0.94 single-line video-assisted reference is retired (user-approved); B8 dropped; A15 (tab-corpus fingering prior) added as a gated item
+
+**Phase:** v1.1 scope maintenance (the chunk-6 capstone's pending directive, D1
+packet part 1).
+**Decision tree:** CLAUDE.md operating rule 3 / SPEC §1.4: scope/target changes
+need a SPEC edit + explicit user approval. The capstone (2026-06-29) recommended
+revisiting the 0.94 single-line video target; the user approved lowering it on
+2026-07-02 ("Ok lower video target").
+**Branch taken:** **SPEC §1.4.1 amended (dated block, append-style): the 0.94
+single-line video-assisted reference is RETIRED.** The binding v1 single-line gate
+stays ≥ 0.45; **no new stretch number is set until one is demonstrated** (rule 7 —
+don't promise what nothing has measured). The strummed 0.86 and chord 0.85
+video-assisted references stay open pending A14 (chord-frame video, the one
+unmeasured axis where video plausibly beats audio) and the rest of D1.
+**Evidence:** chunk-6 capstone (audio prior 0.778 > geometry video 0.574 > learned
+video, ungated fusion hurts, no gate recovers a lift) + the A2 cross-domain prior
+negative above (string resolution is convention/evidence-limited, not
+decode-limited).
+**Related user decisions same session (recorded here, roadmap edited):**
+(1) **B8 (remove vestigial video UI) DROPPED** — the user wants video playback kept
+as correction context; B1 already removed the actively-misleading fake
+"Tracking fingers" progress stage for audio-only runs. (2) **A15 added** (roadmap
+Tier 3, user-proposed): a tab-corpus fingering/sequence prior ("how guitar is
+normally played") biasing the decode before user correction — staged
+license-review → CPU n-gram → (rule-8 gated) neural model, with hard
+no-regression gates on both val24 and GAPS clean-12 given the A2
+domain-sensitivity result. Not covered by banked negatives (melodic prior was
+hand-coded; WS4 was visual).

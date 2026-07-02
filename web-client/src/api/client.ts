@@ -106,6 +106,7 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
     progress: data.progress,
     current_stage: data.current_stage,
     error_message: data.error_message,
+    video_enabled: data.video_enabled,
   };
 }
 

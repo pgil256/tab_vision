@@ -202,6 +202,36 @@ def test_post_jobs_validates_roi_range(client):
         assert 'ROI' in response.get_json()['error']
 
 
+@pytest.mark.parametrize(
+    "filename",
+    ["clip.mp4", "clip.mov", "recording.webm", "take.wav", "take.mp3", "take.m4a", "TAKE.WAV"],
+)
+def test_post_jobs_accepts_video_and_audio_extensions(client, filename):
+    """POST /jobs accepts video uploads, the recorder's own webm, and
+    audio-only uploads (wav/mp3/m4a) — demux handles audio-only input."""
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake media content'), filename),
+            'capo_fret': '0',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 201, response.get_json()
+
+
+@pytest.mark.parametrize("filename", ["notes.txt", "clip.avi", "song.flac", "noext"])
+def test_post_jobs_rejects_disallowed_extensions(client, filename):
+    with patch('app.routes.Thread'):
+        data = {
+            'video': (io.BytesIO(b'fake media content'), filename),
+            'capo_fret': '0',
+        }
+        response = client.post('/jobs', data=data, content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        assert 'File type not allowed' in response.get_json()['error']
+
+
 def test_post_jobs_validates_roi_order(client):
     """POST /jobs validates x1 < x2 and y1 < y2."""
     with patch('app.routes.Thread'):
