@@ -1312,3 +1312,35 @@ roadmap A1). (2) On Windows py3.12 the old default was outright broken
 supported envs. (3) `tabvision diagnose` still defaults to `basicpitch` — left
 untouched (outside A1's stated scope, lines 127–130/174–177 only); flagged as a
 follow-up alignment candidate.
+
+## 2026-07-02 — `guitarset-v1` prior on GAPS is a measured NEGATIVE (−0.138 Tab F1); A7 (GAPS-native prior) skipped per the recorded branch logic
+
+**Phase:** v1.1 accuracy (2026-07-01 roadmap, item A2; user-directed day-one path).
+**Decision tree:** every GAPS eval to date ran `--position-prior none` (baseline Tab
+F1 0.6468, lower-95 0.5734) while `wrong_position` was 34.1% of real GAPS loss and
+the prior is worth +22–29pp on GuitarSet — measure it once, bank either way, with
+pre-registered branch logic: lower-95 lift ⇒ A7 (GAPS-native prior) unblocked after
+A6; wash/negative ⇒ A7 skipped.
+**Branch taken:** **Negative branch fires — A7 is marked SKIPPED in the roadmap.**
+No code or default changed by this measurement.
+**Evidence:** `scripts.eval.v1_1_second_corpus_probe`, GAPS test-22, `highres`,
+identical bootstrap/tolerance settings to the 2026-06-18 baseline; only the prior
+differs. Tab F1 mean **0.6468 → 0.5087** (lower-95 0.5734 → 0.4549 — disjoint from
+the baseline mean, not noise), chord-instance acc 0.6633 → 0.5125. Decomposition is
+a perfectly controlled exchange: onset/pitch F1 and the pitch_off / timing /
+missed_onset / extra_detection buckets are bit-identical; the prior net-flips
+**2,131 notes correct → wrong_position_same_pitch** (2,978 → 5,109; ~16% of
+pitch-matched notes). Reports:
+`docs/EVAL_REPORTS/v1_1_gaps_prior_guitarset_v1_2026-07-01{,_decomp}.md`.
+**Reasoning:** the prior encodes GuitarSet's open-position conventions
+(steel-string pop/comping); GAPS is classical repertoire played up the neck, so the
+cross-domain prior overrides string decisions the playability decode already got
+right — the fusion-side analogue of the electric tier's cross-domain 0.12. This
+does **not** contradict the A1 default (GuitarSet-domain home recording is the v1
+target and measures +22–29pp); it does mean the shipped default is
+domain-sensitive, and classical/GAPS-style input currently decodes better with
+`--position-prior none` — flagged for user docs if classical ever becomes a target.
+Honest caveat recorded in the report (not actioned): this is a *cross-domain
+transfer* negative and doesn't by itself falsify an *in-domain* GAPS prior; per the
+pre-registered branch logic A7 is nonetheless out of the roadmap, and reopening it
+needs fresh justification plus the A6 gold-coverage fix first.

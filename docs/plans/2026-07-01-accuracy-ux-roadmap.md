@@ -95,9 +95,12 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   `gaps_musicxml_tab.py`): 51.5% of the GAPS-22 "loss" is missing gold, not
   model error. Moves the headline honestly toward ~0.76 and makes all GAPS
   tuning trustworthy at n=22. Do **before** A7.
-- **A7. Build a GAPS-native position prior** (local-only, NC) and A/B vs
-  guitarset-v1 on clean-12; sweep `alpha/power` in the same pass. Deliverable
-  is knowledge about in-domain prior fit (artifact can never ship).
+- ~~**A7. Build a GAPS-native position prior**~~ — **SKIPPED** (A2 branch
+  logic, 2026-07-02): guitarset-v1 on GAPS test-22 is a measured negative
+  (0.6468 → 0.5087, a pure correct↔wrong-string exchange of 2,131 notes; see
+  `docs/EVAL_REPORTS/v1_1_gaps_prior_guitarset_v1_2026-07-01.md`). The
+  cross-domain-transfer caveat is recorded in that report's conclusion;
+  reopening needs its own justification + A6 first.
 - **A8. Studio-condition degradation eval.** Re-encode val24 through the real
   capture chain (opus-in-webm 48k, laptop-mic lowpass, noise floor, light
   compression — ffmpeg only, gold labels carry over, fully automated). Every
@@ -231,7 +234,8 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
   magnitude and per-tier configs ride it); B4 margin confidence → B3 string
   editor (ship as a pair); A6 GAPS gold fix.
 - **Week 3**: A5 chord-shape port; B5 persistence + history; A8
-  studio-condition eval; A7 GAPS-native prior (after A6).
+  studio-condition eval. *(A7 dropped — skipped per the A2 negative,
+  2026-07-02.)*
 - **Week 4+**: A9 posteriors → filter retune; A11 onset ensemble; B9/B10/B11;
   then approval-gated work as decisions land: B6 export (MIDI first), A12
   tabcnn, B7 quantization (Phase 9).
