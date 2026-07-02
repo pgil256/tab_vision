@@ -1273,3 +1273,42 @@ over chasing it. `frame_threshold` is confirmed to have **zero effect on Tab
 F1 specifically** (it only gates note duration/offset, which this eval's
 onset+pitch+string+fret matching doesn't score) — not just untested, a
 structurally inert lever for this metric.
+
+## 2026-07-02 — `tabvision transcribe` now defaults to the accepted config (`auto`→highres + `guitarset-v1` prior); measured parity with the banked baseline
+
+**Phase:** v1 shipped-config alignment (2026-07-01 roadmap, item A1; user-directed
+day-one path).
+**Decision tree:** the roadmap's "two biggest gaps aren't model gaps" finding #1:
+`tabvision transcribe` defaulted to `basicpitch` + `--position-prior none` while every
+acceptance number was measured with `highres` + `guitarset-v1` (the prior alone is
+worth +22–29pp Tab F1), so CLI users silently got a much worse pipeline than the one
+we validated. Measure parity through the new default code path before committing.
+**Branch taken:** **Changed the `transcribe` defaults to `--audio-backend auto` +
+`--position-prior guitarset-v1`.** `auto` (not bare `highres`) because
+`run_pipeline`'s tone-toggle routing (`audio_backend_for_session`) resolves `auto` →
+`highres` for the default acoustic/classical instrument and → `highres-electric` for
+`--instrument electric` — so the electric toggle now also works without a backend
+flag. `basicpitch` and `--position-prior none` stay reachable as explicit flags for
+ablations/evals; the composite-eval harness is unaffected (its own defaults were
+already the accepted config).
+**Evidence (measured parity, not assumed):** one composite-eval run on
+`data/eval/local_gs_val24.toml` with `--backend auto` — i.e. through the same
+auto-resolution path the CLI default now takes — reproduces the banked baseline
+**bit-for-bit**: single_line Tab F1 0.4820 (lower-95 0.3761, onset 0.9227, pitch
+0.9140), strummed 0.7951 (lower-95 0.7565, onset 0.9359, pitch 0.9184), identical
+to `v1_1_audiofilters_off_val24_2026-06-30.md`. Report:
+`docs/EVAL_REPORTS/v1_1_cli_default_parity_val24_2026-07-02{,_decomp}.md`. CLI smoke
+on a real GuitarSet clip (`05_BN1-129-Eb_solo_mic.wav`, zero config flags) produces a
+46-note tab end-to-end; the checked-in A440 fixture runs end-to-end but yields 0
+notes under `highres` (guitar-trained model vs synthetic sine — a model behavior, not
+a CLI bug; the fixture's non-empty expectation is basicpitch-specific and its e2e
+test still pins `basicpitch` explicitly).
+**Reasoning / notes:** (1) the first `highres` run downloads the checkpoint once
+(~37 s) — documented in `tabvision/README.md`, which also loses its stale "not
+promoted to the silent default until…" caveat (that gate was met by the 60-clip
+acceptance run + this parity check; promotion is the explicit user-directed point of
+roadmap A1). (2) On Windows py3.12 the old default was outright broken
+(basicpitch/TensorFlow has no py3.12 wheels), so highres-by-default simplifies the
+supported envs. (3) `tabvision diagnose` still defaults to `basicpitch` — left
+untouched (outside A1's stated scope, lines 127–130/174–177 only); flagged as a
+follow-up alignment candidate.

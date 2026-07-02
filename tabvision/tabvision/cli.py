@@ -127,15 +127,16 @@ def _build_parser() -> argparse.ArgumentParser:
     t.add_argument(
         "--audio-backend",
         choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
-        default="basicpitch",
+        default="auto",
         help=(
-            "audio transcription backend. 'basicpitch' (Phase 1, Apache-2.0) "
-            "is fast/CPU-only. 'highres' (Phase 2) wraps Riley/Edwards + "
-            "Cwitkowitz GAPS via hf-midi-transcription (MIT) — needs torch + "
-            "extras. 'highres-fl' uses the Francois Leduc checkpoint. "
-            "'highres-electric' uses the separately fine-tuned electric "
-            "checkpoint. 'auto' is the tone toggle: routes to "
-            "'highres-electric' when --instrument electric, else 'highres'."
+            "audio transcription backend. 'auto' (default) is the tone "
+            "toggle: routes to 'highres-electric' when --instrument "
+            "electric, else 'highres' — the accepted v1 config. 'highres' "
+            "(Phase 2) wraps Riley/Edwards + Cwitkowitz GAPS via "
+            "hf-midi-transcription (MIT) — needs torch + extras; first run "
+            "downloads the checkpoint once (~37 s). 'highres-fl' uses the "
+            "Francois Leduc checkpoint. 'basicpitch' (Phase 1, Apache-2.0) "
+            "is the fast CPU-only baseline."
         ),
     )
     t.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
@@ -174,11 +175,12 @@ def _build_parser() -> argparse.ArgumentParser:
     t.add_argument(
         "--position-prior",
         choices=["none", "guitarset-v1"],
-        default="none",
+        default="guitarset-v1",
         help=(
-            "explicit pitch-to-string/fret prior for audio events. Default "
-            "'none' preserves baseline decode; 'guitarset-v1' loads the "
-            "checked-in Phase 5 artifact without requiring raw GuitarSet at runtime."
+            "pitch-to-string/fret prior for audio events. Default "
+            "'guitarset-v1' (the accepted v1 config, +22-29pp Tab F1 vs "
+            "none) loads the checked-in Phase 5 artifact without requiring "
+            "raw GuitarSet at runtime; 'none' preserves the bare decode."
         ),
     )
     t.add_argument(

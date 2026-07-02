@@ -119,10 +119,13 @@ def test_video_stride_validated_on_diagnose():
 # ---------- --audio-backend ----------
 
 
-def test_audio_backend_default_is_basicpitch():
+def test_audio_backend_default_is_auto():
+    """The accepted v1 config is the default: 'auto' resolves to 'highres'
+    for the default acoustic instrument (``audio_backend_for_session``) and
+    keeps the electric tone-toggle routing live without a flag."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
-    assert args.audio_backend == "basicpitch"
+    assert args.audio_backend == "auto"
 
 
 @pytest.mark.parametrize(
@@ -154,16 +157,19 @@ def test_audio_backend_auto_available_on_diagnose():
 # ---------- --position-prior ----------
 
 
-def test_position_prior_default_none():
+def test_position_prior_default_guitarset_v1():
+    """The accepted v1 config ships by default — the guitarset-v1 prior is
+    worth +22-29pp Tab F1 over 'none' (acceptance run, 2026-06)."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
-    assert args.position_prior == "none"
-
-
-def test_position_prior_explicit_guitarset_v1():
-    parser = _build_parser()
-    args = parser.parse_args(["transcribe", "in.mp4", "--position-prior", "guitarset-v1"])
     assert args.position_prior == "guitarset-v1"
+
+
+def test_position_prior_none_reachable():
+    """The bare decode stays reachable for ablations/evals."""
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--position-prior", "none"])
+    assert args.position_prior == "none"
 
 
 def test_position_prior_only_on_transcribe():
