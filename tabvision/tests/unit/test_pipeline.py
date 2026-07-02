@@ -393,6 +393,111 @@ def test_run_pipeline_attaches_named_pitch_position_prior_when_explicit(monkeypa
     assert captured["events"][0].fret_prior is prior_matrix
 
 
+# ---------- sequence prior (A15) coupling ----------
+
+
+@pytest.fixture
+def seq_prior_env(monkeypatch):
+    """Clear the sweep env knobs and record set/load calls."""
+    monkeypatch.delenv("TABVISION_TRANSITION_PRIOR", raising=False)
+    monkeypatch.delenv("TABVISION_TRANSITION_PRIOR_WEIGHT", raising=False)
+    calls: dict = {"sentinel": object()}
+
+    def fake_load(name):
+        calls["loaded"] = name
+        return calls["sentinel"]
+
+    def fake_set(prior, weight=None):
+        calls.update(prior=prior, weight=weight, set_called=True)
+
+    monkeypatch.setattr(pipeline, "load_transition_prior", fake_load)
+    monkeypatch.setattr(pipeline, "set_transition_prior", fake_set)
+    return calls
+
+
+def test_install_sequence_prior_auto_couples_on_when_position_prior_active(seq_prior_env):
+    pipeline._install_sequence_prior("auto", position_prior_active=True)
+    assert seq_prior_env["loaded"] == pipeline.SEQUENCE_PRIOR_DEFAULT
+    assert seq_prior_env["prior"] is seq_prior_env["sentinel"]
+    assert seq_prior_env["weight"] == pipeline.SEQUENCE_PRIOR_WEIGHT
+
+
+def test_install_sequence_prior_auto_off_when_position_prior_off(seq_prior_env):
+    """The coupling is load-bearing: uncoupled seq prior is a banked GAPS
+    regression (0.647→0.593, DECISIONS.md 2026-07-02). 'auto' without the
+    position prior must clear any previously installed prior."""
+    pipeline._install_sequence_prior("auto", position_prior_active=False)
+    assert seq_prior_env["set_called"] is True
+    assert seq_prior_env["prior"] is None
+    assert "loaded" not in seq_prior_env
+
+
+def test_install_sequence_prior_none_clears_even_when_position_prior_active(seq_prior_env):
+    pipeline._install_sequence_prior("none", position_prior_active=True)
+    assert seq_prior_env["prior"] is None
+
+
+def test_install_sequence_prior_explicit_name_overrides_coupling(seq_prior_env):
+    """An explicit artifact name is a deliberate uncoupled run (ablations)."""
+    pipeline._install_sequence_prior("guitarset-seq-v1", position_prior_active=False)
+    assert seq_prior_env["loaded"] == "guitarset-seq-v1"
+    assert seq_prior_env["prior"] is seq_prior_env["sentinel"]
+
+
+def test_install_sequence_prior_env_var_wins_over_argument(seq_prior_env, monkeypatch):
+    """TABVISION_TRANSITION_PRIOR is the sweep knob — when set, the
+    pipeline must not clobber playability's env-driven lazy install."""
+    monkeypatch.setenv("TABVISION_TRANSITION_PRIOR", "guitarset-seq-v1")
+    pipeline._install_sequence_prior("auto", position_prior_active=True)
+    assert "set_called" not in seq_prior_env
+
+
+def test_install_sequence_prior_env_weight_respected(seq_prior_env, monkeypatch):
+    """An explicit weight env var keeps playability's env-derived weight
+    instead of the gate-accepted default."""
+    monkeypatch.setenv("TABVISION_TRANSITION_PRIOR_WEIGHT", "2.0")
+    pipeline._install_sequence_prior("auto", position_prior_active=True)
+    assert seq_prior_env["weight"] is None
+
+
+def test_run_pipeline_default_installs_sequence_prior_with_position_prior(
+    seq_prior_env, monkeypatch
+):
+    """Default-on flip: the accepted config (position prior on) carries the
+    sequence prior at the gate-accepted weight without any flag."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    monkeypatch.setattr(
+        pipeline, "load_pitch_position_prior", lambda name, *, cfg=None: _NoopPositionPrior()
+    )
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+
+    pipeline.run_pipeline(
+        "ignored.mp4", audio_backend=audio, video_enabled=False, position_prior="guitarset-v1"
+    )
+
+    assert seq_prior_env["loaded"] == pipeline.SEQUENCE_PRIOR_DEFAULT
+    assert seq_prior_env["weight"] == pipeline.SEQUENCE_PRIOR_WEIGHT
+
+
+def test_run_pipeline_no_position_prior_keeps_sequence_prior_off(seq_prior_env, monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+
+    pipeline.run_pipeline("ignored.mp4", audio_backend=audio, video_enabled=False)
+
+    assert seq_prior_env["prior"] is None
+    assert "loaded" not in seq_prior_env
+
+
+class _NoopPositionPrior:
+    def matrix_for_pitch(self, pitch_midi):
+        return None
+
+
 def test_run_pipeline_keeps_melodic_prior_disabled_by_default(monkeypatch):
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
 

@@ -118,7 +118,10 @@ def _viterbi_clusters(
 
     for i in range(1, n):
         cluster_i, states_i = cluster_data[i]
-        prev_states = cluster_data[i - 1][1]
+        prev_cluster, prev_states = cluster_data[i - 1]
+        # The learned sequence prior (A15) models note-to-note movement;
+        # chord-to-chord transitions stay on the hand-coded terms.
+        single_line_move = len(prev_cluster) == 1 and len(cluster_i) == 1
         cost[i] = [math.inf] * len(states_i)
         backptr[i] = [-1] * len(states_i)
         for si, state in enumerate(states_i):
@@ -126,7 +129,12 @@ def _viterbi_clusters(
             anchor_curr = chord.chord_anchor(state)
             for pi, prev_state in enumerate(prev_states):
                 anchor_prev = chord.chord_anchor(prev_state)
-                trans = playability.transition_cost(anchor_prev, anchor_curr, cfg)
+                trans = playability.transition_cost(
+                    anchor_prev,
+                    anchor_curr,
+                    cfg,
+                    use_sequence_prior=single_line_move,
+                )
                 total = cost[i - 1][pi] + trans + emit
                 if total < cost[i][si]:
                     cost[i][si] = total

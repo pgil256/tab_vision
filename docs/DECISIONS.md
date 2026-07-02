@@ -1373,3 +1373,83 @@ license-review → CPU n-gram → (rule-8 gated) neural model, with hard
 no-regression gates on both val24 and GAPS clean-12 given the A2
 domain-sensitivity result. Not covered by banked negatives (melodic prior was
 hand-coded; WS4 was visual).
+
+## 2026-07-02 — A15 step 1: GuitarSet sequence prior has real in-domain signal; gated to singleton moves + tied to the unigram config family
+
+**Phase:** v1.1 accuracy roadmap A15 (fingering-sequence prior), staging step 1
+(free in-domain probe) executed per the user's 2026-07-02 plan (merge PR #19 →
+GuitarSet probe → PDMX-only license review → gated n-gram probes → neural only
+on signal + sign-off).
+**Decision tree:** roadmap A15 hard gates (no-regression on BOTH val24 and GAPS;
+key the prior rather than shipping one global default).
+**Branch taken:** implemented `fusion/transition_prior.py` — Δstring|Δpitch
+n-gram (schemes `delta`, `delta_fret` with count-backoff), learned from
+anchor-to-anchor cluster transitions, default OFF, env-keyed
+(`TABVISION_TRANSITION_PRIOR[_WEIGHT]`), artifact `guitarset-seq-v1` (train
+players 00–04, singleton moves only). Two design decisions measured, not
+assumed:
+(1) **Ungated application is a banked negative** — applying the learned term to
+chord-to-chord transitions costs strummed Tab F1 (0.8564→0.8187 at w=4) and
+chord accuracy (0.792→0.733); the decode now hard-gates the term to
+singleton→singleton cluster moves (chords stay hand-coded — A5
+chord-dictionary territory, per the user's A15/A5 complement framing).
+(2) **Standalone GAPS transfer is a wash-to-negative** (GuitarSet-trained
+0.7782→0.7653; even GAPS-trained in-domain is a 0.7778 wash — classical
+single-line hand-coded transitions are already near-optimal), BUT under the
+product default (unigram on) the sequence term helps BOTH corpora (val24
+0.7777→0.7936, GAPS 0.6213→0.6422/0.6721 oracle) by partially repairing the
+unigram's cross-domain damage. Deployment therefore ties the sequence prior to
+the `guitarset-v1` config family (active only when the pitch-position prior
+is), leaving GAPS's accepted `--position-prior none` config untouched.
+**Evidence:** `docs/EVAL_REPORTS/a15_guitarset_sequence_probe_2026-07-02.md`,
+`a15_gaps_sequence_probe_transfer_2026-07-02.md`,
+`a15_gaps_sequence_probe_indomain_2026-07-02.md` (all oracle-audio; real-audio
+gated runs are staging step 4, pending).
+
+## 2026-07-02 — A15 step 4: gated n-gram real-audio results — 60-clip confirm PASSES, uncoupled GAPS FAILS → coupling is load-bearing
+
+**Phase:** v1.1 roadmap A15, staging step 4 (real-audio no-regression gates).
+**Branch taken:** `guitarset-seq-v1` w=4.0 measured on all three real-audio sets:
+(1) val24 accepted config: single-line 0.4820→0.5140 (lo95 0.3761→0.4144),
+strummed wash, onset/pitch bit-identical. (2) **60-clip player-05 confirm
+(accepted config + seq): single-line 0.523→0.5418, lower-95 0.457→0.4748
+(above the 0.45 gate); strummed 0.676→0.6783 wash (lo95 0.606→0.6029)** — the
+measurement-discipline bar for a default flip is met for the guitarset-v1
+config family. (3) **GAPS test-22 uncoupled (prior=none + seq): 0.6468→0.5931
+(−5.4pp), a hard gate FAIL** — real audio amplifies the oracle −0.4pp (extra
+detections create spurious singleton transitions the prior then distorts).
+**Consequence:** the sequence prior must ship tied to the guitarset-v1
+position-prior config (off when the position prior is off); a global/uncoupled
+default is a banked negative. Default flip itself = user decision, not taken.
+**Evidence:** `docs/EVAL_REPORTS/a15_val24_seq_w4_2026-07-02.md`,
+`a15_gs60_seq_w4_2026-07-02.md`, `a15_gaps22_none_seq_w4_2026-07-02.md`
+(+ decomps). Neural step (rule-8 spend) not started — recommendation queued:
+corpus scale (PDMX), not model capacity, is the bottleneck.
+
+## 2026-07-02 — A15 step 4b: default-on flip shipped as a coupled default; PDMX guitar yield resolved at 3,435
+
+**Phase:** v1.1 roadmap A15, post-gate deployment (user-directed 2026-07-02:
+"wire the seq prior into the CLI/pipeline so it's active iff the position
+prior is active").
+**Branch taken:** `run_pipeline` gained `sequence_prior="auto"` (CLI
+`--sequence-prior {auto,none,guitarset-seq-v1}`): `auto` resolves to
+`guitarset-seq-v1` at the gate-accepted w=4.0 **iff the position prior is
+active**, else clears the install. The coupling is structural, not advisory —
+the uncoupled GAPS real-audio FAIL (0.6468→0.5931, banked step-4 entry) means
+a global default was never on the table; the 60-clip lower-95 confirm
+(0.457→0.4748) is the measurement bar the flip stands on. Production (Modal
+`v1_adapter`) and the composite-eval harness inherit the coupling through
+`run_pipeline`'s default; `TABVISION_TRANSITION_PRIOR[_WEIGHT]` env vars
+override the flag for sweeps (and `=none` reproduces the pre-A15 baseline).
+val24 (`guitarset_audio.py`) drives `fuse()` directly and is untouched — its
+numbers stay env-knob-controlled. Tests: coupling branches + env precedence
+(`test_pipeline.py`), parser (`test_cli_fusion_flag.py`), plus a conftest
+save/restore of the process-global prior install.
+**Also resolved:** the Zenodo `PDMX.csv` retry succeeded — **3,435**
+`no_license_conflict`+MXL guitar-program songs (1,068 all-guitar, 798 solo;
+classical/acoustic-leaning as predicted). Mid-range of the estimate → the
+`mxl.tar.gz` TAB-staff sampling step is justified
+(`docs/2026-07-02-pdmx-license-yield-review.md`).
+**Not taken:** neural sequence model — rule-8 spend still awaiting user
+sign-off; recommendation stands (corpus scale, not model capacity, is the
+bottleneck → PDMX n-gram extraction first).

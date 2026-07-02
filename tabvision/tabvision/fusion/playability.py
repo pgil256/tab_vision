@@ -20,6 +20,7 @@ import os
 from collections.abc import Sequence
 
 from tabvision.fusion.candidates import Candidate
+from tabvision.fusion.transition_prior import TransitionPrior, load_transition_prior
 from tabvision.types import AudioEvent, FrameFingering, GuitarConfig
 
 # --- emission term weights ---
@@ -66,7 +67,39 @@ HAND_SPAN_BARRIER = 5.0
 enough to act as a soft hard-constraint while still allowing a jump
 when audio + vision agree strongly."""
 
+TRANSITION_PRIOR_WEIGHT = float(os.environ.get("TABVISION_TRANSITION_PRIOR_WEIGHT", "1.0"))
+"""Weight on the learned transition-prior term (A15). Only consulted when a
+prior is installed — default is OFF (no prior). Env-overridable for sweeps
+(``TABVISION_TRANSITION_PRIOR_WEIGHT``), matching ``POSITION_SHIFT_COST``."""
+
+_TRANSITION_PRIOR: TransitionPrior | None = None
+_TRANSITION_PRIOR_ENV_READ = False
+
 EPS = 1e-9
+
+
+def set_transition_prior(prior: TransitionPrior | None, weight: float | None = None) -> None:
+    """Install (or clear, with ``None``) the learned transition prior.
+
+    Probe/sweep entrypoint; CLI runs install via the
+    ``TABVISION_TRANSITION_PRIOR`` env var instead.
+    """
+    global _TRANSITION_PRIOR, _TRANSITION_PRIOR_ENV_READ, TRANSITION_PRIOR_WEIGHT
+    _TRANSITION_PRIOR = prior
+    _TRANSITION_PRIOR_ENV_READ = True  # explicit install wins over the env var
+    if weight is not None:
+        TRANSITION_PRIOR_WEIGHT = weight
+
+
+def active_transition_prior() -> TransitionPrior | None:
+    """The installed transition prior, lazily loading from the env once."""
+    global _TRANSITION_PRIOR, _TRANSITION_PRIOR_ENV_READ
+    if not _TRANSITION_PRIOR_ENV_READ:
+        _TRANSITION_PRIOR_ENV_READ = True
+        name = os.environ.get("TABVISION_TRANSITION_PRIOR", "").strip()
+        if name and name.lower() != "none":
+            _TRANSITION_PRIOR = load_transition_prior(name)
+    return _TRANSITION_PRIOR
 
 
 def find_fingering_at(t: float, fingerings: Sequence[FrameFingering]) -> FrameFingering | None:
@@ -148,17 +181,25 @@ def _candidate_prior(prior: object, candidate: Candidate) -> float:
     return 0.0
 
 
-def transition_cost(prev: Candidate, curr: Candidate, cfg: GuitarConfig) -> float:
+def transition_cost(
+    prev: Candidate,
+    curr: Candidate,
+    cfg: GuitarConfig,
+    *,
+    use_sequence_prior: bool = True,
+) -> float:
     """Transition cost from ``prev`` to ``curr``.
 
     - String continuity: ``-SAME_STRING_BONUS`` when on the same string.
     - Position shift: ``POSITION_SHIFT_COST * |Δfret| / SPAN_NORM``.
     - Hand-span barrier: ``HAND_SPAN_BARRIER * max(0, |Δfret| - MAX_HAND_SPAN)``.
-
-    ``cfg`` is reserved for future use (e.g. instrument-specific span
-    limits); pass the same value used elsewhere in the decode.
+    - Learned sequence prior (A15): ``TRANSITION_PRIOR_WEIGHT * -log P``
+      when a prior is installed — default off. Callers pass
+      ``use_sequence_prior=False`` for transitions the prior should not
+      shape (the Viterbi gates it to singleton→singleton cluster moves;
+      chord-to-chord movement stays on the hand-coded terms — that is
+      chord-dictionary territory, see roadmap A5/A15).
     """
-    del cfg  # unused for now; reserved.
     cost = 0.0
     delta = abs(curr.fret - prev.fret)
     cost += POSITION_SHIFT_COST * delta / SPAN_NORM
@@ -166,6 +207,10 @@ def transition_cost(prev: Candidate, curr: Candidate, cfg: GuitarConfig) -> floa
         cost += HAND_SPAN_BARRIER * (delta - MAX_HAND_SPAN)
     if curr.string_idx == prev.string_idx:
         cost -= SAME_STRING_BONUS
+    if use_sequence_prior:
+        prior = active_transition_prior()
+        if prior is not None:
+            cost += TRANSITION_PRIOR_WEIGHT * prior.cost(prev, curr, cfg)
     return cost
 
 
@@ -173,6 +218,9 @@ __all__ = [
     "find_fingering_at",
     "emission_cost",
     "transition_cost",
+    "set_transition_prior",
+    "active_transition_prior",
+    "TRANSITION_PRIOR_WEIGHT",
     "LOW_FRET_BIAS",
     "OPEN_STRING_BONUS",
     "VISION_FLOOR",
