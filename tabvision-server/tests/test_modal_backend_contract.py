@@ -133,6 +133,8 @@ def test_job_from_record_accepts_iso_datetimes():
         "tone": "clean",
         "style": "mixed",
         "accuracy_mode": "accurate",
+        # None until processing starts; legacy records rehydrate the same way.
+        "video_enabled": None,
     }
 
     job = Job.from_record(record)

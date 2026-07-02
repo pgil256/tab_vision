@@ -64,8 +64,8 @@ function StageIcon({ icon, active, done }: { icon: string; active: boolean; done
   return <>{icons[icon] || null}</>;
 }
 
-function getStageIndex(stage: string): number {
-  const idx = PIPELINE_STAGES.findIndex(s => s.key === stage);
+function getStageIndex(stages: typeof PIPELINE_STAGES, stage: string): number {
+  const idx = stages.findIndex(s => s.key === stage);
   return idx >= 0 ? idx : 0;
 }
 
@@ -107,6 +107,7 @@ export function UploadPanel() {
     jobStatus,
     progress,
     currentStage,
+    pipelineVideoEnabled,
     errorMessage,
     capoFretInput,
     instrumentInput,
@@ -155,7 +156,11 @@ export function UploadPanel() {
   }, [processFile]);
 
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
-  const currentStageIndex = getStageIndex(currentStage);
+  // Audio-only pipelines never run the video stage; don't promise it.
+  const pipelineStages = pipelineVideoEnabled
+    ? PIPELINE_STAGES
+    : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video');
+  const currentStageIndex = getStageIndex(pipelineStages, currentStage);
 
   // === IDLE: Upload form ===
   if (jobStatus === 'idle') {
@@ -481,7 +486,7 @@ export function UploadPanel() {
 
           {/* Stage indicators */}
           <div className="space-y-2.5 mb-6">
-            {PIPELINE_STAGES.map((stage, idx) => {
+            {pipelineStages.map((stage, idx) => {
               const isDone = idx < currentStageIndex || (idx === currentStageIndex && progress >= 0.95);
               const isActive = idx === currentStageIndex && !isDone;
               const isPending = idx > currentStageIndex;

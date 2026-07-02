@@ -22,7 +22,7 @@ the design.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -79,6 +79,7 @@ def run_pipeline(
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
+    progress_callback: Callable[[str], None] | None = None,
 ) -> list[TabEvent]:
     """Run the full transcription pipeline on ``video_path``.
 
@@ -91,15 +92,33 @@ def run_pipeline(
     path is unchanged; ``True``/``False`` or an explicit ``AudioFilterConfig``
     forces it. Ignored when ``audio_backend`` is supplied (the injected
     backend carries its own filter config).
+
+    ``progress_callback``, when given, is invoked with a stage name as each
+    pipeline stage *starts*: ``demux`` → ``model_load`` → ``audio_inference``
+    → ``video_analysis`` (only when the video stack runs) → ``decode``.
+    Rendering happens outside this function, so callers wanting a render
+    stage emit it themselves after this returns. Callback exceptions are
+    logged and swallowed — progress reporting must never break a
+    transcription. Default ``None`` is a strict no-op.
     """
     cfg = cfg or GuitarConfig()
     session = session or SessionConfig()
 
+    def _notify(stage: str) -> None:
+        if progress_callback is None:
+            return
+        try:
+            progress_callback(stage)
+        except Exception as exc:  # noqa: BLE001 — progress must never break transcription
+            logger.warning("progress callback failed on %r: %s", stage, exc)
+
+    _notify("demux")
     logger.info("demuxing %s", video_path)
     demuxed = demux(video_path)
 
     # Tone toggle: "auto" routes to the backend for the session's instrument
     # (electric → highres-electric, else acoustic highres). Explicit names pass through.
+    _notify("model_load")
     if audio_backend is None and audio_backend_name == "auto":
         audio_backend_name = audio_backend_for_session(session)
     if audio_backend is not None:
@@ -109,6 +128,9 @@ def run_pipeline(
         # on, highres off); a bool / AudioFilterConfig overrides it.
         filter_kwargs = {} if audio_filters is None else {"filter_config": audio_filters}
         audio = _make_audio_backend(audio_backend_name, **filter_kwargs)
+    # Backends load checkpoints lazily on first transcribe, so the load time
+    # lands in the audio_inference stage; both map to "analyzing audio" UX-side.
+    _notify("audio_inference")
     logger.info("transcribing audio with %s", audio.name)
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
     logger.info("audio backend produced %d events", len(audio_events))
@@ -125,6 +147,7 @@ def run_pipeline(
     fingerings: list[FrameFingering] = []
     neck_anchors: list[TimedNeckAnchor] = []
     if video_enabled:
+        _notify("video_analysis")
         try:
             video_result = _run_video_stack(
                 demuxed.frame_iterator,
@@ -146,6 +169,7 @@ def run_pipeline(
         audio_events = apply_neck_anchor_priors(audio_events, neck_anchors, cfg)
         logger.info("attached %d hand-neck anchors as audio fret priors", len(neck_anchors))
 
+    _notify("decode")
     logger.info(
         "running fuse() with %d audio events, %d fingerings, lambda_vision=%.2f",
         len(audio_events),

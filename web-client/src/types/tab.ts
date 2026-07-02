@@ -47,4 +47,6 @@ export interface JobStatus {
   progress: number;
   current_stage: string;
   error_message?: string;
+  // null until processing starts (the server pipeline config decides)
+  video_enabled?: boolean | null;
 }

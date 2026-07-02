@@ -31,6 +31,10 @@ class Job:
     roi_y1: Optional[float] = None
     roi_x2: Optional[float] = None
     roi_y2: Optional[float] = None
+    # Whether the processing pipeline runs the video stack for this job.
+    # None until processing starts (the pipeline config decides, not the
+    # upload); lets the client hide video stages for audio-only runs.
+    video_enabled: Optional[bool] = None
 
     @classmethod
     def create(
@@ -72,6 +76,7 @@ class Job:
             "style": self.style,
             "accuracy_mode": self.accuracy_mode,
             "error_message": self.error_message,
+            "video_enabled": self.video_enabled,
         }
 
     def to_record(self) -> dict:
@@ -95,6 +100,7 @@ class Job:
             "roi_y1": self.roi_y1,
             "roi_x2": self.roi_x2,
             "roi_y2": self.roi_y2,
+            "video_enabled": self.video_enabled,
         }
 
     @classmethod
@@ -119,4 +125,5 @@ class Job:
             roi_y1=record.get("roi_y1"),
             roi_x2=record.get("roi_x2"),
             roi_y2=record.get("roi_y2"),
+            video_enabled=record.get("video_enabled"),
         )

@@ -118,6 +118,60 @@ def test_run_pipeline_audio_only_when_video_disabled(monkeypatch):
     assert audio.calls, "audio backend should have been invoked"
 
 
+def test_run_pipeline_reports_stages_audio_only(monkeypatch):
+    """progress_callback sees demux → model_load → audio_inference → decode
+    (no video_analysis when the video stack is disabled)."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+    stages: list[str] = []
+    out = pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(
+            events=[
+                AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)
+            ]
+        ),
+        video_enabled=False,
+        progress_callback=stages.append,
+    )
+    assert stages == ["demux", "model_load", "audio_inference", "decode"]
+    assert len(out) == 1
+
+
+def test_run_pipeline_reports_video_stage_when_enabled(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=3))
+    stages: list[str] = []
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(),
+        guitar_backend=_FakeGuitarBackend(),
+        fretboard_backend=_FakeFretboardBackend(),
+        hand_backend=_FakeHandBackend(),
+        video_stride=1,
+        progress_callback=stages.append,
+    )
+    assert stages == ["demux", "model_load", "audio_inference", "video_analysis", "decode"]
+
+
+def test_run_pipeline_progress_callback_errors_are_swallowed(monkeypatch):
+    """A broken progress callback must never break the transcription itself."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+
+    def broken(_stage: str) -> None:
+        raise RuntimeError("progress sink went away")
+
+    out = pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(
+            events=[
+                AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)
+            ]
+        ),
+        video_enabled=False,
+        progress_callback=broken,
+    )
+    assert len(out) == 1
+
+
 def test_run_pipeline_invokes_video_backends(monkeypatch):
     """With video enabled, all three video backends are called per sampled frame."""
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=9))
