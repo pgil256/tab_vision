@@ -1520,3 +1520,74 @@ env `TABVISION_TRANSITION_PRIOR`) as the measured evidence.
 `a15_val24_pdmx_seq_w4_2026-07-05.md`, `a15_val24_gspdmx_seq_w4_2026-07-05.md`,
 `a15_gaps22_none_pdmx_seq_w4_2026-07-05.md` (+ decomps); transitions cache
 regenerable via the committed extractor.
+
+## 2026-07-06 — A10: pitch_off decomposed by semitone delta — no dominant fixable mode; bucket formally closed
+
+**Phase:** v1.1 roadmap A10 (branch `v1.1/a14-a10-probes`)
+**Decision tree:** eval-decomposition instrumentation — does the opaque 11%
+`pitch_off` bucket become actionable (octave / harmonic / semitone classes need
+different fixes) or formally closed?
+**Branch taken:** **Formally closed.** Instrumented `ErrorDecomposition` with
+per-event signed semitone deltas (`pred − gold`, captured at the `pitch_off`
+match point in `decompose_errors`) plus an octave / harmonic / semitone / other
+classifier; `format_decomposition_markdown` renders the histogram + class
+summary (aggregate and per tier) in every future decomposition run. Ran the
+accepted val24 config (`highres` + `guitarset-v1`, coupled sequence prior) via
+the cached runner — baseline parity exact (single-line 0.5140 / lo-95 0.4144,
+strummed 0.7953), so the decomposition is trustworthy.
+**Evidence:** `pitch_off` = 117 events = 11.2% of loss. Classes: **other 61
+(52%)**, harmonic 30 (26%), semitone 20 (17%), **octave 6 (5%)**; 109/117 in
+strummed; the largest single delta is −5 with 11 events. Reports:
+`docs/EVAL_REPORTS/a10_val24_baseline_2026-07-06.md`,
+`docs/EVAL_REPORTS/a10_val24_pitch_off_decomposition_2026-07-06.md`. Unit
+coverage: `tests/unit/test_error_decomposition.py`,
+`tests/unit/test_composite_report_formatting.py` (611 unit tests green).
+**Reasoning:** The classic cheap fix — octave disambiguation — would address 6
+notes (~0.6% of total loss); harmonic suppression ~2.9%. Nothing clears the
+cost bar of even an hours-class intervention. The bucket is dominated by
+diffuse near-miss pairings inside dense strummed clusters (52% "other", spread
+−19..+24 with no mass concentration), i.e. a matching artifact of chord-dense
+audio, not a detector pitch pathology. Closed as a fix target; the
+instrumentation is permanent, so any future backend whose histogram
+re-concentrates (e.g. octave-heavy) reopens the bucket for free.
+
+## 2026-07-06 — A14: video complementarity probe — no routed hybrid exists; the video question is CLOSED on every measured axis
+
+**Phase:** v1.1 roadmap A14 (branch `v1.1/a14-a10-probes`)
+**Decision tree:** chunk-6 capstone follow-up — the aggregate said audio 0.778 >
+video 0.574, but did it hide a complementary per-note subpopulation that an
+audio-uncertainty-keyed router could exploit? (The one hybrid left unmeasured
+before the D1 SPEC edit.)
+**Branch taken:** **No hybrid exists; video CLOSED for D1.** Built the
+cache-only per-note join (`scripts/eval/a14_video_complementarity_probe.py`):
+a fuse-mirroring decode (self-checked identical to `fuse(events, [], cfg)` on
+all 12 clips) that also extracts a per-note **string-flip local margin** (best
+vs cheapest string-changing state, neighbours fixed — the same trellis quantity
+B4 will surface), joined against WS1-calibrated best-orientation video
+predictions from the WS0 rich cache. Parity reproduced: audio 0.780 (capstone
+0.778 — 31 of 10,103 notes lost to span-infeasible clusters), video 0.574 exact.
+**Evidence** (`docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md`, 7,666
+joined notes):
+- 2×2 confusion: audio-wrong ∩ video-right = **443 (5.8%)** — the oracle-router
+  ceiling is +5.8pp and requires a perfect per-note router.
+- **Anti-enrichment:** P(video right | audio wrong) = **0.285** vs marginal
+  0.574 — video is *half* as accurate exactly where audio fails. Errors are
+  strongly co-located, the opposite of complementary evidence.
+- **Chord axis refuted** (D1's open 0.85 reference): on chord-member notes
+  audio is *better* (0.819 vs 0.779 singleton) and video *worse* (0.542 vs
+  0.600) — the "a chord shape is one static frame" hypothesis fails on real
+  footage.
+- **Routing sweep:** the margin is genuinely informative about audio errors
+  (Q1 audio acc 0.695 vs Q4 0.846), but video underperforms audio in **every**
+  margin quartile (worst gap −0.264, even Q1 −0.185), so every τ > 0 loses;
+  best routed Δ = +0.0000 (route nothing).
+**Reasoning:** Audio and video are not independent witnesses on this corpus —
+both fail on the same hard notes, and where audio's playability decode is
+uncertain, the CV chain is *more* degraded (occlusion/motion at position
+shifts). Combined with the capstone, every axis is now measured: aggregate
+(capstone), gated/ungated fusion at any λ/orientation (capstone), uncertainty-
+routed hybrid (this), chord axis (this). Recommendation for the D1 packet:
+retire the 0.85 chord-instance and 0.86 strummed video-assisted references the
+same way the 0.94 single-line was retired — no video-assisted stretch number
+until a video chain demonstrates one. **Do-not-retry:** audio-uncertainty-keyed
+(or any confidence-keyed) routing of the current CV chain's string evidence.
