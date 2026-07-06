@@ -134,6 +134,20 @@ Notably, the vision extra includes ultralytics under AGPL-3.0 by explicit
 project decision, so it must remain opt-in until integration confirms the
 shipping policy.
 
+### Dataset attribution
+
+The shipped fingering-prior artifacts under `tabvision/fusion/priors/` are
+derived count statistics (never redistributed score/audio content) from:
+
+- **GuitarSet** (Xi et al., ISMIR 2018) — `guitarset-v1`,
+  `guitarset-seq-v1`.
+- **PDMX** (Long et al., "PDMX: A Large-Scale Public Domain MusicXML
+  Dataset for Symbolic Music Processing", ICASSP 2025;
+  DOI [10.5281/zenodo.15571083](https://doi.org/10.5281/zenodo.15571083)) —
+  `pdmx-seq-v1`, `guitarset-pdmx-seq-v1`; built from the
+  `no_license_conflict` subset only, per the license review in
+  `../LICENSES.md`.
+
 ## Portfolio Docs
 
 Portfolio/demo scaffolding lives at `../docs/DEMO/` and `../docs/NARRATIVE.md`.
