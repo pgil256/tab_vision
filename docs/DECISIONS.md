@@ -1477,3 +1477,46 @@ no-regression gates (expect a classical-leaning prior; config-keying is the
 guard). Neural remains not-started per the standing no-spend recommendation.
 **Evidence:** `docs/2026-07-02-pdmx-license-yield-review.md` (TAB-staff
 section); scan summary JSON regenerable via the committed scanner.
+
+## 2026-07-05 — A15 PDMX n-gram verdict: corpus scale does NOT beat domain match; guitarset-seq-v1 stays the default; A15 CLOSED
+
+**Phase:** v1.1 roadmap A15, PDMX extraction + n-gram probe (final step of the
+2026-07-02 staged plan; branch `v1.1/a15-pdmx-ngram`).
+**Branch taken:** extracted the full PDMX TAB corpus
+(`scripts/acquire/pdmx_extract_transitions.py`): 734 TAB-bearing scores →
+**554 standard-tuning used** (180 scordatura skipped — the decode assumes
+EADGBE and scordatura changes the Δpitch↔Δstring geometry; the 10-score scan
+sample happened to miss all of them), 260,935 notes walked, 690 (0.26%)
+dropped pitch-inconsistent → **71,527 singleton transitions ≈ 5.1×** the
+14,003 behind `guitarset-seq-v1`. Clustering is score-time by construction
+(same-onset chords cluster exactly; any positive score-time gap is a
+transition — the 80 ms audio rule cannot apply to divisions), so PDMX
+"singleton moves" are defined slightly more finely than GuitarSet's.
+Built two schema-v1 candidates with the gate-accepted hyperparameters:
+`pdmx-seq-v1` (PDMX-only) and `guitarset-pdmx-seq-v1` (GuitarSet counts ×5 to
+match PDMX mass, then summed — raw pooling would have been a PDMX near-copy).
+**Gate results (dual no-regression, exactly the step-4 harness):**
+- **Oracle:** val24 incumbent 0.7936 > pooled 0.7858 > PDMX 0.7752; GAPS-22
+  nothing beats the accepted no-prior 0.7782 (PDMX uncoupled 0.7755 wash).
+- **Real-audio val24 (accepted config, w=4):** single-line incumbent
+  **0.5140** (lo95 0.4144) vs PDMX **0.4782** (−3.6pp, FAIL) and pooled
+  **0.5047** (−0.9pp, FAIL); strummed a three-way wash (0.7949–0.7954);
+  onset/pitch bit-identical as expected.
+- **Real-audio GAPS-22 uncoupled (prior none + seq w=4):** PDMX **0.6381**
+  vs no-seq baseline **0.6468** (−0.9pp) — far better than guitarset-seq's
+  banked −5.4pp (0.5931), but still a regression → uncoupling stays dead.
+**Consequence:** `SEQUENCE_PRIOR_DEFAULT` stays `guitarset-seq-v1`; the
+coupled default shipped in step 4b is unchanged. The corpus-scale question
+is now answered with data: **5× more (cleaner, full-piece) transitions from
+the wrong domain lose to 14k in-domain samples** — the n-gram was already
+data-saturated, and what PDMX's breadth buys is cross-domain robustness
+(GAPS damage −5.4pp → −0.9pp), not in-domain accuracy. This also finalizes
+the neural no-go: if 5× data doesn't move a 2-parameter-context n-gram,
+model capacity was never the bottleneck; domain-matched data is. A15 is
+CLOSED. The candidate artifacts stay committed and selectable
+(`--sequence-prior pdmx-seq-v1` / `guitarset-pdmx-seq-v1`,
+env `TABVISION_TRANSITION_PRIOR`) as the measured evidence.
+**Evidence:** `docs/EVAL_REPORTS/a15_pdmx_oracle_{val24,gaps22}_2026-07-05.md`,
+`a15_val24_pdmx_seq_w4_2026-07-05.md`, `a15_val24_gspdmx_seq_w4_2026-07-05.md`,
+`a15_gaps22_none_pdmx_seq_w4_2026-07-05.md` (+ decomps); transitions cache
+regenerable via the committed extractor.
