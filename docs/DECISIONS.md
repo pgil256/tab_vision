@@ -1591,3 +1591,27 @@ retire the 0.85 chord-instance and 0.86 strummed video-assisted references the
 same way the 0.94 single-line was retired — no video-assisted stretch number
 until a video chain demonstrates one. **Do-not-retry:** audio-uncertainty-keyed
 (or any confidence-keyed) routing of the current CV chain's string evidence.
+
+## 2026-07-06 — D1 (partial): strummed 0.86 + chord-instance 0.85 video-assisted references RETIRED (user-approved)
+
+**Phase:** v1.1 / D1 decision packet (`docs/2026-07-06-d1-decision-packet.md`).
+**Decision tree:** the 0.86 strummed / 0.85 chord-instance video-assisted
+reference targets were held open pending A14 (chord-frame video, the one axis
+where video plausibly beat audio). A14 refuted it — retire, or keep as an
+aspirational reference?
+**Branch taken (user, 2026-07-06):** **RETIRE both**, mirroring the 0.94
+single-line retirement (2026-07-02). SPEC §1.4.1 amended. No video-assisted
+stretch number stands for any tier; v1 records audio-only baselines
+(single-line ≥ 0.45 gate; strummed / chord-instance as measured). Any future
+stretch number must be *demonstrated* first (rule 7). **Data + code kept:** the
+video chain (`tabvision/video/*`), GAPS caches, and probes stay in the repo as
+measured evidence and remain runnable — they are no longer acceptance targets.
+**Evidence:** A14 (`docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md`,
+DECISIONS 2026-07-06) — chord-member notes: audio 0.819 > video 0.542;
+P(video right | audio wrong) 0.285 (anti-enriched); no router beats audio-only.
+Plus the chunk-6 capstone (audio 0.778 > video 0.574) + the A2 domain-sensitivity
+negative.
+**Reasoning:** every axis video could plausibly win is now measured and lost, so
+holding these references open would be promising what nothing has demonstrated.
+Retiring them keeps the SPEC honest. The still-open D1 items (expressive-markings
+stretch, studio-condition tier, stale §15) remain the user's to decide.
