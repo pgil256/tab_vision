@@ -24,18 +24,29 @@ from tabvision.fusion.transition_prior import TransitionPrior, load_transition_p
 from tabvision.types import AudioEvent, FrameFingering, GuitarConfig
 
 # --- emission term weights ---
-LOW_FRET_BIAS = 0.10
+# A3: every fusion constant is env-overridable so the in-process sweep
+# (scripts.eval.a3_fusion_sweep) can rebind it. Rebinding the module attribute
+# at runtime also works because emission_cost/transition_cost read these globals
+# on each call.
+LOW_FRET_BIAS = float(os.environ.get("TABVISION_LOW_FRET_BIAS", "0.10"))
 """Cost added per fret index. Keeps the decoder honest when audio + vision
 are flat — picks the lower fret all else equal. Same magnitude as the legacy
-``viterbi.LOWER_FRET_BIAS``."""
+``viterbi.LOWER_FRET_BIAS``. Env-overridable (``TABVISION_LOW_FRET_BIAS``)."""
 
-OPEN_STRING_BONUS = 0.5
+OPEN_STRING_BONUS = float(os.environ.get("TABVISION_OPEN_STRING_BONUS", "0.5"))
 """Cost subtracted when the candidate is an open string (fret 0).
 
 Open strings are systematically under-represented by MediaPipe-derived
 ``marginal_string_fret`` because there is no fingertip pressing — this
-bonus re-introduces them. Magnitude calibrated to roughly cancel the
-vision-floor cost (``-log(VISION_FLOOR)`` over a uniform marginal)."""
+bonus re-introduces them. The docstring's original calibration cancelled a
+now-absent vision floor, so this is a prime A3 sweep target. Env-overridable
+(``TABVISION_OPEN_STRING_BONUS``)."""
+
+FRET_PRIOR_WEIGHT = float(os.environ.get("TABVISION_FRET_PRIOR_WEIGHT", "1.0"))
+"""Weight on the audio ``-log(fret_prior[s, f])`` emission term (A3). Was
+full-strength with no knob; the position/timbral prior is the strongest string
+signal, so its weight is worth sweeping. Env-overridable
+(``TABVISION_FRET_PRIOR_WEIGHT``); default 1.0 reproduces prior behaviour."""
 
 VISION_FLOOR = 1e-3
 """Minimum probability used when computing ``-log P_vision``. Caps the
@@ -44,9 +55,10 @@ a confident wrong fingering can still be overridden by strong audio +
 playability evidence."""
 
 # --- transition term weights ---
-SAME_STRING_BONUS = 0.5
+SAME_STRING_BONUS = float(os.environ.get("TABVISION_SAME_STRING_BONUS", "0.5"))
 """Cost subtracted when ``prev.string_idx == curr.string_idx``. Direct
-port of legacy ``STRING_CONTINUITY_BONUS``."""
+port of legacy ``STRING_CONTINUITY_BONUS``. Env-overridable
+(``TABVISION_SAME_STRING_BONUS``)."""
 
 POSITION_SHIFT_COST = float(os.environ.get("TABVISION_POSITION_SHIFT_COST", "2.5"))
 """Cost per fret of ``|curr.fret - prev.fret|`` (after normalisation by
@@ -56,16 +68,28 @@ POSITION_SHIFT_COST = float(os.environ.get("TABVISION_POSITION_SHIFT_COST", "2.5
 left continuity effectively off. Env-overridable (``TABVISION_POSITION_SHIFT_COST``)
 for sweeps. See docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md."""
 
-SPAN_NORM = 12
-"""Normalisation for ``POSITION_SHIFT_COST`` — one octave."""
+SPAN_NORM = float(os.environ.get("TABVISION_SPAN_NORM", "12"))
+"""Normalisation for ``POSITION_SHIFT_COST`` — one octave. Env-overridable
+(``TABVISION_SPAN_NORM``)."""
 
-MAX_HAND_SPAN = 5
-"""Frets — beyond this distance the hand-span barrier kicks in."""
+MAX_HAND_SPAN = int(float(os.environ.get("TABVISION_MAX_HAND_SPAN", "5")))
+"""Frets — beyond this distance the hand-span barrier kicks in. Env-overridable
+(``TABVISION_MAX_HAND_SPAN``). Note: ``chord.enumerate_chord_states`` imports
+this by value at import time, so a runtime rebind only affects transition
+costs, not chord-state pruning — sweep it via the env var for full effect."""
 
-HAND_SPAN_BARRIER = 5.0
+HAND_SPAN_BARRIER = float(os.environ.get("TABVISION_HAND_SPAN_BARRIER", "5.0"))
 """Cost added per fret of overshoot beyond ``MAX_HAND_SPAN``. Steep
 enough to act as a soft hard-constraint while still allowing a jump
-when audio + vision agree strongly."""
+when audio + vision agree strongly. Env-overridable
+(``TABVISION_HAND_SPAN_BARRIER``)."""
+
+TRANSITION_GAP_TAU = float(os.environ.get("TABVISION_TRANSITION_GAP_TAU", "inf"))
+"""A4 — time constant (seconds) decaying the hand-continuity transition terms
+(string-continuity bonus, position-shift cost, hand-span barrier) by
+``exp(-gap / TAU)`` of the inter-onset gap: notes far apart in time couple the
+fretting hand less. ``inf`` (default) disables the decay — bit-identical to the
+gap-blind cost. Env-overridable (``TABVISION_TRANSITION_GAP_TAU``)."""
 
 TRANSITION_PRIOR_WEIGHT = float(os.environ.get("TABVISION_TRANSITION_PRIOR_WEIGHT", "1.0"))
 """Weight on the learned transition-prior term (A15). Only consulted when a
@@ -152,7 +176,7 @@ def emission_cost(
 
     if event.fret_prior is not None:
         prior = _candidate_prior(event.fret_prior, candidate)
-        cost += -math.log(max(prior, EPS))
+        cost += FRET_PRIOR_WEIGHT * -math.log(max(prior, EPS))
 
     if fingering is not None:
         marginal = fingering.marginal_string_fret()
@@ -187,6 +211,7 @@ def transition_cost(
     cfg: GuitarConfig,
     *,
     use_sequence_prior: bool = True,
+    gap_s: float | None = None,
 ) -> float:
     """Transition cost from ``prev`` to ``curr``.
 
@@ -199,14 +224,25 @@ def transition_cost(
       shape (the Viterbi gates it to singleton→singleton cluster moves;
       chord-to-chord movement stays on the hand-coded terms — that is
       chord-dictionary territory, see roadmap A5/A15).
+
+    A4 — when ``gap_s`` (inter-onset seconds) is given and
+    :data:`TRANSITION_GAP_TAU` is finite, the three hand-continuity terms are
+    scaled by ``exp(-gap_s / TAU)``: a longer gap gives the hand time to move,
+    so continuity should bind less. The learned sequence prior is *not* decayed
+    (it is a note-order statistic, not a hand-geometry term). With the default
+    ``TAU = inf`` the factor is 1.0 and the cost is bit-identical to before.
     """
+    decay = 1.0
+    if gap_s is not None and math.isfinite(TRANSITION_GAP_TAU):
+        decay = math.exp(-max(0.0, gap_s) / max(TRANSITION_GAP_TAU, EPS))
+
     cost = 0.0
     delta = abs(curr.fret - prev.fret)
-    cost += POSITION_SHIFT_COST * delta / SPAN_NORM
+    cost += decay * POSITION_SHIFT_COST * delta / SPAN_NORM
     if delta > MAX_HAND_SPAN:
-        cost += HAND_SPAN_BARRIER * (delta - MAX_HAND_SPAN)
+        cost += decay * HAND_SPAN_BARRIER * (delta - MAX_HAND_SPAN)
     if curr.string_idx == prev.string_idx:
-        cost -= SAME_STRING_BONUS
+        cost -= decay * SAME_STRING_BONUS
     if use_sequence_prior:
         prior = active_transition_prior()
         if prior is not None:
@@ -221,8 +257,10 @@ __all__ = [
     "set_transition_prior",
     "active_transition_prior",
     "TRANSITION_PRIOR_WEIGHT",
+    "TRANSITION_GAP_TAU",
     "LOW_FRET_BIAS",
     "OPEN_STRING_BONUS",
+    "FRET_PRIOR_WEIGHT",
     "VISION_FLOOR",
     "SAME_STRING_BONUS",
     "POSITION_SHIFT_COST",

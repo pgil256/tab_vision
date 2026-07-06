@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -146,12 +147,12 @@ def load_pitch_position_prior(
             )
             for _ in range(count)
         )
-    return learn_pitch_position_prior(
-        examples,
-        cfg=cfg,
-        alpha=float(payload.get("alpha", 1.0)),
-        power=float(payload.get("power", 2.0)),
-    )
+    # A3 sweep: TABVISION_PRIOR_ALPHA / _POWER override the artifact's smoothing
+    # so alpha/power (never swept) can be grid-searched without regenerating the
+    # prior JSON. Absent env vars keep the artifact's baked-in values.
+    alpha = float(os.environ.get("TABVISION_PRIOR_ALPHA", payload.get("alpha", 1.0)))
+    power = float(os.environ.get("TABVISION_PRIOR_POWER", payload.get("power", 2.0)))
+    return learn_pitch_position_prior(examples, cfg=cfg, alpha=alpha, power=power)
 
 
 __all__ = [

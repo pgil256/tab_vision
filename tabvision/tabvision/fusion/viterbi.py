@@ -122,6 +122,9 @@ def _viterbi_clusters(
         # The learned sequence prior (A15) models note-to-note movement;
         # chord-to-chord transitions stay on the hand-coded terms.
         single_line_move = len(prev_cluster) == 1 and len(cluster_i) == 1
+        # A4: inter-onset gap between clusters (first-event onsets) decays the
+        # hand-continuity terms. None when TAU is inf (the default) — no-op.
+        gap_s = cluster_i[0].onset_s - prev_cluster[0].onset_s
         cost[i] = [math.inf] * len(states_i)
         backptr[i] = [-1] * len(states_i)
         for si, state in enumerate(states_i):
@@ -134,6 +137,7 @@ def _viterbi_clusters(
                     anchor_curr,
                     cfg,
                     use_sequence_prior=single_line_move,
+                    gap_s=gap_s,
                 )
                 total = cost[i - 1][pi] + trans + emit
                 if total < cost[i][si]:
