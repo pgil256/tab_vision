@@ -122,9 +122,10 @@ def test_extract_transitions_singleton_only_skips_chord_moves():
     assert singles[0] == (2, 0, 2)  # fret 2 -> fret 4 on string 1
 
 
-def test_named_artifact_loads_and_matches_musician_conventions():
+@pytest.mark.parametrize("name", ["guitarset-seq-v1", "pdmx-seq-v1", "guitarset-pdmx-seq-v1"])
+def test_named_artifact_loads_and_matches_musician_conventions(name):
     cfg = GuitarConfig()
-    prior = load_transition_prior("guitarset-seq-v1")
+    prior = load_transition_prior(name)
     assert prior.scheme == "delta_fret"
 
     # Unison repeat (Δpitch 0) overwhelmingly stays on the same string.

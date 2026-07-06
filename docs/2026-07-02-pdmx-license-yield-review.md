@@ -50,10 +50,30 @@ Per-program (clean+MXL songs, a song can carry several): nylon 1,628 · steel
 120 · harmonics 16. Genres: 58% untagged, then classical (524), soundtrack
 (199), rock (150), folk (111) — the predicted classical/acoustic lean is real
 but rock/pop is not zero. **3,435 lands mid-range of the prior "hundreds to a
-few thousand" estimate → the mxl.tar.gz step is justified.** The TAB-staff
-fraction (10–50% of these) is still the open variable — resolved only by
-sampling actual MXLs (step 2 below). Even at the pessimistic 10%, ~340 scores
-≈ 1.9× the GuitarSet track count behind `guitarset-seq-v1`; at 50%, ~1,700.
+few thousand" estimate → the mxl.tar.gz step is justified.**
+
+### TAB-staff scan (archive fetched + scanned 2026-07-02, user-approved)
+
+`scripts/acquire/pdmx_tab_scan.py` streamed `mxl.tar.gz` (1.89 GB, local data
+root only) and opened exactly the 3,435 filtered members (all present, none
+unreadable):
+
+- **734 TAB-bearing scores (21.4%)** — squarely inside the predicted 10–50%
+  band. Genres: 368 untagged · classical 147 · rock 46 · soundtrack 43 ·
+  folk 34 · pop 11 · jazz 9 · metal 7.
+- **Validation (10-sample, GAPS MusicXML tab walk — the extraction code
+  path):** 10/10 parse; 9/10 with per-note ``pitch == open_string + fret``
+  consistency 1.000, one at 0.942 (an extraction-time per-note filter
+  handles such notes). All 10 declare `<staff-tuning>` (MuseScore always
+  writes it) and **all 10 declared tunings are standard EADGBE**.
+- **Corpus scale:** sampled scores carry ~200–1,050 tab notes (mean ≈ 460)
+  → **~340k tab notes across the 734 scores, vs 14,003 transition samples
+  behind the shipped `guitarset-seq-v1`** — a ~20× corpus bump, and full
+  pieces rather than 30 s excerpts.
+
+**Verdict: the PDMX n-gram corpus is real.** Next step is extraction +
+n-gram build through the existing probe harness with the same val24 + GAPS
+no-regression gates (step 3 below).
 
 ### Original pre-scan assessment (kept for the record)
 
@@ -87,11 +107,10 @@ sampling actual MXLs (step 2 below). Even at the pessimistic 10%, ~340 scores
    results in the yield table above. The scan script is
    session-scratch (guitar programs 24–31 over the `tracks` column ×
    `no_license_conflict` × has-MXL); counts are derived facts, safe to commit.
-2. If the guitar count is real: fetch the `mxl.tar.gz` archive once (per-score
-   fetch impossible on Zenodo; total size unverified), extract only the
-   CSV-filtered guitar paths locally, grep for `<technical>`/`<fret>` to get
-   the true tab-bearing count and validate the MuseScore 3.6.2 exporter
-   behavior on ~10 samples. Nothing committed to the repo.
+2. ~~Fetch `mxl.tar.gz` + TAB-staff scan~~ **DONE (2026-07-02,
+   user-approved)** — archive is 1.89 GB, lives in the local data root;
+   results in the TAB-staff section above (`scripts/acquire/pdmx_tab_scan.py`
+   is the committed, tested scanner). Nothing from the dataset committed.
 3. Only then: extraction + n-gram build through the same probe harness
    (`scripts/eval/a15_sequence_prior_probe.py`) with the val24 + GAPS gates.
 

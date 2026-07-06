@@ -43,6 +43,8 @@ from tabvision.types import GuitarConfig, TabEvent
 _PRIORS_DIR = Path(__file__).with_name("priors")
 _NAMED_PRIORS = {
     "guitarset-seq-v1": _PRIORS_DIR / "guitarset_seq_v1.json",
+    "pdmx-seq-v1": _PRIORS_DIR / "pdmx_seq_v1.json",
+    "guitarset-pdmx-seq-v1": _PRIORS_DIR / "guitarset_pdmx_seq_v1.json",
 }
 
 CLUSTER_GAP_S = 0.080

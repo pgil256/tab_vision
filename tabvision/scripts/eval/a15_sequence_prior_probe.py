@@ -46,6 +46,7 @@ from tabvision.fusion.transition_prior import (
     TransitionPrior,
     extract_transitions,
     learn_transition_prior,
+    load_transition_prior,
 )
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig, TabEvent
 
@@ -224,6 +225,18 @@ def main(argv: list[str] | None = None) -> int:
         help="also sweep seq-prior configs without the unigram prior (for corpora"
         " whose accepted config is --position-prior none, e.g. GAPS)",
     )
+    ap.add_argument(
+        "--artifact-priors",
+        default="",
+        help="comma-separated named/path transition-prior artifacts to sweep"
+        " (e.g. guitarset-seq-v1,pdmx-seq-v1) — loaded via load_transition_prior",
+    )
+    ap.add_argument(
+        "--skip-learned",
+        action="store_true",
+        help="skip the learned-from-train-tracks sweep (artifact comparison only;"
+        " no train parsing, no transition-stats section)",
+    )
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--alpha", type=float, default=0.5)
     ap.add_argument("--backoff-kappa", type=float, default=8.0)
@@ -238,7 +251,14 @@ def main(argv: list[str] | None = None) -> int:
     cfg = GuitarConfig()
     weights = [float(w) for w in args.weights.split(",") if w.strip()]
 
-    if args.train_source == "manifest":
+    artifact_names = [n.strip() for n in args.artifact_priors.split(",") if n.strip()]
+    if args.skip_learned and not artifact_names:
+        raise SystemExit("--skip-learned requires --artifact-priors")
+
+    if args.skip_learned:
+        train_tracks = []
+        train_label = "*(learned sweep skipped — artifact comparison only)*"
+    elif args.train_source == "manifest":
         train_clips = load_manifest_clips(args.manifest, ("train",))
         print(f"parsing {len(train_clips)} manifest train clips…", flush=True)
         train_tracks = []
@@ -265,17 +285,21 @@ def main(argv: list[str] | None = None) -> int:
         ]
         train_label = f"GuitarSet players != 05 ({len(train_ids)} tracks)"
 
-    priors = {
-        (scheme, singles): learn_transition_prior(
-            train_tracks,
-            scheme=scheme,
-            alpha=args.alpha,
-            backoff_kappa=args.backoff_kappa,
-            singleton_only=singles,
-        )
-        for scheme in ("delta", "delta_fret")
-        for singles in (False, True)
-    }
+    priors = (
+        {}
+        if args.skip_learned
+        else {
+            (scheme, singles): learn_transition_prior(
+                train_tracks,
+                scheme=scheme,
+                alpha=args.alpha,
+                backoff_kappa=args.backoff_kappa,
+                singleton_only=singles,
+            )
+            for scheme in ("delta", "delta_fret")
+            for singles in (False, True)
+        }
+    )
     unigram = load_pitch_position_prior("guitarset-v1", cfg=cfg)
 
     splits = tuple(s.strip() for s in args.splits.split(",") if s.strip())
@@ -318,6 +342,19 @@ def main(argv: list[str] | None = None) -> int:
                     f"handcoded + seq {scheme} {stats_label} w={w} (no unigram)",
                     unigram_enabled=False,
                     seq=prior,
+                    w=w,
+                )
+
+    for name in artifact_names:
+        artifact = load_transition_prior(name)
+        for w in weights:
+            run(f"unigram + artifact {name} w={w}", unigram_enabled=True, seq=artifact, w=w)
+        if args.seq_without_unigram:
+            for w in weights:
+                run(
+                    f"handcoded + artifact {name} w={w} (no unigram)",
+                    unigram_enabled=False,
+                    seq=artifact,
                     w=w,
                 )
 
