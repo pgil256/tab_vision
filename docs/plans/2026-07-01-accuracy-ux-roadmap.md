@@ -91,10 +91,13 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   `viterbi.py` state emission — the Phase 5 port that never happened). Targets
   strummed wrong_position (254 events) + chord acc (0.48 vs 0.85 reference).
   Expect strummed +0.01–0.04. Won't close the 0.85 gap by itself — say so.
-- **A6. Fix the GAPS gold coverage artifact** (repeat/volta expansion in
-  `gaps_musicxml_tab.py`): 51.5% of the GAPS-22 "loss" is missing gold, not
-  model error. Moves the headline honestly toward ~0.76 and makes all GAPS
-  tuning trustworthy at n=22. Do **before** A7.
+- **A6. Fix the GAPS gold coverage artifact** — **DONE 2026-07-06.** Repeat/volta
+  unfolding in `gaps_musicxml_tab.py` (gated on a syncpoint-span length match;
+  11/14 test-22 repeat clips unfolded, 3 nonstandard fall back). Controlled A/B:
+  honest GAPS single-line Tab F1 **0.6468 → 0.6969** (+0.050, +1,380 gold notes)
+  — a coverage-accounting correction (credits the model for repeat notes it
+  always transcribed), **not** a model gain. All GAPS tuning now re-bases on
+  0.6969. (`a6_gaps_unfold_{on,off}_2026-07-06.md`, DECISIONS 2026-07-06.)
 - ~~**A7. Build a GAPS-native position prior**~~ — **SKIPPED** (A2 branch
   logic, 2026-07-02): guitarset-v1 on GAPS test-22 is a measured negative
   (0.6468 → 0.5087, a pure correct↔wrong-string exchange of 2,131 notes; see
