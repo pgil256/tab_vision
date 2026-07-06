@@ -1520,3 +1520,59 @@ env `TABVISION_TRANSITION_PRIOR`) as the measured evidence.
 `a15_val24_pdmx_seq_w4_2026-07-05.md`, `a15_val24_gspdmx_seq_w4_2026-07-05.md`,
 `a15_gaps22_none_pdmx_seq_w4_2026-07-05.md` (+ decomps); transitions cache
 regenerable via the committed extractor.
+
+## 2026-07-06 — A3/A4: fusion-constants sweep — harness validated; movers are the domain-sensitive prior-trust lever; A4 gap-decay a wash; no default changed
+
+**Phase:** v1.1 roadmap A3+A4 (branch `v1.1/a3-a4-fusion-sweep`)
+**Decision tree:** does grid-sweeping the (now env-overridable) fusion constants
+find a safe accuracy lift, or a wash / a domain-sensitive trap?
+**Branch taken:** **Built the infra + A4, banked the sweep, changed NO default.**
+The in-process sweep (`scripts.eval.a3_fusion_sweep`, caches raw AudioEvents then
+re-fuses per grid point) reproduces the val24 baseline **0.4820 / 0.7951**
+exactly, validating it. A5 (chord dictionary) + per-tier configs ride this.
+**Evidence (val24, highres + guitarset-v1, no sequence prior):**
+- Biggest movers all = "trust the guitarset-v1 prior more": **LOW_FRET_BIAS=0.0**
+  +0.0386 agg (single-line 0.4820→0.5728), **FRET_PRIOR_WEIGHT=1.5** +0.0297
+  (0.5306/0.8060), prior **power=3.0** +0.0297 (identical). But **val24 IS
+  GuitarSet** (in-domain for that prior; the same prior is −0.138 on GAPS, A2),
+  so these are almost certainly GuitarSet-overfit → must clear GAPS clean-12
+  no-regression, expected to fail it. Flagged, not adopted.
+- **A4 `TRANSITION_GAP_TAU` (gap-decay): WASH** — best TAU=1.0 at +0.0005, most
+  values negative. Short TAU trades single-line for strummed but nets negative.
+  Keep default `inf` (off). Banked negative for the A4 hypothesis; the knob
+  stays (env-overridable) as measured evidence.
+- **Domain-neutral candidate: OPEN_STRING_BONUS=0.0** lifts strummed
+  0.7951→0.8140, single-line flat (confirms the docstring's suspicion that the
+  bonus — calibrated against a now-absent vision floor — slightly hurts
+  strummed). `SPAN_NORM=6.0` +0.0066, `CHORD_MAX_GAP_S=0.04` +0.0055 also
+  small-positive. Prior **alpha inert** (drop from future sweeps).
+**Reasoning:** The non-prior constants behave as the roadmap predicted
+(+0.005–0.02, wash-class). The large val24 lift is real but is the *same
+domain-sensitive prior-trust lever* the A2 negative already flagged — so it is a
+GuitarSet-overfit trap, not a shippable win, until it clears GAPS. The honest
+deliverable is (1) the sweep infra, (2) A4 measured as a wash, (3) a shortlist of
+gated candidates (safest: `OPEN_STRING_BONUS=0.0`). No `playability` default
+changed. Report: `docs/EVAL_REPORTS/a3_fusion_sweep_val24_2026-07-06.md`.
+
+## 2026-07-06 — A12: timbral string-ID (TabCNN) — becomes a training spend, soft no (FILED, not pursued)
+
+**Phase:** v1.1 roadmap A12 (Tier 3, approval-gated); zero-spend feasibility only.
+**Decision tree:** is a pretrained timbral string-ID model a zero-spend drop-in
+(gate: weights must exist), or does it become a rule-8 training spend?
+**Branch taken:** **BECOMES A TRAINING SPEND — soft no on current evidence; filed
+for the decision packet, not pursued.** No pretrained weights exist anywhere in
+the TabCNN lineage (TabCNN itself is unlicensed → code non-shippable; the MIT
+successors — inhibition, FretNet — also ship no checkpoints). Expected value is
+thin: paper TDR 0.84 vs our audio prior's 0.778 (measured on a *favorable*
+all-notes population, not the contested-string subset), and TabCNN's own tab F1
+0.75 is *below* our current in-domain ~0.815 — its only value would be as a
+string-posterior feed, not a transcriber. The `AudioEvent.fret_prior` channel +
+A3's new `FRET_PRIOR_WEIGHT` knob are ready if ever pursued with sign-off.
+**Evidence:** `docs/2026-07-06-a12-tabcnn-feasibility.md` (full verdict, URLs).
+The stub `audio/tabcnn.py` references a "trimplexx CRNN", not Wiggins TabCNN —
+reconcile before any build.
+**Reasoning:** The gate's "weights confirmed to exist" condition is not met, so
+proceeding needs a training run (rule 8). On TDR-0.84-vs-0.778 the lift doesn't
+justify the spend + a new CQT front-end. Recommend holding; if revisited, build
+on the MIT successors and re-scope the expected lift against the contested-string
+subset first (a zero-spend re-analysis of existing caches).
