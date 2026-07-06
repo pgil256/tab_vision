@@ -193,6 +193,70 @@ def test_decomposition_markdown_aggregates_per_clip(tmp_path: Path) -> None:
     assert "| correct | 40 |" in aggregate_section
 
 
+def test_decomposition_markdown_pitch_off_section_empty(tmp_path: Path) -> None:
+    """Fixture report has no pitch_off events → section renders the empty notice."""
+    md = format_decomposition_markdown(_report(tmp_path))
+    assert "## pitch_off semitone-delta histogram" in md
+    assert "No `pitch_off` events in this run." in md
+
+
+def test_decomposition_markdown_pitch_off_histogram(tmp_path: Path) -> None:
+    """With pitch_off deltas present, the histogram + class summary render."""
+    base = _report(tmp_path)
+    errors = ErrorDecomposition(correct=8, pitch_off=4, pitch_off_deltas=(12, 12, -1, 7))
+    clip = ClipEvalResult(
+        clip_id="GuitarSet-clean_acoustic_single_line-y",
+        tier="clean_acoustic_single_line",
+        source="GuitarSet",
+        n_gold=12,
+        n_predicted=12,
+        onset=_event_f1(0.95),
+        pitch=_event_f1(0.80),
+        tab=_tab_f1(0.60),
+        chord=_chord(0.60),
+        errors=errors,
+    )
+    tiers = dict(base.tiers)
+    single = tiers["clean_acoustic_single_line"]
+    tiers["clean_acoustic_single_line"] = TierReport(
+        tier=single.tier,
+        n_clips=single.n_clips + 1,
+        n_gold_total=single.n_gold_total + 12,
+        onset_f1=single.onset_f1,
+        pitch_f1=single.pitch_f1,
+        tab_f1=single.tab_f1,
+        chord_accuracy=single.chord_accuracy,
+        errors=ErrorDecomposition(
+            correct=18,
+            wrong_position_same_pitch=10,
+            missed_onset=4,
+            pitch_off=4,
+            pitch_off_deltas=(12, 12, -1, 7),
+        ),
+    )
+    report = CompositeReport(
+        manifest_path=base.manifest_path,
+        manifest_validation=base.manifest_validation,
+        per_clip=[*base.per_clip, clip],
+        tiers=tiers,
+        bootstrap_n=base.bootstrap_n,
+        bootstrap_seed=base.bootstrap_seed,
+        onset_tolerance_s=base.onset_tolerance_s,
+    )
+
+    md = format_decomposition_markdown(report)
+    section = md.split("## pitch_off semitone-delta histogram")[1]
+
+    assert "| +12 | 2 | 50.0% | octave |" in section
+    assert "| -1 | 1 | 25.0% | semitone |" in section
+    assert "| +7 | 1 | 25.0% | harmonic |" in section
+    assert "### Class summary (aggregate + per tier)" in section
+    # aggregate row: octave=2, harmonic=1, semitone=1, other=0, total=4
+    assert "| all tiers | 2 | 1 | 1 | 0 | 4 |" in section
+    # strummed tier has no pitch_off events
+    assert "| clean_acoustic_strummed | 0 | 0 | 0 | 0 | 0 |" in section
+
+
 @pytest.mark.parametrize(
     "tier",
     list(DEFAULT_TIER_TARGETS),
