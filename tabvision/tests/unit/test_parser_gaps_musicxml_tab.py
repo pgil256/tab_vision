@@ -15,9 +15,34 @@ import pytest
 
 pretty_midi = pytest.importorskip("pretty_midi")
 
+import xml.etree.ElementTree as ET  # noqa: E402
+
 from tabvision.eval.parsers import get_parser  # noqa: E402
 from tabvision.eval.parsers.gaps_musicxml_tab import parse  # noqa: E402
+from tabvision.eval.parsers.gaps_musicxml_tab import _unfold_measures  # noqa: E402
 from tabvision.types import GuitarConfig  # noqa: E402
+
+
+def _measure(
+    *,
+    forward: bool = False,
+    backward: int | str | None = None,
+    ending_start: str | None = None,
+    ending_stop: bool = False,
+) -> ET.Element:
+    """Build a bare <measure> carrying only the repeat/volta barlines under test."""
+    bars = ""
+    if forward:
+        bars += '<barline location="left"><repeat direction="forward"/></barline>'
+    if ending_start is not None:
+        bars += f'<barline location="left"><ending number="{ending_start}" type="start"/></barline>'
+    if ending_stop:
+        bars += '<barline location="right"><ending number="1" type="stop"/></barline>'
+    if backward is not None:
+        times = f' times="{backward}"' if backward is not None else ""
+        bars += f'<barline location="right"><repeat direction="backward"{times}/></barline>'
+    return ET.fromstring(f"<measure>{bars}</measure>")
+
 
 # line -> (step, octave) for the six tab lines (bottom=1 .. top=6).
 _STANDARD_TUNING = {1: ("E", 2), 2: ("A", 2), 3: ("D", 3), 4: ("G", 3), 5: ("B", 3), 6: ("E", 4)}
@@ -206,3 +231,138 @@ def test_missing_syncpoints_sibling_raises(tmp_path: Path) -> None:
     )
     with pytest.raises(FileNotFoundError, match="syncpoints sibling"):
         parse(xml, None)
+
+
+# --- A6: repeat/volta unfolding -------------------------------------------------
+
+
+def test_unfold_no_repeats_is_identity() -> None:
+    measures = [_measure(), _measure(), _measure()]
+    assert _unfold_measures(measures) == [0, 1, 2]
+
+
+def test_unfold_simple_repeat_doubles_section() -> None:
+    # m0, |: m1 m2 :|, m3  ->  0 1 2 1 2 3
+    measures = [
+        _measure(),
+        _measure(forward=True),
+        _measure(backward=2),
+        _measure(),
+    ]
+    assert _unfold_measures(measures) == [0, 1, 2, 1, 2, 3]
+
+
+def test_unfold_backward_without_forward_loops_from_start() -> None:
+    # m0 m1 :|  -> 0 1 0 1
+    measures = [_measure(), _measure(backward=2)]
+    assert _unfold_measures(measures) == [0, 1, 0, 1]
+
+
+def test_unfold_times_three() -> None:
+    measures = [_measure(forward=True), _measure(backward=3)]
+    assert _unfold_measures(measures) == [0, 1, 0, 1, 0, 1]
+
+
+def test_unfold_first_and_second_endings() -> None:
+    # |: A [1. B :] [2. C]  ->  A B(pass1) A C(pass2)
+    measures = [
+        _measure(forward=True),  # 0: A
+        _measure(ending_start="1", ending_stop=True, backward=2),  # 1: volta 1 + repeat
+        _measure(ending_start="2", ending_stop=True),  # 2: volta 2
+    ]
+    assert _unfold_measures(measures) == [0, 1, 0, 2]
+
+
+def _build_multi(
+    tmp_path: Path,
+    *,
+    p2_measures: list[str],
+    midi_notes: list[tuple[int, float, float]],
+    syncpoints: list[list[float]],
+    divisions: int = 4,
+    stem: str = "clip",
+) -> Path:
+    """GAPS root with a multi-measure TAB part (P2) — for repeat-unfold tests."""
+    staff = "".join(
+        f'<staff-tuning line="{line}"><tuning-step>{s}</tuning-step>'
+        f"<tuning-octave>{o}</tuning-octave></staff-tuning>"
+        for line, (s, o) in sorted(_STANDARD_TUNING.items())
+    )
+    # First P2 measure carries the attributes/staff-tuning.
+    p2_first = (
+        f'<measure number="1"><attributes><divisions>{divisions}</divisions>'
+        f"<staff-details>{staff}</staff-details></attributes>{p2_measures[0]}</measure>"
+    )
+    p2_rest = "".join(
+        f'<measure number="{i + 2}">{m}</measure>' for i, m in enumerate(p2_measures[1:])
+    )
+    xml = (
+        '<?xml version="1.0"?><score-partwise version="3.1"><part-list>'
+        '<score-part id="P1"><part-name>Guitar</part-name></score-part>'
+        '<score-part id="P2"><part-name>TAB</part-name></score-part></part-list>'
+        '<part id="P1"><measure number="1">'
+        f"<attributes><divisions>{divisions}</divisions></attributes>"
+        f"<note><pitch><step>E</step><octave>2</octave></pitch><duration>{divisions}</duration>"
+        "</note></measure></part>"
+        f'<part id="P2">{p2_first}{p2_rest}</part></score-partwise>'
+    )
+    (tmp_path / "musicxml").mkdir(exist_ok=True)
+    (tmp_path / "midi").mkdir(exist_ok=True)
+    (tmp_path / "syncpoints").mkdir(exist_ok=True)
+    xml_path = tmp_path / "musicxml" / f"{stem}.xml"
+    xml_path.write_text(xml, encoding="utf-8")
+    midi = pretty_midi.PrettyMIDI()
+    inst = pretty_midi.Instrument(program=24)
+    for pitch, start, end in midi_notes:
+        inst.notes.append(pretty_midi.Note(velocity=80, pitch=pitch, start=start, end=end))
+    midi.instruments.append(inst)
+    midi.write(str(tmp_path / "midi" / f"{stem}.mid"))
+    (tmp_path / "syncpoints" / f"{stem}.json").write_text(json.dumps(syncpoints), encoding="utf-8")
+    return xml_path
+
+
+def test_repeat_unfold_recovers_second_traversal_gold(tmp_path: Path) -> None:
+    """A repeated section: gold covers both traversals once unfolded.
+
+    Score: |: A2 (m1) | D3 (m2) :|  performed A2 D3 A2 D3. Without unfolding the
+    gold is only the first A2/D3 (the artifact); unfolding restores all four.
+    """
+    whole = 16  # one whole measure at divisions=4
+    m1 = _note_xml("A", 2, whole, string=5, fret=0)  # A2 (MIDI 45)
+    m2 = _note_xml("D", 3, whole, string=5, fret=5)  # A2+5 = D3 (MIDI 50)
+    p2 = [
+        f'<barline location="left"><repeat direction="forward"/></barline>{m1}',
+        f'{m2}<barline location="right"><repeat direction="backward"/></barline>',
+    ]
+    # Performance plays the section twice.
+    midi = [(45, 0.0, 0.4), (50, 1.0, 1.4), (45, 2.0, 2.4), (50, 3.0, 3.4)]
+    # Unfolded = 4 measures; syncpoints span 4 (indices 0..3) → unfold trusted.
+    sync = [[0, 0.0], [1, 1.0], [2, 2.0], [3, 3.0]]
+    xml = _build_multi(tmp_path, p2_measures=p2, midi_notes=midi, syncpoints=sync)
+
+    events = parse(xml, GuitarConfig())
+
+    assert [e.pitch_midi for e in events] == [45, 50, 45, 50]
+    assert [round(e.onset_s, 1) for e in events] == [0.0, 1.0, 2.0, 3.0]
+
+
+def test_repeat_unfold_falls_back_when_span_mismatches(tmp_path: Path) -> None:
+    """When the syncpoint span is far from the unfold length (a nonstandard
+    volta encoding), keep the written order — gold is the first traversal only.
+    This is the safe fallback that protects the odd clips from corrupted gold."""
+    whole = 16
+    m1 = _note_xml("A", 2, whole, string=5, fret=0)
+    m2 = _note_xml("D", 3, whole, string=5, fret=5)
+    p2 = [
+        f'<barline location="left"><repeat direction="forward"/></barline>{m1}',
+        f'{m2}<barline location="right"><repeat direction="backward"/></barline>',
+    ]
+    midi = [(45, 0.0, 0.4), (50, 1.0, 1.4), (45, 2.0, 2.4), (50, 3.0, 3.4)]
+    # Unfold length is 4, but the syncpoint span is 10 → |4-10| = 6 > tol(3) →
+    # fallback to the written 2 measures → gold is the first traversal only.
+    sync = [[k, float(k)] for k in range(10)]
+    xml = _build_multi(tmp_path, p2_measures=p2, midi_notes=midi, syncpoints=sync)
+
+    events = parse(xml, GuitarConfig())
+
+    assert [e.pitch_midi for e in events] == [45, 50]  # first traversal only

@@ -15,8 +15,15 @@ alone yields onset-timed tablature:
 - the aligned MIDI has exact *performance* onsets (seconds) but no string/fret;
 - the syncpoints map score measures to performance seconds (coarse, per-measure).
 
-Gold derivation (validated in the chunk-5 recon, 2026-06-18):
+Gold derivation (validated in the chunk-5 recon, 2026-06-18; repeat unfolding
+added in A6, 2026-07-06):
 
+0. **Unfold repeats/voltas** (A6) so the walked measure sequence matches the
+   *performance* timeline the syncpoints index (measure 0..N counting repeat
+   traversals), not the once-listed written score. Trusted only when the
+   unfolded length matches the syncpoint span; otherwise the written order is
+   kept (nonstandard volta encodings fall back safely). See
+   :func:`_unfold_measures`.
 1. Walk the TAB part (the part whose notes carry ``<string>``), honouring
    ``<backup>``/``<forward>``/``<chord>`` so each note gets a correct absolute
    *score* onset in divisions, and reading ``<staff-tuning>`` so scordatura
@@ -27,20 +34,21 @@ Gold derivation (validated in the chunk-5 recon, 2026-06-18):
 3. **Snap to the exact MIDI onset**: for each pitch, monotonically align the
    score notes (warp-time order) to the MIDI notes (time order) maximizing the
    number of matched pairs, using the warp time only as a tiebreaker for where
-   the unavoidable gaps (repeats/ornaments the written score lists once but the
+   the unavoidable gaps (ornaments the written score lists once but the
    performer played more) land. Each matched note takes the MIDI note's exact
    onset and duration; its ``(string, fret)`` comes from the score.
 
 Notes the score lists but the performer did not play (no MIDI counterpart) are
-dropped. The performer's *extra* notes (repeat traversals, tremolo) are not in
-the score, so the gold is the first-traversal-biased subset of the performance;
-heavy-repeat clips are filtered out of the eval manifest, not silently capped
-(see ``manifest_builder.scan_gaps``).
+dropped. Before A6 the gold was the *first-traversal-biased* subset (repeat
+traversals had no score counterpart, so the performer's replayed notes counted
+as false positives against the model); unfolding restores that gold on clips
+whose repeat structure is standard.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
@@ -56,6 +64,16 @@ _STEP_TO_SEMITONE = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 # any time-disagreement term so the DP maximises matched pairs (LCS-like) and
 # only uses |dt| to place the unavoidable gaps.
 _GAP_COST = 5.0
+
+# A6: repeat/volta unfolding. The GAPS syncpoints index the *unfolded*
+# performance timeline (measure 0..N where N counts repeat traversals), while
+# the written score lists each measure once. We unfold the score to the
+# performance order so second-traversal notes get gold (they were dropped
+# before — the "first-traversal-biased" artifact the docstring flags). Unfolding
+# is only trusted when its length matches the syncpoint span within this
+# tolerance (a pickup measure / final-barline marker accounts for ±1); otherwise
+# a nonstandard volta encoding is assumed and we fall back to the written order.
+_REPEAT_SYNC_TOLERANCE = 3
 
 
 def _pitch_to_midi(step: str, alter: int, octave: int) -> int:
@@ -115,17 +133,109 @@ def _staff_tuning(part: ET.Element) -> dict[int, int]:
     return out
 
 
-def _walk_tab_notes(part: ET.Element) -> tuple[list[_ScoreNote], list[int], int]:
+class _RepeatMarks:
+    """Per-measure repeat/volta markings read from ``<barline>`` children."""
+
+    __slots__ = ("forward", "backward_times", "ending_start", "ending_stop")
+
+    def __init__(self) -> None:
+        self.forward = False
+        self.backward_times: int | None = None
+        self.ending_start: set[int] | None = None
+        self.ending_stop = False
+
+
+def _measure_marks(measure: ET.Element) -> _RepeatMarks:
+    marks = _RepeatMarks()
+    for bar in measure.findall("barline"):
+        rep = bar.find("repeat")
+        if rep is not None:
+            direction = rep.get("direction")
+            if direction == "forward":
+                marks.forward = True
+            elif direction == "backward":
+                times = rep.get("times")
+                marks.backward_times = int(times) if times and times.isdigit() else 2
+        end = bar.find("ending")
+        if end is not None:
+            etype = end.get("type")
+            if etype == "start":
+                marks.ending_start = {
+                    int(x) for x in end.get("number", "").replace(" ", "").split(",") if x.isdigit()
+                }
+            elif etype in ("stop", "discontinue"):
+                marks.ending_stop = True
+    return marks
+
+
+def _has_any_repeat(measures: list[ET.Element]) -> bool:
+    return any(m.find(".//repeat") is not None for m in measures)
+
+
+def _unfold_measures(measures: list[ET.Element]) -> list[int]:
+    """Expand simple repeats + 1st/2nd voltas into performance measure order.
+
+    Returns the list of ``measures`` indices in the order the performer plays
+    them. Handles forward/backward repeat barlines (with ``times``) and voltas
+    whose ``<ending number>`` selects the pass. A backward repeat with no
+    matching forward repeat loops from the start of the piece (or the end of the
+    previous repeated section). Nested repeats are not modelled; the guard bounds
+    pathological input and the caller validates the length before trusting it.
+    """
+    marks = [_measure_marks(m) for m in measures]
+    n = len(measures)
+    order: list[int] = []
+    played: dict[int, int] = {}
+    i = 0
+    repeat_start = 0
+    cur_pass = 1
+    jumped_back = False
+    guard = 0
+    while i < n and guard < n * 32:
+        guard += 1
+        mk = marks[i]
+        # A forward repeat opens a new section (pass 1) — unless we just looped
+        # back into it, in which case the pass counter must be preserved.
+        if mk.forward and not jumped_back:
+            repeat_start = i
+            cur_pass = 1
+        jumped_back = False
+        # Skip a volta whose ending number does not include the current pass.
+        if mk.ending_start is not None and cur_pass not in mk.ending_start:
+            j = i
+            while j < n and not marks[j].ending_stop:
+                j += 1
+            i = j + 1
+            continue
+        order.append(i)
+        if mk.backward_times is not None:
+            played[i] = played.get(i, 0) + 1
+            if played[i] < mk.backward_times:
+                cur_pass += 1
+                i = repeat_start
+                jumped_back = True
+                continue
+            # Section finished; a later no-forward repeat loops from here.
+            repeat_start = i + 1
+            cur_pass = 1
+        i += 1
+    return order
+
+
+def _walk_tab_notes(measures: list[ET.Element]) -> tuple[list[_ScoreNote], list[int], int]:
     """Return (notes, measure_start_divisions, total_divisions).
 
-    Each note's ``score_onset`` is an absolute division offset from the start of
-    the piece. ``<backup>``/``<forward>`` move the in-measure cursor; ``<chord>``
-    notes share the previous note's onset; grace notes consume no time.
+    ``measures`` is the (possibly repeat-unfolded) ordered list of ``<measure>``
+    elements. Each note's ``score_onset`` is an absolute division offset from the
+    start of the piece, so a measure that appears twice (a repeat traversal)
+    yields two distinct onset ranges. ``<backup>``/``<forward>`` move the
+    in-measure cursor; ``<chord>`` notes share the previous note's onset; grace
+    notes consume no time.
     """
     notes: list[_ScoreNote] = []
     measure_starts: list[int] = []
     abs_div = 0
-    for measure in part.findall("measure"):
+    for measure in measures:
         measure_start = abs_div
         measure_starts.append(measure_start)
         cursor = measure_start
@@ -275,9 +385,22 @@ def parse(
         raise FileNotFoundError(f"GAPS syncpoints sibling not found: {sync_path}")
 
     part = _tab_part(ET.parse(xml_path).getroot())
-    notes, measure_starts, total_div = _walk_tab_notes(part)
+    all_measures = part.findall("measure")
     pos_to_sec = _load_syncpoints(sync_path)
     fallback_sec = max(pos_to_sec.values()) if pos_to_sec else 0.0
+
+    # A6: unfold repeats/voltas to the performance timeline the syncpoints index,
+    # so second-traversal notes get gold. Trust the unfold only when its length
+    # matches the syncpoint span; otherwise fall back to the written order.
+    # ``TABVISION_GAPS_NO_UNFOLD`` forces the pre-A6 behaviour for A/B measurement.
+    ordered_measures = all_measures
+    if _has_any_repeat(all_measures) and not os.environ.get("TABVISION_GAPS_NO_UNFOLD"):
+        unfolded = _unfold_measures(all_measures)
+        sync_span = (max(pos_to_sec) + 1) if pos_to_sec else 0
+        if sync_span and abs(len(unfolded) - sync_span) <= _REPEAT_SYNC_TOLERANCE:
+            ordered_measures = [all_measures[i] for i in unfolded]
+
+    notes, measure_starts, total_div = _walk_tab_notes(ordered_measures)
 
     midi = pretty_midi.PrettyMIDI(str(midi_path))
     midi_notes = sorted(
