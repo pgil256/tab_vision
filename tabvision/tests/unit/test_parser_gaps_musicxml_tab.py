@@ -18,8 +18,7 @@ pretty_midi = pytest.importorskip("pretty_midi")
 import xml.etree.ElementTree as ET  # noqa: E402
 
 from tabvision.eval.parsers import get_parser  # noqa: E402
-from tabvision.eval.parsers.gaps_musicxml_tab import parse  # noqa: E402
-from tabvision.eval.parsers.gaps_musicxml_tab import _unfold_measures  # noqa: E402
+from tabvision.eval.parsers.gaps_musicxml_tab import _unfold_measures, parse  # noqa: E402
 from tabvision.types import GuitarConfig  # noqa: E402
 
 
