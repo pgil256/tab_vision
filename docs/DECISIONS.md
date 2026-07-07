@@ -1739,3 +1739,52 @@ no-regression rule to the in-domain confirm, whose bar is per-tier lower-95).
 Now a two-bar model: lower-95 always gates; per-clip no-regression is the HARD
 bar only for the GAPS cross-domain leg (`--strict-per-clip`). Unit-pinned in
 `tests/unit/test_a3_gate_verdict.py`.
+
+## 2026-07-07 — A8 studio-condition degradation: the capture chain does NOT degrade accuracy → keep tuning; input-robustness retired as an accuracy risk
+
+**Phase:** v1.1 roadmap A8 (Tier-2 diagnostic; the highest-value *unmeasured*
+item per the blindspot audit — every accuracy number in the repo is on clean
+corpus WAVs, but the product ingests browser-`MediaRecorder` Opus-in-webm).
+**Decision tree:** re-encode val24 through the real capture chain, re-transcribe
+(highres), re-score. Fork: if accuracy holds → keep tuning clean-corpus fusion;
+if it craters → pivot effort to input robustness (denoise/AGC, preflight
+rejection, the B9 bad-input banner) instead of another decimal of clean Tab F1.
+**Branch taken:** **KEEP TUNING. The eval-vs-product gap is ~0 — input
+degradation of the encode/transmit chain is retired as an accuracy risk.**
+A degradation *curve* (codec-only floor → realistic mic → worst-case room), all
+faithful to the app (`RecordPanel.tsx` disables echoCancellation /
+noiseSuppression / autoGainControl, so codec is the only *guaranteed*
+degradation; mic band + noise are environmental):
+
+| condition | Δ aggregate Tab F1 vs clean |
+|---|---|
+| `opus_128` (codec floor) | +0.0015 |
+| `opus_64` (codec stress) | +0.0027 |
+| `laptop_mic` (realistic, HP70/LP8000 + noise + Opus 96k) | +0.0063 |
+| `noisy_room` (worst-case, HP90/LP7000 + louder noise + light comp + Opus 64k) | +0.0085 |
+
+Every delta is a **wash-to-tiny-positive**; the lower-95 CIs overlap heavily
+(clean agg lo-95 0.5537 vs noisy_room 0.5627), so the honest statement is **no
+measurable degradation**, not "degradation helps." Onset and pitch F1 are
+equally flat (codec/noise do not cost note recall). Clean rows reproduce the
+roadmap baseline **exactly** (single-line 0.4820 / strummed 0.7951), validating
+the harness end to end. Report:
+`docs/EVAL_REPORTS/a8_studio_degradation_val24_2026-07-07.md`. Harness:
+`scripts/eval/a8_studio_degradation.py` (+ 13 unit tests).
+**Reasoning:** Opus at MediaRecorder bitrates is near-transparent for pitch
+content (guitar fundamentals ≤ ~1.3 kHz; the mic lowpass at 7–8 kHz preserves
+them and the low harmonics), and the highres backbone is robust to a modest
+pink-noise floor — mild lowpassing may even remove HF distractors. This
+**retires input degradation of the encode chain from the risk register**: don't
+spend on denoise/preflight *for accuracy* (a bad-input banner may still be worth
+it as UX), and trust that clean-corpus tuning transfers to the product.
+**Scope / honest caveat:** A8 models the codec + a *plausible* built-in-mic band
++ additive noise. It does **not** cover real field artifacts — room reverb,
+input clipping, an arbitrary phone mic's true response, or non-GuitarSet playing.
+So the claim is "the encode/transmit chain + a modeled laptop mic are safe," not
+"any recording in any room works"; a real-device field set would be a separate,
+non-automated effort if ever justified. Ceiling reminder stands: single-line
+audio is information-limited (A2/A14 closed); A8 removes a *worry*, it does not
+add upside. **No SPEC change** (diagnostic, not a gate). This does make **D1-c**
+(optional studio-condition diagnostic *tier* in §1.4.1) decidable — the harness
+and first number now exist; still the user's call.
