@@ -428,7 +428,68 @@ def format_decomposition_markdown(
         lines.append("| " + " | ".join(row) + " |")
     lines.append("")
 
+    lines.extend(_format_pitch_off_deltas(report, overall))
+
     return "\n".join(lines) + "\n"
+
+
+def _format_pitch_off_deltas(report: CompositeReport, overall: ErrorDecomposition) -> list[str]:
+    """A10 instrumentation: semitone-delta histogram for the ``pitch_off`` bucket.
+
+    Octave vs harmonic vs semitone confusions need different fixes
+    (octave disambiguation / harmonic suppression / bin resolution), so
+    the opaque count is broken out by signed delta (predicted − gold)
+    and by coarse class, aggregate and per tier.
+    """
+    from tabvision.eval.error_decomposition import (  # noqa: PLC0415
+        PITCH_OFF_DELTA_CLASSES,
+        classify_pitch_off_delta,
+        pitch_off_class_counts,
+        pitch_off_delta_histogram,
+    )
+
+    lines = ["## pitch_off semitone-delta histogram", ""]
+    lines.append(
+        "Signed delta = predicted − gold MIDI pitch per `pitch_off` event. "
+        "Classes: octave (|Δ| ≡ 0 mod 12), harmonic (|Δ| ≡ 5/7 mod 12), "
+        "semitone (|Δ| ≤ 2), other."
+    )
+    lines.append("")
+
+    deltas = overall.pitch_off_deltas
+    if not deltas:
+        lines.append("No `pitch_off` events in this run.")
+        lines.append("")
+        return lines
+
+    total = len(deltas)
+    lines.append("| Delta (semitones) | Count | Share of pitch_off | Class |")
+    lines.append("|---:|---:|---:|---|")
+    for delta, count in pitch_off_delta_histogram(deltas).items():
+        lines.append(
+            f"| {delta:+d} | {count} | {count / total * 100:.1f}% | "
+            f"{classify_pitch_off_delta(delta)} |"
+        )
+    lines.append("")
+
+    lines.append("### Class summary (aggregate + per tier)")
+    lines.append("")
+    header = ["Scope"] + list(PITCH_OFF_DELTA_CLASSES) + ["total"]
+    lines.append("| " + " | ".join(header) + " |")
+    lines.append("|---|" + "---:|" * (len(PITCH_OFF_DELTA_CLASSES) + 1))
+    scopes: list[tuple[str, tuple[int, ...]]] = [("all tiers", deltas)]
+    scopes += [
+        (tier_name, report.tiers[tier_name].errors.pitch_off_deltas)
+        for tier_name in sorted(report.tiers)
+    ]
+    for scope_name, scope_deltas in scopes:
+        counts = pitch_off_class_counts(scope_deltas)
+        row = [scope_name] + [str(counts[c]) for c in PITCH_OFF_DELTA_CLASSES]
+        row.append(str(len(scope_deltas)))
+        lines.append("| " + " | ".join(row) + " |")
+    lines.append("")
+
+    return lines
 
 
 def make_run_pipeline_predictor(

@@ -160,7 +160,8 @@ from 0.94 to 0.45. The acceptance run measured chord-instance accuracy at **0.52
 single-line / 0.48 strummed** audio-only, tracking per-tier Tab F1 almost exactly
 (single-line chord 0.52 ≈ single-line Tab F1 0.52). The original **≥ 0.85** thus
 joins the **v1.1 video-assisted** reference alongside the 0.94 single-line target;
-v1 records the audio-only baseline. See `docs/DECISIONS.md`.
+v1 records the audio-only baseline. See `docs/DECISIONS.md`. **(This 0.85
+video-assisted reference was RETIRED 2026-07-06 — see the A14 note below.)**
 
 **Electric tiers (clean electric 0.90, distorted electric 0.82) — deferred
 to v2.** Evidence (`docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md`):
@@ -202,11 +203,21 @@ only — the timbral string-ID model and convention/position priors (the latter
 now measured as **domain-sensitive**: +22–29pp on GuitarSet, −0.138 on GAPS
 classical; `docs/EVAL_REPORTS/v1_1_gaps_prior_guitarset_v1_2026-07-01.md`).
 The binding v1 single-line gate is unchanged at **≥ 0.45**; no new stretch
-number is set until one is demonstrated. The strummed 0.86 and chord-instance
-0.85 **video-assisted references remain open** pending the chord-frame video
-probe (roadmap A14) and the remainder of the D1 decision packet — chord-frame
-video is the one axis where video plausibly beats audio and is still
-unmeasured.
+number is set until one is demonstrated.
+
+**2026-07-06 — the strummed 0.86 and chord-instance 0.85 video-assisted
+references are RETIRED too (user-approved).** A14 (the cache-only
+complementarity probe, `docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md`,
+DECISIONS 2026-07-06) measured the one axis these were held open for —
+chord-frame video — and refuted it: on chord-member notes the audio prior is
+*stronger* (0.819) and video *weaker* (0.542) than on single notes,
+P(video right | audio wrong) = 0.285 (anti-enriched, *worse* where audio
+fails), and no margin-keyed router beats audio-only. So **no video-assisted
+stretch number stands for any tier.** v1 records the audio-only baselines
+(single-line ≥ 0.45 gate; strummed and chord-instance as measured); any future
+stretch number must be *demonstrated* before it is written here (SPEC §0
+rule 7). **The video chain, GAPS caches, and probes stay in the repo as measured
+evidence and remain runnable — they are simply no longer acceptance targets.**
 
 **§1.4 is the single source of truth for acceptance** (read with this
 acoustic-scope amendment). Where any other document (CLAUDE.md, AGENTS.md,

@@ -41,6 +41,53 @@ from tabvision.types import TabEvent
 DEFAULT_ONSET_TOLERANCE_S = 0.05
 DEFAULT_TIMING_EXTENDED_TOLERANCE_S = 0.15
 
+PITCH_OFF_DELTA_CLASSES: tuple[str, ...] = ("octave", "harmonic", "semitone", "other")
+"""Coarse classes for ``pitch_off`` semitone deltas (A10 instrumentation).
+
+Each class points at a different fix:
+
+- ``octave``: |Δ| ≡ 0 (mod 12) — octave errors (2nd/4th-harmonic
+  confusions or octave-transposed detections). Fixable by
+  octave-disambiguation logic, not by better f0 resolution.
+- ``harmonic``: |Δ| ≡ 5 or 7 (mod 12) — fifth/fourth chroma family
+  (3rd-harmonic +19, fifth +7, subharmonic/fourth −5/+5, +17…).
+  Harmonic-series leakage in the detector.
+- ``semitone``: |Δ| ≤ 2 — adjacent-bin / tuning / bend errors.
+- ``other``: everything else (usually genuine mis-detections).
+"""
+
+
+def classify_pitch_off_delta(delta: int) -> str:
+    """Map a signed semitone delta (predicted − gold) to its coarse class."""
+    magnitude = abs(delta)
+    if magnitude == 0:
+        # Unreachable from decompose_errors (equal pitch buckets earlier),
+        # but keep the function total.
+        return "other"
+    if magnitude % 12 == 0:
+        return "octave"
+    if magnitude <= 2:
+        return "semitone"
+    if magnitude % 12 in (5, 7):
+        return "harmonic"
+    return "other"
+
+
+def pitch_off_delta_histogram(deltas: Iterable[int]) -> dict[int, int]:
+    """Signed-delta → count histogram, sorted by delta."""
+    counts: dict[int, int] = {}
+    for delta in deltas:
+        counts[delta] = counts.get(delta, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def pitch_off_class_counts(deltas: Iterable[int]) -> dict[str, int]:
+    """Per-class counts over all four classes (zero-filled)."""
+    counts = dict.fromkeys(PITCH_OFF_DELTA_CLASSES, 0)
+    for delta in deltas:
+        counts[classify_pitch_off_delta(delta)] += 1
+    return counts
+
 
 @dataclass(frozen=True)
 class ErrorDecomposition:
@@ -57,6 +104,12 @@ class ErrorDecomposition:
     timing_only: int = 0
     missed_onset: int = 0
     extra_detection: int = 0
+    pitch_off_deltas: tuple[int, ...] = ()
+    """Signed semitone delta (predicted − gold) per ``pitch_off`` event.
+
+    A10 instrumentation: length always equals ``pitch_off``. Summarize
+    via :func:`pitch_off_delta_histogram` / :func:`pitch_off_class_counts`.
+    """
 
     @property
     def total_gold(self) -> int:
@@ -115,7 +168,8 @@ class ErrorDecomposition:
         }
 
     def to_dict(self) -> dict[str, int]:
-        return {f.name: getattr(self, f.name) for f in fields(self)}
+        """Bucket counts only; ``pitch_off_deltas`` is per-event data, not a count."""
+        return {f.name: getattr(self, f.name) for f in fields(self) if f.name != "pitch_off_deltas"}
 
 
 def decompose_errors(
@@ -166,6 +220,7 @@ def decompose_errors(
     pitch_off = 0
     timing_only = 0
     missed = 0
+    pitch_off_deltas: list[int] = []
 
     gold_sorted = sorted(gold, key=lambda g: g.onset_s)
 
@@ -209,6 +264,7 @@ def decompose_errors(
         if best_any_idx >= 0:
             pred_used[best_any_idx] = True
             pitch_off += 1
+            pitch_off_deltas.append(predicted[best_any_idx].pitch_midi - g.pitch_midi)
             continue
 
         # Pass 2: extended-tolerance match on position OR pitch.
@@ -242,6 +298,7 @@ def decompose_errors(
         timing_only=timing_only,
         missed_onset=missed,
         extra_detection=extra,
+        pitch_off_deltas=tuple(pitch_off_deltas),
     )
 
 
@@ -257,13 +314,18 @@ def aggregate_decompositions(
         timing_only=sum(d.timing_only for d in items),
         missed_onset=sum(d.missed_onset for d in items),
         extra_detection=sum(d.extra_detection for d in items),
+        pitch_off_deltas=tuple(delta for d in items for delta in d.pitch_off_deltas),
     )
 
 
 __all__ = [
     "DEFAULT_ONSET_TOLERANCE_S",
     "DEFAULT_TIMING_EXTENDED_TOLERANCE_S",
+    "PITCH_OFF_DELTA_CLASSES",
     "ErrorDecomposition",
     "aggregate_decompositions",
+    "classify_pitch_off_delta",
     "decompose_errors",
+    "pitch_off_class_counts",
+    "pitch_off_delta_histogram",
 ]
