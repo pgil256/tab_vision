@@ -1819,3 +1819,46 @@ the product-condition gap as a named diagnostic, and stop carrying expired
 questions. The packet is **resolved**; remaining user-gated items (D2/D3/D4) now
 live in §15. **Still open elsewhere:** A5 (chord-shape dictionary port) is the
 next accuracy lever (rides the A3 sweep harness).
+
+## 2026-07-07 — A5 chord-shape bonus: mechanism landed (no-op default), sweep→gate pending
+
+**Phase:** v1.1 accuracy roadmap Tier 2 (`docs/plans/2026-07-01-accuracy-ux-roadmap.md`
+A5) — the Phase-5 chord-dictionary port deferred at Phase-5 ship.
+**What landed:** `tabvision/tabvision/fusion/chord_shapes.py` ports v0's voicing
+shapes (`tabvision-server/app/chord_shapes.py`: 22 open + 72 E/A-shape barre + 39
+power = **133 voicings**) into the v1 `0=low E` string convention
+(`string_idx = 6 - v0_string`), and adds a per-cluster emission term
+`chord_shape_cost(state)` wired into `viterbi._viterbi_clusters.state_emission`.
+It rewards a decoded cluster whose `(string, fret)` positions overlap a canonical
+voicing by ≥ `CHORD_SHAPE_MIN_NOTES` (default 3): `cost -= CHORD_SHAPE_BONUS *
+overlap` (count-scaled). Only the voicing *shapes* were ported — v0's scale-box /
+`GuitarPosition` / `PlayingStyle` machinery plays no part in an emission bonus and
+would be dead code here.
+**No-op discipline (A3/A4):** `CHORD_SHAPE_BONUS` defaults to `0.0` (env-overridable
+`TABVISION_CHORD_SHAPE_BONUS`, runtime-rebindable — `state_emission` reads the
+module global live), so fusion is **bit-identical** until a sweep sets it. Wired
+as an `a3_fusion_sweep` axis (`[0.0, 0.1, 0.25, 0.5, 1.0]`).
+**Key invariant (why this only touches the target tiers):** a state assigns one
+candidate per event, so a cluster's decoded position-set has size = cluster size;
+a singleton (single-line) or dyad can never reach the 3-note match gate.
+**Single-line Tab F1 is therefore invariant to this term at any magnitude** — A5
+can only move strummed/chord (its stated target). Proven by
+`test_single_line_decode_invariant_to_bonus` + exact E-major-open recovery under a
+dominating bonus.
+**Gates:** ruff check/format clean; **mypy clean** (63 files — the shape params had
+to be typed `Mapping[int, int | None]` not `dict`, else dict value-invariance
+fails the type gate); 16 new unit tests + the existing 57 fusion tests green. (The
+local global interpreter can't run the torch/soundfile audio suite — env, not
+code; CI runs it, cf. PR #28 green.)
+**Not yet measured — the actual accuracy step is eval-env-gated.** Per the A3 gate
+lesson (a hand-coded `OPEN_STRING_BONUS=0.0` PASSED GuitarSet 60-clip but FAILED
+GAPS clean-12 — audio-fusion tuning is domain-coupled, DECISIONS 2026-07-07), any
+positive grid point is a *candidate only*: it must clear the 60-clip lower-95
+confirm AND GAPS clean-12 no-regression (`scripts/eval/a3_gate_probe.py`) before
+the default moves off `0.0`. **Ceiling honesty (roadmap A5):** expected strummed
+**+0.01–0.04**; this does **not** close the chord-accuracy 0.48→0.85 gap by itself.
+**Reasoning:** landing the mechanism as a verified no-op (matching how A3's
+constants and A4's gap-decay shipped) decouples code review from the
+eval-env-gated measurement and keeps the binding v1 gates untouched until the data
+says otherwise. **Still open:** the A5 sweep→gate run (needs the eval venv +
+val24/GAPS manifests, absent from a fresh checkout); D2/D3/D4 in SPEC §15.

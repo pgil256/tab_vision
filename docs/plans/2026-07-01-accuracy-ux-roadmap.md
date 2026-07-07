@@ -107,6 +107,16 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   `viterbi.py` state emission — the Phase 5 port that never happened). Targets
   strummed wrong_position (254 events) + chord acc (0.48 vs 0.85 reference).
   Expect strummed +0.01–0.04. Won't close the 0.85 gap by itself — say so.
+  **Mechanism landed 2026-07-07** (`tabvision.fusion.chord_shapes`): 133 voicings
+  (22 open + 72 barre + 39 power) ported to the `0=low E` convention +
+  `chord_shape_cost` emission term wired into `viterbi.state_emission`;
+  `CHORD_SHAPE_BONUS` env-overridable, **default 0.0 = bit-identical no-op**; A3
+  sweep axis + 16 unit tests; ruff/mypy/fusion-tests green. By construction the
+  ≥3-note match gate leaves **single-line decode invariant** — the term can only
+  move strummed/chord clusters. **Sweep→gate pending the eval env**: grid
+  `CHORD_SHAPE_BONUS` on `a3_fusion_sweep`, then the mandatory 60-clip lower-95 +
+  GAPS clean-12 no-regression before any default change (A3's lesson: even a
+  hand-coded bonus was corpus-coupled). No default changed.
 - **A6. Fix the GAPS gold coverage artifact** — **DONE 2026-07-06.** Repeat/volta
   unfolding in `gaps_musicxml_tab.py` (gated on a syncpoint-span length match;
   11/14 test-22 repeat clips unfolded, 3 nonstandard fall back). Controlled A/B:

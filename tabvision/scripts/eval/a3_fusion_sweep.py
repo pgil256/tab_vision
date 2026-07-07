@@ -43,7 +43,7 @@ from typing import Any
 from tabvision.eval.composite import _resolve_path, _session_from_clip
 from tabvision.eval.metrics import tab_f1
 from tabvision.eval.parsers import get_parser
-from tabvision.fusion import chord, playability
+from tabvision.fusion import chord, chord_shapes, playability
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
 from tabvision.fusion.viterbi import fuse
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig, TabEvent
@@ -152,6 +152,7 @@ _DEFAULTS: dict[tuple[object, str], object] = {
     (playability, "HAND_SPAN_BARRIER"): playability.HAND_SPAN_BARRIER,
     (playability, "TRANSITION_GAP_TAU"): playability.TRANSITION_GAP_TAU,
     (chord, "CHORD_MAX_GAP_S"): chord.CHORD_MAX_GAP_S,
+    (chord_shapes, "CHORD_SHAPE_BONUS"): chord_shapes.CHORD_SHAPE_BONUS,
 }
 
 
@@ -172,6 +173,9 @@ _MODULE_AXES: list[tuple[object, str, list[float]]] = [
     (chord, "CHORD_MAX_GAP_S", [0.04, 0.06, 0.08, 0.10, 0.12]),
     # A4: gap-decay time constant (inf = off/default).
     (playability, "TRANSITION_GAP_TAU", [float("inf"), 4.0, 2.0, 1.0, 0.5, 0.25]),
+    # A5: chord-shape bonus magnitude (0.0 = off/default). Only moves the
+    # strummed tier — single-line clusters are singletons and never match.
+    (chord_shapes, "CHORD_SHAPE_BONUS", [0.0, 0.1, 0.25, 0.5, 1.0]),
 ]
 
 # Prior alpha/power are baked into the loaded prior, swept by reloading it.
