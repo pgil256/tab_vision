@@ -80,6 +80,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     setPendingFretInput,
     commitPendingEdit,
     updateNoteFret,
+    moveNoteString,
+    deleteNote,
+    insertNote,
     undo,
     redo,
     zoomIn,
@@ -520,13 +523,24 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         commitPendingEdit();
-        selectAdjacentNote('up');
+        // Shift+Up moves the selected note to the adjacent (higher) string,
+        // fret recomputed to keep the pitch — the fix for the #1 wrong-string
+        // error. Plain Up navigates.
+        if (e.shiftKey) {
+          moveNoteString('up');
+        } else {
+          selectAdjacentNote('up');
+        }
         return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         commitPendingEdit();
-        selectAdjacentNote('down');
+        if (e.shiftKey) {
+          moveNoteString('down');
+        } else {
+          selectAdjacentNote('down');
+        }
         return;
       }
 
@@ -546,11 +560,30 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         return;
       }
 
-      // Delete/Backspace -> muted
+      // Delete/Backspace -> true removal (B3). Mute lives on 'x'.
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteId) {
         e.preventDefault();
         setPendingFretInput('');
+        deleteNote(selectedNoteId);
+        return;
+      }
+
+      // 'x' -> mute the selected note (fret = "X"), distinct from delete.
+      if ((e.key === 'x' || e.key === 'X') && selectedNoteId) {
+        e.preventDefault();
+        setPendingFretInput('');
         updateNoteFret(selectedNoteId, 'X');
+        return;
+      }
+
+      // 'i' / Insert -> insert a note at the playhead (B3), on the selected
+      // note's string (or the G string by default), open, and select it.
+      if (e.key === 'i' || e.key === 'Insert') {
+        e.preventDefault();
+        const anchor = selectedNoteId
+          ? tabDocument?.notes.find(n => n.id === selectedNoteId)
+          : undefined;
+        insertNote({ timestamp: currentTime, string: anchor?.string ?? 3, fret: 0 });
         return;
       }
 
@@ -580,6 +613,8 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    tabDocument,
+    currentTime,
     selectedNoteId,
     pendingFretInput,
     selectNote,
@@ -587,6 +622,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     setPendingFretInput,
     commitPendingEdit,
     updateNoteFret,
+    moveNoteString,
+    deleteNote,
+    insertNote,
     undo,
     redo,
     zoomIn,

@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { UploadPanel } from './components/UploadPanel';
 import { RecordPanel } from './components/RecordPanel';
 import { VideoPlayer } from './components/VideoPlayer';
 import { TabCanvas } from './components/TabCanvas';
 import { TabToolbar } from './components/TabToolbar';
 import { ShortcutsModal } from './components/ShortcutsModal';
+import { RestoreBanner } from './components/RestoreBanner';
 import { useAppStore } from './store/appStore';
 import './index.css';
 
@@ -14,6 +15,12 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
   const { jobStatus, videoUrl, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
+  const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
+
+  // B5 — on mount, surface an autosaved edited session (if any) for restore.
+  useEffect(() => {
+    loadPersistedSession();
+  }, [loadPersistedSession]);
 
   const showEditor = jobStatus === 'completed';
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
@@ -81,6 +88,7 @@ function App() {
         {/* Upload / Record view */}
         {!showEditor && !isProcessing && jobStatus !== 'failed' && (
           <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-6 animate-fade-in">
+            <RestoreBanner />
             <div
               className="inline-flex rounded-lg p-1 mb-6"
               style={{

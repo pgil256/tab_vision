@@ -72,6 +72,33 @@ TRANSITION_PRIOR_WEIGHT = float(os.environ.get("TABVISION_TRANSITION_PRIOR_WEIGH
 prior is installed — default is OFF (no prior). Env-overridable for sweeps
 (``TABVISION_TRANSITION_PRIOR_WEIGHT``), matching ``POSITION_SHIFT_COST``."""
 
+# --- string-assignment confidence (B4) ---
+STRING_CONFIDENCE_TEMP = float(os.environ.get("TABVISION_STRING_CONFIDENCE_TEMP", "1.0"))
+"""Scale (nats) mapping the Viterbi string-flip margin to a ``[0, 1]``
+confidence. The margin is how much *more* the cheapest full decode that puts a
+note on a **different string** costs than the chosen decode — i.e. best vs
+next-best in string space, read straight off the trellis. Larger margin →
+surer of the string. ``conf = 1 - exp(-margin / TEMP)``: an exact tie
+(margin 0) → 0, an unambiguous note (no alternative string exists) → 1. This
+repurposes ``TabEvent.confidence`` from the decode-inert audio velocity proxy
+to an actionable "check-the-string" signal (B4). Env-overridable
+(``TABVISION_STRING_CONFIDENCE_TEMP``) for UI calibration / sweeps; the value
+sets only the red/green threshold, not the note *ranking*."""
+
+
+def string_margin_to_confidence(margin: float) -> float:
+    """Map a non-negative string-flip margin (nats) to a ``[0, 1]`` confidence.
+
+    ``margin == inf`` (no alternative-string decode exists — an unambiguous
+    pitch) → ``1.0``; ``margin <= 0`` (a tie) → ``0.0``.
+    """
+    if margin == math.inf:
+        return 1.0
+    if margin <= 0.0:
+        return 0.0
+    return 1.0 - math.exp(-margin / max(STRING_CONFIDENCE_TEMP, EPS))
+
+
 _TRANSITION_PRIOR: TransitionPrior | None = None
 _TRANSITION_PRIOR_ENV_READ = False
 
@@ -220,6 +247,8 @@ __all__ = [
     "transition_cost",
     "set_transition_prior",
     "active_transition_prior",
+    "string_margin_to_confidence",
+    "STRING_CONFIDENCE_TEMP",
     "TRANSITION_PRIOR_WEIGHT",
     "LOW_FRET_BIAS",
     "OPEN_STRING_BONUS",

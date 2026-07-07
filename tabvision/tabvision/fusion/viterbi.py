@@ -99,7 +99,16 @@ def _viterbi_clusters(
     lambda_vision: float,
 ) -> list[TabEvent]:
     """Cluster-level Viterbi DP. Worst case ``O(N · S^2)`` for ``N``
-    clusters with ``S`` states each."""
+    clusters with ``S`` states each.
+
+    Runs a forward *and* backward pass so each note carries a **string-flip
+    margin** (B4): the extra cost of the cheapest full decode that reassigns
+    that note to a different string, vs the chosen decode — best vs next-best
+    in string space, read off the trellis. Mapped to ``TabEvent.confidence``
+    via :func:`playability.string_margin_to_confidence`. The decoded string /
+    fret picks are identical to a forward-only Viterbi; only ``confidence``
+    changes.
+    """
 
     def state_emission(cluster: list[AudioEvent], state: tuple[Candidate, ...]) -> float:
         total = 0.0
@@ -109,49 +118,67 @@ def _viterbi_clusters(
         return total
 
     n = len(cluster_data)
-    cost: list[list[float]] = [[] for _ in range(n)]
-    backptr: list[list[int]] = [[] for _ in range(n)]
+    anchors = [[chord.chord_anchor(st) for st in states] for _, states in cluster_data]
+    emissions = [[state_emission(cluster, st) for st in states] for cluster, states in cluster_data]
 
-    cluster0, states0 = cluster_data[0]
-    cost[0] = [state_emission(cluster0, st) for st in states0]
-    backptr[0] = [-1] * len(states0)
-
-    for i in range(1, n):
-        cluster_i, states_i = cluster_data[i]
-        prev_cluster, prev_states = cluster_data[i - 1]
+    def single_line(i: int) -> bool:
         # The learned sequence prior (A15) models note-to-note movement;
         # chord-to-chord transitions stay on the hand-coded terms.
-        single_line_move = len(prev_cluster) == 1 and len(cluster_i) == 1
-        cost[i] = [math.inf] * len(states_i)
-        backptr[i] = [-1] * len(states_i)
-        for si, state in enumerate(states_i):
-            emit = state_emission(cluster_i, state)
-            anchor_curr = chord.chord_anchor(state)
-            for pi, prev_state in enumerate(prev_states):
-                anchor_prev = chord.chord_anchor(prev_state)
-                trans = playability.transition_cost(
-                    anchor_prev,
-                    anchor_curr,
-                    cfg,
-                    use_sequence_prior=single_line_move,
-                )
-                total = cost[i - 1][pi] + trans + emit
-                if total < cost[i][si]:
-                    cost[i][si] = total
-                    backptr[i][si] = pi
+        return len(cluster_data[i - 1][0]) == 1 and len(cluster_data[i][0]) == 1
 
-    # Backtrack from the cheapest terminal state.
-    final = cost[n - 1]
-    last_idx = min(range(len(final)), key=lambda j: final[j])
+    # Forward pass: alpha[i][si] = min cost of a path ending in state si of
+    # cluster i (emission included). Factoring the (pi-invariant) emission out
+    # of the argmin leaves picks bit-identical to a plain forward Viterbi.
+    alpha: list[list[float]] = [[math.inf] * len(a) for a in anchors]
+    backptr: list[list[int]] = [[-1] * len(a) for a in anchors]
+    alpha[0] = list(emissions[0])
+    for i in range(1, n):
+        for si, anchor_curr in enumerate(anchors[i]):
+            best = math.inf
+            best_pi = -1
+            for pi, anchor_prev in enumerate(anchors[i - 1]):
+                cand = alpha[i - 1][pi] + playability.transition_cost(
+                    anchor_prev, anchor_curr, cfg, use_sequence_prior=single_line(i)
+                )
+                if cand < best:
+                    best = cand
+                    best_pi = pi
+            alpha[i][si] = best + emissions[i][si]
+            backptr[i][si] = best_pi
+
+    # Backward pass: beta[i][si] = min cost to finish from state si of cluster
+    # i (transition into i+1 + its emission + its beta). Excludes
+    # emissions[i][si] so alpha[i][si] + beta[i][si] counts it exactly once.
+    beta: list[list[float]] = [[0.0] * len(a) for a in anchors]
+    for i in range(n - 2, -1, -1):
+        for si, anchor_state in enumerate(anchors[i]):
+            best = math.inf
+            for ti, anchor_next in enumerate(anchors[i + 1]):
+                cand = (
+                    playability.transition_cost(
+                        anchor_state, anchor_next, cfg, use_sequence_prior=single_line(i + 1)
+                    )
+                    + emissions[i + 1][ti]
+                    + beta[i + 1][ti]
+                )
+                if cand < best:
+                    best = cand
+            beta[i][si] = best
+
+    through = [[alpha[i][si] + beta[i][si] for si in range(len(a))] for i, a in enumerate(anchors)]
+    global_opt = min(alpha[n - 1])
+
+    # Backtrack the decoded path from the cheapest terminal state.
     picks_idx = [0] * n
-    picks_idx[n - 1] = last_idx
+    picks_idx[n - 1] = min(range(len(alpha[n - 1])), key=lambda j: alpha[n - 1][j])
     for i in range(n - 1, 0, -1):
         picks_idx[i - 1] = backptr[i][picks_idx[i]]
 
     out: list[TabEvent] = []
     for i, (cluster, states) in enumerate(cluster_data):
         state = states[picks_idx[i]]
-        for ev, c in zip(cluster, state, strict=True):
+        for j, (ev, c) in enumerate(zip(cluster, state, strict=True)):
+            margin = _string_flip_margin(states, through[i], j, c.string_idx, global_opt)
             out.append(
                 TabEvent(
                     onset_s=ev.onset_s,
@@ -159,11 +186,30 @@ def _viterbi_clusters(
                     string_idx=c.string_idx,
                     fret=c.fret,
                     pitch_midi=ev.pitch_midi,
-                    confidence=ev.confidence,
+                    confidence=playability.string_margin_to_confidence(margin),
                     techniques=ev.tags,
                 )
             )
     return out
+
+
+def _string_flip_margin(
+    states: list[tuple[Candidate, ...]],
+    through_costs: list[float],
+    event_pos: int,
+    chosen_string: int,
+    global_opt: float,
+) -> float:
+    """Extra cost (nats) of the best full decode that moves ``event_pos`` to a
+    different string than ``chosen_string``. ``inf`` if none exists (the pitch
+    is playable on only one string given the cluster's constraints)."""
+    alt = math.inf
+    for si, state in enumerate(states):
+        if state[event_pos].string_idx != chosen_string and through_costs[si] < alt:
+            alt = through_costs[si]
+    if alt == math.inf:
+        return math.inf
+    return max(0.0, alt - global_opt)
 
 
 __all__ = ["fuse"]

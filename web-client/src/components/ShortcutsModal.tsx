@@ -30,7 +30,11 @@ const SECTIONS: { title: string; shortcuts: ShortcutRow[] }[] = [
     title: 'Editing',
     shortcuts: [
       { keys: ['0-9'], description: 'Set fret number' },
-      { keys: ['Del'], description: 'Mark as muted (X)' },
+      { keys: ['Shift', '↑'], description: 'Move to higher string (keep pitch)' },
+      { keys: ['Shift', '↓'], description: 'Move to lower string (keep pitch)' },
+      { keys: ['X'], description: 'Mark as muted (X)' },
+      { keys: ['Del'], description: 'Delete note' },
+      { keys: ['I'], description: 'Insert note at playhead' },
       { keys: ['Enter'], description: 'Commit edit' },
       { keys: ['Esc'], description: 'Deselect note' },
       { keys: ['Ctrl', 'Z'], description: 'Undo' },
