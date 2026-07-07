@@ -1870,12 +1870,16 @@ Report: `docs/EVAL_REPORTS/a5_chord_shape_gate_2026-07-07.md` (+ full sweep
 is **below** the hoped +0.01–0.04 and does **not** move the chord-accuracy
 0.48→0.85 gap — a real, small, rigorously-gated, near-zero-downside win (env
 -reversible), not a breakthrough.
-**Default decision — USER-GATED (still 0.0 in-tree).** Shipping `0.0 → 0.1`
-re-bases the canonical val24 **strummed** baseline 0.7951→0.7980 (single-line
-0.4820 unchanged), which every future sweep/gate then references. Per the
-project's close stewardship of shipped defaults, and though A5 is a "no-approval"
-tier, that re-basing + the below-hope magnitude make the flip the **user's call**;
-the committed default stays **0.0** pending it. **Reasoning:** the mechanism +
-full gate are done and banked; only the one-line default flip (with its
-test/sweep-baseline/docstring ripple) awaits the ship/hold call. **Still open:**
-the A5 default-flip (ship 0.1 vs hold 0.0 — user-gated, above); D2/D3/D4 in SPEC §15.
+**Default decision — SHIPPED `0.0 → 0.1` (user-approved 2026-07-07).** The user
+was shown the both-legs-PASS gate and chose to ship; `CHORD_SHAPE_BONUS` now
+defaults to `0.1`. This **re-bases the canonical val24 strummed baseline
+0.7951 → 0.7980** (single-line 0.4820 unchanged), which every future sweep/gate
+references — the `a3_fusion_sweep` docstring/validation numbers were updated to
+match, and the `chord_shapes`/`viterbi` docstrings + the no-op tests reframed
+(the "off switch" is now `TABVISION_CHORD_SHAPE_BONUS=0.0`, still exact). Full
+fusion suite green with the term active (657 passed; no chord-decode test
+regressed — the 0.1 nudge doesn't disturb the robust properties they assert).
+**Reasoning:** a candidate that clears both the in-domain lower-95 and the strict
+cross-domain no-regression bar is, per the measurement discipline, an accepted
+change; the re-basing was the only reason to surface it, and the user approved.
+**Still open:** D2/D3/D4 in SPEC §15 (A5 is now DONE — mechanism, gate, ship).

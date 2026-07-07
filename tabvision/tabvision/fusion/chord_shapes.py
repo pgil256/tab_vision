@@ -23,16 +23,19 @@ The single conversion is ``string_idx = 6 - v0_string``, applied once in
 capo the geometric positions no longer correspond to the produced pitches, so
 the bonus is best left at its default (off) there.
 
-No-op discipline (A3/A4)
-------------------------
-:data:`CHORD_SHAPE_BONUS` defaults to ``0.0``, so :func:`chord_shape_cost`
-returns ``0.0`` and the decode is **bit-identical** to a fusion without this
-term. The bonus is env-overridable (``TABVISION_CHORD_SHAPE_BONUS``) and
-runtime-rebindable — :mod:`tabvision.fusion.viterbi` reads it live per call, so
-the A3 sweep (``scripts.eval.a3_fusion_sweep``) can grid over it. Because a
-match needs ``>= CHORD_SHAPE_MIN_NOTES`` (default 3) overlapping positions, a
-singleton (single-line) or dyad cluster can never trigger it — single-line Tab
-F1 is invariant to this term at any magnitude.
+Default magnitude (A5-gated)
+----------------------------
+:data:`CHORD_SHAPE_BONUS` defaults to ``0.1`` — the value that cleared the full
+A3 gate on 2026-07-07 (in-domain 60-clip lower-95 + GAPS clean-12 strict
+no-regression; strummed +0.005, single-line +0.000). Set it to ``0.0`` (or
+``TABVISION_CHORD_SHAPE_BONUS=0.0``) to disable the term — then
+:func:`chord_shape_cost` returns ``0.0`` and the decode is **bit-identical** to a
+fusion without it. The bonus is env-overridable and runtime-rebindable —
+:mod:`tabvision.fusion.viterbi` reads it live per call, so the A3 sweep
+(``scripts.eval.a3_fusion_sweep``) can grid over it. Because a match needs
+``>= CHORD_SHAPE_MIN_NOTES`` (default 3) overlapping positions, a singleton
+(single-line) or dyad cluster can never trigger it — **single-line Tab F1 is
+invariant to this term at any magnitude** (empirically exact on GuitarSet).
 """
 
 from __future__ import annotations
@@ -43,11 +46,12 @@ from dataclasses import dataclass
 
 from tabvision.fusion.candidates import Candidate
 
-CHORD_SHAPE_BONUS = float(os.environ.get("TABVISION_CHORD_SHAPE_BONUS", "0.0"))
+CHORD_SHAPE_BONUS = float(os.environ.get("TABVISION_CHORD_SHAPE_BONUS", "0.1"))
 """Reward (nats) **per on-shape note** subtracted from a cluster's state
 emission when its decoded positions overlap a known voicing by at least
-:data:`CHORD_SHAPE_MIN_NOTES`. Default ``0.0`` — a no-op, so fusion is
-bit-identical until the A5 sweep sets it. Env-overridable
+:data:`CHORD_SHAPE_MIN_NOTES`. Default ``0.1`` — the A5-gated shipped value
+(2026-07-07: clears both gate legs, strummed +0.005; ``0.25+`` over-biases and
+regresses). Set to ``0.0`` to disable. Env-overridable
 (``TABVISION_CHORD_SHAPE_BONUS``)."""
 
 CHORD_SHAPE_MIN_NOTES = int(float(os.environ.get("TABVISION_CHORD_SHAPE_MIN_NOTES", "3")))

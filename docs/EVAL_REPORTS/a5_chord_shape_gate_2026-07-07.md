@@ -70,10 +70,13 @@ and does **not** move the chord-accuracy 0.48→0.85 gap — but it is a real,
 rigorously-gated, near-zero-downside win (env-reversible via
 `TABVISION_CHORD_SHAPE_BONUS`).
 
-**Recommendation:** ship default `0.0 → 0.1`. Note it re-bases the canonical
-val24 **strummed** baseline `0.7951 → 0.7980` (single-line/0.4820 unchanged),
-which all future sweeps/gates then reference. *(Default-flip is the user's call —
-see DECISIONS 2026-07-07; the committed default remains 0.0 until then.)*
+**Recommendation:** ship default `0.0 → 0.1`. **SHIPPED (user-approved
+2026-07-07)** — `CHORD_SHAPE_BONUS` now defaults to `0.1`. It re-bases the
+canonical val24 **strummed** baseline `0.7951 → 0.7980` (single-line/0.4820
+unchanged), which all future sweeps/gates then reference; the `a3_fusion_sweep`
+validation numbers were updated to match. Full fusion suite green with the term
+active (657 passed; no chord-decode test regressed). Env-reversible via
+`TABVISION_CHORD_SHAPE_BONUS=0.0`. See DECISIONS 2026-07-07.
 
 ## Reproduce
 

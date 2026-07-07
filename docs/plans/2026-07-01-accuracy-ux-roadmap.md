@@ -119,10 +119,11 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   fusion constant to do so: in-domain 60-clip strummed +0.0053 / **lo-95 +0.0061**
   (single-line +0.0000), cross-domain GAPS clean-12 strict **0 regressions**.
   Domain-neutral (voicing geometry, not corpus prior) — vs A3 `OPEN_STRING_BONUS`
-  (failed GAPS) / A4 (wash). Below the +0.01–0.04 hope but real. **Default flip
-  0.0→0.1 is user-gated** (re-bases the val24 strummed baseline 0.7951→0.7980);
-  in-tree default stays 0.0. (`a5_chord_shape_gate_2026-07-07.md`, DECISIONS
-  2026-07-07.)
+  (failed GAPS) / A4 (wash). Below the +0.01–0.04 hope but real. **SHIPPED
+  0.0→0.1 (user-approved 2026-07-07)** — `CHORD_SHAPE_BONUS` now defaults to 0.1;
+  re-bases the val24 strummed baseline 0.7951→0.7980 (single-line 0.4820 flat);
+  657-test fusion suite green with the term active. **A5 DONE.**
+  (`a5_chord_shape_gate_2026-07-07.md`, DECISIONS 2026-07-07.)
 - **A6. Fix the GAPS gold coverage artifact** — **DONE 2026-07-06.** Repeat/volta
   unfolding in `gaps_musicxml_tab.py` (gated on a syncpoint-span length match;
   11/14 test-22 repeat clips unfolded, 3 nonstandard fall back). Controlled A/B:

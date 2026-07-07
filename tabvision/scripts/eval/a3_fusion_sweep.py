@@ -13,9 +13,10 @@ the expensive audio transcription. So this harness:
 It runs **1-D marginal sweeps** around the shipped defaults (the same shape that
 banked the +1.5pp ``POSITION_SHIFT_COST`` win), on the roadmap's val24 baseline
 config: highres + ``guitarset-v1`` position prior, **no** sequence prior
-(baseline single-line 0.4820 / strummed 0.7951). The baseline row must
-reproduce those numbers — that validates the harness. A5 (chord dictionary) and
-per-tier configs ride this same infra.
+(baseline single-line 0.4820 / strummed 0.7980 — post-A5 ``CHORD_SHAPE_BONUS=0.1``
+default; strummed was 0.7951 pre-A5). The baseline row must reproduce those
+numbers — that validates the harness. A5 (chord dictionary) and per-tier configs
+ride this same infra.
 
 Any grid point that beats the baseline here is a *candidate only*: the
 measurement discipline still requires a 60-clip lower-95 confirm + GAPS
@@ -173,8 +174,8 @@ _MODULE_AXES: list[tuple[object, str, list[float]]] = [
     (chord, "CHORD_MAX_GAP_S", [0.04, 0.06, 0.08, 0.10, 0.12]),
     # A4: gap-decay time constant (inf = off/default).
     (playability, "TRANSITION_GAP_TAU", [float("inf"), 4.0, 2.0, 1.0, 0.5, 0.25]),
-    # A5: chord-shape bonus magnitude (0.0 = off/default). Only moves the
-    # strummed tier — single-line clusters are singletons and never match.
+    # A5: chord-shape bonus magnitude (shipped default 0.1; 0.0 disables). Only
+    # moves strummed — single-line clusters are singletons and never match.
     (chord_shapes, "CHORD_SHAPE_BONUS", [0.0, 0.1, 0.25, 0.5, 1.0]),
 ]
 
@@ -262,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     lines.append("")
     lines.append(
         f"**Baseline** (single-line | strummed | aggregate): **{_fmt_tiers(baseline)}** "
-        f"(roadmap val24 baseline 0.4820 / 0.7951 — harness validation)."
+        f"(post-A5 val24 baseline 0.4820 / 0.7980, CHORD_SHAPE_BONUS=0.1 — harness validation)."
     )
     lines.append("")
     lines.append(

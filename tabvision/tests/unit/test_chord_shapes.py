@@ -94,9 +94,16 @@ def _state(positions: set[tuple[int, int]]) -> tuple:
     return tuple(Candidate(string_idx=s, fret=f) for s, f in positions)
 
 
-def test_cost_is_zero_at_default_bonus() -> None:
-    # Default CHORD_SHAPE_BONUS == 0.0 -> no-op even for a full-shape match.
-    assert cs.CHORD_SHAPE_BONUS == 0.0
+def test_default_bonus_is_the_gated_value() -> None:
+    # Shipped default is the A5-gated 0.1 -> a full-shape match is rewarded
+    # (-0.1 * overlap 6).
+    assert cs.CHORD_SHAPE_BONUS == pytest.approx(0.1)
+    assert cs.chord_shape_cost(_state(set(_E_MAJOR_OPEN))) == pytest.approx(-0.6)
+
+
+def test_zero_bonus_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The off switch: bonus 0.0 -> exact no-op even for a full-shape match.
+    monkeypatch.setattr(cs, "CHORD_SHAPE_BONUS", 0.0)
     assert cs.chord_shape_cost(_state(set(_E_MAJOR_OPEN))) == 0.0
 
 
@@ -136,10 +143,11 @@ def test_single_line_decode_invariant_to_bonus(monkeypatch: pytest.MonkeyPatch) 
     fire, so the decode is bit-identical at any magnitude."""
     cfg = GuitarConfig()
     events = [_ev(60, 0.0), _ev(62, 0.5), _ev(64, 1.0), _ev(65, 1.5)]
-    baseline = [(t.string_idx, t.fret) for t in fuse(events, [], cfg)]
+    monkeypatch.setattr(cs, "CHORD_SHAPE_BONUS", 0.0)
+    off = [(t.string_idx, t.fret) for t in fuse(events, [], cfg)]
     monkeypatch.setattr(cs, "CHORD_SHAPE_BONUS", 100.0)
     boosted = [(t.string_idx, t.fret) for t in fuse(events, [], cfg)]
-    assert baseline == boosted
+    assert off == boosted
 
 
 def test_strong_bonus_recovers_chord_shape(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -158,7 +166,8 @@ def test_bonus_does_not_reduce_shape_overlap(monkeypatch: pytest.MonkeyPatch) ->
     less, than the no-bonus decode."""
     cfg = GuitarConfig()
     events = [_ev(m, 0.0) for m in _E_MAJOR_OPEN_MIDI]
-    no_bonus = frozenset((t.string_idx, t.fret) for t in fuse(events, [], cfg))
+    monkeypatch.setattr(cs, "CHORD_SHAPE_BONUS", 0.0)
+    off = frozenset((t.string_idx, t.fret) for t in fuse(events, [], cfg))
     monkeypatch.setattr(cs, "CHORD_SHAPE_BONUS", 10.0)
     boosted = frozenset((t.string_idx, t.fret) for t in fuse(events, [], cfg))
-    assert cs.best_shape_overlap(boosted) >= cs.best_shape_overlap(no_bonus)
+    assert cs.best_shape_overlap(boosted) >= cs.best_shape_overlap(off)
