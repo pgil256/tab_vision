@@ -75,6 +75,13 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   clean-12 first (expected to fail). Safest domain-neutral candidate:
   `OPEN_STRING_BONUS=0.0` (strummed 0.7951→0.8140, single-line flat); prior
   `alpha` inert. (`a3_fusion_sweep_val24_2026-07-06.md`, DECISIONS 2026-07-06.)
+  **Gate CLOSED 2026-07-07 — candidate REJECTED, no default change:** the
+  `OPEN_STRING_BONUS=0.0` candidate PASSES GuitarSet 60-clip (both tiers' lo-95
+  up: single-line +0.0057, strummed +0.0117) but FAILS GAPS clean-12 (single-line
+  lo-95 −0.0091, 11/12 clips regress). Even a hand-coded bonus is corpus-coupled —
+  audio-fusion tuning is domain-sensitive across the board; defaults hold.
+  (`a3_gate_open0_{gs60,gaps12}_2026-07-07.md`, DECISIONS 2026-07-07;
+  gate harness `scripts/eval/a3_gate_probe.py`.)
 - **A4. Time-scaled Viterbi transitions** — **DONE 2026-07-06: measured WASH.**
   `transition_cost` now takes an inter-onset `gap_s`; hand-continuity terms decay
   by `exp(-gap/TRANSITION_GAP_TAU)` (default `inf` = bit-identical no-op). Sweep:

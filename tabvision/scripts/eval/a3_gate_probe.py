@@ -39,6 +39,22 @@ from tabvision.types import GuitarConfig
 _CACHE_DIR = Path.home() / ".tabvision/cache/a3_fusion_sweep"  # shared with the sweep
 
 
+def gate_passed(lower95_held: bool, n_regressions: int, strict_per_clip: bool) -> bool:
+    """Decide the gate verdict from the two measurement bars.
+
+    - ``lower95_held``: no tier's lower-95 CI regressed. This bar ALWAYS gates.
+    - per-clip no-regression (``n_regressions == 0``): the hard bar only for the
+      GAPS clean-12 cross-domain leg (``strict_per_clip=True``). On the in-domain
+      GuitarSet 60-clip confirm it is informational — a few clips regressing
+      while the aggregate lower-95 holds is expected and not a FAIL.
+    """
+    if not lower95_held:
+        return False
+    if strict_per_clip and n_regressions > 0:
+        return False
+    return True
+
+
 def _score(
     clips: list[ClipData], prior: object, cfg: GuitarConfig
 ) -> dict[str, list[tuple[str, float]]]:
@@ -62,6 +78,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--set", dest="override", required=True, help="e.g. OPEN_STRING_BONUS=0.0")
     ap.add_argument(
         "--clean12", action="store_true", help="filter GAPS clips to the CLEAN_12 stems"
+    )
+    ap.add_argument(
+        "--strict-per-clip",
+        action="store_true",
+        help=(
+            "make per-clip no-regression a HARD gate (the GAPS clean-12 "
+            "cross-domain bar). Omit for the in-domain GuitarSet 60-clip "
+            "confirm, whose bar is per-tier lower-95 — there a few individual "
+            "clips regressing while the aggregate lower-95 holds is expected "
+            "and reported informationally, not a FAIL."
+        ),
     )
     ap.add_argument("--media-root", type=Path, default=None)
     ap.add_argument("--annotation-root", type=Path, default=None)
@@ -130,8 +157,8 @@ def main(argv: list[str] | None = None) -> int:
             f"| {tier} | {len(b)} | {bc.statistic:.4f} ({bc.lower:.4f}) | "
             f"{oc.statistic:.4f} ({oc.lower:.4f}) | {dmean:+.4f} | {dlo:+.4f} |"
         )
-        # Single-line must not regress its lower-95 (the acceptance bar).
-        if "single_line" in tier and dlo < -1e-4:
+        # The acceptance bar: NO tier may regress its lower-95 CI.
+        if dlo < -1e-4:
             verdict_ok = False
 
     # Per-clip no-regression (GAPS discipline).
@@ -161,17 +188,21 @@ def main(argv: list[str] | None = None) -> int:
     per_clip_ok = len(regressions) == 0
     lines.append("## Verdict")
     lines.append("")
-    passed = verdict_ok and per_clip_ok
-    lines.append(
-        f"**{'PASS' if passed else 'FAIL'}** — "
-        + ("single-line lower-95 held" if verdict_ok else "single-line lower-95 REGRESSED")
-        + "; "
-        + (
-            "no per-clip regressions."
+    passed = gate_passed(verdict_ok, len(regressions), args.strict_per_clip)
+    lo95_msg = "all tiers' lower-95 held" if verdict_ok else "a tier's lower-95 REGRESSED"
+    if args.strict_per_clip:
+        per_clip_msg = (
+            "no per-clip regressions"
             if per_clip_ok
-            else f"{len(regressions)} per-clip regression(s)."
+            else f"{len(regressions)} per-clip regression(s) [HARD gate]"
         )
-    )
+    else:
+        per_clip_msg = (
+            f"{len(regressions)} per-clip regression(s) [informational — "
+            "lower-95 is the bar for the in-domain confirm]"
+        )
+    bar = "per-clip no-regression + lower-95" if args.strict_per_clip else "per-tier lower-95"
+    lines.append(f"**{'PASS' if passed else 'FAIL'}** — {lo95_msg}; {per_clip_msg}. (bar: {bar})")
     lines.append("")
 
     report = "\n".join(lines) + "\n"

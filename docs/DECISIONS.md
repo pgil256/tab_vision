@@ -1705,3 +1705,37 @@ proceeding needs a training run (rule 8). On TDR-0.84-vs-0.778 the lift doesn't
 justify the spend + a new CQT front-end. Recommend holding; if revisited, build
 on the MIT successors and re-scope the expected lift against the contested-string
 subset first (a zero-spend re-analysis of existing caches).
+
+## 2026-07-07 — A3 gate: OPEN_STRING_BONUS=0.0 candidate — passes GuitarSet, FAILS GAPS cross-domain → NO default change
+
+**Phase:** v1.1 roadmap A3 follow-up (the sweep's safest domain-neutral candidate).
+**Decision tree:** the A3 val24 sweep flagged `OPEN_STRING_BONUS=0.0` as the one
+*domain-neutral-looking* mover (strummed 0.7951→0.8140, single-line flat; the
+bonus's docstring admits it was calibrated against a now-absent vision floor).
+Take it through the acceptance gate (60-clip player-05 lower-95 confirm + GAPS
+clean-12 per-clip no-regression) — adopt as default, or bank negative?
+**Branch taken:** **NO default change; banked negative.** `OPEN_STRING_BONUS`
+stays 0.5. The gate is a split decision that the cross-domain bar vetoes:
+- **GuitarSet 60-clip (in-domain, guitarset-v1 prior): PASS.** Both tiers'
+  lower-95 *improved* — single-line 0.4570→0.4627 (+0.0057), strummed
+  0.6058→0.6175 (+0.0117); 19/60 clips up, 5 down, 36 flat.
+- **GAPS clean-12 (cross-domain classical, prior none): FAIL.** Single-line
+  lower-95 0.7093→0.7003 (−0.0091), **11 of 12 clips regress** (worst 294 −0.023).
+Reports: `docs/EVAL_REPORTS/a3_gate_open0_{gs60,gaps12}_2026-07-07.md`. Gate
+harness: `scripts/eval/a3_gate_probe.py`.
+**Reasoning:** Even removing a *hand-coded bonus* (not a learned prior) is
+**domain-sensitive** — the open-string bonus is corpus-coupled: GuitarSet
+(pop/rock/jazz comping) and GAPS (classical) use open strings differently, so
+what helps one hurts the other. This closes the last A3 sweep candidate and
+generalizes the 2026-07-02 A2 / 2026-07-06 A3 finding: audio-fusion constant
+tuning is domain-sensitive *across the board*, not just for the guitarset-v1
+prior. The shipped defaults (a cross-corpus compromise) should not move on
+in-domain gains alone. The A3 infra (env-overridable constants + sweep + gate
+harness) stands as the reusable measurement machinery; the specific val24
+movers are all now gated-and-closed.
+**Tooling note:** the gate harness's verdict logic was corrected here (the first
+run mislabeled the GuitarSet leg FAIL by applying the strict *per-clip*
+no-regression rule to the in-domain confirm, whose bar is per-tier lower-95).
+Now a two-bar model: lower-95 always gates; per-clip no-regression is the HARD
+bar only for the GAPS cross-domain leg (`--strict-per-clip`). Unit-pinned in
+`tests/unit/test_a3_gate_verdict.py`.
