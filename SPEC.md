@@ -108,7 +108,7 @@ A reproducible eval harness (§9.2) reports the following on a held-out test set
 | Chord-instance accuracy | ≥ 0.85 | % of strummed/arpeggiated chords whose entire fingering set is recovered |
 | Median end-to-end latency for a 60 s clip on laptop CPU | ≤ 5 min | Wall-clock |
 
-A "stretch" target adds expressive markings (bends, hammer-ons, pull-offs, slides) with ≥ 0.70 detection F1 — out of scope for v1 acceptance, tracked for v1.1.
+A "stretch" target adds expressive markings (bends, hammer-ons, pull-offs, slides) with ≥ 0.70 detection F1 — out of scope for v1 acceptance, tracked for v1.1. **(D1-b, 2026-07-07: ≥ 0.70 is UNBASELINED — no technique-F1 number has ever been measured. Out until baselined: queue the free GuitarSet-JAMS baseline first, then set a real stretch from its measured value; do not treat 0.70 as binding until demonstrated, per §0 rule 7. Tracked as a §15 live question.)**
 
 The targets above are aggregate over the full eval set. Per-difficulty-tier expectations:
 
@@ -218,6 +218,20 @@ stretch number stands for any tier.** v1 records the audio-only baselines
 stretch number must be *demonstrated* before it is written here (SPEC §0
 rule 7). **The video chain, GAPS caches, and probes stay in the repo as measured
 evidence and remain runnable — they are simply no longer acceptance targets.**
+
+**2026-07-07 — studio-condition eval tier added (D1-c; diagnostic, reported,
+NOT gated).** Every acceptance number above is measured on clean corpus WAVs,
+but the product ingests browser-`MediaRecorder` Opus-in-webm from laptop/phone
+mics. A8 (`scripts/eval/a8_studio_degradation.py`, roadmap Tier 2) re-encodes
+val24 through the real capture chain (Opus-webm 48 kHz + a modeled laptop-mic
+band + noise floor; ffmpeg-only, gold labels carry over) and re-scores. First
+run (`docs/EVAL_REPORTS/a8_studio_degradation_val24_2026-07-07.md`,
+DECISIONS 2026-07-07): the eval-vs-product gap is **~0** — every condition is a
+wash-to-tiny-positive on aggregate Tab F1 (codec floor +0.0015 … worst-case
++0.0085), lower-95 CIs overlapping. This tier is **reported, not gated**:
+degradation is tracked release-over-release so a regression surfaces, but no
+target gates on it, and it models the encode chain + a plausible mic — **not**
+real field reverb, input clipping, or an arbitrary phone mic's true response.
 
 **§1.4 is the single source of truth for acceptance** (read with this
 acoustic-scope amendment). Where any other document (CLAUDE.md, AGENTS.md,
@@ -1244,13 +1258,24 @@ These were open in the v0.9 draft and have been resolved during spec review. Lis
 
 ## 15. Live open questions
 
-(Claude Code: these need answers from the user. Ask in one batched message after Phase 1.5 acceptance, not earlier.)
+(Claude Code: these need answers/actions from the user. **Replaced wholesale
+2026-07-07 (D1-d).** The original five — audit→promote, eval-tier distribution,
+annotator UX, preflight strictness, NARRATIVE authorship — were all pre-Phase-1.5
+and are answered by events: Phases 0–5 shipped; acoustic scope is fixed (§1.4.1);
+`scripts/annotate/` was built; preflight shipped lenient + `tabvision check` /
+`diagnose`; `docs/NARRATIVE.md` exists (final pass is Phase 9 / D4). The framing
+"ask after Phase 1.5" is long-expired. The actual live items:)
 
-1. After running on the existing project, did the audit reveal any work that should be promoted into the new repo immediately rather than waiting for the relevant phase?
-2. Eval set distribution across the four difficulty tiers: default plan is 4 clean-acoustic-single-line / 4 clean-acoustic-strummed / 4 clean-electric / 3 distorted-electric = 15 total. Confirm or adjust.
-3. Annotator UX: terminal CLI with keyboard shortcuts (default plan), or simple Tk/Qt GUI? CLI is faster to build and faster to use once learned; GUI is more discoverable.
-4. Preflight strictness: lenient (warns once and proceeds; `--strict` flag to enforce) vs. strict by default. Default plan is lenient.
-5. For the portfolio narrative (`docs/NARRATIVE.md`), is the user planning to write it themselves at the end, or does Claude Code draft a first cut for review during Phase 9?
+1. **Expressive-markings baseline (D1-b).** ≥ 0.70 technique F1 is a tracked v1.1
+   stretch but **unbaselined**. Queue the free GuitarSet-JAMS technique baseline
+   (fully automated, rides the composite harness), then set a real stretch from
+   its measured value — do not publish 0.70 as a target until demonstrated
+   (§0 rule 7). See §1.4.
+2. **D2 — electric v2 go/no-go sequencing** (spend-gated fine-tune;
+   `docs/plans/2026-06-02-electric-backbone-finetune-design.md`). When to start.
+3. **D3 — export-dependency license review** (music21 + PyGuitarPro for TAB / GP
+   exports; MIDI export needs nothing). Gate before Phase 6 export work.
+4. **D4 — Phase 9 kickoff** — needs the user's explicit "proceed" per SPEC §0.
 
 ---
 

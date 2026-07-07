@@ -1,5 +1,10 @@
 # D1 decision packet — SPEC §1.4.1 remainder + §15 (2026-07-06)
 
+> **RESOLVED 2026-07-07** (user-approved, all to recommendation): D1-a retire
+> (already applied 2026-07-06 — no-op), D1-b out-until-baselined, D1-c
+> in-as-diagnostic, D1-d replace §15. SPEC edited + DECISIONS 2026-07-07 logged.
+> Remaining user-gated items (D2/D3/D4) moved to SPEC §15. This packet is closed.
+
 **For:** the user. One batched set of decisions; each item names the exact
 SPEC edit implied. Nothing here changes the binding v1 gates (single-line
 ≥ 0.45, strummed ≥ 0.60, aggregate ≥ 0.55 — all ACCEPTED 2026-06-03).
