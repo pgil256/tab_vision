@@ -34,17 +34,31 @@ Everything the last session was mid-running is finished. The A3 sweep's one
 **domain-neutral candidate worth gating** is `OPEN_STRING_BONUS=0.0` (strummed
 0.7951→0.8140, single-line flat) — see P0 below.
 
+## STATUS 2026-07-07 — the whole chunk is MERGED; P0/P1/P3 below are DONE
+
+All six items (A10/A14, B4/B3/B5, A6, A3/A4/A12) plus the D1 SPEC retirement are
+merged to `main` (PRs #22–#26). **P0 and P1 and P3 below are complete** — kept
+here only as the record of what was done. The genuine remaining next work is
+**P2 (A8)** and the **D1 remainder**. See the memory note
+`project_2026-07-06-b4b3-a6-a3a4-chunk` for the current state.
+
 ## Then — the prioritized next work (informed by a blindspot audit; do in order)
 
-### P0. (optional, cheap) Gate the one clean A3 candidate
-Before/instead of more sweeping: take `OPEN_STRING_BONUS=0.0` (env
-`TABVISION_OPEN_STRING_BONUS=0`) through a 60-clip player-05 lower-95 confirm
-**and** a GAPS clean-12 per-clip no-regression. If it clears both, it's a free
-strummed lift with no single-line cost. The prior-trust movers
-(`FRET_PRIOR_WEIGHT`/`LOW_FRET_BIAS`/`power`) are a GuitarSet-overfit trap —
-only pursue if you first re-scope against GAPS; expect them to fail it.
+### P0. Gate the one clean A3 candidate — **DONE 2026-07-07 (#26): REJECTED.**
+`OPEN_STRING_BONUS=0.0` PASSED GuitarSet 60-clip (both tiers' lo-95 up) but
+FAILED GAPS clean-12 (single-line lo-95 −0.0091, 11/12 clips regress) — even a
+hand-coded bonus is corpus-coupled. No default change. The prior-trust movers
+(`FRET_PRIOR_WEIGHT`/`LOW_FRET_BIAS`/`power`) remain the expected-to-fail
+GuitarSet-overfit trap; not pursued. (`a3_gate_open0_*_2026-07-07.md`,
+DECISIONS 2026-07-07.) Gate harness: `scripts/eval/a3_gate_probe.py`.
 
-### P1. Land the shipped PRs safely + resolve the one real merge conflict
+### P1. Land the shipped PRs safely + resolve the one real merge conflict — **DONE (#22→#24→#23→#25).**
+Merged in that order. The #23↔#25 `viterbi.py`/`playability.py` conflict was
+hand-resolved (B4's forward+backward margin + A4's `gap_s` threaded through both
+passes; `playability.py` auto-merged cleanly). A latent OOM bug in
+`a3_fusion_sweep._raw_events_cached` (backend rebuilt per clip) was found and
+fixed during the gate run (`make_shared_audio_backend`, +4 regression tests).
+Original guidance kept below for reference:
 #22 (A10/A14) and A6 are isolated — merge cleanly anytime. **#23 (B4) and the
 A3/A4 branch BOTH rewrite `tabvision/tabvision/fusion/viterbi.py` `_viterbi_clusters`
 and edit `playability.py` (constants block, `transition_cost`, `__all__`).**
@@ -67,12 +81,13 @@ tuning; if it craters, pivot to input robustness (denoise/AGC, B9 bad-input bann
 preflight) instead of fusion constants. Diagnostic tier, **not** a gate (don't edit
 SPEC §1.4 targets). Bank the result either way. Roadmap: A8 (Tier 2).
 
-### P3. Harden the correction UX into the real value story
-B4+B3 is the plan's centerpiece but ships soft on two axes the audit confirmed:
-- **B5 — persistence.** Web edits are destroyed on refresh (localStorage autosave
-  + restore banner first; then `PATCH /jobs/:id/result` + a recent-transcriptions
-  list). Without it the correction UX is session-only. Roadmap: B5 (Tier 2).
-- **B3 capo/alt-tuning guard.** `pitchPreservingFret` in
+### P3. Harden the correction UX into the real value story — **B5 DONE (#23); capo guard SKIPPED per user.**
+B4+B3 is the plan's centerpiece but shipped soft on two axes the audit confirmed:
+- **B5 — persistence: DONE (#23).** localStorage autosave + `RestoreBanner`
+  implemented (edits survive refresh); 21 headless checks. The `PATCH
+  /jobs/:id/result` + recent-transcriptions-list half is still deferred.
+- **B3 capo/alt-tuning guard: SKIPPED** — user 2026-07-07 said not to worry about
+  alternate tunings. `pitchPreservingFret` in
   `web-client/src/store/appStore.ts` hardcodes a **standard-tuning** interval
   table (`STRING_OPEN_MIDI`). A capo cancels (both strings shift equally) so that's
   fine, but an *alternate tuning* (DADGAD/drop-D/open) makes Shift+Up/Down produce
