@@ -5,9 +5,13 @@ from __future__ import annotations
 import pytest
 
 from tabvision.eval.error_decomposition import (
+    PITCH_OFF_DELTA_CLASSES,
     ErrorDecomposition,
     aggregate_decompositions,
+    classify_pitch_off_delta,
     decompose_errors,
+    pitch_off_class_counts,
+    pitch_off_delta_histogram,
 )
 from tabvision.types import TabEvent
 
@@ -62,6 +66,70 @@ def test_pitch_off_bucket() -> None:
     assert r.pitch_off == 1
     assert r.correct == 0
     assert r.wrong_position_same_pitch == 0
+
+
+def test_pitch_off_delta_captured_signed() -> None:
+    """Each pitch_off event records its signed semitone delta (pred − gold)."""
+    gold = [_ev(0.0, 0, 0, pitch=40), _ev(1.0, 0, 0, pitch=52)]
+    pred = [
+        _ev(0.01, 0, 12, pitch=52),  # +12: octave up
+        _ev(1.01, 0, 11, pitch=51),  # −1: semitone down
+    ]
+
+    r = decompose_errors(pred, gold)
+
+    assert r.pitch_off == 2
+    assert sorted(r.pitch_off_deltas) == [-1, 12]
+
+
+def test_pitch_off_deltas_empty_when_no_pitch_off() -> None:
+    gold = [_ev(0.0, 0, 0)]
+    pred = [_ev(0.0, 0, 0)]
+
+    r = decompose_errors(pred, gold)
+
+    assert r.pitch_off == 0
+    assert r.pitch_off_deltas == ()
+
+
+@pytest.mark.parametrize(
+    ("delta", "expected"),
+    [
+        (12, "octave"),
+        (-12, "octave"),
+        (24, "octave"),
+        (-36, "octave"),
+        (7, "harmonic"),
+        (-7, "harmonic"),
+        (19, "harmonic"),
+        (5, "harmonic"),
+        (-5, "harmonic"),
+        (17, "harmonic"),
+        (1, "semitone"),
+        (-1, "semitone"),
+        (2, "semitone"),
+        (3, "other"),
+        (-4, "other"),
+        (11, "other"),
+    ],
+)
+def test_classify_pitch_off_delta(delta: int, expected: str) -> None:
+    assert classify_pitch_off_delta(delta) == expected
+    assert expected in PITCH_OFF_DELTA_CLASSES
+
+
+def test_pitch_off_histogram_and_class_counts() -> None:
+    deltas = (12, 12, -1, 7, 3)
+    assert pitch_off_delta_histogram(deltas) == {-1: 1, 3: 1, 7: 1, 12: 2}
+    counts = pitch_off_class_counts(deltas)
+    assert counts == {"octave": 2, "harmonic": 1, "semitone": 1, "other": 1}
+    assert sum(counts.values()) == len(deltas)
+
+
+def test_to_dict_excludes_pitch_off_deltas() -> None:
+    r = ErrorDecomposition(pitch_off=1, pitch_off_deltas=(12,))
+    assert "pitch_off_deltas" not in r.to_dict()
+    assert r.to_dict()["pitch_off"] == 1
 
 
 def test_timing_only_bucket() -> None:
@@ -177,6 +245,14 @@ def test_aggregate_decompositions_sums_bucketwise() -> None:
     assert agg.missed_onset == 3
     assert agg.extra_detection == 1
     assert agg.pitch_off == 0
+
+
+def test_aggregate_concatenates_pitch_off_deltas() -> None:
+    a = ErrorDecomposition(pitch_off=2, pitch_off_deltas=(12, -1))
+    b = ErrorDecomposition(pitch_off=1, pitch_off_deltas=(7,))
+    agg = aggregate_decompositions([a, b])
+    assert agg.pitch_off == 3
+    assert agg.pitch_off_deltas == (12, -1, 7)
 
 
 def test_aggregate_empty_returns_zeros() -> None:

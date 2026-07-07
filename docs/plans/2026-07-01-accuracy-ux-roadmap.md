@@ -77,13 +77,19 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
 - **A4. Time-scaled Viterbi transitions** (decay continuity costs by
   inter-onset gap; `transition_cost` is currently gap-blind). Rides A3's
   harness for near-zero marginal cost. Distinct from the banked WS2 negative.
-- **A10. Instrument `pitch_off` with semitone-delta histograms** in the eval
-  decomposition (octave vs semitone vs harmonic need different fixes) —
-  converts an opaque 11% bucket into an actionable or formally-closed one.
-- **A14. Cache-only video complementarity probe** on the existing WS0 GAPS
-  cache: per-note confusion (prior right/wrong × video right/wrong) +
-  audio-uncertainty-keyed routing. The one hybrid the capstone left unmeasured;
-  an afternoon; closes the video question definitively before the SPEC edit.
+- **A10. Instrument `pitch_off` with semitone-delta histograms** — **DONE
+  2026-07-06, bucket FORMALLY CLOSED:** no dominant fixable mode (octave 6/117
+  ≈ 0.6% of loss, harmonic 30, semitone 20, other 61; 93% in strummed
+  dense-cluster near-misses). Instrumentation is permanent in the harness —
+  a future backend that re-concentrates the histogram reopens it for free.
+  (`a10_val24_pitch_off_decomposition_2026-07-06.md`, DECISIONS 2026-07-06.)
+- **A14. Cache-only video complementarity probe** — **DONE 2026-07-06,
+  decisive negative; video CLOSED on every measured axis:** audio-wrong ∩
+  video-right = 5.8%; P(video right | audio wrong) = 0.285 vs marginal 0.574
+  (anti-enriched); chord axis refuted (audio 0.819 > video 0.542 on chord
+  members); margin-keyed routing never beats audio-only at any threshold.
+  (`a14_video_complementarity_2026-07-06.md`, DECISIONS 2026-07-06; attach
+  to D1.)
 
 ### Tier 2 — days-class, no approval
 - **A5. Port v0's 790-line chord-shape dictionary**
@@ -275,12 +281,15 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
 - **D1. SPEC §1.4.1 revision** — **partially resolved 2026-07-02:** the 0.94
   single-line video-assisted reference is RETIRED (user-approved; SPEC §1.4.1
   amended, A2 attached as evidence; binding gate stays ≥0.45, no new stretch
-  number until demonstrated). **Still open:** the 0.85 chord-instance
-  reference (chord-frame-video probe A14 is the one axis where video plausibly
-  beats audio — in or out?); expressive markings (≥0.70 F1 stretch, GuitarSet
-  JAMS labels exist, fully automated) in or out; optionally a studio-condition
-  eval tier defined by A8's harness; the stale §15 open questions. Attach A14
-  when it runs.
+  number until demonstrated). **A14 now attached (2026-07-06):** the
+  chord-frame hypothesis is refuted (audio beats video *more* on chord
+  members, not less; no routed hybrid exists) — recommendation: retire the
+  0.85 chord-instance and 0.86 strummed video-assisted references like the
+  0.94. **Still open (user decision):** that retirement; expressive markings
+  (≥0.70 F1 stretch, GuitarSet JAMS labels exist, fully automated) in or out;
+  optionally a studio-condition eval tier defined by A8's harness; the stale
+  §15 open questions. Full packet:
+  `docs/2026-07-06-d1-decision-packet.md`.
 - **D2. Electric v2 go/no-go sequencing** — spend-gated fine-tune; decide when
   (or whether) to schedule the zero-spend feasibility step.
 - **D3. Export deps license review** — music21 + PyGuitarPro into the Modal
@@ -296,8 +305,9 @@ web; 3 of 4 renderers dead code) → learn nothing (README documents frozen v0).
   A0 land branch → A1 CLI defaults, A2 GAPS prior run, B1 progress/errors,
   B2 upload types, ~~B8~~ (dropped per user 2026-07-02), A10 pitch_off
   instrumentation, A14 complementarity probe; draft the D1 packet with A2/A14
-  attached. *(Status 2026-07-02: A0–A2, B1, B2 done; 0.94 retirement of D1
-  resolved; A15 license review queued behind A10/A14.)*
+  attached. *(Status 2026-07-06: **Week 1 COMPLETE** — A0–A2, B1, B2 done
+  2026-07-02; A15 ran ahead of queue and CLOSED 2026-07-05; A10 + A14 done +
+  D1 packet drafted 2026-07-06.)*
 - **Week 2**: A3+A4 sweep harness (the load-bearing infra — A5's bonus
   magnitude and per-tier configs ride it); B4 margin confidence → B3 string
   editor (ship as a pair); A6 GAPS gold fix.
@@ -330,4 +340,8 @@ guitar_fl swap for electric (noise) · per-clip highres time calibration
 gate/orientation/λ (capstone) · WS2 nut-axis re-fit (0.574→0.547) · WS4 learned
 neck-crop string model (−0.117; tighter-crop retry explicitly not authorized) ·
 coverage gate loosened 0.71→0.5 (leaked −0.05) · UT-Austin real-audio corpus
-(corpus-broken) · 720p GAPS re-acquire (weak EV + cache footgun).
+(corpus-broken) · 720p GAPS re-acquire (weak EV + cache footgun) ·
+audio-uncertainty/confidence-keyed routing of the current CV chain's string
+evidence (A14: video anti-enriched where audio fails; every τ loses) ·
+pitch_off bucket interventions (A10: no concentrated mode; octave ≈ 0.6% of
+loss).
