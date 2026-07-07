@@ -2,6 +2,12 @@
 import { create } from 'zustand';
 import { TabDocument, TabNote } from '../types/tab';
 import type { AccuracyMode, Instrument, PlayingStyle, Tone, UploadRoi } from '../api/client';
+import {
+  PersistedSession,
+  clearSession,
+  loadSession,
+  persistSession,
+} from '../utils/editPersistence';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
@@ -52,6 +58,9 @@ interface AppState {
   tabDocument: TabDocument | null;
   errorMessage: string | null;
   videoUrl: string | null;
+  // B5 — a persisted (edited) session found in localStorage on mount, offered
+  // for restore. Null once restored/discarded or when none exists.
+  restorable: PersistedSession | null;
 
   // Playback state
   currentTime: number;
@@ -89,6 +98,11 @@ interface AppState {
   setError: (message: string) => void;
   setVideoUrl: (url: string | null) => void;
   reset: () => void;
+
+  // B5 — edit persistence / restore
+  loadPersistedSession: () => void;
+  restorePersistedSession: () => void;
+  discardPersistedSession: () => void;
 
   // Playback actions
   setCurrentTime: (time: number) => void;
@@ -143,6 +157,7 @@ const initialState = {
   tabDocument: null as TabDocument | null,
   errorMessage: null as string | null,
   videoUrl: null as string | null,
+  restorable: null as PersistedSession | null,
 
   // Playback state
   currentTime: 0,
@@ -184,13 +199,45 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setPipelineVideoEnabled: (enabled) => set({ pipelineVideoEnabled: enabled }),
 
-  setTabDocument: (doc) => set({ tabDocument: doc, jobStatus: 'completed' }),
+  setTabDocument: (doc) => {
+    set({ tabDocument: doc, jobStatus: 'completed', restorable: null });
+    persistSession(doc, get().currentJobId); // survive a refresh from the first render
+  },
 
   setError: (message) => set({ errorMessage: message, jobStatus: 'failed' }),
 
   setVideoUrl: (url) => set({ videoUrl: url }),
 
-  reset: () => set(initialState),
+  reset: () => {
+    clearSession(); // "New transcription" discards the autosaved session
+    set(initialState);
+  },
+
+  // B5 — offer to restore an autosaved edited session on a fresh mount. Only
+  // when nothing is loaded yet, so it never overrides a live job.
+  loadPersistedSession: () => {
+    if (get().tabDocument) return;
+    const session = loadSession();
+    if (session) set({ restorable: session });
+  },
+
+  restorePersistedSession: () => {
+    const session = get().restorable;
+    if (!session) return;
+    set({
+      tabDocument: session.doc,
+      currentJobId: session.jobId,
+      jobStatus: 'completed',
+      restorable: null,
+      editHistory: [],
+      editHistoryIndex: -1,
+    });
+  },
+
+  discardPersistedSession: () => {
+    clearSession();
+    set({ restorable: null });
+  },
 
   // Playback actions
   setCurrentTime: (time) => set({ currentTime: time }),
@@ -298,6 +345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistory: newHistory,
       editHistoryIndex: newHistory.length - 1,
     });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   // Move the selected note to the adjacent string, keeping its pitch by
@@ -334,6 +382,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistoryIndex: newHistory.length - 1,
       selectedNoteId: selectedNoteId === noteId ? null : selectedNoteId,
     });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   // Insert a new note (B3), kept in timestamp order, and select it for editing.
@@ -365,6 +414,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistoryIndex: newHistory.length - 1,
       selectedNoteId: note.id,
     });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   setPendingFretInput: (input) => set({ pendingFretInput: input }),
@@ -413,6 +463,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistoryIndex: editHistoryIndex - 1,
       selectedNoteId: selected,
     });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   redo: () => {
@@ -443,6 +494,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistoryIndex: editHistoryIndex + 1,
       selectedNoteId: selected,
     });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   canUndo: () => get().editHistoryIndex >= 0,
