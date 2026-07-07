@@ -1788,3 +1788,34 @@ audio is information-limited (A2/A14 closed); A8 removes a *worry*, it does not
 add upside. **No SPEC change** (diagnostic, not a gate). This does make **D1-c**
 (optional studio-condition diagnostic *tier* in §1.4.1) decidable — the harness
 and first number now exist; still the user's call.
+
+## 2026-07-07 — D1 remainder resolved (user-approved batch): SPEC §1.4.1 studio tier + §15 replaced
+
+**Phase:** v1.1 D1 decision packet (`docs/2026-07-06-d1-decision-packet.md`) —
+the SPEC-hygiene remainder after the 0.94 (2026-07-02) and 0.86/0.85
+(2026-07-06) video-assisted-reference retirements. All four resolved to the
+packet's recommendation.
+**Decisions + SPEC actions:**
+- **D1-a (retire 0.86/0.85 video refs): CONFIRMED — no-op.** Already applied
+  2026-07-06 (§1.4.1 carries the user-approved A14 retirement; the packet/handoff
+  line listing it as "awaiting user" was stale). Re-confirmed today; no SPEC edit
+  needed. (Verified against §1.4.1 before acting — did not double-retire.)
+- **D1-b (expressive-markings ≥ 0.70 technique F1): OUT until baselined.** No
+  technique-F1 number has ever been measured, so per §0 rule 7 it stays a
+  *tracked v1.1 stretch, explicitly unbaselined* — annotated as such at §1.4 and
+  queued as a §15 live question (run the free GuitarSet-JAMS baseline first, set
+  a real stretch from its value). No binding number written.
+- **D1-c (studio-condition eval tier): IN as a diagnostic tier (reported, not
+  gated).** Added to §1.4.1 referencing the A8 harness + the 2026-07-07 result
+  (gap ~0). Tracks capture-chain degradation release-over-release; gates nothing.
+- **D1-d (stale §15): REPLACED wholesale.** The five pre-Phase-1.5 questions are
+  all answered by events; §15 now lists the actual live items — D1-b (technique
+  baseline), D2 (electric v2 sequencing), D3 (export-deps license review), D4
+  (Phase 9 "proceed").
+**Reasoning:** the binding v1 gates (single-line ≥ 0.45, strummed ≥ 0.60,
+aggregate ≥ 0.55) are untouched — this batch is honesty/hygiene: retire
+references three negatives refuted, don't publish an unmeasured stretch, track
+the product-condition gap as a named diagnostic, and stop carrying expired
+questions. The packet is **resolved**; remaining user-gated items (D2/D3/D4) now
+live in §15. **Still open elsewhere:** A5 (chord-shape dictionary port) is the
+next accuracy lever (rides the A3 sweep harness).
