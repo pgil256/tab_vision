@@ -1850,15 +1850,32 @@ to be typed `Mapping[int, int | None]` not `dict`, else dict value-invariance
 fails the type gate); 16 new unit tests + the existing 57 fusion tests green. (The
 local global interpreter can't run the torch/soundfile audio suite — env, not
 code; CI runs it, cf. PR #28 green.)
-**Not yet measured — the actual accuracy step is eval-env-gated.** Per the A3 gate
-lesson (a hand-coded `OPEN_STRING_BONUS=0.0` PASSED GuitarSet 60-clip but FAILED
-GAPS clean-12 — audio-fusion tuning is domain-coupled, DECISIONS 2026-07-07), any
-positive grid point is a *candidate only*: it must clear the 60-clip lower-95
-confirm AND GAPS clean-12 no-regression (`scripts/eval/a3_gate_probe.py`) before
-the default moves off `0.0`. **Ceiling honesty (roadmap A5):** expected strummed
-**+0.01–0.04**; this does **not** close the chord-accuracy 0.48→0.85 gap by itself.
-**Reasoning:** landing the mechanism as a verified no-op (matching how A3's
-constants and A4's gap-decay shipped) decouples code review from the
-eval-env-gated measurement and keeps the binding v1 gates untouched until the data
-says otherwise. **Still open:** the A5 sweep→gate run (needs the eval venv +
-val24/GAPS manifests, absent from a fresh checkout); D2/D3/D4 in SPEC §15.
+**Measured 2026-07-07 (eval env reconstructed in-session — installed
+soundfile/pretty_midi, manifests + transcription cache present).** The
+`CHORD_SHAPE_BONUS` sweep on val24 finds **0.1** the best magnitude (strummed
+0.7951→0.7980; single-line **exactly 0.4820 at every value** — the invariance
+holds empirically; ≥0.25 turns negative as count-scaling over-biases). At **0.1**
+the candidate **clears the full A3 gate on BOTH legs** — the first fusion constant
+to do so:
+- **in-domain** 60-clip GuitarSet player-05: strummed +0.0053 mean / **+0.0061
+  lower-95**, single-line +0.0000 (PASS — per-tier lower-95, the in-domain bar);
+- **cross-domain** GAPS clean-12 (`--position-prior none --strict-per-clip`):
+  +0.0006 mean, **0 per-clip regressions** (PASS — the hard cross-domain bar).
+Contrast A3's `OPEN_STRING_BONUS=0.0` (passed GuitarSet, **FAILED** GAPS lo-95
+−0.0091) and A4 (wash): this reward is **domain-neutral** because it is grounded
+in voicing **geometry**, not corpus prior tuning. To gate it, `a3_gate_probe.py`
+was made module-aware (resolves `chord_shapes` constants, not just `playability`).
+Report: `docs/EVAL_REPORTS/a5_chord_shape_gate_2026-07-07.md` (+ full sweep
+`…_sweep_val24_2026-07-07.md`). **Ceiling honesty (roadmap A5):** +0.0053 strummed
+is **below** the hoped +0.01–0.04 and does **not** move the chord-accuracy
+0.48→0.85 gap — a real, small, rigorously-gated, near-zero-downside win (env
+-reversible), not a breakthrough.
+**Default decision — USER-GATED (still 0.0 in-tree).** Shipping `0.0 → 0.1`
+re-bases the canonical val24 **strummed** baseline 0.7951→0.7980 (single-line
+0.4820 unchanged), which every future sweep/gate then references. Per the
+project's close stewardship of shipped defaults, and though A5 is a "no-approval"
+tier, that re-basing + the below-hope magnitude make the flip the **user's call**;
+the committed default stays **0.0** pending it. **Reasoning:** the mechanism +
+full gate are done and banked; only the one-line default flip (with its
+test/sweep-baseline/docstring ripple) awaits the ship/hold call. **Still open:**
+the A5 default-flip (ship 0.1 vs hold 0.0 — user-gated, above); D2/D3/D4 in SPEC §15.
