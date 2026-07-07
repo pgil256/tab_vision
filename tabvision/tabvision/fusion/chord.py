@@ -18,28 +18,34 @@ See ``docs/plans/2026-05-06-phase5-fusion-design.md`` §3.2 and SPEC.md §5.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 
 from tabvision.fusion.candidates import Candidate, candidate_positions
 from tabvision.fusion.playability import MAX_HAND_SPAN
 from tabvision.types import AudioEvent, GuitarConfig
 
-CHORD_MAX_GAP_S = 0.080
+CHORD_MAX_GAP_S = float(os.environ.get("TABVISION_CHORD_MAX_GAP_S", "0.080"))
 """Maximum onset gap (seconds) between consecutive events to count as one
-chord cluster. SPEC §5 calls this "≤ 80 ms apart"."""
+chord cluster. SPEC §5 calls this "≤ 80 ms apart". Env-overridable
+(``TABVISION_CHORD_MAX_GAP_S``) for the A3 fusion-constants sweep."""
 
 
 def cluster_events(
     events: Sequence[AudioEvent],
-    max_gap_s: float = CHORD_MAX_GAP_S,
+    max_gap_s: float | None = None,
 ) -> list[list[AudioEvent]]:
     """Group events into chord clusters.
 
     Chain semantics: events ``i`` and ``i+1`` (sorted by onset) join the
     same cluster iff ``events[i+1].onset_s - events[i].onset_s ≤ max_gap_s``.
     A cluster therefore can span more than ``max_gap_s`` overall when the
-    individual pairwise gaps remain bounded.
+    individual pairwise gaps remain bounded. ``max_gap_s=None`` reads the
+    module-level :data:`CHORD_MAX_GAP_S` at call time, so an in-process sweep
+    can rebind it without re-importing.
     """
+    if max_gap_s is None:
+        max_gap_s = CHORD_MAX_GAP_S
     if not events:
         return []
     sorted_events = sorted(events, key=lambda e: e.onset_s)
