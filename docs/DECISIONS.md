@@ -1521,6 +1521,40 @@ env `TABVISION_TRANSITION_PRIOR`) as the measured evidence.
 `a15_gaps22_none_pdmx_seq_w4_2026-07-05.md` (+ decomps); transitions cache
 regenerable via the committed extractor.
 
+## 2026-07-06 — A6: GAPS gold repeat/volta unfolding — honest single-line Tab F1 is 0.6969, not 0.6468
+
+**Phase:** v1.1 roadmap A6 (branch `v1.1/a6-gaps-gold-coverage`)
+**Decision tree:** GAPS gold-coverage artifact — the parser walked each written
+measure once, so repeat traversals had no score counterpart and the performer's
+replayed notes counted as false positives (the docstring's "first-traversal-
+biased" gold). Fix by unfolding, or leave the artifact and accept a depressed
+headline?
+**Branch taken:** **Unfold, gated on a length-match with the syncpoint span.**
+The GAPS syncpoints index the *unfolded performance* timeline; `parse()` now
+unfolds simple repeats + 1st/2nd voltas (`_unfold_measures`) to that order
+before walking, and trusts the unfold only when `|len(unfold) - sync_span| <= 3`
+(nonstandard volta encodings fall back to the written order — safe). Validated
+on the real data: the unfold reproduces the syncpoint span on **11/14** repeat
+clips in test-22; the other 3 fall back; the 8 non-repeat clips are untouched.
+Eval-gold-only — nothing shipped changes. `TABVISION_GAPS_NO_UNFOLD` forces the
+pre-A6 behaviour for the controlled A/B.
+**Evidence (controlled A/B, highres, `--position-prior none`, `--splits test`;
+predictions cache-shared):** unfold **OFF** = Tab F1 **0.6468** (lo-95 0.5734),
+14,699 gold — *reproduces the banked baseline exactly*, validating the harness.
+unfold **ON** = **0.6969** (lo-95 0.6256), 16,079 gold. **Δ = +0.0501 Tab F1,
++1,380 gold notes (+9.4%)**; onset/pitch F1 rise in lockstep (0.8277→0.8796,
+0.8185→0.8703). Reports: `docs/EVAL_REPORTS/a6_gaps_unfold_{on,off}_2026-07-06.md`.
+Tests: 7 new (unfold cases + end-to-end repeat-coverage + fallback), 15 parser
+tests green.
+**Reasoning:** The +0.05 is a **coverage-accounting correction, not a model
+improvement** — A6 stops penalising the model for repeat notes it always
+transcribed (they become true positives, which is why all three F1s move
+together). The honest GAPS single-line number is **0.6969**; all GAPS-tuned work
+should now measure against it. The A2 cross-domain-prior negative (−0.138) and
+any future GAPS tuning are re-based on this cleaner gold. The 3 fallback clips
+keep the (smaller) residual artifact; reopening them needs bespoke volta
+handling, not worth it at n=22.
+
 ## 2026-07-06 — A10: pitch_off decomposed by semitone delta — no dominant fixable mode; bucket formally closed
 
 **Phase:** v1.1 roadmap A10 (branch `v1.1/a14-a10-probes`)
