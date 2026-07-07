@@ -65,18 +65,21 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   ran `--position-prior none` while wrong_position is 34.1% of real GAPS loss.
   One command via `scripts.eval.v1_1_second_corpus_probe`. Expect 0.647 →
   0.68–0.70+; a null still banks the generalization data point.
-- **A3. Fusion-constants sweep + a `lambda_prior` knob.** Make
-  `playability.py` constants env-overridable (like `POSITION_SHIFT_COST`
-  already is) and grid-sweep: `LOW_FRET_BIAS`, `OPEN_STRING_BONUS` (docstring
-  admits it was calibrated against a now-absent vision floor),
-  `SAME_STRING_BONUS`, `SPAN_NORM`, `HAND_SPAN_BARRIER`, `MAX_HAND_SPAN`,
-  `CHORD_MAX_GAP_S`, prior `alpha/power` (never swept), plus a new weight on
-  the `-log(fret_prior)` term at `playability.py:120-122` (currently
-  full-strength, no knob). The only constant ever swept in this family banked
-  +1.5pp. Expect +0.005–0.02 aggregate.
-- **A4. Time-scaled Viterbi transitions** (decay continuity costs by
-  inter-onset gap; `transition_cost` is currently gap-blind). Rides A3's
-  harness for near-zero marginal cost. Distinct from the banked WS2 negative.
+- **A3. Fusion-constants sweep + `FRET_PRIOR_WEIGHT` knob** — **DONE 2026-07-06.**
+  All constants env-overridable + runtime-rebindable; in-process sweep harness
+  (`scripts.eval.a3_fusion_sweep`) validated (reproduces val24 baseline exactly).
+  **No default changed.** The big val24 movers (`LOW_FRET_BIAS=0.0` +0.039,
+  `FRET_PRIOR_WEIGHT=1.5` +0.030, prior `power=3.0` +0.030) are all the
+  *trust-the-prior-more* lever — but val24 IS GuitarSet, and that prior is −0.138
+  on GAPS (A2), so they're a GuitarSet-overfit trap that must clear GAPS
+  clean-12 first (expected to fail). Safest domain-neutral candidate:
+  `OPEN_STRING_BONUS=0.0` (strummed 0.7951→0.8140, single-line flat); prior
+  `alpha` inert. (`a3_fusion_sweep_val24_2026-07-06.md`, DECISIONS 2026-07-06.)
+- **A4. Time-scaled Viterbi transitions** — **DONE 2026-07-06: measured WASH.**
+  `transition_cost` now takes an inter-onset `gap_s`; hand-continuity terms decay
+  by `exp(-gap/TRANSITION_GAP_TAU)` (default `inf` = bit-identical no-op). Sweep:
+  best TAU=1.0 at +0.0005, most values negative → keep off. Banked negative for
+  the A4 hypothesis; knob retained as env-overridable evidence.
 - **A10. Instrument `pitch_off` with semitone-delta histograms** — **DONE
   2026-07-06, bucket FORMALLY CLOSED:** no dominant fixable mode (octave 6/117
   ≈ 0.6% of loss, harmonic 30, semitone 20, other 61; 93% in strummed
@@ -130,8 +133,14 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   every fret number and no eval can see it.
 
 ### Tier 3 — approval-gated
-- **A12. tabcnn timbral string-ID backend** (the 6-line stub at
-  `audio/tabcnn.py`; SPEC-named "timbral string-ID model"). Second pass
+- **A12. tabcnn timbral string-ID backend** — **feasibility DONE 2026-07-06:
+  BECOMES A TRAINING SPEND, soft no (filed, not pursued).** No pretrained weights
+  exist in the TabCNN lineage (TabCNN unlicensed; MIT successors ship no
+  checkpoints); expected lift thin (TDR 0.84 on a favorable population vs our
+  0.778; TabCNN tab F1 0.75 < our 0.815). `fret_prior` + A3's `FRET_PRIOR_WEIGHT`
+  knob are wired if ever pursued with rule-8 sign-off.
+  (`docs/2026-07-06-a12-tabcnn-feasibility.md`, DECISIONS 2026-07-06.) Original
+  framing below. Second pass
   alongside highres, posterior consumed through the already-proven
   `AudioEvent.fret_prior` channel with A3's weight knob + strict no-regression
   gate. The **only** item with a path past the single-line information ceiling

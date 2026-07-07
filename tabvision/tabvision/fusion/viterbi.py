@@ -126,6 +126,12 @@ def _viterbi_clusters(
         # chord-to-chord transitions stay on the hand-coded terms.
         return len(cluster_data[i - 1][0]) == 1 and len(cluster_data[i][0]) == 1
 
+    def gap_s_between(i: int, j: int) -> float:
+        # A4: inter-onset gap (first-event onsets) between adjacent clusters i
+        # and j decays the hand-continuity terms; None when TRANSITION_GAP_TAU
+        # is inf (the default) — a no-op regardless of this value.
+        return cluster_data[j][0][0].onset_s - cluster_data[i][0][0].onset_s
+
     # Forward pass: alpha[i][si] = min cost of a path ending in state si of
     # cluster i (emission included). Factoring the (pi-invariant) emission out
     # of the argmin leaves picks bit-identical to a plain forward Viterbi.
@@ -133,12 +139,13 @@ def _viterbi_clusters(
     backptr: list[list[int]] = [[-1] * len(a) for a in anchors]
     alpha[0] = list(emissions[0])
     for i in range(1, n):
+        gap_s = gap_s_between(i - 1, i)
         for si, anchor_curr in enumerate(anchors[i]):
             best = math.inf
             best_pi = -1
             for pi, anchor_prev in enumerate(anchors[i - 1]):
                 cand = alpha[i - 1][pi] + playability.transition_cost(
-                    anchor_prev, anchor_curr, cfg, use_sequence_prior=single_line(i)
+                    anchor_prev, anchor_curr, cfg, use_sequence_prior=single_line(i), gap_s=gap_s
                 )
                 if cand < best:
                     best = cand
@@ -151,12 +158,17 @@ def _viterbi_clusters(
     # emissions[i][si] so alpha[i][si] + beta[i][si] counts it exactly once.
     beta: list[list[float]] = [[0.0] * len(a) for a in anchors]
     for i in range(n - 2, -1, -1):
+        gap_s = gap_s_between(i, i + 1)
         for si, anchor_state in enumerate(anchors[i]):
             best = math.inf
             for ti, anchor_next in enumerate(anchors[i + 1]):
                 cand = (
                     playability.transition_cost(
-                        anchor_state, anchor_next, cfg, use_sequence_prior=single_line(i + 1)
+                        anchor_state,
+                        anchor_next,
+                        cfg,
+                        use_sequence_prior=single_line(i + 1),
+                        gap_s=gap_s,
                     )
                     + emissions[i + 1][ti]
                     + beta[i + 1][ti]
