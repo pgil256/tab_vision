@@ -27,7 +27,12 @@ git clone "$REPO_SOURCE" "$WORKDIR/tabvision"
 cd "$WORKDIR/tabvision/tabvision"
 
 "$PYTHON_BIN" -m venv .venv
-source .venv/bin/activate
+# venv layout differs by platform: POSIX uses bin/, Windows (Git Bash/MSYS) uses Scripts/.
+if [ -f .venv/bin/activate ]; then
+  source .venv/bin/activate
+else
+  source .venv/Scripts/activate
+fi
 python -m pip install --upgrade pip
 python -m pip install -e '.[dev]'
 

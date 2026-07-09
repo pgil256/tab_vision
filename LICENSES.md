@@ -133,4 +133,12 @@ will be needed.
   (2026-07-09, D3) — cleared as an opt-in `render`-extra library import (not
   copyleft-contagious); `music21` BSD-3-Clause + `mido` MIT confirmed. See
   DECISIONS 2026-07-09 and the Phase 6 verification gate above.
-- [ ] **Phase 9:** Expand the license-check scaffold to compare loaded model artifacts against the ✅ list.
+- [x] **Phase 9:** Expand the license-check scaffold to compare loaded model artifacts
+  against the ✅ list (2026-07-09) — `scripts/check_default_licenses.py` now enforces a
+  second "default artifact policy" alongside the dependency policy. It resolves what the
+  default pipeline actually loads from the real CLI defaults (`highres` →
+  `xavriley/midi-transcription-models:guitar-gaps.pth`, MIT; `guitarset-v1` /
+  `guitarset-seq-v1` → derived count statistics, CC-BY-4.0) and fails CI if any resolved
+  artifact is off the ✅ list or on the blocked list (ultralytics weights,
+  `guitar-fl.pth`, the electric checkpoint). Closes the SPEC §11 "NC weights leaked into
+  the default" risk row.

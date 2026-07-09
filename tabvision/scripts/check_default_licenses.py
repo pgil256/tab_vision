@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
-"""Check that default runtime dependencies stay license-clean.
+"""Check that the shipping default pipeline stays license-clean.
 
-This scaffold intentionally checks only ``[project].dependencies``. Optional
-extras such as ``vision`` and ``render`` have separate documented trade-offs in
-LICENSES.md and should not silently move into the shipping default.
+Two policies, both enforced (CI fails if either fails):
+
+1. **Default dependencies** — ``[project].dependencies`` in ``pyproject.toml``
+   must not contain a copyleft/opt-in package. Optional extras (``vision``,
+   ``render``, ``audio-*``) carry their own documented trade-offs in
+   LICENSES.md and must not silently move into the shipping default.
+
+2. **Loaded model artifacts** (SPEC §7 Phase 9 / LICENSES.md action item) —
+   the model checkpoints and prior artifacts the *default* pipeline actually
+   resolves to must all be on the LICENSES.md permissive (✅) list. This is the
+   "NC weights leaked into the default" guard from the SPEC §11 risk table.
+   Read from the real CLI defaults (``tabvision.cli`` is import-light — no
+   torch), so the check tracks the shipped config and runs in the ``[dev]`` CI
+   env without the heavy audio extras installed.
 """
 
 from __future__ import annotations
@@ -13,6 +24,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+# --- Policy 1: default dependencies ------------------------------------------
+
 BLOCKED_DEFAULT_PACKAGES = {
     "ultralytics": "AGPL-3.0 detector is optional/accepted, not a default dependency",
     "pyguitarpro": "LGPL render dependency must remain in the render extra",
@@ -20,6 +33,31 @@ BLOCKED_DEFAULT_PACKAGES = {
     "hf-midi-transcription": (
         "high-res backend must remain opt-in until Phase 2 license gate closes"
     ),
+}
+
+# --- Policy 2: loaded model artifacts ----------------------------------------
+
+# Every artifact the DEFAULT pipeline may load, keyed by the CLI's resolved
+# backend/prior name. Each must map to a permissively licensed artifact per the
+# LICENSES.md ✅ rows. Keep this in sync with LICENSES.md.
+PERMISSIVE_DEFAULT_ARTIFACTS = {
+    "highres": ("xavriley/midi-transcription-models:guitar-gaps.pth", "MIT"),
+    "guitarset-v1": (
+        "tabvision/fusion/priors/guitarset_v1.json",
+        "CC-BY-4.0 (derived count statistics, attribution in LICENSES.md)",
+    ),
+    "guitarset-seq-v1": (
+        "tabvision/fusion/priors/guitarset_seq_v1.json",
+        "CC-BY-4.0 (derived count statistics, attribution in LICENSES.md)",
+    ),
+    "none": ("(no artifact)", "n/a"),
+}
+
+# Artifact keys that must NEVER be the default (they exist for opt-in / v2 use).
+BLOCKED_DEFAULT_ARTIFACTS = {
+    "highres-electric": "electric checkpoint is v2 / opt-in, not the acoustic default",
+    "guitar-fl.pth": "electric/jazz checkpoint — not the acoustic default",
+    "ultralytics": "AGPL-3.0 YOLO detector — vision extra only, never default",
 }
 
 
@@ -33,22 +71,38 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    deps = _default_dependencies(args.pyproject)
+    dep_failures = _check_dependencies(args.pyproject)
+    artifact_failures = _check_default_artifacts()
+
+    _report("default dependency policy", dep_failures, extra="checked default dependencies")
+    _report(
+        "default artifact policy", artifact_failures, extra="checked default pipeline artifacts"
+    )
+
+    return 1 if (dep_failures or artifact_failures) else 0
+
+
+def _report(label: str, failures: list[str], *, extra: str) -> None:
+    if failures:
+        print(f"{label}: FAIL")
+        for failure in failures:
+            print(f" - {failure}")
+    else:
+        print(f"{label}: PASS")
+        print(f"{extra}")
+
+
+# --- Policy 1 implementation -------------------------------------------------
+
+
+def _check_dependencies(pyproject: Path) -> list[str]:
+    deps = _default_dependencies(pyproject)
     failures = []
     for dep in deps:
         name = _dependency_name(dep)
         if name in BLOCKED_DEFAULT_PACKAGES:
             failures.append(f"{name}: {BLOCKED_DEFAULT_PACKAGES[name]}")
-
-    if failures:
-        print("default dependency policy: FAIL")
-        for failure in failures:
-            print(f" - {failure}")
-        return 1
-
-    print("default dependency policy: PASS")
-    print(f"checked {len(deps)} default dependencies")
-    return 0
+    return failures
 
 
 def _default_dependencies(pyproject: Path) -> list[str]:
@@ -62,6 +116,56 @@ def _dependency_name(requirement: str) -> str:
     for separator in ("<", ">", "=", "!", "~", "["):
         head = head.split(separator, 1)[0]
     return head.strip().lower().replace("_", "-")
+
+
+# --- Policy 2 implementation -------------------------------------------------
+
+
+def _resolve_default_artifacts() -> list[tuple[str, str]]:
+    """(component, resolved-key) for the DEFAULT pipeline, torch-free.
+
+    Reads the real ``tabvision transcribe`` defaults so the check tracks the
+    shipped config, then mirrors the ``auto`` routing in ``tabvision.cli`` /
+    ``run_pipeline`` (tone toggle + A15 sequence-prior coupling).
+    """
+    from tabvision.cli import _build_parser
+
+    ns = _build_parser().parse_args(["transcribe", "clip.mov"])
+
+    backend = ns.audio_backend
+    if backend == "auto":
+        # Tone toggle: electric routes to the electric checkpoint; the default
+        # instrument is acoustic → highres.
+        backend = "highres-electric" if ns.instrument == "electric" else "highres"
+
+    sequence_prior = ns.sequence_prior
+    if sequence_prior == "auto":
+        # A15 coupling: the sequence prior follows the position prior.
+        sequence_prior = "guitarset-seq-v1" if ns.position_prior == "guitarset-v1" else "none"
+
+    return [
+        ("audio-backend", backend),
+        ("position-prior", ns.position_prior),
+        ("sequence-prior", sequence_prior),
+    ]
+
+
+def _check_default_artifacts() -> list[str]:
+    failures = []
+    try:
+        resolved = _resolve_default_artifacts()
+    except Exception as exc:  # noqa: BLE001 - surface as a policy failure, not a crash.
+        return [f"could not resolve default artifacts from tabvision.cli: {exc}"]
+
+    for component, key in resolved:
+        if key in BLOCKED_DEFAULT_ARTIFACTS:
+            failures.append(f"{component}={key}: {BLOCKED_DEFAULT_ARTIFACTS[key]}")
+        elif key not in PERMISSIVE_DEFAULT_ARTIFACTS:
+            failures.append(
+                f"{component}={key}: not on the permissive default-artifact allowlist "
+                "(LICENSES.md ✅). Clear its license or move it behind an opt-in extra."
+            )
+    return failures
 
 
 if __name__ == "__main__":
