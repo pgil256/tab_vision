@@ -1966,3 +1966,36 @@ regressed — the 0.1 nudge doesn't disturb the robust properties they assert).
 cross-domain no-regression bar is, per the measurement discipline, an accepted
 change; the re-basing was the only reason to surface it, and the user approved.
 **Still open:** D2/D3/D4 in SPEC §15 (A5 is now DONE — mechanism, gate, ship).
+
+## 2026-07-09 — production backend repointed: pgil256 Modal workspace orphaned → pgilhooley95
+
+**Context.** Production (`tabvision.patbuilds.dev`) crashed on browser-recorder
+webm uploads with `ValueError: could not convert string to float: 'A'` — the
+demux metadata parser splitting ffprobe's literal `N/A` stream-duration line on
+`/`. The fix already existed on `main` (`29e19a8`, 2026-06-30), but the Modal
+image bundles local source at deploy time and production was still the May
+image (`936a5cc` era) — ~20 commits of bundled code behind, also missing audio
+uploads, the A5 chord-shape bonus, the sequence-prior default, and the B1 UX
+work.
+
+**Complication.** The original production app lived in the **`pgil256`** Modal
+workspace (deployed from a cloud session with that account's token). The local
+machine's Modal login is the **`pgilhooley95`** account; a fresh browser token
+flow also resolved to `pgilhooley95`, so the `pgil256` workspace is not
+deployable from here — effectively orphaned.
+
+**Decision (user-approved 2026-07-09): repoint production instead of chasing
+the old workspace.** `modal deploy tabvision-server/modal_app.py` from `main`
+into the `pgilhooley95` workspace, then the Vercel project `tab_vision`
+Production env `VITE_API_URL` was changed to
+`https://pgilhooley95--tabvision-api-flask-app.modal.run` and the frontend
+rebuilt/redeployed.
+
+**Verified.** End-to-end job (synthetic webm reproducing the `N/A` shape) ran
+`pending → processing → completed` against the new backend; live bundle
+contains only the new URL; CORS preflight from the production origin passes.
+
+**No code changed** — the incident was deploy drift, not a regression. Loose
+ends: the stale `pgil256` app should be stopped from its Modal dashboard if
+that account is ever recovered; consider CI or a checklist step that flags
+when `main` moves ahead of the last Modal deploy.

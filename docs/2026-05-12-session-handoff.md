@@ -1,5 +1,12 @@
 # 2026-05-12 Session Handoff
 
+> **SUPERSEDED (2026-07-09):** the production backend URL below is stale. The
+> `pgil256` Modal workspace is orphaned (no local credentials) and its app runs
+> a pre-fix May image. Production now points at
+> `https://pgilhooley95--tabvision-api-flask-app.modal.run` (Modal workspace
+> `pgilhooley95`), deployed from `main`. See `docs/DECISIONS.md`
+> ("2026-07-09 — production backend repointed").
+
 ## Current Focus
 
 TabVision production now uses Modal for the Flask API/runtime and Vercel for
