@@ -25,12 +25,17 @@ def write_diagnose_report(
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
+    tab_events: Sequence[TabEvent] | None = None,
 ) -> Path:
     """Run lightweight diagnostics and write a self-contained HTML report.
 
     The report is deliberately tolerant: if preflight or transcription cannot
     run in the local environment, the HTML still captures the failure and keeps
     the overlay/audio/tab/confidence sections present for debugging.
+
+    ``tab_events`` lets a caller supply already-decoded events (e.g. from a
+    prior pipeline run) so the report can be regenerated without paying for a
+    second transcription. When ``None`` (the CLI path), the pipeline runs here.
     """
     cfg = cfg or GuitarConfig()
     session = session or SessionConfig()
@@ -38,22 +43,28 @@ def write_diagnose_report(
     report_path = Path(output_path) if output_path is not None else _default_report_path(input_path)
 
     preflight_html = _preflight_section(input_path, preflight_enabled)
-    tab_events, pipeline_message = _run_pipeline_for_report(
-        input_path,
-        audio_backend_name=audio_backend_name,
-        lambda_vision=lambda_vision,
-        video_stride=video_stride,
-        video_enabled=video_enabled,
-        audio_filters=audio_filters,
-        cfg=cfg,
-        session=session,
-    )
+    if tab_events is None:
+        tab_events, pipeline_message = _run_pipeline_for_report(
+            input_path,
+            audio_backend_name=audio_backend_name,
+            lambda_vision=lambda_vision,
+            video_stride=video_stride,
+            video_enabled=video_enabled,
+            audio_filters=audio_filters,
+            cfg=cfg,
+            session=session,
+        )
+    else:
+        tab_events = list(tab_events)
+        pipeline_message = f"Using {len(tab_events)} caller-supplied tab events."
+    waveform_html = _waveform_section(input_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
         _render_html(
             input_path=input_path,
             tab_events=tab_events,
             preflight_html=preflight_html,
+            waveform_html=waveform_html,
             pipeline_message=pipeline_message,
             cfg=cfg,
             session=session,
@@ -113,6 +124,7 @@ def _render_html(
     input_path: Path,
     tab_events: Sequence[TabEvent],
     preflight_html: str,
+    waveform_html: str,
     pipeline_message: str,
     cfg: GuitarConfig,
     session: SessionConfig,
@@ -126,7 +138,11 @@ def _render_html(
         "Video stack enabled; overlay generation is currently represented by "
         "diagnostic placeholders unless downstream overlay assets are available."
         if video_enabled
-        else "Video stack disabled by --no-video."
+        else (
+            "Video stack disabled (audio-only). v1 ships audio-first, so no "
+            "fretboard overlay is produced on this path; enable the vision "
+            "extra to render one."
+        )
     )
     return f"""<!doctype html>
 <html lang="en">
@@ -140,6 +156,11 @@ def _render_html(
     table {{ border-collapse: collapse; width: 100%; }}
     th, td {{ border: 1px solid #ccc; padding: 0.35rem 0.5rem; text-align: left; }}
     th {{ background: #eee; }}
+    .legend {{ font-size: 0.9rem; color: #444; }}
+    .legend span {{ padding: 0.1rem 0.4rem; border-radius: 3px; margin-right: 0.4rem; }}
+    .conf-high {{ background: #d8f5df; }}
+    .conf-med {{ background: #fdf1cc; }}
+    .conf-low {{ background: #f8d3d7; }}
   </style>
 </head>
 <body>
@@ -156,8 +177,7 @@ def _render_html(
 
   <section id="audio">
     <h2>Audio</h2>
-    <p>Audio waveform rendering is a Phase 9 placeholder in this CLI report.
-    Transcription diagnostics are summarized by decoded note count and pipeline status.</p>
+    {waveform_html}
   </section>
 
   <section id="tab">
@@ -167,6 +187,11 @@ def _render_html(
 
   <section id="confidence">
     <h2>Confidence</h2>
+    <p class="legend">Per-note confidence:
+      <span class="conf-high">high &ge; 0.8</span>
+      <span class="conf-med">medium 0.5&ndash;0.8</span>
+      <span class="conf-low">low &lt; 0.5</span>
+    </p>
     <table>
       <thead>
         <tr><th>Onset</th><th>Duration</th><th>String</th><th>Fret</th><th>Pitch</th><th>Confidence</th></tr>
@@ -199,10 +224,73 @@ def _confidence_rows(events: Sequence[TabEvent]) -> list[str]:
             f"<td>{event.string_idx}</td>"
             f"<td>{event.fret}</td>"
             f"<td>{event.pitch_midi}</td>"
-            f"<td>{event.confidence:.2f}</td>"
+            f'<td class="{_confidence_class(event.confidence)}">{event.confidence:.2f}</td>'
             "</tr>"
         )
     return rows
+
+
+def _confidence_class(confidence: float) -> str:
+    """CSS class for the confidence band (mirrors the ascii renderer bands)."""
+    if confidence >= 0.8:
+        return "conf-high"
+    if confidence >= 0.5:
+        return "conf-med"
+    return "conf-low"
+
+
+def _waveform_section(input_path: Path) -> str:
+    """Decode the clip's audio and render an inline SVG envelope.
+
+    Tolerant by design (matching the rest of the report): if ffmpeg or the
+    audio backend is unavailable, record the failure and keep the section.
+    """
+    try:
+        from tabvision.demux import demux
+
+        result = demux(input_path, sample_rate=8000)
+        svg = _waveform_svg(result.wav)
+    except Exception as exc:  # noqa: BLE001 - a diagnostic report survives a bad env.
+        return f"<p>Waveform unavailable: {html.escape(str(exc))}</p>"
+    if not svg:
+        return "<p>Audio decoded but empty; no waveform to draw.</p>"
+    duration = getattr(result, "duration_s", 0.0) or 0.0
+    return f"<p>Decoded audio envelope ({duration:.1f}s, mono 8&nbsp;kHz).</p>\n    {svg}"
+
+
+def _waveform_svg(wav, *, width: int = 960, height: int = 120, buckets: int = 480) -> str:
+    """Min/max amplitude envelope as a self-contained inline SVG (no deps)."""
+    import numpy as np
+
+    samples = np.asarray(wav, dtype=float).reshape(-1)
+    n = int(samples.shape[0])
+    if n == 0:
+        return ""
+    peak = float(np.max(np.abs(samples))) or 1.0
+    norm = samples / peak
+    step = max(1, n // buckets)
+    mid = height / 2.0
+    n_cols = (n + step - 1) // step
+    x_scale = width / max(1, n_cols)
+    segments: list[str] = []
+    for col, start in enumerate(range(0, n, step)):
+        seg = norm[start : start + step]
+        if seg.size == 0:
+            continue
+        x = col * x_scale
+        y_hi = mid - float(seg.max()) * mid
+        y_lo = mid - float(seg.min()) * mid
+        segments.append(f"M{x:.1f} {y_hi:.1f}L{x:.1f} {y_lo:.1f}")
+    path = "".join(segments)
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+        'preserveAspectRatio="none" role="img" aria-label="audio waveform envelope">'
+        f'<rect x="0" y="0" width="{width}" height="{height}" fill="#0b1021"/>'
+        f'<line x1="0" y1="{mid:.1f}" x2="{width}" y2="{mid:.1f}" '
+        'stroke="#33415a" stroke-width="1"/>'
+        f'<path d="{path}" stroke="#4ade80" stroke-width="1" fill="none"/>'
+        "</svg>"
+    )
 
 
 __all__ = ["write_diagnose_report"]

@@ -47,6 +47,22 @@ def test_ascii_snapshot_marks_low_confidence_notes() -> None:
 
 
 @pytest.mark.render
+def test_ascii_color_is_additive_and_grades_by_confidence() -> None:
+    """SPEC §7.3: opt-in colour-graded ASCII. Plain output must stay
+    byte-identical (file/dispatch paths); ``color=True`` wraps each fret in an
+    ANSI band and preserves the ``?`` low-confidence marker."""
+    from tabvision.render.ascii import render
+
+    events = _fixture_events()  # confidences 0.95 (high) and 0.32 (low)
+    plain = render(events, GuitarConfig())
+    colored = render(events, GuitarConfig(), color=True)
+
+    assert "\x1b[" not in plain  # plain path carries no escape codes
+    assert "\x1b[32m0\x1b[0m" in colored  # fret 0 @0.95 → green
+    assert "\x1b[31m3?\x1b[0m" in colored  # fret 3 @0.32 → red, keeps '?'
+
+
+@pytest.mark.render
 def test_ascii_rejects_out_of_range_string_idx() -> None:
     """gp5/midi/musicxml all reject an out-of-range ``string_idx`` with a
     ``ValueError`` (see each renderer's ``_validate_event``/``_validate_string``).

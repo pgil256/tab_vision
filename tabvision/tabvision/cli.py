@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -222,6 +223,17 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["fingerstyle", "strumming", "mixed"],
         default="mixed",
     )
+    t.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help=(
+            "colour-grade the ASCII tab by confidence when printing to a "
+            "terminal — green (high) / yellow (medium) / red (low). 'auto' "
+            "(default) colours only an interactive TTY and honours NO_COLOR; "
+            "file output (-o) is always plain. Ignored for non-ascii formats."
+        ),
+    )
     pf = t.add_mutually_exclusive_group()
     pf.add_argument(
         "--strict",
@@ -346,11 +358,30 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         args.output.write_bytes(output)
         logger.info("wrote %s", args.output)
     elif args.format == "ascii":
-        sys.stdout.write(output.decode("utf-8"))
+        if _should_color(args.color):
+            from tabvision.render.ascii import render as render_ascii
+
+            sys.stdout.write(render_ascii(tab_events, cfg, color=True))
+        else:
+            sys.stdout.write(output.decode("utf-8"))
     else:
         sys.stdout.buffer.write(output)
 
     return 0
+
+
+def _should_color(choice: str) -> bool:
+    """Whether to ANSI-colour the ascii tab written to stdout.
+
+    ``always``/``never`` force it; ``auto`` (default) colours only an
+    interactive terminal and honours the ``NO_COLOR`` convention. File output
+    (``-o``) never reaches here, so written tabs stay plain and byte-stable.
+    """
+    if choice == "always":
+        return True
+    if choice == "never":
+        return False
+    return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
 
 
 def _make_audio_backend(name: str):

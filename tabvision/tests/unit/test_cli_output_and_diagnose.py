@@ -102,3 +102,55 @@ def test_diagnose_writes_html_report(tmp_path, monkeypatch: pytest.MonkeyPatch) 
     assert 'id="audio"' in html or "id='audio'" in html
     assert 'id="tab"' in html or "id='tab'" in html
     assert 'id="confidence"' in html or "id='confidence'" in html
+
+
+def test_waveform_svg_renders_envelope_from_samples() -> None:
+    import numpy as np
+
+    from tabvision.diagnose import _waveform_svg
+
+    svg = _waveform_svg(np.sin(np.linspace(0.0, 40.0, 8000)))
+    assert svg.startswith("<svg")
+    assert "<path" in svg
+
+
+def test_waveform_svg_is_blank_for_empty_audio() -> None:
+    import numpy as np
+
+    from tabvision.diagnose import _waveform_svg
+
+    assert _waveform_svg(np.zeros(0)) == ""
+
+
+def test_diagnose_uses_supplied_events_and_grades_confidence(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real report path: supplying ``tab_events`` must skip the pipeline
+    entirely (no second decode) and colour-band the confidence table."""
+    from tabvision.diagnose import write_diagnose_report
+    from tabvision.types import TabEvent
+
+    def _must_not_run(*_a, **_k):
+        raise AssertionError("run_pipeline must not run when tab_events is supplied")
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", _must_not_run)
+
+    events = [
+        TabEvent(onset_s=0.0, duration_s=0.5, string_idx=0, fret=3, pitch_midi=43, confidence=0.32),
+        TabEvent(onset_s=0.5, duration_s=0.5, string_idx=5, fret=0, pitch_midi=64, confidence=0.95),
+    ]
+    output_path = tmp_path / "report.html"
+
+    write_diagnose_report(
+        tmp_path / "input.mov",
+        output_path,
+        video_enabled=False,
+        preflight_enabled=False,
+        tab_events=events,
+    )
+
+    html = output_path.read_text(encoding="utf-8")
+    for section in ("overlay", "audio", "tab", "confidence"):
+        assert f'id="{section}"' in html
+    assert "conf-low" in html and "conf-high" in html
+    assert "caller-supplied" in html
