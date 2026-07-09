@@ -9,6 +9,48 @@ Status: active v1 build, currently through Phase 6 renderer polish plus Phase
 9 release scaffolding. The frozen v0 app remains in the repository as prior
 art; new work lives in this package.
 
+## Accuracy
+
+v1 is **acoustic, audio-only** by scope — an evidence-based decision, not a
+relaxation (electric was measured and found blocked on a model that does not yet
+exist; the full story is in [`../docs/NARRATIVE.md`](../docs/NARRATIVE.md)).
+Measured on the GuitarSet held-out player-05 validation set (60 clips), formal
+acceptance run 2026-06-03
+([report](../docs/EVAL_REPORTS/v1_acceptance_2026-06-03.md)):
+
+| Metric | v1 gate | Measured (mean / lower-95) |
+|---|---:|---:|
+| Single-line Tab F1 | ≥ 0.45 | **0.523** / 0.457 |
+| Strummed Tab F1 | ≥ 0.60 | **0.676** / 0.606 |
+| Aggregate Tab F1 | ≥ 0.55 | **0.600** |
+| Onset F1 (50 ms) | ≥ 0.92 | 0.94 / 0.92 |
+| Pitch F1 (50 ms) | ≥ 0.90 | 0.93 / 0.90 |
+| Latency (60 s clip, laptop CPU) | ≤ 5 min | ~45 s (0.74× realtime) |
+
+Acceptance is `lower_95_CI ≥ target` over clips (bootstrap CIs). Full targets and
+scope rationale: [`../SPEC.md`](../SPEC.md) §1.4 / §1.4.1.
+
+**Honest limits (measured, not hedged):**
+
+- **Single-line is information-limited.** Audio cannot tell which string a pitch
+  was played on — the dominant error is `wrong_position_same_pitch` (pitch
+  correct, string wrong). Video looked like the fix but was **refuted** on real
+  in-the-wild footage: the audio playability prior resolves contested strings at
+  0.778 vs the best real video chain's 0.574
+  ([A14](../docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md),
+  [GAPS video-chain](../docs/EVAL_REPORTS/v1_1_gaps_video_chain_2026-06-22.md)).
+  The video stack stays in the repo as measured evidence, not a shipping default.
+- **Electric → v2.** The acoustic backbone drops to 0.73 pitch / 0.12 Tab F1 on
+  electric ([cross-dataset](../docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md));
+  closing it needs a spend-gated fine-tune. The `--instrument electric` toggle is
+  wired for when that checkpoint exists.
+- **Expressive markings (bends / slides / hammer-ons / pull-offs) are not
+  detected** — technique-detection baseline is 0.00 (no detector yet;
+  `../docs/EVAL_REPORTS/d1b_technique_baseline_2026-07-09.md`).
+
+Every number is reproducible from the harness — `python -m scripts.eval.run` and
+the per-report scripts under `scripts/eval/`.
+
 ## Install
 
 ```bash
@@ -128,11 +170,24 @@ GuitarSet validation, license checks, fresh-install checks, and renderer tests.
 
 ## License Posture
 
-The shipping default dependency set is intentionally small and portfolio-safe.
-Optional extras carry their own documented trade-offs in `../LICENSES.md`.
-Notably, the vision extra includes ultralytics under AGPL-3.0 by explicit
-project decision, so it must remain opt-in until integration confirms the
-shipping policy.
+The shipping **default** pipeline is intentionally small and **permissive** —
+`highres` audio (MIT), ffmpeg, numpy — and carries **no copyleft**. Because v1
+is audio-only, the default path pulls in **no AGPL code**. Copyleft dependencies
+live only in **opt-in extras**, enforced by `scripts/check_default_licenses.py`
+(CI fails if one reaches `[project].dependencies`):
+
+- **`vision` extra → AGPL-3.0.** The YOLO guitar detector (ultralytics) is
+  AGPL-3.0, accepted by explicit project decision because no permissive
+  pretrained guitar detector exists. Installing `vision` makes your working copy
+  a "work based on" ultralytics under AGPL; the **default audio-only install does
+  not**.
+- **`render` extra → LGPL-3.0 (opt-in, not contagious).** Guitar Pro export uses
+  PyGuitarPro (LGPL-3.0-only); MusicXML uses music21 (BSD-3-Clause); MIDI uses
+  mido (MIT). LGPL permits use-by-import from a pip-installed CLI without making
+  TabVision copyleft — kept in the opt-in `render` extra, used unmodified, with
+  attribution (export-dependency license review 2026-07-09).
+
+Full dependency / asset license map + phase gates: [`../LICENSES.md`](../LICENSES.md).
 
 ### Dataset attribution
 
