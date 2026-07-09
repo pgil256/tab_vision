@@ -1,6 +1,6 @@
 # LICENSES — TabVision Dependency & Asset Map
 
-**Last updated:** 2026-05-05 (Phase 0 initial map)
+**Last updated:** 2026-07-09 (D3 — Phase 6 export-dep license review: PyGuitarPro + music21 cleared)
 **Spec reference:** SPEC.md §1.5 (portfolio-friendly licensing) and §6 (resource acquisition)
 
 ## Posture
@@ -82,8 +82,8 @@ Phase 0 (this document) produces the initial map; Phase 9 verifies.
 | ruff | MIT | ✅ | Dev dep |
 | mypy | MIT | ✅ | Dev dep |
 | pytest | MIT | ✅ | Dev dep |
-| PyGuitarPro (Phase 6) | LGPL-3.0 | ⚠️ | LGPL is OK for use, but distribution implications need verification for the portfolio claim. |
-| music21 (Phase 6) | BSD-3-Clause | ✅ | |
+| PyGuitarPro (Phase 6, `render` extra) | **LGPL-3.0-only** | ✅ cleared 2026-07-09 (D3) | Verified via PyPI `license_expression: LGPL-3.0-only`. Portfolio-safe as an **opt-in library import** from the pip-installable CLI: LGPL permits an application under *any* license (incl. permissive) that merely *uses* — dynamically links / imports — the library, provided the library stays LGPL and is replaceable; Python `import guitarpro` + pip satisfy that, so TabVision does **not** become copyleft. Conditions: (1) keep it in the `render` extra, never `[project].dependencies` (already CI-enforced by `scripts/check_default_licenses.py`); (2) use unmodified — don't fork-and-bundle without releasing those mods under LGPL; (3) NOTICE/README attribution. Revisit only if TabVision is ever shipped as a frozen/static binary (relinking clause). Strictly *less* restrictive than the already-accepted AGPL detector. See DECISIONS 2026-07-09 (D3). |
+| music21 (Phase 6, `render` extra) | BSD-3-Clause | ✅ verified 2026-07-09 (D3) | PyPI `license_expression: BSD-3-Clause` (classifier "OSI Approved :: BSD License"), latest v10.5.0. Permissive; portfolio-clear. Only obligation: retain the BSD LICENSE + copyright notice in NOTICES/README. (music21 was LGPL pre-v5; current versions are BSD.) |
 | mido (Phase 6) | MIT | ✅ | |
 | mir_eval | MIT | ✅ | Eval-only |
 
@@ -108,7 +108,14 @@ will be needed.
 - **Phase 3:** YOLOv8 AGPL question resolved. If unresolvable for portfolio,
   pick alternative detector path (Faster R-CNN, DETR, or self-trained from
   permissive base).
-- **Phase 6:** PyGuitarPro LGPL implications resolved.
+- **Phase 6 (resolved 2026-07-09, D3):** PyGuitarPro (LGPL-3.0-only) + music21
+  (BSD-3-Clause) both cleared for portfolio TAB / Guitar Pro export; MIDI export
+  uses `mido` (MIT). **Gate CLOSED — export work unblocked.** PyGuitarPro is
+  portfolio-safe as an opt-in library import (LGPL "use, don't modify" case; not
+  copyleft-contagious for a pip-installable CLI). Standing conditions: the LGPL
+  dep stays in the `render` extra (CI-enforced), used unmodified, with NOTICE /
+  README attribution; revisit only for a frozen-binary distribution. See
+  DECISIONS 2026-07-09.
 - **Phase 9:** CI check verifies all loaded model identifiers in default
   pipeline match the ✅ list above. Any ⚠️ that bled through fails the check.
   Current scaffold: `cd tabvision && python scripts/check_default_licenses.py`.
@@ -122,5 +129,8 @@ will be needed.
 - [ ] **Phase 3:** Resolve ultralytics AGPL applicability to weights-only consumption.
 - [x] **EGDB license — author-granted use 2026-06-01** (eval-only; save grant email under `docs/` + log in `docs/DECISIONS.md`; not a shipped-weight substrate unless the grant permits portfolio distribution).
 - [ ] **Phase 7:** Verify DadaGP license for synthetic-data rendering.
-- [ ] **Phase 6:** Verify PyGuitarPro LGPL implications for portfolio distribution.
+- [x] **Phase 6:** PyGuitarPro LGPL implications verified for portfolio distribution
+  (2026-07-09, D3) — cleared as an opt-in `render`-extra library import (not
+  copyleft-contagious); `music21` BSD-3-Clause + `mido` MIT confirmed. See
+  DECISIONS 2026-07-09 and the Phase 6 verification gate above.
 - [ ] **Phase 9:** Expand the license-check scaffold to compare loaded model artifacts against the ✅ list.
