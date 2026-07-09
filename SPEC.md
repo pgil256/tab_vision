@@ -108,7 +108,7 @@ A reproducible eval harness (§9.2) reports the following on a held-out test set
 | Chord-instance accuracy | ≥ 0.85 | % of strummed/arpeggiated chords whose entire fingering set is recovered |
 | Median end-to-end latency for a 60 s clip on laptop CPU | ≤ 5 min | Wall-clock |
 
-A "stretch" target adds expressive markings (bends, hammer-ons, pull-offs, slides) with ≥ 0.70 detection F1 — out of scope for v1 acceptance, tracked for v1.1. **(D1-b, 2026-07-07: ≥ 0.70 is UNBASELINED — no technique-F1 number has ever been measured. Out until baselined: queue the free GuitarSet-JAMS baseline first, then set a real stretch from its measured value; do not treat 0.70 as binding until demonstrated, per §0 rule 7. Tracked as a §15 live question.)**
+A "stretch" target adds expressive markings (bends, hammer-ons, pull-offs, slides) — out of scope for v1 acceptance, tracked for v1.1. **(D1-b BASELINED 2026-07-09 — the old "≥ 0.70 detection F1" is retired as unfounded; see `docs/EVAL_REPORTS/d1b_technique_baseline_2026-07-09.md`, `scripts/eval/d1b_technique_baseline.py`.) Measured facts: (a) the operational pipeline's technique-detection F1 is `0.00` — no detector is wired into the default `highres` path (it emits no `tags`); (b) GuitarSet has no discrete technique labels, so it can only *proxy*-baseline bends (~6% of notes) & slides (~3%) from `pitch_contour` — hammer-ons/pull-offs are articulation, not pitch, and are unmeasurable on GuitarSet (need a technique-labelled corpus → Guitar-TECHS, electric → v2); (c) even the proxy is a threshold-sensitive heuristic, not human annotation. Honest stretch, replacing 0.70: first milestone = build any bend/slide detector and beat `0.00`; do NOT set a numeric F1 target until a detector exists AND is scored against human technique labels (§0 rule 7).**
 
 The targets above are aggregate over the full eval set. Per-difficulty-tier expectations:
 
@@ -1266,16 +1266,40 @@ and are answered by events: Phases 0–5 shipped; acoustic scope is fixed (§1.4
 `diagnose`; `docs/NARRATIVE.md` exists (final pass is Phase 9 / D4). The framing
 "ask after Phase 1.5" is long-expired. The actual live items:)
 
-1. **Expressive-markings baseline (D1-b).** ≥ 0.70 technique F1 is a tracked v1.1
-   stretch but **unbaselined**. Queue the free GuitarSet-JAMS technique baseline
-   (fully automated, rides the composite harness), then set a real stretch from
-   its measured value — do not publish 0.70 as a target until demonstrated
-   (§0 rule 7). See §1.4.
+**Status 2026-07-09:** D1-b, D3, D4 all **resolved** this date (see each below);
+**D2 is the only remaining open item and was explicitly deferred by the user
+("drop D2")** — so §15 currently has *no action pending on Claude Code*, and one
+parked user decision (D2).
+
+1. ~~**Expressive-markings baseline (D1-b).**~~ **RESOLVED 2026-07-09.** The free
+   GuitarSet-JAMS baseline was run (`scripts/eval/d1b_technique_baseline.py`,
+   report `docs/EVAL_REPORTS/d1b_technique_baseline_2026-07-09.md`). Finding: the
+   operational technique-detection F1 is **`0.00`** (no detector in the default
+   path), GuitarSet can only proxy-baseline bends/slides (HO/PO unmeasurable
+   there), and even that proxy is a heuristic — so the old `≥ 0.70` was retired
+   (§1.4) rather than confirmed. First honest milestone: build any bend/slide
+   detector and beat `0.00`; no numeric F1 target until a detector is scored
+   against human labels.
 2. **D2 — electric v2 go/no-go sequencing** (spend-gated fine-tune;
    `docs/plans/2026-06-02-electric-backbone-finetune-design.md`). When to start.
-3. **D3 — export-dependency license review** (music21 + PyGuitarPro for TAB / GP
-   exports; MIDI export needs nothing). Gate before Phase 6 export work.
-4. **D4 — Phase 9 kickoff** — needs the user's explicit "proceed" per SPEC §0.
+   **The only remaining open item** (D1-b/D3/D4 resolved 2026-07-09).
+   **Explicitly deferred by the user 2026-07-09 ("drop D2")** — it is a real
+   strategic/budget call (a paid fine-tune of a separate `highres-electric`
+   checkpoint, a *new capability that costs money*), not a code task, so it
+   stays parked until the user opens it. No further action until then.
+3. ~~**D3 — export-dependency license review**~~ **RESOLVED 2026-07-09.** music21
+   (BSD-3-Clause, v10.5.0) and PyGuitarPro (LGPL-3.0-only) both verified via PyPI
+   and cleared for portfolio TAB / Guitar Pro export; MIDI export needs only
+   `mido` (MIT). PyGuitarPro's LGPL is not copyleft-contagious for a
+   pip-installable CLI that merely imports it — kept in the opt-in `render` extra
+   (CI-enforced), used unmodified, with attribution. **Phase 6 export gate
+   CLOSED.** See LICENSES.md (Phase 6 gate) + DECISIONS 2026-07-09.
+4. ~~**D4 — Phase 9 kickoff**~~ **RESOLVED 2026-07-09 — user gave "proceed."**
+   Phase 9 (Polish) is now open; kickoff + deliverable-state inventory in
+   `docs/plans/2026-07-09-phase9-kickoff.md`. Most §7 Phase 9 artifacts already
+   exist (README, `docs/DEMO/` scaffold, `v1.0.0` tag, `diagnose`, license
+   scaffold; `legacy/` already gone); the headline remaining work is the
+   `docs/NARRATIVE.md` final pass. See DECISIONS 2026-07-09.
 
 ---
 
