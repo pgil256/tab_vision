@@ -16,6 +16,89 @@ Format:
 
 ---
 
+## 2026-07-09 — D1-b: expressive-markings baseline (retire the unbaselined 0.70)
+
+**Phase:** v1.1 (SPEC §1.4 stretch) — diagnostic, not a gate
+**Decision tree:** SPEC §15 D1-b — "queue the free GuitarSet-JAMS technique
+baseline, then set an honest stretch from its measured value"
+**Branch taken:** Retire the "≥ 0.70 technique detection F1" stretch as
+unfounded; replace with a measured baseline of **0.00** and a
+milestone-not-a-number stretch. Do **not** set a numeric technique target yet.
+**Evidence:** `scripts/eval/d1b_technique_baseline.py` +
+`docs/EVAL_REPORTS/d1b_technique_baseline_2026-07-09.md` (+ 7 unit tests,
+`tests/unit/test_d1b_technique_baseline.py`). Operational technique-detection
+F1 = 0.00 (default `highres` backend builds every `AudioEvent` with empty
+`tags`; the only tag-emitting path, `basicpitch.py`, is not installed).
+GuitarSet JAMS carry no discrete technique labels (namespaces: `note_midi`,
+`pitch_contour`, `beat_position`, `tempo`, `chord`, `key_mode`). Bends
+(~5.75% of notes at ≥ 1.0 st sustained shift) and slides (~2.93%) are only
+*proxy*-derivable from `pitch_contour`; hammer-ons/pull-offs are unmeasurable
+there.
+**Reasoning:** Per §0 rule 7 (flag, don't hallucinate), a target never measured
+cannot be published. Three independent facts make a numeric target premature:
+(1) there is no technique detector in the default path (baseline 0.00);
+(2) GuitarSet cannot label techniques — the proxy gold is a threshold-sensitive
+heuristic (the bend count nearly triples, 7.3% → 19.4%, between the 1.0-st and
+0.5-st thresholds), so scoring a detector against it measures
+agreement-with-a-heuristic, not true technique F1; (3) hammer-ons/pull-offs need
+a technique-labelled corpus (Guitar-TECHS = electric = v2). Honest stretch:
+build any bend/slide detector and beat 0.00; defer a number until a detector is
+scored against human labels. SPEC §1.4 + §15 updated.
+
+---
+
+## 2026-07-09 — D3: export-dependency license review (Phase 6 gate closed)
+
+**Phase:** 6 (export) — license gate (SPEC §0: ⚠️ license items gate phase entry)
+**Decision tree:** SPEC §15 D3 / LICENSES.md Phase-6 action item — clear the
+TAB / Guitar Pro export deps for portfolio distribution
+**Branch taken:** **CLEAR both** — music21 (BSD-3-Clause) and PyGuitarPro
+(LGPL-3.0-only) — for portfolio TAB / GP export; MIDI export needs only `mido`
+(MIT). **Phase 6 export gate CLOSED.**
+**Evidence:** PyPI metadata (fetched 2026-07-09): PyGuitarPro
+`license_expression: "LGPL-3.0-only"`; music21 `license_expression:
+"BSD-3-Clause"` (v10.5.0, classifier "OSI Approved :: BSD License"); `mido` MIT
+(installed, confirmed). `scripts/check_default_licenses.py` already lists
+`pyguitarpro` in `BLOCKED_DEFAULT_PACKAGES` ("must remain in the render
+extra"). LICENSES.md rows + Phase-6 gate + action item updated.
+**Reasoning:** LGPL-3.0 permits an application under *any* license (incl.
+permissive) that merely *uses* — imports / dynamically links — the library,
+provided the library stays LGPL and is user-replaceable. A pip-installable
+Python CLI that does `import guitarpro` satisfies that trivially, so TabVision
+does **not** become copyleft. LGPL is strictly *less* restrictive than the
+AGPL detector already accepted (2026-05-05). Standing conditions: keep
+PyGuitarPro in the opt-in `render` extra (CI-enforced), use it unmodified
+(don't fork-and-bundle without releasing mods under LGPL), and add NOTICE /
+README attribution; revisit only if TabVision is ever shipped as a
+frozen/static binary (LGPL relinking clause). music21 is plain-permissive
+(retain the BSD LICENSE + copyright notice).
+
+---
+
+## 2026-07-09 — D4: Phase 9 (Polish) kickoff authorized
+
+**Phase:** 9 (Polish) — phase entry (SPEC §0 rule 2 requires an explicit user
+"proceed" to start a new phase)
+**Decision tree:** SPEC §15 D4
+**Branch taken:** User gave "proceed" (2026-07-09); Phase 9 is **open**. Kickoff
+= record the authorization + inventory deliverable state + sequence the
+finalization pass (no new spend, no new deps, automated + public evidence only).
+Not greenfield execution.
+**Evidence:** `docs/plans/2026-07-09-phase9-kickoff.md`. Current state:
+`legacy/` already removed; README (root + package), `docs/DEMO/` scaffold,
+`v1.0.0` tag, `diagnose` command, and `check_default_licenses.py` all exist;
+`docs/NARRATIVE.md` is a 29-line stub. Headline remaining work = the
+`docs/NARRATIVE.md` final pass.
+**Reasoning:** SPEC §0 rule 2 gates new phases on explicit user authorization,
+which was given. Phase 9 is already substantially underway, so the honest
+"kickoff" is to open the phase, record where it stands, and sequence the
+remaining (mostly automated/local) finalization — README accuracy section,
+NARRATIVE final pass, runtime-deliverable verification, per-tier examples,
+license-CI expansion, then demo recording + `v1.0.0` confirmation + user
+sign-off. D2 (electric v2) is explicitly out of Phase 9 scope.
+
+---
+
 ## 2026-06-17 — Chunk 4 complete: highres cross-corpus diagnosis on Guitar-TECHS
 
 **Phase:** v1.1 audio transcription/alignment (chunk 4)
