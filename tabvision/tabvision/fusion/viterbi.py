@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
-from tabvision.fusion import chord, playability
+from tabvision.fusion import chord, chord_shapes, playability
 from tabvision.fusion.candidates import Candidate, candidate_positions
 from tabvision.types import (
     AudioEvent,
@@ -115,6 +115,10 @@ def _viterbi_clusters(
         for ev, c in zip(cluster, state, strict=True):
             f = playability.find_fingering_at(ev.onset_s, fingerings)
             total += playability.emission_cost(c, ev, f, cfg, lambda_vision=lambda_vision)
+        # A5: reward states whose positions match a recognised chord voicing
+        # (gated default CHORD_SHAPE_BONUS=0.1; 0.0 disables). Fires only on
+        # clusters of >= CHORD_SHAPE_MIN_NOTES notes, so single-line is unchanged.
+        total += chord_shapes.chord_shape_cost(state)
         return total
 
     n = len(cluster_data)

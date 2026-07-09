@@ -31,12 +31,25 @@ from tabvision.eval.bootstrap import bootstrap_ci
 from tabvision.eval.composite import _resolve_path, _session_from_clip
 from tabvision.eval.metrics import tab_f1
 from tabvision.eval.parsers import get_parser
-from tabvision.fusion import playability
+from tabvision.fusion import chord_shapes, playability
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
 from tabvision.fusion.viterbi import fuse
 from tabvision.types import GuitarConfig
 
 _CACHE_DIR = Path.home() / ".tabvision/cache/a3_fusion_sweep"  # shared with the sweep
+
+
+def _const_module(name: str) -> object:
+    """The fusion module that defines constant ``name``.
+
+    Emission/transition weights live in ``playability``; the A5 chord-shape
+    bonus in ``chord_shapes``. Lets ``--set`` gate any sweepable axis, not just
+    ``playability`` ones.
+    """
+    for mod in (playability, chord_shapes):
+        if hasattr(mod, name):
+            return mod
+    raise SystemExit(f"unknown fusion constant: {name!r}")
 
 
 def gate_passed(lower95_held: bool, n_regressions: int, strict_per_clip: bool) -> bool:
@@ -97,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
 
     name, _, raw_val = args.override.partition("=")
     name, override_val = name.strip(), float(raw_val)
-    baseline_val = getattr(playability, name)
+    mod = _const_module(name)
+    baseline_val = getattr(mod, name)
 
     prior_name: str | None = args.position_prior
     if prior_name and prior_name.lower() == "none":
@@ -125,11 +139,11 @@ def main(argv: list[str] | None = None) -> int:
         clips.append(ClipData(clip["id"], clip["tier"], raw, gold))
     print(f"{len(clips)} clips ready\n")
 
-    setattr(playability, name, baseline_val)
+    setattr(mod, name, baseline_val)
     base = _score(clips, prior, cfg)
-    setattr(playability, name, override_val)
+    setattr(mod, name, override_val)
     over = _score(clips, prior, cfg)
-    setattr(playability, name, baseline_val)  # restore
+    setattr(mod, name, baseline_val)  # restore
 
     lines = [f"# A3 gate — `{name}` {baseline_val} → {override_val} ({args.manifest.name})", ""]
     lines.append(

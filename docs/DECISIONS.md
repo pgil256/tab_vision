@@ -1819,3 +1819,67 @@ the product-condition gap as a named diagnostic, and stop carrying expired
 questions. The packet is **resolved**; remaining user-gated items (D2/D3/D4) now
 live in §15. **Still open elsewhere:** A5 (chord-shape dictionary port) is the
 next accuracy lever (rides the A3 sweep harness).
+
+## 2026-07-07 — A5 chord-shape bonus: mechanism landed (no-op default), sweep→gate pending
+
+**Phase:** v1.1 accuracy roadmap Tier 2 (`docs/plans/2026-07-01-accuracy-ux-roadmap.md`
+A5) — the Phase-5 chord-dictionary port deferred at Phase-5 ship.
+**What landed:** `tabvision/tabvision/fusion/chord_shapes.py` ports v0's voicing
+shapes (`tabvision-server/app/chord_shapes.py`: 22 open + 72 E/A-shape barre + 39
+power = **133 voicings**) into the v1 `0=low E` string convention
+(`string_idx = 6 - v0_string`), and adds a per-cluster emission term
+`chord_shape_cost(state)` wired into `viterbi._viterbi_clusters.state_emission`.
+It rewards a decoded cluster whose `(string, fret)` positions overlap a canonical
+voicing by ≥ `CHORD_SHAPE_MIN_NOTES` (default 3): `cost -= CHORD_SHAPE_BONUS *
+overlap` (count-scaled). Only the voicing *shapes* were ported — v0's scale-box /
+`GuitarPosition` / `PlayingStyle` machinery plays no part in an emission bonus and
+would be dead code here.
+**No-op discipline (A3/A4):** `CHORD_SHAPE_BONUS` defaults to `0.0` (env-overridable
+`TABVISION_CHORD_SHAPE_BONUS`, runtime-rebindable — `state_emission` reads the
+module global live), so fusion is **bit-identical** until a sweep sets it. Wired
+as an `a3_fusion_sweep` axis (`[0.0, 0.1, 0.25, 0.5, 1.0]`).
+**Key invariant (why this only touches the target tiers):** a state assigns one
+candidate per event, so a cluster's decoded position-set has size = cluster size;
+a singleton (single-line) or dyad can never reach the 3-note match gate.
+**Single-line Tab F1 is therefore invariant to this term at any magnitude** — A5
+can only move strummed/chord (its stated target). Proven by
+`test_single_line_decode_invariant_to_bonus` + exact E-major-open recovery under a
+dominating bonus.
+**Gates:** ruff check/format clean; **mypy clean** (63 files — the shape params had
+to be typed `Mapping[int, int | None]` not `dict`, else dict value-invariance
+fails the type gate); 16 new unit tests + the existing 57 fusion tests green. (The
+local global interpreter can't run the torch/soundfile audio suite — env, not
+code; CI runs it, cf. PR #28 green.)
+**Measured 2026-07-07 (eval env reconstructed in-session — installed
+soundfile/pretty_midi, manifests + transcription cache present).** The
+`CHORD_SHAPE_BONUS` sweep on val24 finds **0.1** the best magnitude (strummed
+0.7951→0.7980; single-line **exactly 0.4820 at every value** — the invariance
+holds empirically; ≥0.25 turns negative as count-scaling over-biases). At **0.1**
+the candidate **clears the full A3 gate on BOTH legs** — the first fusion constant
+to do so:
+- **in-domain** 60-clip GuitarSet player-05: strummed +0.0053 mean / **+0.0061
+  lower-95**, single-line +0.0000 (PASS — per-tier lower-95, the in-domain bar);
+- **cross-domain** GAPS clean-12 (`--position-prior none --strict-per-clip`):
+  +0.0006 mean, **0 per-clip regressions** (PASS — the hard cross-domain bar).
+Contrast A3's `OPEN_STRING_BONUS=0.0` (passed GuitarSet, **FAILED** GAPS lo-95
+−0.0091) and A4 (wash): this reward is **domain-neutral** because it is grounded
+in voicing **geometry**, not corpus prior tuning. To gate it, `a3_gate_probe.py`
+was made module-aware (resolves `chord_shapes` constants, not just `playability`).
+Report: `docs/EVAL_REPORTS/a5_chord_shape_gate_2026-07-07.md` (+ full sweep
+`…_sweep_val24_2026-07-07.md`). **Ceiling honesty (roadmap A5):** +0.0053 strummed
+is **below** the hoped +0.01–0.04 and does **not** move the chord-accuracy
+0.48→0.85 gap — a real, small, rigorously-gated, near-zero-downside win (env
+-reversible), not a breakthrough.
+**Default decision — SHIPPED `0.0 → 0.1` (user-approved 2026-07-07).** The user
+was shown the both-legs-PASS gate and chose to ship; `CHORD_SHAPE_BONUS` now
+defaults to `0.1`. This **re-bases the canonical val24 strummed baseline
+0.7951 → 0.7980** (single-line 0.4820 unchanged), which every future sweep/gate
+references — the `a3_fusion_sweep` docstring/validation numbers were updated to
+match, and the `chord_shapes`/`viterbi` docstrings + the no-op tests reframed
+(the "off switch" is now `TABVISION_CHORD_SHAPE_BONUS=0.0`, still exact). Full
+fusion suite green with the term active (657 passed; no chord-decode test
+regressed — the 0.1 nudge doesn't disturb the robust properties they assert).
+**Reasoning:** a candidate that clears both the in-domain lower-95 and the strict
+cross-domain no-regression bar is, per the measurement discipline, an accepted
+change; the re-basing was the only reason to surface it, and the user approved.
+**Still open:** D2/D3/D4 in SPEC §15 (A5 is now DONE — mechanism, gate, ship).

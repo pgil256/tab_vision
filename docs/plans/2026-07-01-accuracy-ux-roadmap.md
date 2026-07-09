@@ -107,6 +107,23 @@ result banked in `docs/EVAL_REPORTS/` + `DECISIONS.md` either way.
   `viterbi.py` state emission — the Phase 5 port that never happened). Targets
   strummed wrong_position (254 events) + chord acc (0.48 vs 0.85 reference).
   Expect strummed +0.01–0.04. Won't close the 0.85 gap by itself — say so.
+  **Mechanism landed 2026-07-07** (`tabvision.fusion.chord_shapes`): 133 voicings
+  (22 open + 72 barre + 39 power) ported to the `0=low E` convention +
+  `chord_shape_cost` emission term wired into `viterbi.state_emission`;
+  `CHORD_SHAPE_BONUS` env-overridable, **default 0.0 = bit-identical no-op**; A3
+  sweep axis + 16 unit tests; ruff/mypy/fusion-tests green. By construction the
+  ≥3-note match gate leaves **single-line decode invariant** — the term can only
+  move strummed/chord clusters. **Measured + gated 2026-07-07:** best magnitude
+  **0.1** (val24 strummed 0.7951→0.7980, single-line exactly 0.4820; ≥0.25
+  negative). At 0.1 it **clears the full A3 gate on BOTH legs** — the first
+  fusion constant to do so: in-domain 60-clip strummed +0.0053 / **lo-95 +0.0061**
+  (single-line +0.0000), cross-domain GAPS clean-12 strict **0 regressions**.
+  Domain-neutral (voicing geometry, not corpus prior) — vs A3 `OPEN_STRING_BONUS`
+  (failed GAPS) / A4 (wash). Below the +0.01–0.04 hope but real. **SHIPPED
+  0.0→0.1 (user-approved 2026-07-07)** — `CHORD_SHAPE_BONUS` now defaults to 0.1;
+  re-bases the val24 strummed baseline 0.7951→0.7980 (single-line 0.4820 flat);
+  657-test fusion suite green with the term active. **A5 DONE.**
+  (`a5_chord_shape_gate_2026-07-07.md`, DECISIONS 2026-07-07.)
 - **A6. Fix the GAPS gold coverage artifact** — **DONE 2026-07-06.** Repeat/volta
   unfolding in `gaps_musicxml_tab.py` (gated on a syncpoint-span length match;
   11/14 test-22 repeat clips unfolded, 3 nonstandard fall back). Controlled A/B:
