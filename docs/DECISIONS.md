@@ -1966,3 +1966,62 @@ regressed — the 0.1 nudge doesn't disturb the robust properties they assert).
 cross-domain no-regression bar is, per the measurement discipline, an accepted
 change; the re-basing was the only reason to surface it, and the user approved.
 **Still open:** D2/D3/D4 in SPEC §15 (A5 is now DONE — mechanism, gate, ship).
+
+## 2026-07-09 — production backend repointed: pgil256 Modal workspace orphaned → pgilhooley95
+
+**Context.** Production (`tabvision.patbuilds.dev`) crashed on browser-recorder
+webm uploads with `ValueError: could not convert string to float: 'A'` — the
+demux metadata parser splitting ffprobe's literal `N/A` stream-duration line on
+`/`. The fix already existed on `main` (`29e19a8`, 2026-06-30), but the Modal
+image bundles local source at deploy time and production was still the May
+image (`936a5cc` era) — ~20 commits of bundled code behind, also missing audio
+uploads, the A5 chord-shape bonus, the sequence-prior default, and the B1 UX
+work.
+
+**Complication.** The original production app lived in the **`pgil256`** Modal
+workspace (deployed from a cloud session with that account's token). The local
+machine's Modal login is the **`pgilhooley95`** account; a fresh browser token
+flow also resolved to `pgilhooley95`, so the `pgil256` workspace is not
+deployable from here — effectively orphaned.
+
+**Decision (user-approved 2026-07-09): repoint production instead of chasing
+the old workspace.** `modal deploy tabvision-server/modal_app.py` from `main`
+into the `pgilhooley95` workspace, then the Vercel project `tab_vision`
+Production env `VITE_API_URL` was changed to
+`https://pgilhooley95--tabvision-api-flask-app.modal.run` and the frontend
+rebuilt/redeployed.
+
+**Verified.** End-to-end job (synthetic webm reproducing the `N/A` shape) ran
+`pending → processing → completed` against the new backend; live bundle
+contains only the new URL; CORS preflight from the production origin passes.
+
+**No code changed** — the incident was deploy drift, not a regression. Loose
+ends: the stale `pgil256` app should be stopped from its Modal dashboard if
+that account is ever recovered; consider CI or a checklist step that flags
+when `main` moves ahead of the last Modal deploy.
+
+## 2026-07-13 — live frontend refresh and overflow-safe landing layout
+
+**Phase:** Production operations / portfolio web demo (user-directed exception
+to the frozen-v0 rule).
+**Decision tree:** The live custom domain was healthy but pointed at a redeploy
+of `fcf5dbf` (2026-06-10), five shipped web-client commits behind `main`. Its
+centered landing column was taller than common laptop/mobile viewports, so flex
+centering placed the Upload/Record switch above the scroll origin and underneath
+the header. Refresh the old artifact only, or fix the layout before refreshing?
+**Branch taken:** Fix first, then publish the current tree. The scroll container
+now owns padding and contains a `min-h-full` centering wrapper: short content is
+still centered, while tall content expands from the reachable top edge. The
+header tooltip uses an explicit bottom-end placement so its invisible box does
+not widen the mobile document. No API or §8 contract changed.
+**Evidence:** Production-configured Vite build passed, including the API URL
+bundle guard; B3 editing and B5 persistence checks passed. Real-browser checks
+at 1440×900, 1280×720, and 390×844 found both mode buttons in the hit-test path;
+the mobile document width matched its 390 px viewport and the long upload form
+scrolled from `scrollTop=0` without hiding the switch. Browser console errors:
+zero.
+**Reasoning:** Redeploying first would have restored the newer features but
+left one of the two primary input modes unreachable on ordinary screens (and
+`main` defaults to Record rather than Upload). The wrapper preserves the visual
+centering at large sizes without allowing negative overflow, so the release
+refresh and the UX fix land as one reversible deployment.
