@@ -2025,3 +2025,29 @@ left one of the two primary input modes unreachable on ordinary screens (and
 `main` defaults to Record rather than Upload). The wrapper preserves the visual
 centering at large sizes without allowing negative overflow, so the release
 refresh and the UX fix land as one reversible deployment.
+
+## 2026-07-13 — retired the old Modal app and aligned Vercel Preview
+
+**Context.** The production frontend had already moved to the replacement
+`pgilhooley95` Modal workspace, but the old `pgil256` app still answered requests
+and Vercel's Preview-scoped `VITE_API_URL` still referenced that retired URL.
+Stopping the old app before correcting Preview would have made future branch
+deployments compile against a dead backend.
+
+**Decision (user-approved live cleanup):** Update the Vercel Preview value to
+`https://pgilhooley95--tabvision-api-flask-app.modal.run`, create a fresh Preview
+deployment with the updated build-time configuration, then stop `tabvision-api`
+in the recovered `pgil256/main` Modal workspace. Production configuration and
+the active `pgilhooley95` app were left unchanged.
+
+**Verified.** Preview deployment `dpl_GKCZy42nmZFAM3V1mpSdtEzjwios` reached
+`READY`; its compiled bundle contains the replacement URL, contains neither the
+old Modal URL nor `localhost:5000`, and receives an allowed CORS response from
+the replacement API. The replacement `/health` endpoint returns HTTP 200. The
+old workspace reports no live apps and
+`https://pgil256--tabvision-api-flask-app.modal.run/health` returns HTTP 404.
+
+**Reasoning:** Keeping Preview and Production on the same backend removes the
+last dependency on the orphaned deployment and makes stopping it safe. This was
+an environment/deployment correction only; no source, model, or SPEC §8
+contract changed.
