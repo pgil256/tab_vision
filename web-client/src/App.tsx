@@ -61,6 +61,7 @@ function App() {
             className="btn btn-ghost btn-icon"
             onClick={() => setShowShortcutsModal(true)}
             data-tooltip="Keyboard shortcuts"
+            data-tooltip-placement="bottom-end"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
@@ -87,37 +88,47 @@ function App() {
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Upload / Record view */}
         {!showEditor && !isProcessing && jobStatus !== 'failed' && (
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-6 animate-fade-in">
-            <RestoreBanner />
+          <div
+            className="flex-1 overflow-y-auto p-4 sm:p-6 animate-fade-in"
+            data-testid="landing-scroll"
+          >
             <div
-              className="inline-flex rounded-lg p-1 mb-6"
-              style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-              }}
+              className="min-h-full flex flex-col items-center justify-center"
+              data-testid="landing-content"
             >
-              {(['upload', 'record'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setInputMode(mode)}
-                  className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
-                  style={{
-                    background: inputMode === mode ? 'var(--accent-glow)' : 'transparent',
-                    color: inputMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
-                  }}
-                >
-                  {mode === 'upload' ? 'Upload video' : 'Record now'}
-                </button>
-              ))}
+              <RestoreBanner />
+              <div
+                className="inline-flex rounded-lg p-1 mb-6 shrink-0"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                {(['upload', 'record'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setInputMode(mode)}
+                    className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
+                    style={{
+                      background: inputMode === mode ? 'var(--accent-glow)' : 'transparent',
+                      color: inputMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+                    }}
+                  >
+                    {mode === 'upload' ? 'Upload video' : 'Record now'}
+                  </button>
+                ))}
+              </div>
+              {inputMode === 'upload' ? <UploadPanel /> : <RecordPanel />}
             </div>
-            {inputMode === 'upload' ? <UploadPanel /> : <RecordPanel />}
           </div>
         )}
 
         {/* Processing / error view */}
         {(isProcessing || jobStatus === 'failed') && (
-          <div className="flex-1 overflow-y-auto flex items-center justify-center p-6 animate-fade-in">
-            <UploadPanel />
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 animate-fade-in">
+            <div className="min-h-full flex items-center justify-center">
+              <UploadPanel />
+            </div>
           </div>
         )}
 

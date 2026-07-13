@@ -308,6 +308,19 @@ body {
   transform: translateX(-50%) scale(1);
 }
 
+[data-tooltip-placement="bottom-end"]::after {
+  top: calc(100% + 8px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+  transform: scale(0.95);
+  transform-origin: top right;
+}
+
+[data-tooltip-placement="bottom-end"]:hover::after {
+  transform: scale(1);
+}
+
 /* ===== Card Styles ===== */
 .card {
   background: var(--bg-surface);

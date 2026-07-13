@@ -1999,3 +1999,29 @@ contains only the new URL; CORS preflight from the production origin passes.
 ends: the stale `pgil256` app should be stopped from its Modal dashboard if
 that account is ever recovered; consider CI or a checklist step that flags
 when `main` moves ahead of the last Modal deploy.
+
+## 2026-07-13 — live frontend refresh and overflow-safe landing layout
+
+**Phase:** Production operations / portfolio web demo (user-directed exception
+to the frozen-v0 rule).
+**Decision tree:** The live custom domain was healthy but pointed at a redeploy
+of `fcf5dbf` (2026-06-10), five shipped web-client commits behind `main`. Its
+centered landing column was taller than common laptop/mobile viewports, so flex
+centering placed the Upload/Record switch above the scroll origin and underneath
+the header. Refresh the old artifact only, or fix the layout before refreshing?
+**Branch taken:** Fix first, then publish the current tree. The scroll container
+now owns padding and contains a `min-h-full` centering wrapper: short content is
+still centered, while tall content expands from the reachable top edge. The
+header tooltip uses an explicit bottom-end placement so its invisible box does
+not widen the mobile document. No API or §8 contract changed.
+**Evidence:** Production-configured Vite build passed, including the API URL
+bundle guard; B3 editing and B5 persistence checks passed. Real-browser checks
+at 1440×900, 1280×720, and 390×844 found both mode buttons in the hit-test path;
+the mobile document width matched its 390 px viewport and the long upload form
+scrolled from `scrollTop=0` without hiding the switch. Browser console errors:
+zero.
+**Reasoning:** Redeploying first would have restored the newer features but
+left one of the two primary input modes unreachable on ordinary screens (and
+`main` defaults to Record rather than Upload). The wrapper preserves the visual
+centering at large sizes without allowing negative overflow, so the release
+refresh and the UX fix land as one reversible deployment.
