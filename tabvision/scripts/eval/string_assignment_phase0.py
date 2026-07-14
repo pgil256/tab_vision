@@ -334,6 +334,7 @@ def _oracle_probe(
     cfg: GuitarConfig,
 ) -> dict[str, float]:
     baseline_correct = anchored_correct = best3_correct = total = phrases = 0
+    infeasible_phrases = 0
     try:
         for track in final_tracks:
             analysis = baseline.analyses[track.track_id]
@@ -366,6 +367,13 @@ def _oracle_probe(
                     if window.end_index < len(predicted)
                     else None
                 )
+                local_gold = {
+                    index - window.start_index: gold
+                    for index, gold in gold_by_index.items()
+                    if window.start_index <= index < window.end_index
+                }
+                if not local_gold:
+                    continue
                 phrase = decode_with_analysis(
                     analysis.audio_events[window.start_index : window.end_index],
                     cfg=cfg,
@@ -375,13 +383,25 @@ def _oracle_probe(
                     right_boundary=right,
                 )
                 if not phrase.paths:
-                    raise RuntimeError(f"gold constraint infeasible in {track.track_id}")
-                local_gold = {
-                    index - window.start_index: gold
-                    for index, gold in gold_by_index.items()
-                    if window.start_index <= index < window.end_index
-                }
-                if not local_gold:
+                    # This is the refinement API's honest 422 case: a valid
+                    # pitch-preserving correction can still be incompatible
+                    # with other detected pitches in the same chord state.
+                    # Count it as no oracle improvement instead of silently
+                    # dropping a hard phrase from the denominator.
+                    unchanged_correct = sum(
+                        (
+                            predicted[window.start_index + index].string_idx,
+                            predicted[window.start_index + index].fret,
+                        )
+                        == (gold.string_idx, gold.fret)
+                        for index, gold in local_gold.items()
+                    )
+                    baseline_correct += unchanged_correct
+                    anchored_correct += unchanged_correct
+                    best3_correct += unchanged_correct
+                    total += len(local_gold)
+                    phrases += 1
+                    infeasible_phrases += 1
                     continue
                 baseline_correct += sum(
                     (
@@ -412,6 +432,7 @@ def _oracle_probe(
     best3_accuracy = best3_correct / total
     return {
         "phrases": float(phrases),
+        "infeasible_phrases": float(infeasible_phrases),
         "notes": float(total),
         "baseline": baseline_accuracy,
         "anchored_top1": anchored_accuracy,
@@ -590,8 +611,10 @@ def _report(
             "## Phrase oracle",
             "",
             (
-                f"Phrases: **{int(oracle['phrases'])}**; ambiguous pitch-matched "
-                f"notes: **{int(oracle['notes'])}**."
+                f"Phrases: **{int(oracle['phrases'])}**; infeasible gold-anchor "
+                f"phrases: **{int(oracle['infeasible_phrases'])}**; ambiguous "
+                f"pitch-matched notes: **{int(oracle['notes'])}**. Infeasible "
+                "phrases count as no improvement rather than being dropped."
             ),
             "",
             "| baseline | one gold anchor, top-1 | lift | best of 3 | lift over anchored top-1 |",
