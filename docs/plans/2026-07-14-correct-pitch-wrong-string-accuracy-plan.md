@@ -14,7 +14,14 @@ The final automatic system must improve held-out steel-string single-line Tab F1
 
 The existing §8 dataclasses and fusion signature remain unchanged. Video stays disabled because the current video models reduce ambiguous-note string accuracy. The retired melodic prior, larger global sequence corpora, stronger prior weights, and whole-neck image classification will not be retried.
 
-Each phase stops at its acceptance gate. The next phase begins only after the results are recorded and the user says “proceed.”
+The user granted blanket execution approval on 2026-07-14. Acceptance gates
+remain binding ship/skip criteria, but passing a phase no longer requires a
+new permission prompt: record the result and continue automatically. Failed
+components are recorded and skipped according to their decision trees. The
+approval covers in-scope dependencies, local or Modal compute within the
+existing `$25` total training cap, deployment, verification, and rollback
+actions required by this program. Do not exceed that cap, use private/user
+recordings, weaken a metric gate, or broaden production scope beyond this plan.
 
 ## Fixed Interfaces and Defaults
 
@@ -266,7 +273,9 @@ Before any paid training:
 If the free probe passes:
 
 - Prepare one reproducible Modal training command, expected runtime, and cost estimate.
-- Stop and obtain explicit approval before starting paid work.
+- Continue without another permission prompt under the 2026-07-14 blanket
+  approval, provided the free-probe gate passed and the fixed total cap is
+  respected.
 - Cap total Modal training expenditure at `$25`.
 - Use a fixed small search over learning rate, weight decay, and evidence-combination weight; do not conduct an open-ended search.
 - Preserve logs, configurations, seeds, fold metrics, and artifact hashes.
@@ -402,7 +411,9 @@ Add regression cases for:
 - Append every promoted or rejected experiment to `docs/DECISIONS.md`.
 - Update the current accuracy design, CLI documentation, server API documentation, and result metadata schema.
 - Document model provenance, dataset attribution, training command, splits, seed, metrics, known domain limits, and rollback switches.
-- Do not alter §8 contracts. Any newly discovered need to do so stops the phase for explicit SPEC approval.
+- Preserve §8 contracts. If a genuinely unavoidable contract change is
+  discovered, document the evidence, update `SPEC.md` explicitly, and continue
+  under the 2026-07-14 blanket approval rather than requesting another prompt.
 
 ### Feature controls
 

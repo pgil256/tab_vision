@@ -16,6 +16,27 @@ Format:
 
 ---
 
+## 2026-07-14 — blanket approval removes later permission pauses
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phases 1-4
+**Decision tree:** Permission and sequencing policy after the Phase 0 gate.
+**Branch taken:** The user's explicit `proceed` starts Phase 1 and grants
+blanket approval for all remaining in-scope work. Continue automatically after
+each recorded gate; do not ask again for dependencies, compute, Modal training
+within the existing `$25` total cap, deployment, verification, or rollback.
+Objective gates, public-data restrictions, contract discipline, spend cap, and
+domain safety remain binding and cannot be weakened by this authorization.
+**Evidence:** User instruction on 2026-07-14: “proceed; also, update the plan to
+require zero permission. do whatever is needed to meet the objective.” The
+program plan's summary, paid-training section, and §8 handling were updated in
+the same change.
+**Reasoning:** Repeated permission pauses no longer serve the user's requested
+workflow. Treating the authorization as blanket approval preserves autonomous
+execution while keeping the plan's measurable ship/skip gates and safety
+boundaries intact.
+
+---
+
 ## 2026-07-14 — Phase 0 benchmark passes; phrase-refinement build gate fails
 
 **Phase:** Correct-pitch / wrong-string accuracy program, Phase 0
