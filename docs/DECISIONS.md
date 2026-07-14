@@ -16,6 +16,40 @@ Format:
 
 ---
 
+## 2026-07-14 — Phase 0 benchmark passes; phrase-refinement build gate fails
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 0
+**Decision tree:** Accept Phase 0 only if the benchmark is reproducible, the
+held-out split is clean, existing priors reproduce from proven training data,
+and baseline plus oracle results are checked in. Build refinement only if one
+gold phrase anchor lifts ambiguous-note accuracy by at least `+0.10`.
+**Branch taken:** Phase 0 passes and stops for user approval before Phase 1.
+Do not build phrase refinement: one gold anchor lifted ambiguous-note accuracy
+only `+0.0614` (`0.6770 -> 0.7384`), below its `+0.10` gate. Best-of-three did
+add `+0.0566` over anchored top-1, but that conditional alternatives gate does
+not override the failed prerequisite. Do not promote the mode-specific priors:
+their out-of-fold aggregate delta was `-0.0053` with a 95% interval crossing
+zero; held-out solo improved while comp regressed, so player-05 context must not
+be used to reverse the development decision.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md` and its grouped
+summary/provenance artifacts. The checked-in production comparator reproduced
+the leakage-free reconstruction exactly on player 05 (`0.5418` solo, `0.6834`
+comp, `0.6126` aggregate). Both current GuitarSet priors rebuilt semantically
+and byte-for-byte under canonical LF serialization from 300 tracks belonging
+only to players `00-04`; player `05` was held out. The oracle covered 586
+phrases / 7,121 ambiguous pitch-matched notes and counted its one infeasible
+gold-anchor phrase as no improvement. Final verification: 711 passed / 12
+skipped, repository-wide Ruff lint and format checks passed, and mypy passed
+for all 64 source files.
+**Reasoning:** The benchmark and provenance gates are satisfied, so Phase 0 is
+complete. The results support continuing to domain-aware prior policy work,
+but not shipping the measured split priors and not implementing the correction
+API proposed by Phase 3. Per the program and SPEC sequencing rule, Phase 1 may
+begin only after the user explicitly says `proceed`.
+
+---
+
 ## 2026-07-14 — correct-pitch / wrong-string program enters Phase 0
 
 **Phase:** Correct-pitch / wrong-string accuracy program, Phase 0

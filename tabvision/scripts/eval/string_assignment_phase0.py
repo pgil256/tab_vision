@@ -19,6 +19,7 @@ import csv
 import hashlib
 import json
 import math
+import subprocess
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -247,6 +248,9 @@ def _note_diagnostics(
         rows.append(
             {
                 "condition": condition,
+                "evaluation_split": (
+                    "development_oof" if track.player in DEV_PLAYERS else "held_out_05"
+                ),
                 "track_id": track.track_id,
                 "player": track.player,
                 "mode": track.mode,
@@ -465,6 +469,7 @@ def _aggregate_rows(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
         "fret_displacement",
     )
     for result in results:
+        evaluation_split = str(result.note_rows[0]["evaluation_split"])
         for dimension in dimensions:
             values = sorted({str(row[dimension]) for row in result.note_rows})
             for value in values:
@@ -473,6 +478,7 @@ def _aggregate_rows(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
                 out.append(
                     {
                         "condition": result.name,
+                        "evaluation_split": evaluation_split,
                         "dimension": dimension,
                         "value": value,
                         "predicted_notes": len(rows),
@@ -483,6 +489,8 @@ def _aggregate_rows(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
                         "wrong_position_rate": _mean(
                             float(row["label"] == "wrong_position_same_pitch") for row in ambiguous
                         ),
+                        "candidate_top1": _mean(float(row["candidate_top1"]) for row in ambiguous),
+                        "candidate_top3": _mean(float(row["candidate_top3"]) for row in ambiguous),
                     }
                 )
     return out
@@ -601,6 +609,34 @@ def _report(
             delta = f"{point:+.4f} [{lower:+.4f}, {upper:+.4f}]"
         lines.append(_report_metric_row(name, solo, comp, summary, delta))
 
+    mode_specific_dev = dev_by["mode_specific"]
+    mode_specific_final = final_by["mode_specific"]
+    lines.extend(
+        [
+            "",
+            "### Mode-specific prior deltas by target mode",
+            "",
+            "| split | mode | mean delta | paired 95% CI |",
+            "|---|---|---:|---:|",
+        ]
+    )
+    for split, baseline, candidate in (
+        ("development OOF", baseline_dev, mode_specific_dev),
+        ("held-out 05 context", baseline_final, mode_specific_final),
+    ):
+        for mode in ("solo", "comp"):
+            point, lower, upper = _bootstrap(baseline, candidate, mode=mode)
+            lines.append(f"| {split} | {mode} | {point:+.4f} | [{lower:+.4f}, {upper:+.4f}] |")
+    lines.extend(
+        [
+            "",
+            (
+                "Promotion is development-gated. The held-out per-mode rows are reported "
+                "for confirmation context only and are not used to select a prior."
+            ),
+        ]
+    )
+
     lines.extend(
         [
             "",
@@ -645,8 +681,10 @@ def _report(
             "```",
             "",
             (
-                f"Artifact and dataset provenance: `{provenance_path.name}`. Detailed "
-                "note diagnostics and grouped summaries are the sibling CSV files."
+                f"Artifact and dataset provenance: `{provenance_path.name}`. The grouped "
+                "diagnostic summary is checked in as the sibling summary CSV. The raw "
+                "note CSV is generated locally and git-ignored because it is reproducible "
+                "and approximately 26 MB."
             ),
             "",
         ]
@@ -673,6 +711,17 @@ def _source_hash(tracks: Sequence[Track]) -> tuple[str, str]:
 
 def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
     priors_dir = Path(__file__).resolve().parents[2] / "tabvision" / "fusion" / "priors"
+    repo_root = Path(__file__).resolve().parents[3]
+    benchmark_source_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo_root,
+        text=True,
+    ).strip()
+    tracked_status = subprocess.check_output(
+        ["git", "status", "--short", "--untracked-files=no"],
+        cwd=repo_root,
+        text=True,
+    ).strip()
     ids_hash, annotations_hash = _source_hash(training_tracks)
     data_home = training_tracks[0].annotation_path.parents[1]
     rebuilt_payloads = {
@@ -729,6 +778,10 @@ def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
         )
     payload = {
         "schema_version": 1,
+        "benchmark_source": {
+            "commit": benchmark_source_commit,
+            "tracked_worktree_clean": not tracked_status,
+        },
         "dataset": "GuitarSet",
         "dataset_reference": "Xi et al., ISMIR 2018",
         "license": "CC-BY-4.0",
