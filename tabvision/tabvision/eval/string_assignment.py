@@ -112,6 +112,11 @@ def decode_with_analysis(
     offset = 0
     for cluster in clusters:
         states = chord.enumerate_chord_states(cluster, cfg)
+        # Production silently drops a cluster that has no jointly playable
+        # state (for example, more simultaneous pitches than strings). Keep
+        # the analysis path and flattened indices identical to ``fuse``.
+        if not states:
+            continue
         filtered: list[tuple[Candidate, ...]] = []
         for state in states:
             if all(

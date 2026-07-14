@@ -86,6 +86,20 @@ def test_infeasible_constraint_returns_no_path() -> None:
     assert analysis.paths == ()
 
 
+def test_state_less_cluster_is_dropped_like_production() -> None:
+    impossible_cluster = [_audio(40 + index, 0.0) for index in range(7)]
+    surviving = _audio(64, 1.0)
+    events = [*impossible_cluster, surviving]
+
+    production = fuse(events, [], GuitarConfig(), lambda_vision=0.0)
+    analysis = decode_with_analysis(events, cfg=GuitarConfig())
+
+    assert analysis.paths
+    assert list(analysis.paths[0].events) == production
+    assert analysis.audio_events == (surviving,)
+    assert len(analysis.candidate_ranks) == 1
+
+
 def test_k_best_paths_are_distinct_and_sorted() -> None:
     analysis = decode_with_analysis([_audio(64, 0.0), _audio(65, 0.5)], k_paths=3)
     keys = [
