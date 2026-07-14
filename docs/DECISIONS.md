@@ -16,6 +16,36 @@ Format:
 
 ---
 
+## 2026-07-14 — correct-pitch / wrong-string program enters Phase 0
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 0
+**Decision tree:** Freeze a leakage-free benchmark and measure the available
+ceiling before changing production policy or training a model.
+**Branch taken:** Start from `main` on `codex/string-assignment`; preserve the
+unrelated media-upload release separately; freeze the production-equivalent
+comparator as highres + global `guitarset-v1` + coupled
+`guitarset-seq-v1`, with video and melodic evidence disabled. Use GuitarSet
+players `00-04` only for leave-one-player-out development and player `05` once
+for final confirmation. Public data only; no training or selection from user
+recordings.
+**Evidence:**
+`docs/plans/2026-07-14-correct-pitch-wrong-string-accuracy-plan.md`;
+`tabvision/scripts/eval/build_guitarset_v1_prior.py` and
+`build_guitarset_seq_v1_prior.py` both exclude validation player `05` and report
+300 training tracks; local GuitarSet contains all 360 JAMS/WAV pairs; raw
+highres events already exist for all 60 held-out clips in the resumable A3
+cache. Regenerated hashes, fold metrics, diagnostics, and oracle results are
+pending the Phase 0 acceptance report.
+**Reasoning:** The accepted audio backend already meets onset/pitch targets;
+the dominant remaining loss is same-pitch position assignment. Existing
+evidence also shows the GuitarSet priors are domain-sensitive and the current
+video chain is a weaker string signal, so the honest next move is to isolate
+the assignment layer, prove every split and artifact, and measure cheap and
+correction-driven ceilings before adding model capacity. Phase 0 changes only
+evaluation/provenance machinery and stops at its gate.
+
+---
+
 ## 2026-07-09 — D1-b: expressive-markings baseline (retire the unbaselined 0.70)
 
 **Phase:** v1.1 (SPEC §1.4 stretch) — diagnostic, not a gate

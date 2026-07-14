@@ -25,6 +25,25 @@ superseded 2026-06-01 — see banner)
               had load-bearing license errors and stale path references
               and have been superseded by this rewrite).
 
+## 2026-07-14 accuracy-program addendum
+
+The active successor for the remaining correct-pitch / wrong-string problem is
+`docs/plans/2026-07-14-correct-pitch-wrong-string-accuracy-plan.md`. It narrows
+the accuracy work to string-and-fret assignment after the accepted highres
+audio transcription, keeps onset and pitch output fixed, and replaces the old
+video-assisted stretch path with a gated sequence of leakage-free priors,
+pitch-conditioned timbral evidence, and correction-driven phrase re-decoding.
+
+Phase 0 freezes the formal comparator as the current production-equivalent
+configuration: highres audio, the global `guitarset-v1` position prior, the
+coupled `guitarset-seq-v1` sequence prior, video disabled, and the melodic prior
+disabled. GuitarSet players `00-04` are development-only with leave-one-player-
+out evaluation; player `05` remains untouched until the single confirmation
+run. The Phase 0 report will add the regenerated comparator metrics, artifact
+provenance and hashes, required diagnostics, and the one-correction/top-three
+ceiling results. No later phase begins until that gate is recorded and the user
+explicitly says `proceed`.
+
 ## 0. License gate (must clear before any compute spend)
 
 Per SPEC §1.5 the **shipping default pipeline** must be portfolio-clean.
