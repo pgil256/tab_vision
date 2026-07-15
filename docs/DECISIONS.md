@@ -2164,3 +2164,42 @@ controls. No SPEC §8 contract changed.
 **Evidence:**
 `docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md` and
 `docs/EVAL_REPORTS/string_assignment_phase1_routing_2026-07-14.md`.
+
+## 2026-07-14 — string-assignment Phase 2: compact timbral ranker rejected
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 2 free signal
+probe.
+**Fixed gate:** Continue to capped paid optimization only if the compact audio
+ranker improves ambiguous-note top-1 by at least `+0.05` over the best
+prior-only system, no development player regresses by more than `0.03`, and
+the posteriors are calibrated and non-collapsed.
+**Result:** On 35,959 actual pitch-correct high-resolution events from players
+00–04, with five-player OOF predictions, the prior-only baseline was `0.6548`.
+The feature-only model reached `0.6027` (`-0.0521`), and the fixed 35,905
+parameter audio model reached `0.6331` (`-0.0218`). Player 03 regressed
+`-0.0564`. Calibration and output diversity were healthy (`ECE=0.0597`, all
+six strings active), so the failure is lack of transferable timbral lift, not
+posterior collapse.
+**Decision:** Reject the model, do not register `guitarset-timbre-v1`, do not
+start paid Modal training, and do not enlarge or retune the architecture. The
+`$25` training budget remains unspent. Automatic string evidence continues to
+resolve to `none`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase2_free_2026-07-14.md` and its JSON
+companion contain the fixed seed/config, source hash, fold metrics,
+calibration, and runtime.
+
+## 2026-07-14 — string-assignment Phase 3: correction path skipped by oracle gate
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 3.
+**Prerequisite:** Phase 0 required a gold anchor to improve phrase position
+accuracy by at least `+0.10` before any correction-driven re-decoder or job
+sidecar could be built.
+**Result:** The leakage-free phrase oracle improved `0.6770 → 0.7384`, only
+`+0.0614`. Best-of-three alternatives added `+0.0566` over the anchored result,
+but that conditional gate cannot override the failed anchor prerequisite.
+**Decision:** Do not implement the refinement API, sidecars, phrase re-decoder,
+or client correction UI. Keep `TABVISION_PHRASE_REFINEMENT=false`. This avoids
+shipping a persistence/API surface whose measured correction ceiling is below
+the plan's minimum.
+**Evidence:** `docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md`.
