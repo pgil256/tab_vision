@@ -393,6 +393,12 @@ For an anchor correction:
 - Therefore Phase 4 deploys only the gate-passed domain-aware prior routing.
   Timbral evidence and phrase refinement remain disabled, and deployment steps
   5–7 below are intentionally not executed.
+- Production verification completed on 2026-07-14. The exact test, package,
+  clean-checkout, deployment, and live-job evidence is recorded in
+  `docs/EVAL_REPORTS/string_assignment_phase4_verification_2026-07-14.md`.
+- The strict automatic improvement and correction-path completion conditions
+  did not pass. This execution is therefore closed as an evidence-backed
+  partial rollout, while the broader accuracy objective remains unmet.
 
 ### Automated verification
 

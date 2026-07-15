@@ -2203,3 +2203,35 @@ or client correction UI. Keep `TABVISION_PHRASE_REFINEMENT=false`. This avoids
 shipping a persistence/API surface whose measured correction ceiling is below
 the plan's minimum.
 **Evidence:** `docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md`.
+
+## 2026-07-14 - string-assignment Phase 4: deploy safe routing only
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 4 verification
+and production rollout.
+**Branch taken:** Deploy only the registered, domain-aware position/sequence
+pair. Keep timbral evidence at `none` and phrase refinement disabled because
+their fixed gates failed. The global transition prior is now protected across
+the complete install-and-decode critical section so concurrent acoustic and
+classical jobs cannot exchange process-global policy.
+**Verification:** The package suite passed 748 tests with 12 skips; the server
+suite passed 296 with 3 skips; Ruff, format, mypy, deterministic smoke, web
+build, wheel install, and artifact-hash checks passed. A detached clean checkout
+replayed all 360 GuitarSet tracks and the 94-clip Guitar-TECHS guardrail with
+the frozen metrics.
+**Production evidence:** Modal deployment `pgilhooley95/tabvision-api` and
+Vercel deployment `dpl_FXsvyENE4eGsh6db77yn2Va2yjZJ` are live. Acoustic job
+`ec4fc771-f976-425b-8a8a-3e1628785e5a` resolved the registered global pair and
+reported both expected hashes; classical job
+`ea8fd514-2e4c-40b6-9400-9a41d8bb0987` resolved position, sequence, and string
+evidence to `none`. Both completed without fallback. Health/CORS and the custom
+domain bundle passed, and Preview/Production API values both target the active
+backend.
+**Compatibility note:** The result schema remains additive and local tests
+cover legacy documents/entrypoints. Prior live job IDs had expired from the
+Modal dictionary, so historical-record replay returned 404 and could not be
+repeated live.
+**Decision:** Keep safe routing enabled, but do not claim the strict automatic
+accuracy objective is complete. No paid training was used; the `$25` training
+budget remains unspent.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase4_verification_2026-07-14.md`.
