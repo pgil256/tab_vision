@@ -71,3 +71,6 @@ tabvision-server/validation_set_cache_*
 # local virtualenv + machine-local eval manifests
 .venv/
 tabvision/data/eval/local_*.toml
+
+# Large, reproducible Phase 0 note-level diagnostics; grouped summaries are tracked.
+docs/EVAL_REPORTS/string_assignment_phase0_*_notes.csv

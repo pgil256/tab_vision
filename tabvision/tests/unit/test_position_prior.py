@@ -51,7 +51,9 @@ def test_learned_prior_prefers_observed_string_fret_for_pitch():
 
 
 def test_prior_attachment_copies_audio_events_without_mutating_original():
-    prior = PitchPositionPrior({69: np.ones((6, 25), dtype=np.float64) / 150})
+    matrix = np.zeros((6, 25), dtype=np.float64)
+    matrix[5, 5] = 1.0
+    prior = PitchPositionPrior({69: matrix})
     event = _audio(0.0, 69)
 
     attached = apply_pitch_position_prior([event], prior)

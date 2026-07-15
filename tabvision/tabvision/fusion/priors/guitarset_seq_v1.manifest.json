@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "sequence",
+  "artifact_version": "guitarset-seq-v1",
+  "name": "guitarset-seq-v1",
+  "artifact_file": "guitarset_seq_v1.json",
+  "artifact_sha256": "3c657db2891f6e22f4fae4c6c9025551b197218c7165779fa8712ce9f40f5e8e",
+  "registered": true,
+  "compatible_position_prior": "guitarset-v1",
+  "compatible_sequence_prior": null,
+  "dataset": "GuitarSet",
+  "dataset_reference": "Xi et al., ISMIR 2018",
+  "license": "CC-BY-4.0",
+  "training_players": ["00", "01", "02", "03", "04"],
+  "excluded_players": ["05"],
+  "mode": "all",
+  "training_tracks": 300,
+  "source_track_ids_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+  "source_annotations_sha256": "ae67ab869c542c9b22586464f78e555beb796b4016787391228b91dd5ce14d71",
+  "construction_command": "python -m scripts.eval.build_guitarset_seq_v1_prior --data-home <GUITARSET> --validation-player 05 --scheme delta_fret --alpha 0.5 --backoff-kappa 8.0 --output <OUTPUT>",
+  "parameters": {
+    "scheme": "delta_fret",
+    "alpha": 0.5,
+    "backoff_kappa": 8.0,
+    "singleton_only": true,
+    "decode_weight": 4.0
+  },
+  "source_commit": "e6244c5e132cbc8b2816da67b8d70a73df6a8e5d",
+  "gate": {
+    "report": "docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md",
+    "comparison": "production_equivalent minus position_only, development OOF",
+    "mean_delta": 0.0104,
+    "lower_95": 0.0035,
+    "upper_95": 0.0175,
+    "decision": "passed only when paired with guitarset-v1"
+  }
+}

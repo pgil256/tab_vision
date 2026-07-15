@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "position",
+  "artifact_version": "guitarset-v1",
+  "name": "guitarset-v1",
+  "artifact_file": "guitarset_v1.json",
+  "artifact_sha256": "71f491cb7d377c163b5d08cbea69ebc7c47783059bf06eb727b9a66e8f7fd003",
+  "registered": true,
+  "compatible_position_prior": null,
+  "compatible_sequence_prior": "guitarset-seq-v1",
+  "dataset": "GuitarSet",
+  "dataset_reference": "Xi et al., ISMIR 2018",
+  "license": "CC-BY-4.0",
+  "training_players": ["00", "01", "02", "03", "04"],
+  "excluded_players": ["05"],
+  "mode": "all",
+  "training_tracks": 300,
+  "source_track_ids_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+  "source_annotations_sha256": "ae67ab869c542c9b22586464f78e555beb796b4016787391228b91dd5ce14d71",
+  "construction_command": "python -m scripts.eval.build_guitarset_v1_prior --data-home <GUITARSET> --validation-player 05 --output <OUTPUT>",
+  "parameters": {
+    "alpha": 1.0,
+    "power": 2.0
+  },
+  "source_commit": "936a5ccf2b4ecbb9d79bddb38c2d0115d471fc7b",
+  "gate": {
+    "report": "docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md",
+    "comparison": "production_equivalent minus no priors, development OOF",
+    "mean_delta": 0.1692,
+    "lower_95": 0.1463,
+    "upper_95": 0.1928,
+    "decision": "passed and registered"
+  }
+}

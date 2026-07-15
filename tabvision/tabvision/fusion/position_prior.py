@@ -10,12 +10,11 @@ from pathlib import Path
 
 import numpy as np
 
+from tabvision.fusion.artifact_registry import load_artifact_manifest
+from tabvision.fusion.evidence import combine_candidate_evidence
 from tabvision.types import AudioEvent, GuitarConfig, TabEvent
 
-_PRIORS_DIR = Path(__file__).with_name("priors")
-_NAMED_PRIORS = {
-    "guitarset-v1": _PRIORS_DIR / "guitarset_v1.json",
-}
+_NAMED_PRIORS = {"guitarset-v1"}
 
 
 @dataclass(frozen=True)
@@ -78,11 +77,21 @@ def learn_pitch_position_prior(
 def apply_pitch_position_prior(
     events: Sequence[AudioEvent],
     prior: PitchPositionPrior,
+    cfg: GuitarConfig | None = None,
 ) -> list[AudioEvent]:
-    """Return copies of audio events with a pitch-position prior attached."""
+    """Return copies with corpus and any existing position evidence combined."""
+    cfg = cfg or GuitarConfig()
     out: list[AudioEvent] = []
     for ev in events:
         matrix = prior.matrix_for_pitch(ev.pitch_midi)
+        combined = combine_candidate_evidence(
+            ev.pitch_midi,
+            cfg,
+            {
+                "existing": (ev.fret_prior, 1.0),
+                "corpus": (matrix, 1.0),
+            },
+        )
         out.append(
             AudioEvent(
                 onset_s=ev.onset_s,
@@ -91,7 +100,7 @@ def apply_pitch_position_prior(
                 velocity=ev.velocity,
                 confidence=ev.confidence,
                 pitch_logits=ev.pitch_logits,
-                fret_prior=matrix if matrix is not None else ev.fret_prior,
+                fret_prior=combined if combined is not None else ev.fret_prior,
                 tags=ev.tags,
             )
         )
@@ -113,8 +122,10 @@ def load_pitch_position_prior(
         cfg = GuitarConfig()
 
     key = str(name_or_path)
-    path = _NAMED_PRIORS.get(key)
-    if path is None:
+    path: Path | None = None
+    if key in _NAMED_PRIORS:
+        path = load_artifact_manifest(key, expected_kind="position").artifact_path
+    else:
         candidate = Path(key)
         if candidate.is_file():
             path = candidate

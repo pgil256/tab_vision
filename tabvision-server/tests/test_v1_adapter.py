@@ -1,7 +1,9 @@
 """Tests for the v1 production transcription adapter."""
+
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -150,6 +152,62 @@ def test_v1_config_defaults_do_not_enable_basicpitch_fallback(monkeypatch):
 
     assert V1PipelineConfig().fallback_audio_backend is None
     assert V1PipelineConfig.from_env().fallback_audio_backend is None
+
+
+def test_v1_config_defaults_all_learned_evidence_to_auto(monkeypatch):
+    for name in (
+        "TABVISION_POSITION_PRIOR",
+        "TABVISION_SEQUENCE_PRIOR",
+        "TABVISION_STRING_EVIDENCE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    config = V1PipelineConfig.from_env()
+    assert config.position_prior == "auto"
+    assert config.sequence_prior == "auto"
+    assert config.string_evidence == "auto"
+
+
+def test_detailed_pipeline_result_writes_resolved_artifact_metadata(tmp_path):
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    artifact = SimpleNamespace(name="guitarset-v1", version="guitarset-v1", sha256="abc123")
+    policy = SimpleNamespace(
+        requested_position_prior="auto",
+        resolved_position_prior="guitarset-v1",
+        requested_sequence_prior="auto",
+        resolved_sequence_prior="guitarset-seq-v1",
+        requested_string_evidence="auto",
+        resolved_string_evidence="none",
+        artifacts=(artifact,),
+    )
+
+    def fake_runner(video_path, **kwargs):
+        return SimpleNamespace(
+            tab_events=(
+                _TabEvent(
+                    onset_s=0.0,
+                    duration_s=0.4,
+                    string_idx=4,
+                    fret=3,
+                    pitch_midi=62,
+                    confidence=0.8,
+                ),
+            ),
+            policy=policy,
+        )
+
+    result_path = run_v1_transcription(
+        job,
+        str(tmp_path),
+        config=V1PipelineConfig(),
+        pipeline_runner=fake_runner,
+    )
+    with open(result_path) as handle:
+        metadata = json.load(handle)["metadata"]
+    assert metadata["requestedPositionPrior"] == "auto"
+    assert metadata["resolvedPositionPrior"] == "guitarset-v1"
+    assert metadata["resolvedStringEvidence"] == "none"
+    assert metadata["artifactVersions"] == {"guitarset-v1": "guitarset-v1"}
+    assert metadata["artifactSha256"] == {"guitarset-v1": "abc123"}
 
 
 def test_v1_transcription_does_not_fallback_without_opt_in(tmp_path):

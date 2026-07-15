@@ -115,6 +115,15 @@ def test_enumerate_chord_states_enforces_hand_span():
             assert max(pressed) - min(pressed) <= MAX_HAND_SPAN
 
 
+def test_enumerate_chord_states_supports_repeated_pitch_classes():
+    """C4 + C5 share a pitch class but still need distinct playable positions."""
+    cfg = GuitarConfig()
+    events = [_ev(60, 0.0), _ev(67, 0.0), _ev(72, 0.0)]
+    states = enumerate_chord_states(events, cfg)
+    assert states
+    assert all(len({candidate.string_idx for candidate in state}) == 3 for state in states)
+
+
 def test_enumerate_chord_states_empty_when_event_unfretable():
     """If any event has no candidates, no chord state survives."""
     cfg = GuitarConfig()

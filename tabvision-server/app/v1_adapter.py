@@ -22,7 +22,9 @@ class V1PipelineConfig:
 
     audio_backend: str = "highres"
     fallback_audio_backend: str | None = None
-    position_prior: str | None = "guitarset-v1"
+    position_prior: str | None = "auto"
+    sequence_prior: str | None = "auto"
+    string_evidence: str | None = "auto"
     video_enabled: bool = False
     melodic_prior_enabled: bool = False
     accuracy_mode: str = "accurate"
@@ -34,7 +36,9 @@ class V1PipelineConfig:
             fallback_audio_backend=_optional_env(
                 "TABVISION_FALLBACK_AUDIO_BACKEND", None
             ),
-            position_prior=_optional_env("TABVISION_POSITION_PRIOR", "guitarset-v1"),
+            position_prior=_policy_env("TABVISION_POSITION_PRIOR", "auto"),
+            sequence_prior=_policy_env("TABVISION_SEQUENCE_PRIOR", "auto"),
+            string_evidence=_policy_env("TABVISION_STRING_EVIDENCE", "auto"),
             video_enabled=_truthy(os.getenv("TABVISION_VIDEO_ENABLED", "false")),
             melodic_prior_enabled=_truthy(os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")),
             accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate").strip().lower(),
@@ -51,6 +55,13 @@ def _optional_env(name: str, default: str | None) -> str | None:
     return value
 
 
+def _policy_env(name: str, default: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() or default
+
+
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -63,11 +74,11 @@ def _ensure_v1_on_path() -> None:
         sys.path.insert(0, str(local_package_root))
 
 
-def _load_v1_runner() -> Callable[..., list[Any]]:
+def _load_v1_runner() -> Callable[..., Any]:
     _ensure_v1_on_path()
-    from tabvision.pipeline import run_pipeline
+    from tabvision.pipeline import run_pipeline_with_artifacts
 
-    return run_pipeline
+    return run_pipeline_with_artifacts
 
 
 def _load_v1_types():
@@ -95,12 +106,54 @@ def _video_diagnostics(video_enabled: bool) -> dict[str, Any]:
     }
 
 
+def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
+    """Metadata for legacy/injected runners that still return a bare list."""
+
+    requested_position = config.position_prior if config.position_prior is not None else "none"
+    requested_sequence = config.sequence_prior if config.sequence_prior is not None else "none"
+    requested_evidence = config.string_evidence if config.string_evidence is not None else "none"
+    return {
+        "requestedPositionPrior": requested_position,
+        "resolvedPositionPrior": requested_position,
+        "requestedSequencePrior": requested_sequence,
+        "resolvedSequencePrior": requested_sequence,
+        "requestedStringEvidence": requested_evidence,
+        "resolvedStringEvidence": requested_evidence,
+        "artifactVersions": {},
+        "artifactSha256": {},
+    }
+
+
+def _unpack_pipeline_result(
+    result: Any,
+    config: V1PipelineConfig,
+) -> tuple[Iterable[Any], dict[str, Any]]:
+    """Accept both the additive detailed result and the legacy bare event list."""
+
+    if not hasattr(result, "tab_events") or not hasattr(result, "policy"):
+        return result, _fallback_policy_metadata(config)
+    policy = result.policy
+    artifacts = tuple(getattr(policy, "artifacts", ()))
+    metadata = {
+        "requestedPositionPrior": policy.requested_position_prior,
+        "resolvedPositionPrior": policy.resolved_position_prior,
+        "requestedSequencePrior": policy.requested_sequence_prior,
+        "resolvedSequencePrior": policy.resolved_sequence_prior,
+        "requestedStringEvidence": policy.requested_string_evidence,
+        "resolvedStringEvidence": policy.resolved_string_evidence,
+        "artifactVersions": {item.name: item.version for item in artifacts},
+        "artifactSha256": {item.name: item.sha256 for item in artifacts},
+    }
+    return result.tab_events, metadata
+
+
 def tab_events_to_tab_document(
     job: Job,
     events: Iterable[Any],
     config: V1PipelineConfig,
     *,
     diagnostics: dict[str, Any] | None = None,
+    inference_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Convert v1 TabEvents to the existing frontend TabDocument JSON."""
     event_list = sorted(list(events), key=lambda event: event.onset_s)
@@ -138,6 +191,7 @@ def tab_events_to_tab_document(
     if diagnostics:
         merged_diagnostics.update(diagnostics)
 
+    policy = inference_policy or _fallback_policy_metadata(config)
     return {
         "id": job.id,
         "createdAt": job.created_at.isoformat(),
@@ -157,7 +211,8 @@ def tab_events_to_tab_document(
             ),
             "pipelineVersion": "v1",
             "audioBackend": config.audio_backend,
-            "positionPrior": config.position_prior or "none",
+            "positionPrior": policy["resolvedPositionPrior"],
+            **policy,
             "videoEnabled": config.video_enabled,
             "accuracyMode": config.accuracy_mode,
             "noteCountRatio": None,
@@ -171,7 +226,7 @@ def run_v1_transcription(
     output_dir: str,
     *,
     config: V1PipelineConfig | None = None,
-    pipeline_runner: Callable[..., list[Any]] | None = None,
+    pipeline_runner: Callable[..., Any] | None = None,
     progress_callback: Callable[[str], None] | None = None,
 ) -> str:
     """Run v1 transcription and write a frontend-compatible result JSON."""
@@ -186,10 +241,12 @@ def run_v1_transcription(
     }
 
     common_kwargs = {
-            "position_prior": config.position_prior,
-            "video_enabled": config.video_enabled,
-            "melodic_prior_enabled": config.melodic_prior_enabled,
-            "lambda_vision": 1.0 if config.video_enabled else 0.0,
+        "position_prior": config.position_prior if config.position_prior is not None else "none",
+        "sequence_prior": config.sequence_prior if config.sequence_prior is not None else "none",
+        "string_evidence": config.string_evidence if config.string_evidence is not None else "none",
+        "video_enabled": config.video_enabled,
+        "melodic_prior_enabled": config.melodic_prior_enabled,
+        "lambda_vision": 1.0 if config.video_enabled else 0.0,
         "cfg": GuitarConfig(capo=job.capo_fret),
         "session": SessionConfig(
             instrument=job.instrument,
@@ -202,7 +259,7 @@ def run_v1_transcription(
 
     effective_config = config
     try:
-        events = runner(
+        pipeline_result = runner(
             job.video_path,
             audio_backend_name=config.audio_backend,
             **common_kwargs,
@@ -214,18 +271,21 @@ def run_v1_transcription(
 
         diagnostics["fallbackUsed"] = True
         diagnostics["fallbackReason"] = str(exc)
-        events = runner(
+        pipeline_result = runner(
             job.video_path,
             audio_backend_name=fallback,
             **common_kwargs,
         )
         effective_config = replace(config, audio_backend=fallback)
 
+    events, inference_policy = _unpack_pipeline_result(pipeline_result, effective_config)
+
     tab_document = tab_events_to_tab_document(
         job,
         events,
         effective_config,
         diagnostics=diagnostics,
+        inference_policy=inference_policy,
     )
 
     os.makedirs(output_dir, exist_ok=True)
@@ -306,7 +366,7 @@ def process_v1_job(
     *,
     config: V1PipelineConfig | None = None,
     result_saved_hook=None,
-    pipeline_runner: Callable[..., list[Any]] | None = None,
+    pipeline_runner: Callable[..., Any] | None = None,
 ) -> None:
     """Process a job with v1 while persisting each poll-visible state."""
     config = config or V1PipelineConfig.from_env()

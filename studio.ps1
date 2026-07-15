@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Boots the local v1 transcription backend (Flask, highres audio backend,
-    audio-only with the checked-in guitarset-v1 string/fret prior) and the
+    audio-only with domain-aware automatic string/fret priors) and the
     in-browser record/upload UI (Vite), waits for both to come up, and opens
     the studio in your default browser.
 
@@ -83,7 +83,10 @@ if ($Role -eq 'backend') {
     $env:TABVISION_PIPELINE       = 'v1'         # route process_job -> v1_adapter
     $env:PREWARM_ML               = '0'          # skip v0 TensorFlow/basic-pitch prewarm
     $env:TABVISION_AUDIO_BACKEND  = $AudioBackend
-    $env:TABVISION_POSITION_PRIOR = 'guitarset-v1'
+    $env:TABVISION_POSITION_PRIOR = 'auto'
+    $env:TABVISION_SEQUENCE_PRIOR = 'auto'
+    $env:TABVISION_STRING_EVIDENCE = 'auto'
+    $env:TABVISION_PHRASE_REFINEMENT = 'false'
     $env:TABVISION_VIDEO_ENABLED  = 'false'      # v1 ships audio-only
 
     Write-Host "TabVision backend  : $BackendUrl  (pipeline=v1, audio=$AudioBackend)" -ForegroundColor Green

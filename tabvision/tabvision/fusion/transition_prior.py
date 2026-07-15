@@ -37,15 +37,16 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from tabvision.fusion.artifact_registry import load_artifact_manifest
 from tabvision.fusion.candidates import Candidate
 from tabvision.types import GuitarConfig, TabEvent
 
 _PRIORS_DIR = Path(__file__).with_name("priors")
 _NAMED_PRIORS = {
-    "guitarset-seq-v1": _PRIORS_DIR / "guitarset_seq_v1.json",
     "pdmx-seq-v1": _PRIORS_DIR / "pdmx_seq_v1.json",
     "guitarset-pdmx-seq-v1": _PRIORS_DIR / "guitarset_pdmx_seq_v1.json",
 }
+_REGISTERED_NAMED_PRIORS = {"guitarset-seq-v1"}
 
 CLUSTER_GAP_S = 0.080
 """Chord-cluster chain gap — mirrors :data:`tabvision.fusion.chord.CHORD_MAX_GAP_S`
@@ -187,13 +188,17 @@ def learn_transition_prior(
 def load_transition_prior(name_or_path: str | Path) -> TransitionPrior:
     """Load a versioned transition-prior artifact (or a filesystem path)."""
     key = str(name_or_path)
-    path = _NAMED_PRIORS.get(key)
+    path: Path | None = None
+    if key in _REGISTERED_NAMED_PRIORS:
+        path = load_artifact_manifest(key, expected_kind="sequence").artifact_path
+    else:
+        path = _NAMED_PRIORS.get(key)
     if path is None:
         candidate = Path(key)
         if candidate.is_file():
             path = candidate
         else:
-            known = ", ".join(sorted(_NAMED_PRIORS))
+            known = ", ".join(sorted(set(_NAMED_PRIORS) | _REGISTERED_NAMED_PRIORS))
             raise ValueError(f"unknown transition prior {key!r}; known: {known}")
 
     payload = json.loads(path.read_text(encoding="utf-8"))

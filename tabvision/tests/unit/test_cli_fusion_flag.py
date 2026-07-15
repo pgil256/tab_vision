@@ -157,12 +157,11 @@ def test_audio_backend_auto_available_on_diagnose():
 # ---------- --position-prior ----------
 
 
-def test_position_prior_default_guitarset_v1():
-    """The accepted v1 config ships by default — the guitarset-v1 prior is
-    worth +22-29pp Tab F1 over 'none' (acceptance run, 2026-06)."""
+def test_position_prior_default_auto():
+    """Automatic routing applies the accepted prior only in its validated domain."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
-    assert args.position_prior == "guitarset-v1"
+    assert args.position_prior == "auto"
 
 
 def test_position_prior_none_reachable():
@@ -206,6 +205,28 @@ def test_sequence_prior_only_on_transcribe():
     parser = _build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["check", "in.mp4", "--sequence-prior", "auto"])
+
+
+# ---------- --string-evidence ----------
+
+
+def test_string_evidence_default_auto():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.string_evidence == "auto"
+
+
+@pytest.mark.parametrize("choice", ["auto", "none", "guitarset-timbre-v1"])
+def test_string_evidence_choices_parsed(choice):
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--string-evidence", choice])
+    assert args.string_evidence == choice
+
+
+def test_string_evidence_only_on_transcribe():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--string-evidence", "auto"])
 
 
 # ---------- --audio-filters ----------

@@ -125,10 +125,12 @@ def _resolve_default_artifacts() -> list[tuple[str, str]]:
     """(component, resolved-key) for the DEFAULT pipeline, torch-free.
 
     Reads the real ``tabvision transcribe`` defaults so the check tracks the
-    shipped config, then mirrors the ``auto`` routing in ``tabvision.cli`` /
-    ``run_pipeline`` (tone toggle + A15 sequence-prior coupling).
+    shipped config, then calls the same session-aware resolver used by the
+    runtime. This remains torch-free.
     """
     from tabvision.cli import _build_parser
+    from tabvision.fusion.inference_policy import resolve_inference_policy
+    from tabvision.types import GuitarConfig, SessionConfig
 
     ns = _build_parser().parse_args(["transcribe", "clip.mov"])
 
@@ -138,15 +140,24 @@ def _resolve_default_artifacts() -> list[tuple[str, str]]:
         # instrument is acoustic → highres.
         backend = "highres-electric" if ns.instrument == "electric" else "highres"
 
-    sequence_prior = ns.sequence_prior
-    if sequence_prior == "auto":
-        # A15 coupling: the sequence prior follows the position prior.
-        sequence_prior = "guitarset-seq-v1" if ns.position_prior == "guitarset-v1" else "none"
+    policy = resolve_inference_policy(
+        requested_position_prior=ns.position_prior,
+        requested_sequence_prior=ns.sequence_prior,
+        requested_string_evidence=ns.string_evidence,
+        cfg=GuitarConfig(capo=ns.capo),
+        session=SessionConfig(
+            instrument=ns.instrument,
+            tone=ns.tone,
+            style=ns.style,
+        ),
+        audio_backend_name=backend,
+    )
 
     return [
         ("audio-backend", backend),
-        ("position-prior", ns.position_prior),
-        ("sequence-prior", sequence_prior),
+        ("position-prior", policy.resolved_position_prior),
+        ("sequence-prior", policy.resolved_sequence_prior),
+        ("string-evidence", policy.resolved_string_evidence),
     ]
 
 

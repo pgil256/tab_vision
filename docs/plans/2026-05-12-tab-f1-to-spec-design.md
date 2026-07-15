@@ -25,6 +25,33 @@ superseded 2026-06-01 — see banner)
               had load-bearing license errors and stale path references
               and have been superseded by this rewrite).
 
+## 2026-07-14 accuracy-program addendum
+
+The active successor for the remaining correct-pitch / wrong-string problem is
+`docs/plans/2026-07-14-correct-pitch-wrong-string-accuracy-plan.md`. It narrows
+the accuracy work to string-and-fret assignment after the accepted highres
+audio transcription, keeps onset and pitch output fixed, and replaces the old
+video-assisted stretch path with a gated sequence of leakage-free priors,
+pitch-conditioned timbral evidence, and correction-driven phrase re-decoding.
+
+Phase 0 freezes the formal comparator as the current production-equivalent
+configuration: highres audio, the global `guitarset-v1` position prior, the
+coupled `guitarset-seq-v1` sequence prior, video disabled, and the melodic prior
+disabled. GuitarSet players `00-04` are development-only with leave-one-player-
+out evaluation; player `05` is the held-out confirmation.
+
+Phase 0 completed on 2026-07-14. The frozen player-05 comparator is `0.5418`
+single-line, `0.6834` strummed, and `0.6126` aggregate mean per-clip Tab F1;
+the checked-in production artifacts reproduce the leakage-free reconstruction
+exactly. Development OOF comparator scores are `0.5460`, `0.5702`, and `0.5581`
+respectively. Mode-specific priors were rejected: development solo gained only
+`+0.0063` with a confidence interval crossing zero, while comp regressed
+`-0.0168` with its interval below zero. The one-gold-anchor phrase oracle gained
+only `+0.0614`, below the `+0.10` refinement build gate; the conditional
+best-of-three gain was `+0.0566`. See
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md`. No later phase
+begins until the user explicitly says `proceed`.
+
 ## 0. License gate (must clear before any compute spend)
 
 Per SPEC §1.5 the **shipping default pipeline** must be portfolio-clean.

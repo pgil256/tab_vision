@@ -16,6 +16,91 @@ Format:
 
 ---
 
+## 2026-07-14 — blanket approval removes later permission pauses
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phases 1-4
+**Decision tree:** Permission and sequencing policy after the Phase 0 gate.
+**Branch taken:** The user's explicit `proceed` starts Phase 1 and grants
+blanket approval for all remaining in-scope work. Continue automatically after
+each recorded gate; do not ask again for dependencies, compute, Modal training
+within the existing `$25` total cap, deployment, verification, or rollback.
+Objective gates, public-data restrictions, contract discipline, spend cap, and
+domain safety remain binding and cannot be weakened by this authorization.
+**Evidence:** User instruction on 2026-07-14: “proceed; also, update the plan to
+require zero permission. do whatever is needed to meet the objective.” The
+program plan's summary, paid-training section, and §8 handling were updated in
+the same change.
+**Reasoning:** Repeated permission pauses no longer serve the user's requested
+workflow. Treating the authorization as blanket approval preserves autonomous
+execution while keeping the plan's measurable ship/skip gates and safety
+boundaries intact.
+
+---
+
+## 2026-07-14 — Phase 0 benchmark passes; phrase-refinement build gate fails
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 0
+**Decision tree:** Accept Phase 0 only if the benchmark is reproducible, the
+held-out split is clean, existing priors reproduce from proven training data,
+and baseline plus oracle results are checked in. Build refinement only if one
+gold phrase anchor lifts ambiguous-note accuracy by at least `+0.10`.
+**Branch taken:** Phase 0 passes and stops for user approval before Phase 1.
+Do not build phrase refinement: one gold anchor lifted ambiguous-note accuracy
+only `+0.0614` (`0.6770 -> 0.7384`), below its `+0.10` gate. Best-of-three did
+add `+0.0566` over anchored top-1, but that conditional alternatives gate does
+not override the failed prerequisite. Do not promote the mode-specific priors:
+their out-of-fold aggregate delta was `-0.0053` with a 95% interval crossing
+zero; held-out solo improved while comp regressed, so player-05 context must not
+be used to reverse the development decision.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md` and its grouped
+summary/provenance artifacts. The checked-in production comparator reproduced
+the leakage-free reconstruction exactly on player 05 (`0.5418` solo, `0.6834`
+comp, `0.6126` aggregate). Both current GuitarSet priors rebuilt semantically
+and byte-for-byte under canonical LF serialization from 300 tracks belonging
+only to players `00-04`; player `05` was held out. The oracle covered 586
+phrases / 7,121 ambiguous pitch-matched notes and counted its one infeasible
+gold-anchor phrase as no improvement. Final verification: 711 passed / 12
+skipped, repository-wide Ruff lint and format checks passed, and mypy passed
+for all 64 source files.
+**Reasoning:** The benchmark and provenance gates are satisfied, so Phase 0 is
+complete. The results support continuing to domain-aware prior policy work,
+but not shipping the measured split priors and not implementing the correction
+API proposed by Phase 3. Per the program and SPEC sequencing rule, Phase 1 may
+begin only after the user explicitly says `proceed`.
+
+---
+
+## 2026-07-14 — correct-pitch / wrong-string program enters Phase 0
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 0
+**Decision tree:** Freeze a leakage-free benchmark and measure the available
+ceiling before changing production policy or training a model.
+**Branch taken:** Start from `main` on `codex/string-assignment`; preserve the
+unrelated media-upload release separately; freeze the production-equivalent
+comparator as highres + global `guitarset-v1` + coupled
+`guitarset-seq-v1`, with video and melodic evidence disabled. Use GuitarSet
+players `00-04` only for leave-one-player-out development and player `05` once
+for final confirmation. Public data only; no training or selection from user
+recordings.
+**Evidence:**
+`docs/plans/2026-07-14-correct-pitch-wrong-string-accuracy-plan.md`;
+`tabvision/scripts/eval/build_guitarset_v1_prior.py` and
+`build_guitarset_seq_v1_prior.py` both exclude validation player `05` and report
+300 training tracks; local GuitarSet contains all 360 JAMS/WAV pairs; raw
+highres events already exist for all 60 held-out clips in the resumable A3
+cache. Regenerated hashes, fold metrics, diagnostics, and oracle results are
+pending the Phase 0 acceptance report.
+**Reasoning:** The accepted audio backend already meets onset/pitch targets;
+the dominant remaining loss is same-pitch position assignment. Existing
+evidence also shows the GuitarSet priors are domain-sensitive and the current
+video chain is a weaker string signal, so the honest next move is to isolate
+the assignment layer, prove every split and artifact, and measure cheap and
+correction-driven ceilings before adding model capacity. Phase 0 changes only
+evaluation/provenance machinery and stops at its gate.
+
+---
+
 ## 2026-07-09 — D1-b: expressive-markings baseline (retire the unbaselined 0.70)
 
 **Phase:** v1.1 (SPEC §1.4 stretch) — diagnostic, not a gate
@@ -2051,3 +2136,102 @@ old workspace reports no live apps and
 last dependency on the orphaned deployment and makes stopping it safe. This was
 an environment/deployment correction only; no source, model, or SPEC §8
 contract changed.
+
+## 2026-07-14 — string-assignment Phase 1: register the global pair, reject mode splits, route by domain
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 1.
+**Decision tree:** Leakage-free players-00–04 OOF results showed that the
+solo-specific pair improved solo by only `+0.0063` with a 95% CI crossing zero,
+while the comp-specific pair regressed comp by `-0.0168` with a wholly negative
+CI. The fixed gate required at least `+0.01` and a positive lower bound. Both
+split pairs therefore remain reproducible but unregistered; clean acoustic,
+standard-tuning, capo-zero sessions use the hash-verified global
+`guitarset-v1` + `guitarset-seq-v1` pair.
+**Domain branch:** Classical, electric, distorted, alternate-tuning, and capo
+sessions resolve automatic learned position/sequence evidence to `none`.
+Guitar-TECHS gold-pitch isolation measured the forced acoustic prior at only
+`0.2027` ambiguous-note top-1 and `0.5409` top-3 (below the `0.2173` uniform
+top-1 expectation), reinforcing that it must not be routed to electric jobs.
+The previously measured GAPS regression (`-0.138` Tab F1) is avoided by the
+classical route.
+**Implementation:** Artifacts now have byte-verified manifests, compatible
+sequence identities, and registration status. The pipeline resolves policy
+from `SessionConfig`, combines rather than overwrites candidate evidence, and
+offers an additive detailed result carrying post-audio events and artifact
+metadata while preserving the original list-returning entrypoint. Production
+and CLI defaults are `auto`; explicit registered names remain rollback/eval
+controls. No SPEC §8 contract changed.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md` and
+`docs/EVAL_REPORTS/string_assignment_phase1_routing_2026-07-14.md`.
+
+## 2026-07-14 — string-assignment Phase 2: compact timbral ranker rejected
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 2 free signal
+probe.
+**Fixed gate:** Continue to capped paid optimization only if the compact audio
+ranker improves ambiguous-note top-1 by at least `+0.05` over the best
+prior-only system, no development player regresses by more than `0.03`, and
+the posteriors are calibrated and non-collapsed.
+**Result:** On 35,959 actual pitch-correct high-resolution events from players
+00–04, with five-player OOF predictions, the prior-only baseline was `0.6548`.
+The feature-only model reached `0.6027` (`-0.0521`), and the fixed 35,905
+parameter audio model reached `0.6331` (`-0.0218`). Player 03 regressed
+`-0.0564`. Calibration and output diversity were healthy (`ECE=0.0597`, all
+six strings active), so the failure is lack of transferable timbral lift, not
+posterior collapse.
+**Decision:** Reject the model, do not register `guitarset-timbre-v1`, do not
+start paid Modal training, and do not enlarge or retune the architecture. The
+`$25` training budget remains unspent. Automatic string evidence continues to
+resolve to `none`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase2_free_2026-07-14.md` and its JSON
+companion contain the fixed seed/config, source hash, fold metrics,
+calibration, and runtime.
+
+## 2026-07-14 — string-assignment Phase 3: correction path skipped by oracle gate
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 3.
+**Prerequisite:** Phase 0 required a gold anchor to improve phrase position
+accuracy by at least `+0.10` before any correction-driven re-decoder or job
+sidecar could be built.
+**Result:** The leakage-free phrase oracle improved `0.6770 → 0.7384`, only
+`+0.0614`. Best-of-three alternatives added `+0.0566` over the anchored result,
+but that conditional gate cannot override the failed anchor prerequisite.
+**Decision:** Do not implement the refinement API, sidecars, phrase re-decoder,
+or client correction UI. Keep `TABVISION_PHRASE_REFINEMENT=false`. This avoids
+shipping a persistence/API surface whose measured correction ceiling is below
+the plan's minimum.
+**Evidence:** `docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md`.
+
+## 2026-07-14 - string-assignment Phase 4: deploy safe routing only
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 4 verification
+and production rollout.
+**Branch taken:** Deploy only the registered, domain-aware position/sequence
+pair. Keep timbral evidence at `none` and phrase refinement disabled because
+their fixed gates failed. The global transition prior is now protected across
+the complete install-and-decode critical section so concurrent acoustic and
+classical jobs cannot exchange process-global policy.
+**Verification:** The package suite passed 748 tests with 12 skips; the server
+suite passed 296 with 3 skips; Ruff, format, mypy, deterministic smoke, web
+build, wheel install, and artifact-hash checks passed. A detached clean checkout
+replayed all 360 GuitarSet tracks and the 94-clip Guitar-TECHS guardrail with
+the frozen metrics.
+**Production evidence:** Modal deployment `pgilhooley95/tabvision-api` and
+Vercel deployment `dpl_FXsvyENE4eGsh6db77yn2Va2yjZJ` are live. Acoustic job
+`ec4fc771-f976-425b-8a8a-3e1628785e5a` resolved the registered global pair and
+reported both expected hashes; classical job
+`ea8fd514-2e4c-40b6-9400-9a41d8bb0987` resolved position, sequence, and string
+evidence to `none`. Both completed without fallback. Health/CORS and the custom
+domain bundle passed, and Preview/Production API values both target the active
+backend.
+**Compatibility note:** The result schema remains additive and local tests
+cover legacy documents/entrypoints. Prior live job IDs had expired from the
+Modal dictionary, so historical-record replay returned 404 and could not be
+repeated live.
+**Decision:** Keep safe routing enabled, but do not claim the strict automatic
+accuracy objective is complete. No paid training was used; the `$25` training
+budget remains unspent.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase4_verification_2026-07-14.md`.

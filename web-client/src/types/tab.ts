@@ -34,6 +34,14 @@ export interface TabDocument {
     pipelineVersion?: string;
     audioBackend?: string;
     positionPrior?: string;
+    requestedPositionPrior?: string;
+    resolvedPositionPrior?: string;
+    requestedSequencePrior?: string;
+    resolvedSequencePrior?: string;
+    requestedStringEvidence?: string;
+    resolvedStringEvidence?: string;
+    artifactVersions?: Record<string, string>;
+    artifactSha256?: Record<string, string>;
     videoEnabled?: boolean;
     accuracyMode?: string;
     noteCountRatio?: number | null;

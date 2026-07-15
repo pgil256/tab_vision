@@ -38,6 +38,8 @@ def build_payload(
     alpha: float,
     backoff_kappa: float,
     singleton_only: bool,
+    mode: str = "all",
+    name: str = "guitarset-seq-v1",
 ) -> dict:
     track_ids = list_guitarset_track_ids(
         data_home,
@@ -46,6 +48,10 @@ def build_payload(
     )
     if not track_ids:
         raise RuntimeError(f"no GuitarSet train tracks found under {data_home}")
+    if mode != "all":
+        track_ids = [track_id for track_id in track_ids if track_id.endswith(f"_{mode}")]
+        if not track_ids:
+            raise RuntimeError(f"no GuitarSet {mode} train tracks found under {data_home}")
 
     counts: Counter[tuple[int, int, int]] = Counter()
     for track_id in track_ids:
@@ -57,7 +63,7 @@ def build_payload(
     rows = [[dp, ds, prev_fret, count] for (dp, ds, prev_fret), count in sorted(counts.items())]
     return {
         "schema_version": 1,
-        "name": "guitarset-seq-v1",
+        "name": name,
         "source": (
             "Anchor-to-anchor transition counts from the GuitarSet train split "
             "(validation player excluded), singleton-to-singleton cluster moves only "
@@ -81,6 +87,8 @@ def main() -> int:
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--backoff-kappa", type=float, default=8.0)
     parser.add_argument("--all-moves", action="store_true", help="include chord-cluster moves")
+    parser.add_argument("--mode", choices=("all", "solo", "comp"), default="all")
+    parser.add_argument("--name", default="guitarset-seq-v1")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
@@ -91,9 +99,12 @@ def main() -> int:
         alpha=args.alpha,
         backoff_kappa=args.backoff_kappa,
         singleton_only=not args.all_moves,
+        mode=args.mode,
+        name=args.name,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    with args.output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(payload, indent=2) + "\n")
     print(f"tracks={payload['training_tracks']}")
     print(f"rows={len(payload['counts'])}")
     print(f"output={args.output}")
