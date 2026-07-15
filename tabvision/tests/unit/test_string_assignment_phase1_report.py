@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from scripts.eval.string_assignment_phase1 import GRID, select_grid_row
+from scripts.eval.string_assignment_phase1 import GRID, _prediction_hash, select_grid_row
+from tabvision.types import TabEvent
 
 
 def _row(
@@ -91,3 +92,12 @@ def test_no_eligible_grid_point_uses_predeclared_comp_first_diagnostic_fallback(
     selected, reason = select_grid_row(rows)
     assert selected["name"] == "least_comp_harm"
     assert "diagnosis only" in reason
+
+
+def test_prediction_hash_uses_the_note_tables_declared_onset_precision() -> None:
+    first = TabEvent(0.12345641, 0.2, 3, 5, 60, 0.75)
+    csv_round_trip = TabEvent(0.123456, 0.0, 3, 5, 60, 0.75)
+    changed_position = TabEvent(0.123456, 0.0, 2, 10, 60, 0.75)
+
+    assert _prediction_hash({"clip": [first]}) == _prediction_hash({"clip": [csv_round_trip]})
+    assert _prediction_hash({"clip": [first]}) != _prediction_hash({"clip": [changed_position]})

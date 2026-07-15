@@ -345,7 +345,7 @@ def _prediction_hash(events_by_track: Mapping[str, Sequence[TabEvent]]) -> str:
     payload = {
         track_id: [
             [
-                round(event.onset_s, 8),
+                round(event.onset_s, 6),
                 event.pitch_midi,
                 event.string_idx,
                 event.fret,
