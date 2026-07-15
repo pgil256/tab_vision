@@ -2311,3 +2311,51 @@ is reproducible from the hash-identified 360-track GuitarSet cache. The clean
 benchmark source was commit `a3d3ff7`; total wall time was `1116.17 s`, peak
 working set was `246,927,360` bytes, and the exact top-1 rerun hash matched.
 Per phase discipline, Phase 2 does not start without a new explicit `proceed`.
+
+## 2026-07-15 - sequential Tab F1 Phase 2 closes symbolic context expansion
+
+**Phase:** Tab F1 accuracy sequential program, Phase 2.
+**Decision tree:** Promote only when the cumulative automatic gate passes and
+at least four of five player folds improve. Preserve an offline diagnostic when
+ambiguous top-1 gains at least `+0.03` but release gates fail. Close symbolic
+context when its OOF ambiguous top-1 gain is below `+0.02`, without increasing
+model size or beginning an open-ended architecture search.
+**Branch taken:** **Close symbolic-context expansion.** The fixed two-layer,
+64-wide contextual encoder plus the Phase 1 segment decoder was the best of the
+four predeclared compositions, but OOF macro Tab F1 moved only `0.5581 ->
+0.5617` (`+0.0036`, paired 95% CI `[+0.0018, +0.0055]`) and ambiguous top-1
+moved only `+0.0056`. Wrong-position errors fell `1.7%` relatively, far below
+the 10% gate. Player deltas were `+0.0051`, `-0.0014`, `+0.0012`, `+0.0133`,
+and `+0.00005`; four of five folds were therefore technically positive, but
+that fold-count gate could not rescue the failed accuracy and error-reduction
+thresholds. The masked linear control reached macro Tab F1 `0.5619` and
+ambiguous top-1 `+0.0062`, so the contextual encoder did not add value beyond
+deterministic features.
+Ambiguity in this phase means at least two physically playable,
+pitch-preserving candidates, applied identically to baseline and candidates.
+**Confirmation:** After the OOF decision and median five-epoch final schedule
+froze, player 05 moved aggregate Tab F1 `0.6126 -> 0.6152`, solo `0.5418 ->
+0.5453`, comp `0.6834 -> 0.6850`, and ambiguous top-1 `0.6809 -> 0.6840`.
+This historical confirmation result does not override the failed development
+gate and was not used for tuning.
+**Integration:** Preserve the 82,561-parameter TorchScript model and manifest
+as an unregistered diagnostic artifact. `context-v1`, including missing,
+corrupt, unregistered, incompatible, classical, electric, distorted, capo, or
+alternate-tuning requests, resolves safely to `baseline`; `auto` remains the
+production baseline. Candidate masks are regenerated from MIDI pitch, uniform
+context evidence is neutral, and the immutable `fuse(...)` and §8 contracts are
+unchanged. PDMX pretraining did not run because the GuitarSet-only aggregate
+gain was below its `+0.015` trigger.
+**Runtime and reproducibility:** Context evaluation added `0.520 s` per 60 s
+and projects `45.52 s` total pipeline time. The player-05 prediction and rerun
+hashes matched at
+`d3ab8c8a96302e6e978374815c5e6a4caf3dcb3b50fa1ffde04a03565ef84109`.
+Training used CPU-only deterministic PyTorch, five player-held-out folds,
+inverse joint-frequency weighting, and early stopping on held-out macro Tab
+F1. Onset F1 `0.9302` and pitch F1 `0.9154` remain unchanged.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase2_2026-07-15.md`, the OOF checkpoint,
+metrics/error CSVs, training history, run provenance JSON, unregistered
+TorchScript artifact, and hash-verified manifest. Per phase discipline, Phase
+3 does not start without a new explicit `proceed` after this report is checked
+in.

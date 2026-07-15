@@ -115,9 +115,22 @@ def test_explicit_segment_decoder_is_available_only_in_validated_domain(
     assert "restricted" in unsupported.assignment_decoder_reason
 
 
-def test_context_decoder_is_unavailable_before_phase_two() -> None:
-    with pytest.raises(ConfigurationError, match="unavailable before Phase 2"):
-        _resolve(decoder="context-v1")
+def test_unregistered_context_decoder_falls_back_to_baseline() -> None:
+    policy = _resolve(decoder="context-v1")
+
+    assert policy.requested_assignment_decoder == "context-v1"
+    assert policy.resolved_assignment_decoder == "baseline"
+    assert "not registered" in policy.assignment_decoder_reason
+
+
+def test_context_decoder_is_never_activated_outside_its_domain() -> None:
+    policy = _resolve(
+        decoder="context-v1",
+        session=SessionConfig(instrument="electric"),
+    )
+
+    assert policy.resolved_assignment_decoder == "baseline"
+    assert "restricted" in policy.assignment_decoder_reason
 
 
 def test_assignment_decoder_environment_is_honored_when_request_is_unspecified(

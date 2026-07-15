@@ -184,7 +184,29 @@ def resolve_assignment_decoder(
             "segment-v1 has not passed the automatic promotion gate",
         )
     if requested_decoder == "context-v1":
-        raise ConfigurationError("context-v1 is unavailable before Phase 2")
+        if not _automatic_acoustic_domain(cfg, session):
+            return (
+                requested_decoder,
+                "baseline",
+                "context-v1 is restricted to clean acoustic, standard tuning, capo 0",
+            )
+        try:
+            load_artifact_manifest("context-v1", expected_kind="assignment_context")
+        except ConfigurationError as exc:
+            return (
+                requested_decoder,
+                "baseline",
+                f"context-v1 is unavailable; falling back to baseline: {exc}",
+            )
+        # A gate-passed artifact must be integrated as candidate evidence
+        # before this branch can become reachable. Keeping the final guard
+        # fail-safe prevents a manifest edit alone from enabling an incomplete
+        # runtime path.
+        return (
+            requested_decoder,
+            "baseline",
+            "context-v1 runtime activation requires an integrated gate-passed artifact",
+        )
     if not _automatic_acoustic_domain(cfg, session):
         return (
             requested_decoder,

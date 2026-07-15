@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 
 import pytest
@@ -24,6 +25,50 @@ def test_registered_global_artifacts_are_hash_verified() -> None:
 def test_registered_names_exclude_failed_candidates() -> None:
     assert registered_artifact_names("position") == ("guitarset-v1",)
     assert registered_artifact_names("sequence") == ("guitarset-seq-v1",)
+    assert registered_artifact_names("assignment_context") == ()
+
+
+def test_phase2_context_artifact_is_hash_verified_but_unregistered() -> None:
+    candidate = load_artifact_manifest(
+        "context-v1",
+        expected_kind="assignment_context",
+        require_registered=False,
+    )
+    assert candidate.sha256 == "9d0df2eba2c99f2271e2932e7b791cb9ebb228c6b1d44bb27099fcd66ce56fea"
+    assert candidate.registered is False
+    package_root = candidate.artifact_path.parents[2]
+    code = candidate.payload["code"]
+    assert (
+        code["context_reranker_sha256"]
+        == hashlib.sha256((package_root / "fusion/context_reranker.py").read_bytes()).hexdigest()
+    )
+    assert (
+        code["evaluation_script_sha256"]
+        == hashlib.sha256(
+            (package_root.parent / "scripts/eval/string_assignment_phase2.py").read_bytes()
+        ).hexdigest()
+    )
+    with pytest.raises(ConfigurationError, match="Close symbolic-context expansion"):
+        load_artifact_manifest("context-v1", expected_kind="assignment_context")
+
+
+def test_phase2_torchscript_artifact_loads_and_masks_candidates() -> None:
+    torch = pytest.importorskip("torch")
+    candidate = load_artifact_manifest(
+        "context-v1",
+        expected_kind="assignment_context",
+        require_registered=False,
+    )
+    model = torch.jit.load(str(candidate.artifact_path))
+    event = torch.zeros((1, 2, 33))
+    features = torch.zeros((1, 2, 6, 16))
+    mask = torch.tensor([[[True, True, False, False, False, False]] * 2])
+    padding = torch.zeros((1, 2), dtype=torch.bool)
+
+    logits = model(event, features, mask, padding)
+
+    assert logits.shape == (1, 2, 6)
+    assert torch.all(logits[..., 2:] == -1.0e9)
 
 
 def test_corrupt_registered_artifact_is_rejected(tmp_path, monkeypatch) -> None:

@@ -1,0 +1,93 @@
+{
+  "architecture": {
+    "attention_heads": 4,
+    "candidate_feature_dim": 16,
+    "d_model": 64,
+    "dropout": 0.1,
+    "encoder_layers": 2,
+    "event_feature_dim": 33,
+    "feed_forward": 128,
+    "max_candidates": 6,
+    "max_events": 128,
+    "overlap_events": 32
+  },
+  "artifact_file": "context_v1.pt",
+  "artifact_kind": "assignment_context",
+  "artifact_sha256": "9d0df2eba2c99f2271e2932e7b791cb9ebb228c6b1d44bb27099fcd66ce56fea",
+  "artifact_version": "guitarset-context-v1",
+  "code": {
+    "base_commit": "16aa439b03334a71dac92c5bd3f069c700e2a41d",
+    "context_reranker_sha256": "9c1fc805c030b805ba970df9292696f54b4c2ed67a22adad87d221b71e166f1a",
+    "evaluation_script_sha256": "9101e7c6c1cd6c04c0fff81c0edfcf001231f1d4b2014114e3a30fc194d175a2"
+  },
+  "compatible_decoder_versions": [
+    "baseline",
+    "segment-v1"
+  ],
+  "compatible_position_prior": "guitarset-v1",
+  "compatible_sequence_prior": "guitarset-seq-v1",
+  "data": {
+    "corpus": "GuitarSet",
+    "license": "CC BY 4.0",
+    "source_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+    "symbolic_pretraining": "not_run"
+  },
+  "gate": {
+    "decision": "Close symbolic-context expansion"
+  },
+  "metrics": {
+    "oof_aggregate_delta": 0.0036400015573858635,
+    "oof_ambiguous_top1_gain": 0.005565664133575954,
+    "oof_baseline_macro_tab_f1": 0.5580912326237556,
+    "oof_context_macro_tab_f1": 0.5617312341811415,
+    "oof_wrong_position_relative_reduction": 0.016659991990388343,
+    "player_fold_deltas": {
+      "00": 0.0051496216926453136,
+      "01": -0.0014162239641776404,
+      "02": 0.0011504526237722343,
+      "03": 0.013267182217308365,
+      "04": 4.8975217381378006e-05
+    },
+    "selected_composition": "context_segment"
+  },
+  "mode": "all",
+  "name": "context-v1",
+  "registered": false,
+  "schema_version": 1,
+  "training": {
+    "confirmation_player": "05",
+    "development_players": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04"
+    ],
+    "early_stopping_metric": "macro per-clip Tab F1",
+    "final_epochs": 5,
+    "fold_best_epochs": {
+      "context": [
+        12,
+        1,
+        5,
+        14,
+        1
+      ],
+      "control": [
+        6,
+        5,
+        4,
+        8,
+        3
+      ]
+    },
+    "fold_seeds": [
+      2715,
+      2716,
+      2717,
+      2718,
+      2719
+    ],
+    "transition_consistency_weight": 0.05
+  }
+}
