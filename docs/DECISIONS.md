@@ -2235,3 +2235,38 @@ accuracy objective is complete. No paid training was used; the `$25` training
 budget remains unspent.
 **Evidence:**
 `docs/EVAL_REPORTS/string_assignment_phase4_verification_2026-07-14.md`.
+
+---
+
+## 2026-07-15 - sequential Tab F1 Phase 0 passes with strong segment signal
+
+**Phase:** Tab F1 accuracy sequential program, Phase 0.
+**Decision tree:** Freeze the production-equivalent benchmark and diagnostic
+ceilings before changing fusion. Later work is blocked unless the baseline
+reproduces within `1e-4`; the segment branch passes when the cluster-safe
+four-second joint `(string offset, fret zone)` oracle improves ambiguous-note
+accuracy by at least `+0.10`.
+**Branch taken:** **Pass Phase 0 and stop for the user's explicit `proceed` before
+Phase 1.** Do not change fusion or production routing in this phase. The frozen
+baseline reproduced exactly at macro Tab F1 `0.6126` (solo `0.5418`, comp
+`0.6834`; micro `0.6279`), ambiguous top-1 `0.6770`, and top-3 `0.9986`.
+The four-second joint oracle reached ambiguous accuracy `0.8217` (`+0.1446`)
+and macro Tab F1 `0.7570` (`+0.1444`); the cluster-safe four-second offset-only
+ceiling was `0.8249` / Tab F1 `0.7508`. This is the plan's **strong segment
+signal** branch, so Phase 1 should implement the bounded segment decoder after
+authorization rather than skip to Phase 2.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-15.md`, its deterministic
+summary CSV, and provenance JSON. The ignored stable note table is reproducible
+from all 360 hash-identified GuitarSet tracks and the 360-entry high-resolution
+event cache. Provenance records clean source commit `7890026`, exact commands,
+package versions, cache/artifact/output hashes, `203.46 s` wall time, and
+`398,721,024` peak process bytes. Verification before the frozen run: `765`
+tests passed / `12` skipped; repository-wide Ruff lint and format passed; mypy
+passed for `67` source files.
+**Reasoning:** The baseline and provenance gates are satisfied, and the measured
+four-second lift is comfortably above the predeclared threshold. The signal is
+diagnostic rather than shippable because gold labels select each state, but it
+supports the next bounded hypothesis: a gold-free latent hand-position decoder
+over existing pitch-preserving candidates. Phase discipline remains binding;
+no Phase 1 implementation starts without a new explicit `proceed`.
