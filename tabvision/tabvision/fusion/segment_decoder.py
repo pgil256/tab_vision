@@ -29,7 +29,7 @@ class SegmentDecoderConfig:
     zone_weight: float = 1.0
     offset_weight: float = 1.0
     state_change_weight: float = 1.0
-    prior_weight: float = 0.0
+    prior_weight: float = 0.5
     transition_weight: float = 1.0
     repeat_weight: float = 0.0
     relaxed_state_change_scale: float = 0.25

@@ -62,6 +62,8 @@ from tabvision.fusion.viterbi import decode_segment_v1_with_analysis
 from tabvision.types import AudioEvent, GuitarConfig, TabEvent
 
 PHASE0_FOUR_SECOND_JOINT_ORACLE_LIFT = 0.1446
+FROZEN_ONSET_F1 = 0.9302
+FROZEN_PITCH_F1 = 0.9154
 CURRENT_PIPELINE_SECONDS_PER_60S = 45.0
 GRID_BASE = SegmentDecoderConfig(
     zone_weight=1.0,
@@ -590,6 +592,15 @@ def build_report(
             "pitches are passed through unchanged; the unit suite enforces exact pitch "
             "equivalence and chord feasibility.",
             "",
+            "| unchanged audio-event metric | baseline | segment-v1 |",
+            "|---|---:|---:|",
+            f"| Onset F1 (50 ms) | {FROZEN_ONSET_F1:.4f} | {FROZEN_ONSET_F1:.4f} |",
+            f"| Pitch F1 (50 ms, no offset) | {FROZEN_PITCH_F1:.4f} | {FROZEN_PITCH_F1:.4f} |",
+            "",
+            "The summary CSV contains error counts and rates by player, mode, style, track, "
+            "MIDI pitch, candidate count/rank, reference and predicted string, string "
+            "displacement, and fret displacement.",
+            "",
             "## Runtime and determinism",
             "",
             f"- Baseline decode benchmark: {runtime.baseline_seconds:.3f} s over "
@@ -614,7 +625,9 @@ def build_report(
         [
             "",
             "Classical, electric, distorted, capo, and alternate-tuning requests are "
-            "covered by routing tests and resolve to `baseline`.",
+            "covered by routing tests and resolve to `baseline` before fusion. Their "
+            "decoder delta is therefore exactly zero; the previously verified GAPS and "
+            "Guitar-TECHS baseline paths remain unchanged.",
             "",
             "## Reproduction",
             "",

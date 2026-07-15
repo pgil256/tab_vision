@@ -2270,3 +2270,44 @@ diagnostic rather than shippable because gold labels select each state, but it
 supports the next bounded hypothesis: a gold-free latent hand-position decoder
 over existing pitch-preserving candidates. Phase discipline remains binding;
 no Phase 1 implementation starts without a new explicit `proceed`.
+
+## 2026-07-15 - sequential Tab F1 Phase 1 closes rule-based segment decoding
+
+**Phase:** Tab F1 accuracy sequential program, Phase 1.
+**Decision tree:** Promote only at `+0.02` aggregate and `+0.03` solo Tab F1
+with positive paired confidence, at least 10% fewer same-pitch position errors,
+comp non-inferiority, unchanged event metrics, and bounded CPU. Bank for Phase
+2 composition only at OOF aggregate `>= +0.01` with no player below `-0.02`.
+Close when OOF aggregate is below `+0.01` or two folds regress below `-0.02`.
+**Branch taken:** **Close rule-based segment decoding.** The fixed 11-point OOF
+grid selected `prior_0p5` inside the hard comp non-inferiority set, but its OOF
+aggregate lift was only `+0.0004` (`0.5581 -> 0.5585`, paired 95% CI
+`[-0.0005, +0.0014]`). Solo moved `+0.0009`; comp moved `-0.0001`; the worst
+player moved `-0.0007`; wrong-position rate changed `0.3452 -> 0.3449`.
+Player 05, opened only after the configuration froze, moved aggregate Tab F1
+`0.6126 -> 0.6143` (`+0.0017`), solo `0.5418 -> 0.5453` (`+0.0035`), comp
+was unchanged at `0.6834`, and wrong-position rate changed `0.3230 -> 0.3220`
+(`0.3%` relative reduction). These results are far below both promotion and
+banking thresholds despite the strong Phase 0 gold oracle.
+**Integration:** Preserve `segment-v1` as an explicit, reproducible comparison
+decoder with the frozen `prior_weight=0.5`, but keep production `auto` resolved
+to `baseline`. Classical, electric, distorted, capo, and alternate-tuning
+sessions resolve to baseline before fusion. No repeat-consistency term shipped;
+no learned artifact or new dependency was added. The additive API metadata
+records requested/resolved decoder and reason, and request-local selection does
+not share mutable state.
+**Runtime and invariants:** Baseline versus production-top-1 decoding over
+`1828.1 s` of player-05 audio took `4.026 s` versus `26.385 s`, adding an
+extrapolated `0.734 s` per 60-second clip and projecting `45.73 s` total, below
+both runtime limits. Onset F1 `0.9302` and pitch F1 `0.9154` are unchanged;
+pitch equivalence, chord constraints, domain routing, K-best ordering, and
+concurrent policy isolation are covered by tests. The deterministic player-05
+prediction hash is
+`9788d929bea9a7ca414050f8de10370a352d4fe848ed8baedb053f66cdb5d7ef`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase1_2026-07-15.md`, its fixed-grid and
+diagnostic summary CSVs, and provenance JSON. The ignored row-level note table
+is reproducible from the hash-identified 360-track GuitarSet cache. The clean
+benchmark source was commit `a3d3ff7`; total wall time was `1116.17 s`, peak
+working set was `246,927,360` bytes, and the exact top-1 rerun hash matched.
+Per phase discipline, Phase 2 does not start without a new explicit `proceed`.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from scripts.eval.string_assignment_phase1 import GRID, _prediction_hash, select_grid_row
+from tabvision.fusion.segment_decoder import DEFAULT_SEGMENT_CONFIG
 from tabvision.types import TabEvent
 
 
@@ -35,6 +36,7 @@ def test_fixed_grid_covers_every_predeclared_weight_without_repeat_term() -> Non
     assert {spec.config.prior_weight for spec in GRID} == {0.0, 0.25, 0.5}
     assert {spec.config.transition_weight for spec in GRID} == {0.75, 1.0, 1.25}
     assert all(spec.config.repeat_weight == 0.0 for spec in GRID)
+    assert DEFAULT_SEGMENT_CONFIG.prior_weight == 0.5
 
 
 def test_grid_selection_applies_metric_then_wrong_rate_runtime_and_departure_ties() -> None:

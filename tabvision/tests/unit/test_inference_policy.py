@@ -93,18 +93,26 @@ def test_explicit_unregistered_timbre_artifact_fails_clearly() -> None:
         _resolve(timbre="guitarset-timbre-v1")
 
 
-def test_explicit_segment_decoder_is_available_only_in_validated_domain() -> None:
+@pytest.mark.parametrize(
+    ("cfg", "session"),
+    [
+        (GuitarConfig(capo=2), SessionConfig()),
+        (GuitarConfig(tuning_midi=(38, 45, 50, 55, 59, 64)), SessionConfig()),
+        (GuitarConfig(), SessionConfig(instrument="classical")),
+        (GuitarConfig(), SessionConfig(instrument="electric")),
+        (GuitarConfig(), SessionConfig(tone="distorted")),
+    ],
+)
+def test_explicit_segment_decoder_is_available_only_in_validated_domain(
+    cfg: GuitarConfig,
+    session: SessionConfig,
+) -> None:
     acoustic = _resolve(decoder="segment-v1")
-    classical = _resolve(
-        decoder="segment-v1",
-        session=SessionConfig(instrument="classical"),
-    )
-    capo = _resolve(decoder="segment-v1", cfg=GuitarConfig(capo=2))
+    unsupported = _resolve(decoder="segment-v1", cfg=cfg, session=session)
 
     assert acoustic.resolved_assignment_decoder == "segment-v1"
-    assert classical.resolved_assignment_decoder == "baseline"
-    assert capo.resolved_assignment_decoder == "baseline"
-    assert "restricted" in classical.assignment_decoder_reason
+    assert unsupported.resolved_assignment_decoder == "baseline"
+    assert "restricted" in unsupported.assignment_decoder_reason
 
 
 def test_context_decoder_is_unavailable_before_phase_two() -> None:
