@@ -175,13 +175,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--position-prior",
-        choices=["none", "guitarset-v1"],
-        default="guitarset-v1",
+        choices=["auto", "none", "guitarset-v1"],
+        default="auto",
         help=(
-            "pitch-to-string/fret prior for audio events. Default "
-            "'guitarset-v1' (the accepted v1 config, +22-29pp Tab F1 vs "
-            "none) loads the checked-in Phase 5 artifact without requiring "
-            "raw GuitarSet at runtime; 'none' preserves the bare decode."
+            "pitch-to-string/fret prior. 'auto' (default) uses the "
+            "hash-verified GuitarSet artifact only in its validated clean "
+            "acoustic, standard-tuning, capo-zero domain. 'none' disables it; "
+            "an explicit artifact is for reproducible evaluation or rollback."
         ),
     )
     t.add_argument(
@@ -198,6 +198,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "explicit artifact name forces it on. The "
             "TABVISION_TRANSITION_PRIOR env var overrides this flag for "
             "sweeps."
+        ),
+    )
+    t.add_argument(
+        "--string-evidence",
+        choices=["auto", "none", "guitarset-timbre-v1"],
+        default="auto",
+        help=(
+            "timbral string classifier evidence. 'auto' uses a registered "
+            "gate-passed model in its validated domain, otherwise degrades to "
+            "neutral evidence; 'none' disables it."
         ),
     )
     t.add_argument(
@@ -346,6 +356,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         video_enabled=not args.no_video,
         position_prior=args.position_prior,
         sequence_prior=args.sequence_prior,
+        string_evidence=args.string_evidence,
         audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,
         session=session,

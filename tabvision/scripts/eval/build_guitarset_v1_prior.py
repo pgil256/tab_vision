@@ -25,6 +25,8 @@ def build_payload(
     *,
     data_home: Path,
     validation_player: str,
+    mode: str = "all",
+    name: str = "guitarset-v1",
 ) -> dict:
     counts: Counter[tuple[int, int, int]] = Counter()
     track_ids = list_guitarset_track_ids(
@@ -34,6 +36,10 @@ def build_payload(
     )
     if not track_ids:
         raise RuntimeError(f"no GuitarSet train tracks found under {data_home}")
+    if mode != "all":
+        track_ids = [track_id for track_id in track_ids if track_id.endswith(f"_{mode}")]
+        if not track_ids:
+            raise RuntimeError(f"no GuitarSet {mode} train tracks found under {data_home}")
 
     for track_id in track_ids:
         jams_path = data_home / "annotation" / f"{track_id}.jams"
@@ -49,7 +55,7 @@ def build_payload(
     ]
     return {
         "schema_version": 1,
-        "name": "guitarset-v1",
+        "name": name,
         "source": (
             "Pitch-position counts built from the GuitarSet train split. "
             "Validation player is excluded so runtime loading does not require raw GuitarSet files."
@@ -66,15 +72,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-home", type=Path, default=DEFAULT_DATA_HOME)
     parser.add_argument("--validation-player", default=DEFAULT_VALIDATION_PLAYER)
+    parser.add_argument("--mode", choices=("all", "solo", "comp"), default="all")
+    parser.add_argument("--name", default="guitarset-v1")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
 
     payload = build_payload(
         data_home=args.data_home,
         validation_player=args.validation_player,
+        mode=args.mode,
+        name=args.name,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    with args.output.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(json.dumps(payload, indent=2) + "\n")
     print(f"tracks={payload['training_tracks']}")
     print(f"rows={len(payload['counts'])}")
     print(f"output={args.output}")

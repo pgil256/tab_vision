@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "sequence",
+  "artifact_version": "guitarset-comp-seq-v1",
+  "name": "guitarset-comp-seq-v1",
+  "artifact_file": "guitarset_comp_seq_v1.json",
+  "artifact_sha256": "90906376a1a3ba5be055b4c7470662b74680120c7f8c2c8d4aea2b0dc927d1bb",
+  "registered": false,
+  "compatible_position_prior": "guitarset-comp-v1",
+  "compatible_sequence_prior": null,
+  "dataset": "GuitarSet",
+  "license": "CC-BY-4.0",
+  "training_players": ["00", "01", "02", "03", "04"],
+  "excluded_players": ["05"],
+  "mode": "comp",
+  "training_tracks": 150,
+  "source_track_ids_sha256": "5b1150393a556140604a98c6145f733652ce3a013c519fd5c283dd8c450bf109",
+  "source_annotations_sha256": "8f97dd888393179dbd9994457767a2911769a8655027f42bea9afb9063b3e17f",
+  "construction_command": "python -m scripts.eval.build_guitarset_seq_v1_prior --mode comp --name guitarset-comp-seq-v1",
+  "source_commit": "9305e07521b1b35ccabc694378ac3e896d3058c8",
+  "gate": {
+    "report": "docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md",
+    "comparison": "mode-specific paired policy minus production-equivalent, development OOF comp",
+    "mean_delta": -0.0168,
+    "lower_95": -0.0319,
+    "upper_95": -0.0026,
+    "decision": "failed: statistically significant regression"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "position",
+  "artifact_version": "guitarset-solo-v1",
+  "name": "guitarset-solo-v1",
+  "artifact_file": "guitarset_solo_v1.json",
+  "artifact_sha256": "43cd2c2a349623e8ad2b9da4f29598e02694fc71fdf0896c178c92ae55d8e677",
+  "registered": false,
+  "compatible_position_prior": null,
+  "compatible_sequence_prior": "guitarset-solo-seq-v1",
+  "dataset": "GuitarSet",
+  "license": "CC-BY-4.0",
+  "training_players": ["00", "01", "02", "03", "04"],
+  "excluded_players": ["05"],
+  "mode": "solo",
+  "training_tracks": 150,
+  "source_track_ids_sha256": "3dcfd6084a6cba8be8df65adf84786449169c3024b7a9d14062ede5347190c25",
+  "source_annotations_sha256": "705300f068ca71ee229cfe1cf61cefa4053518e6d81c58fcaa67d1651515fb95",
+  "construction_command": "python -m scripts.eval.build_guitarset_v1_prior --mode solo --name guitarset-solo-v1",
+  "source_commit": "9305e07521b1b35ccabc694378ac3e896d3058c8",
+  "gate": {
+    "report": "docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md",
+    "comparison": "mode-specific paired policy minus production-equivalent, development OOF solo",
+    "mean_delta": 0.0063,
+    "lower_95": -0.0129,
+    "upper_95": 0.0255,
+    "decision": "failed: confidence interval crosses zero"
+  }
+}

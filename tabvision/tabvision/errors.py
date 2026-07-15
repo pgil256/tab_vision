@@ -15,3 +15,7 @@ class BackendError(TabVisionError):
 
 class FusionError(TabVisionError):
     """The fusion stage failed to produce a coherent decoding."""
+
+
+class ConfigurationError(TabVisionError):
+    """An explicitly requested runtime policy or artifact is incompatible."""

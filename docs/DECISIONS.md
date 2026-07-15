@@ -2136,3 +2136,31 @@ old workspace reports no live apps and
 last dependency on the orphaned deployment and makes stopping it safe. This was
 an environment/deployment correction only; no source, model, or SPEC §8
 contract changed.
+
+## 2026-07-14 — string-assignment Phase 1: register the global pair, reject mode splits, route by domain
+
+**Phase:** Correct-pitch/wrong-string accuracy program, Phase 1.
+**Decision tree:** Leakage-free players-00–04 OOF results showed that the
+solo-specific pair improved solo by only `+0.0063` with a 95% CI crossing zero,
+while the comp-specific pair regressed comp by `-0.0168` with a wholly negative
+CI. The fixed gate required at least `+0.01` and a positive lower bound. Both
+split pairs therefore remain reproducible but unregistered; clean acoustic,
+standard-tuning, capo-zero sessions use the hash-verified global
+`guitarset-v1` + `guitarset-seq-v1` pair.
+**Domain branch:** Classical, electric, distorted, alternate-tuning, and capo
+sessions resolve automatic learned position/sequence evidence to `none`.
+Guitar-TECHS gold-pitch isolation measured the forced acoustic prior at only
+`0.2027` ambiguous-note top-1 and `0.5409` top-3 (below the `0.2173` uniform
+top-1 expectation), reinforcing that it must not be routed to electric jobs.
+The previously measured GAPS regression (`-0.138` Tab F1) is avoided by the
+classical route.
+**Implementation:** Artifacts now have byte-verified manifests, compatible
+sequence identities, and registration status. The pipeline resolves policy
+from `SessionConfig`, combines rather than overwrites candidate evidence, and
+offers an additive detailed result carrying post-audio events and artifact
+metadata while preserving the original list-returning entrypoint. Production
+and CLI defaults are `auto`; explicit registered names remain rollback/eval
+controls. No SPEC §8 contract changed.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-14.md` and
+`docs/EVAL_REPORTS/string_assignment_phase1_routing_2026-07-14.md`.

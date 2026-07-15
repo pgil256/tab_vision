@@ -32,6 +32,7 @@ import numpy as np
 
 from tabvision.demux import demux
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
+from tabvision.fusion.inference_policy import ResolvedInferencePolicy, resolve_inference_policy
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.playability import set_transition_prior
@@ -69,7 +70,11 @@ val24 real-audio + 60-clip confirm runs both measured w=4.0
 (DECISIONS.md 2026-07-02)."""
 
 
-def _install_sequence_prior(sequence_prior: str | None, *, position_prior_active: bool) -> None:
+def _install_sequence_prior(
+    sequence_prior: str | None,
+    *,
+    position_prior_active: bool | None = None,
+) -> None:
     """Install (or clear) the learned fingering-sequence prior (A15).
 
     ``"auto"`` couples the prior to the position prior: active iff the
@@ -103,7 +108,16 @@ class _VideoStackResult:
     neck_anchors: list[TimedNeckAnchor]
 
 
-def run_pipeline(
+@dataclass(frozen=True)
+class PipelineArtifacts:
+    """Additive detailed result for API metadata and evaluation tooling."""
+
+    tab_events: tuple[TabEvent, ...]
+    audio_events: tuple[AudioEvent, ...]
+    policy: ResolvedInferencePolicy
+
+
+def run_pipeline_with_artifacts(
     video_path: str | Path,
     *,
     audio_backend: AudioBackend | None = None,
@@ -114,14 +128,15 @@ def run_pipeline(
     lambda_vision: float = 1.0,
     video_stride: int = 3,
     video_enabled: bool = True,
-    position_prior: str | None = None,
+    position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
+    string_evidence: str | None = "auto",
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
     session: SessionConfig | None = None,
     progress_callback: Callable[[str], None] | None = None,
-) -> list[TabEvent]:
+) -> PipelineArtifacts:
     """Run the full transcription pipeline on ``video_path``.
 
     Backends are injectable for testing; when omitted, the function
@@ -174,6 +189,15 @@ def run_pipeline(
         # on, highres off); a bool / AudioFilterConfig overrides it.
         filter_kwargs = {} if audio_filters is None else {"filter_config": audio_filters}
         audio = _make_audio_backend(audio_backend_name, **filter_kwargs)
+    resolved_audio_backend_name = str(getattr(audio, "name", audio_backend_name))
+    policy = resolve_inference_policy(
+        requested_position_prior=position_prior,
+        requested_sequence_prior=sequence_prior,
+        requested_string_evidence=string_evidence,
+        cfg=cfg,
+        session=session,
+        audio_backend_name=resolved_audio_backend_name,
+    )
     # Backends load checkpoints lazily on first transcribe, so the load time
     # lands in the audio_inference stage; both map to "analyzing audio" UX-side.
     _notify("audio_inference")
@@ -181,14 +205,12 @@ def run_pipeline(
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
     logger.info("audio backend produced %d events", len(audio_events))
 
-    position_prior_active = False
-    if position_prior and position_prior != "none":
-        position_prior_active = True
-        prior = load_pitch_position_prior(position_prior, cfg=cfg)
-        audio_events = apply_pitch_position_prior(audio_events, prior)
-        logger.info("attached pitch-position prior %s", position_prior)
+    if policy.resolved_position_prior != "none":
+        prior = load_pitch_position_prior(policy.resolved_position_prior, cfg=cfg)
+        audio_events = apply_pitch_position_prior(audio_events, prior, cfg)
+        logger.info("attached pitch-position prior %s", policy.resolved_position_prior)
 
-    _install_sequence_prior(sequence_prior, position_prior_active=position_prior_active)
+    _install_sequence_prior(policy.resolved_sequence_prior)
 
     if melodic_prior_enabled:
         audio_events = apply_melodic_segment_prior(audio_events, cfg)
@@ -226,7 +248,56 @@ def run_pipeline(
         len(fingerings),
         lambda_vision,
     )
-    return list(fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision))
+    tab_events = tuple(fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision))
+    return PipelineArtifacts(
+        tab_events=tab_events,
+        audio_events=tuple(audio_events),
+        policy=policy,
+    )
+
+
+def run_pipeline(
+    video_path: str | Path,
+    *,
+    audio_backend: AudioBackend | None = None,
+    audio_backend_name: str = "highres",
+    guitar_backend: GuitarBackend | None = None,
+    fretboard_backend: FretboardBackend | None = None,
+    hand_backend: HandBackend | None = None,
+    lambda_vision: float = 1.0,
+    video_stride: int = 3,
+    video_enabled: bool = True,
+    position_prior: str | None = "auto",
+    sequence_prior: str | None = "auto",
+    string_evidence: str | None = "auto",
+    melodic_prior_enabled: bool = False,
+    audio_filters: bool | AudioFilterConfig | None = None,
+    cfg: GuitarConfig | None = None,
+    session: SessionConfig | None = None,
+    progress_callback: Callable[[str], None] | None = None,
+) -> list[TabEvent]:
+    """Run the pipeline and preserve the original list-returning contract."""
+
+    result = run_pipeline_with_artifacts(
+        video_path,
+        audio_backend=audio_backend,
+        audio_backend_name=audio_backend_name,
+        guitar_backend=guitar_backend,
+        fretboard_backend=fretboard_backend,
+        hand_backend=hand_backend,
+        lambda_vision=lambda_vision,
+        video_stride=video_stride,
+        video_enabled=video_enabled,
+        position_prior=position_prior,
+        sequence_prior=sequence_prior,
+        string_evidence=string_evidence,
+        melodic_prior_enabled=melodic_prior_enabled,
+        audio_filters=audio_filters,
+        cfg=cfg,
+        session=session,
+        progress_callback=progress_callback,
+    )
+    return list(result.tab_events)
 
 
 # ---------------------------------------------------------------------------
@@ -367,4 +438,10 @@ def _make_hand_backend() -> HandBackend:
 
 
 # Re-export AudioEvent / TabEvent for ergonomic ``from tabvision.pipeline import TabEvent``.
-__all__ = ["run_pipeline", "AudioEvent", "TabEvent"]
+__all__ = [
+    "PipelineArtifacts",
+    "run_pipeline",
+    "run_pipeline_with_artifacts",
+    "AudioEvent",
+    "TabEvent",
+]
