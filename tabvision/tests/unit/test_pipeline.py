@@ -6,6 +6,9 @@ video file or model weights are touched.
 
 from __future__ import annotations
 
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import pytest
 
@@ -16,6 +19,7 @@ from tabvision.types import (
     FrameFingering,
     GuitarBBox,
     Homography,
+    SessionConfig,
 )
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
 
@@ -136,6 +140,52 @@ def test_detailed_pipeline_result_preserves_events_and_resolved_policy(monkeypat
     assert result.policy.resolved_position_prior == "none"
     assert result.policy.resolved_sequence_prior == "none"
     assert result.policy.resolved_string_evidence == "none"
+
+
+def test_concurrent_jobs_do_not_share_resolved_sequence_prior(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+    active: dict[str, object | None] = {"prior": None}
+    observed: list[tuple[str, object | None]] = []
+
+    monkeypatch.setattr(pipeline, "load_transition_prior", lambda name: name)
+    monkeypatch.setattr(
+        pipeline,
+        "set_transition_prior",
+        lambda prior, weight=None: active.update(prior=prior),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "load_pitch_position_prior",
+        lambda name, *, cfg=None: object(),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "apply_pitch_position_prior",
+        lambda events, prior, cfg=None: list(events),
+    )
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        time.sleep(0.03)
+        observed.append((session.instrument, active["prior"]))
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+
+    def run(instrument: str) -> None:
+        pipeline.run_pipeline(
+            f"{instrument}.mp4",
+            audio_backend=_FakeAudioBackend(),
+            video_enabled=False,
+            session=SessionConfig(instrument=instrument),
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(run, ("acoustic", "classical")))
+
+    assert sorted(observed) == [
+        ("acoustic", "guitarset-seq-v1"),
+        ("classical", None),
+    ]
 
 
 def test_run_pipeline_reports_stages_audio_only(monkeypatch):

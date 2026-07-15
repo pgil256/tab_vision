@@ -1,5 +1,7 @@
 """Unit tests for tabvision.fusion.candidates."""
 
+import pytest
+
 from tabvision.fusion.candidates import candidate_positions
 from tabvision.types import GuitarConfig
 
@@ -26,6 +28,18 @@ def test_a4_yields_multiple_strings():
         (2, 19),
         (1, 24),
     }
+
+
+@pytest.mark.parametrize(("pitch", "expected"), [(45, 2), (50, 3), (55, 4), (59, 5), (64, 6)])
+def test_same_pitch_can_have_two_through_six_playable_strings(pitch, expected):
+    assert len(candidate_positions(pitch, GuitarConfig())) == expected
+
+
+def test_candidate_set_preserves_open_and_high_fret_alternatives():
+    candidates = candidate_positions(64, GuitarConfig())
+    positions = {(candidate.string_idx, candidate.fret) for candidate in candidates}
+    assert (5, 0) in positions
+    assert (0, 24) in positions
 
 
 def test_results_are_sorted_lowest_fret_first():

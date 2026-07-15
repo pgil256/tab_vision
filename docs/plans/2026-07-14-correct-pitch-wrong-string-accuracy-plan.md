@@ -379,6 +379,21 @@ For an anchor correction:
 
 ## Phase 4 — Verification, Documentation, and Domain-Gated Rollout
 
+### Execution record (2026-07-14)
+
+- Phase 0 passed its reproducibility/provenance gate, but the correction anchor
+  oracle improved only `+0.0614` versus the required `+0.10`.
+- Phase 1 passed. The global GuitarSet pair is registered and hash verified;
+  solo/comp pairs failed and remain unregistered. Classical/electric/capo/
+  alternate-tuning routes are neutral.
+- Phase 2 failed its free gate: compact audio + prior was `-0.0218` versus the
+  prior-only baseline and the worst fold was `-0.0564`. No paid training was
+  started and no timbral artifact was registered.
+- Phase 3 was skipped because its Phase 0 oracle prerequisite failed.
+- Therefore Phase 4 deploys only the gate-passed domain-aware prior routing.
+  Timbral evidence and phrase refinement remain disabled, and deployment steps
+  5–7 below are intentionally not executed.
+
 ### Automated verification
 
 Run:

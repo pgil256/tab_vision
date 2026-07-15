@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
+import tabvision.fusion.artifact_registry as registry
+from tabvision.errors import ConfigurationError
 from tabvision.fusion.artifact_registry import (
     load_artifact_manifest,
     registered_artifact_names,
@@ -18,3 +24,25 @@ def test_registered_global_artifacts_are_hash_verified() -> None:
 def test_registered_names_exclude_failed_candidates() -> None:
     assert registered_artifact_names("position") == ("guitarset-v1",)
     assert registered_artifact_names("sequence") == ("guitarset-seq-v1",)
+
+
+def test_corrupt_registered_artifact_is_rejected(tmp_path, monkeypatch) -> None:
+    artifact = tmp_path / "broken.json"
+    artifact.write_text("{}", encoding="utf-8")
+    manifest = {
+        "schema_version": 1,
+        "artifact_kind": "position",
+        "artifact_version": "broken-v1",
+        "artifact_file": artifact.name,
+        "artifact_sha256": "0" * 64,
+        "registered": True,
+    }
+    (tmp_path / "broken.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(registry, "_ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(registry, "_MANIFEST_FILES", {"broken-v1": "broken.manifest.json"})
+    registry.load_artifact_manifest.cache_clear()
+    try:
+        with pytest.raises(ConfigurationError, match="hash mismatch"):
+            registry.load_artifact_manifest("broken-v1", expected_kind="position")
+    finally:
+        registry.load_artifact_manifest.cache_clear()

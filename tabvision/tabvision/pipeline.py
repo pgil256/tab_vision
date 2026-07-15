@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -68,6 +69,9 @@ SEQUENCE_PRIOR_WEIGHT = 4.0
 """Gate-accepted weight for the coupled sequence-prior default — the
 val24 real-audio + 60-clip confirm runs both measured w=4.0
 (DECISIONS.md 2026-07-02)."""
+
+_SEQUENCE_DECODE_LOCK = threading.RLock()
+"""Guards the legacy process-global transition prior during one decode."""
 
 
 def _install_sequence_prior(
@@ -210,8 +214,6 @@ def run_pipeline_with_artifacts(
         audio_events = apply_pitch_position_prior(audio_events, prior, cfg)
         logger.info("attached pitch-position prior %s", policy.resolved_position_prior)
 
-    _install_sequence_prior(policy.resolved_sequence_prior)
-
     if melodic_prior_enabled:
         audio_events = apply_melodic_segment_prior(audio_events, cfg)
         logger.info("attached melodic segment prior")
@@ -248,7 +250,15 @@ def run_pipeline_with_artifacts(
         len(fingerings),
         lambda_vision,
     )
-    tab_events = tuple(fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision))
+    # ``playability`` predates the server and exposes the transition prior as
+    # process-global state. Resolve/load work can happen concurrently, but the
+    # install + decode pair must be atomic so an acoustic and classical job
+    # cannot observe each other's policy.
+    with _SEQUENCE_DECODE_LOCK:
+        _install_sequence_prior(policy.resolved_sequence_prior)
+        tab_events = tuple(
+            fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision)
+        )
     return PipelineArtifacts(
         tab_events=tab_events,
         audio_events=tuple(audio_events),

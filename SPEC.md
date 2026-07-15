@@ -5,7 +5,7 @@
 > **Document role:** Canonical project spec. Source of truth. Update this file when scope changes; never let drift accumulate silently in code.
 > **Primary maintainer:** Pat
 > **Spec version:** 1.0
-> **Last updated:** 2026-05-04
+> **Last updated:** 2026-07-14
 
 ---
 
@@ -25,9 +25,17 @@ For v1, acceptance evidence must come from automated sources only:
 - license, fresh-install, and renderer verification commands.
 
 Manual Phase 1.5/3/4 gates are therefore `removed_from_v1` or
-`optional_future`, not blockers. `--position-prior guitarset-v1` remains an
-explicit option; `--position-prior none` remains the default unless automated
-evidence justifies promotion later.
+`optional_future`, not blockers. Automated OOF and public-corpus evidence did
+justify a domain-gated promotion on 2026-07-14: `--position-prior auto` and
+`--sequence-prior auto` use the registered GuitarSet pair only for clean
+acoustic, standard-tuning, capo-zero sessions. Classical, electric,
+nonstandard-tuning, and capo sessions resolve those settings to `none`.
+Explicit `guitarset-v1` and `none` remain evaluation/rollback controls.
+
+The same accuracy program rejected its compact timbral ranker and correction
+path at their fixed gates. No timbral weights or refinement API ship. The user
+granted blanket execution approval for this program on 2026-07-14, so its
+phase gates remained binding ship/skip criteria without new permission pauses.
 
 ---
 

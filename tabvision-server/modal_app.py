@@ -87,6 +87,7 @@ def process_job_modal(job_id: str) -> None:
     os.environ.setdefault("TABVISION_POSITION_PRIOR", "auto")
     os.environ.setdefault("TABVISION_SEQUENCE_PRIOR", "auto")
     os.environ.setdefault("TABVISION_STRING_EVIDENCE", "auto")
+    os.environ.setdefault("TABVISION_PHRASE_REFINEMENT", "false")
     os.environ.setdefault("TABVISION_VIDEO_ENABLED", "false")
     os.environ.setdefault("TABVISION_MELODIC_PRIOR_ENABLED", "false")
     os.environ.setdefault("TABVISION_ACCURACY_MODE", "accurate")

@@ -87,3 +87,14 @@ def test_legacy_none_values_remain_explicitly_disabled() -> None:
 def test_explicit_unregistered_timbre_artifact_fails_clearly() -> None:
     with pytest.raises(ConfigurationError, match="unknown learned artifact"):
         _resolve(timbre="guitarset-timbre-v1")
+
+
+def test_auto_falls_back_to_neutral_when_registered_artifact_is_invalid(monkeypatch) -> None:
+    def fail(name: str, **kwargs):
+        raise ConfigurationError("artifact hash mismatch")
+
+    monkeypatch.setattr("tabvision.fusion.inference_policy.load_artifact_manifest", fail)
+    policy = _resolve()
+    assert policy.resolved_position_prior == "none"
+    assert policy.resolved_sequence_prior == "none"
+    assert "hash mismatch" in policy.resolution_reason

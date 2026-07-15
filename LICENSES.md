@@ -1,6 +1,6 @@
 # LICENSES — TabVision Dependency & Asset Map
 
-**Last updated:** 2026-07-09 (D3 — Phase 6 export-dep license review: PyGuitarPro + music21 cleared)
+**Last updated:** 2026-07-14 (domain-aware GuitarSet registry and rejected timbral probe)
 **Spec reference:** SPEC.md §1.5 (portfolio-friendly licensing) and §6 (resource acquisition)
 
 ## Posture
@@ -57,7 +57,7 @@ Phase 0 (this document) produces the initial map; Phase 9 verifies.
 
 | Dataset | Phase | License | Status | Notes |
 |---|---|---|---|---|
-| GuitarSet | 1.5 / 7 / **Phase 0 (this PR)** | CC-BY-4.0 | ✅ | https://guitarset.weebly.com — JAMS annotations, hexaphonic. Already used in v0 finetune work. Re-distribution requires attribution; not committed to repo. **Used as the only data source for the 2026-05-13 composite baseline** (player 05 held-out validation; 60 tracks; 8 715 gold notes). |
+| GuitarSet | 1.5 / 7 / string assignment | CC-BY-4.0 | ✅ | https://guitarset.weebly.com — JAMS annotations, hexaphonic. Audio/annotations are not redistributed. Checked-in position/sequence counts use players 00–04 only, exclude player 05, and carry hash-verified manifests with construction commands. Solo/comp candidates failed their OOF gates and remain unregistered. The 2026-07-14 timbral probe also used players 00–04 but failed; no learned weights were exported or shipped. |
 | Guitar-TECHS | Phase 0 (eval) / 1.5 / 7 | CC-BY-4.0 (Zenodo record 14963133) | ✅ eval-only | arXiv:2501.03720 — 3 electric guitarists, 5h12m multi-mic + DI; per-string 6-track MIDI. **Acquirer landed** (`scripts.acquire.datasets guitar-techs`, Zenodo API). **Scanner landed** (`manifest_builder.scan_guitar_techs` → `clean_electric` tier) — layout *inferred*, verify against first real download. Not redistributed here; required attribution must appear in the public README. |
 | IDMT-SMT-Guitar | 1.5 / 7 | research-use, registration | ⚠️ | Training-only; not redistributed in our repo. Verified 2026-05-13 research pass; superseded by Guitar-TECHS for v1 acceptance — kept for potential future training augmentation. |
 | EGDB | 1.5 / 7 / Phase 0 (eval) | **author-granted use (2026-06-01)** | ✅ eval-only | https://ss12f32v.github.io/Guitar-Transcription/ — 240 tracks, ~12h with multi-amp electric variants, GuitarPro tabs + aligned MIDI. **Access is open** — the audio is a public Google Drive folder linked from the project page; the *license* was the only gate (the repo has no LICENSE file → default all-rights-reserved). Author (`f08946011@ntu.edu.tw`) granted portfolio use 2026-06-01. **ACTION REQUIRED: save the grant email under `docs/` (e.g. `docs/licenses/egdb-grant-2026-06-01.eml`) and log it in `docs/DECISIONS.md` — the written grant is the only evidence the gate cleared (SPEC §1.4 hard rule).** Treated like GuitarSet: held-out distorted-electric eval source, **not redistributed** here and **not a shipped-weight substrate** unless the grant explicitly permits portfolio distribution. If the grant is research-only, it remains an eval gate only. |
@@ -138,7 +138,8 @@ will be needed.
   second "default artifact policy" alongside the dependency policy. It resolves what the
   default pipeline actually loads from the real CLI defaults (`highres` →
   `xavriley/midi-transcription-models:guitar-gaps.pth`, MIT; `guitarset-v1` /
-  `guitarset-seq-v1` → derived count statistics, CC-BY-4.0) and fails CI if any resolved
+  `guitarset-seq-v1` via clean-acoustic `auto` routing → derived count statistics,
+  CC-BY-4.0) and fails CI if any resolved
   artifact is off the ✅ list or on the blocked list (ultralytics weights,
   `guitar-fl.pth`, the electric checkpoint). Closes the SPEC §11 "NC weights leaked into
   the default" risk row.

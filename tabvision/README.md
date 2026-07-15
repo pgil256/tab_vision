@@ -40,6 +40,10 @@ scope rationale: [`../SPEC.md`](../SPEC.md) §1.4 / §1.4.1.
   ([A14](../docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md),
   [GAPS video-chain](../docs/EVAL_REPORTS/v1_1_gaps_video_chain_2026-06-22.md)).
   The video stack stays in the repo as measured evidence, not a shipping default.
+- **A compact timbral string ranker did not generalize.** Five-player OOF
+  evaluation scored 0.633 candidate top-1 versus the 0.655 prior-only baseline,
+  so no timbral model or paid training ships
+  ([Phase 2 report](../docs/EVAL_REPORTS/string_assignment_phase2_free_2026-07-14.md)).
 - **Electric → v2.** The acoustic backbone drops to 0.73 pitch / 0.12 Tab F1 on
   electric ([cross-dataset](../docs/EVAL_REPORTS/cross_dataset_prior_2026-06-02.md));
   closing it needs a spend-gated fine-tune. The `--instrument electric` toggle is
@@ -91,7 +95,10 @@ tabvision transcribe input.mov --format ascii -o output.tab
 
 `transcribe` defaults to the accepted v1 config: the `highres` audio backend
 (via `--audio-backend auto`, which routes `--instrument electric` to the
-electric checkpoint) plus `--position-prior guitarset-v1`. The first run
+electric checkpoint) plus domain-aware `--position-prior auto` and
+`--sequence-prior auto`. Clean acoustic, standard-tuning, capo-zero sessions
+use the hash-verified GuitarSet pair; classical, electric, nonstandard-tuning,
+and capo sessions use neutral learned position evidence. The first run
 downloads the highres checkpoint once (~37 s); later runs load it from the
 local cache. Requires the `audio-highres` extra (torch).
 
@@ -118,14 +125,26 @@ Useful context flags:
 ```bash
 tabvision transcribe input.mov --instrument electric --tone clean --style mixed --capo 0
 tabvision transcribe input.mov --no-video --format ascii
-tabvision transcribe input.mov --position-prior none --audio-backend basicpitch
+tabvision transcribe input.mov --position-prior none --sequence-prior none --audio-backend basicpitch
+tabvision transcribe input.mov --string-evidence none
 ```
 
-`--position-prior guitarset-v1` is the default (the accepted v1 config,
-measured at +22-29pp Tab F1 over `none` on GuitarSet); `none` preserves the
-bare decode for ablations. `basicpitch` remains available as the lightweight
-CPU baseline (needs the `audio-baseline` extra; Python 3.11 on some
-platforms — see Install).
+`auto` is the production default. Explicit `guitarset-v1` /
+`guitarset-seq-v1` force the compatible registered pair for reproducible
+evaluation or rollback; `none` preserves the bare decode. The rejected
+`guitarset-timbre-v1` artifact is not registered, so automatic string evidence
+currently resolves to `none`. `basicpitch` remains available as the lightweight
+CPU baseline (needs the `audio-baseline` extra; Python 3.11 on some platforms —
+see Install).
+
+Server rollback controls:
+
+```text
+TABVISION_POSITION_PRIOR=auto|none|guitarset-v1
+TABVISION_SEQUENCE_PRIOR=auto|none|guitarset-seq-v1
+TABVISION_STRING_EVIDENCE=auto|none
+TABVISION_PHRASE_REFINEMENT=false
+```
 
 ## Diagnose
 
@@ -195,7 +214,8 @@ The shipped fingering-prior artifacts under `tabvision/fusion/priors/` are
 derived count statistics (never redistributed score/audio content) from:
 
 - **GuitarSet** (Xi et al., ISMIR 2018) — `guitarset-v1`,
-  `guitarset-seq-v1`.
+  `guitarset-seq-v1`, plus unregistered solo/comp diagnostic artifacts. All
+  manifests record players 00–04 as construction data and player 05 as excluded.
 - **PDMX** (Long et al., "PDMX: A Large-Scale Public Domain MusicXML
   Dataset for Symbolic Music Processing", ICASSP 2025;
   DOI [10.5281/zenodo.15571083](https://doi.org/10.5281/zenodo.15571083)) —
