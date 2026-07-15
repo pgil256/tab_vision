@@ -86,10 +86,13 @@ def test_open_string_short_clip_and_unplayable_event_are_handled() -> None:
 
 def test_k_best_paths_rankings_and_confidence_are_deterministic() -> None:
     events = [_event(60, 0.0), _event(62, 0.4), _event(64, 0.8), _event(65, 1.2)]
+    top_one = decode_segment_v1_with_analysis(events, k_paths=1)
     first = decode_segment_v1_with_analysis(events, k_paths=3)
     second = decode_segment_v1_with_analysis(events, k_paths=3)
 
     assert first == second
+    assert first.paths[0].events == top_one.paths[0].events
+    assert first.paths[0].latent_states == top_one.paths[0].latent_states
     assert [path.cost for path in first.paths] == sorted(path.cost for path in first.paths)
     assert first.paths[0].score_delta_from_best == pytest.approx(0.0)
     assert all(0.0 <= event.confidence <= 1.0 for event in first.paths[0].events)

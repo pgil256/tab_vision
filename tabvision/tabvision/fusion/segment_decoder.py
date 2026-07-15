@@ -241,19 +241,25 @@ def decode_segment_clusters(
         if retain_analysis
         else []
     )
-    state_paths = (
-        [(chosen_nodes, global_opt)]
-        if k_paths == 1
-        else _k_best_paths(
+    if k_paths == 1:
+        state_paths = [(chosen_nodes, global_opt)]
+    else:
+        alternatives = _k_best_paths(
             cluster_data,
             hand_states,
             segment_ids,
             emissions,
             candidate_transitions,
             latent_transitions,
-            k_paths,
+            k_paths + 1,
         )
-    )
+        state_paths = [(chosen_nodes, global_opt)]
+        for nodes, cost in alternatives:
+            if nodes == chosen_nodes:
+                continue
+            state_paths.append((nodes, cost))
+            if len(state_paths) >= k_paths:
+                break
     paths: list[SegmentDecodedPath] = []
     for path_index, (nodes, cost) in enumerate(state_paths):
         path_events = (
