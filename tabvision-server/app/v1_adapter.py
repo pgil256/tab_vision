@@ -1,4 +1,5 @@
 """Adapter from the v1 ``tabvision`` package to the Flask API contract."""
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ class V1PipelineConfig:
     position_prior: str | None = "auto"
     sequence_prior: str | None = "auto"
     string_evidence: str | None = "auto"
+    assignment_decoder: str | None = "auto"
     video_enabled: bool = False
     melodic_prior_enabled: bool = False
     accuracy_mode: str = "accurate"
@@ -32,16 +34,23 @@ class V1PipelineConfig:
     @classmethod
     def from_env(cls) -> "V1PipelineConfig":
         return cls(
-            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "highres").strip().lower(),
+            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "highres")
+            .strip()
+            .lower(),
             fallback_audio_backend=_optional_env(
                 "TABVISION_FALLBACK_AUDIO_BACKEND", None
             ),
             position_prior=_policy_env("TABVISION_POSITION_PRIOR", "auto"),
             sequence_prior=_policy_env("TABVISION_SEQUENCE_PRIOR", "auto"),
             string_evidence=_policy_env("TABVISION_STRING_EVIDENCE", "auto"),
+            assignment_decoder=_policy_env("TABVISION_ASSIGNMENT_DECODER", "auto"),
             video_enabled=_truthy(os.getenv("TABVISION_VIDEO_ENABLED", "false")),
-            melodic_prior_enabled=_truthy(os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")),
-            accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate").strip().lower(),
+            melodic_prior_enabled=_truthy(
+                os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")
+            ),
+            accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate")
+            .strip()
+            .lower(),
         )
 
 
@@ -109,9 +118,18 @@ def _video_diagnostics(video_enabled: bool) -> dict[str, Any]:
 def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
     """Metadata for legacy/injected runners that still return a bare list."""
 
-    requested_position = config.position_prior if config.position_prior is not None else "none"
-    requested_sequence = config.sequence_prior if config.sequence_prior is not None else "none"
-    requested_evidence = config.string_evidence if config.string_evidence is not None else "none"
+    requested_position = (
+        config.position_prior if config.position_prior is not None else "none"
+    )
+    requested_sequence = (
+        config.sequence_prior if config.sequence_prior is not None else "none"
+    )
+    requested_evidence = (
+        config.string_evidence if config.string_evidence is not None else "none"
+    )
+    requested_decoder = (
+        config.assignment_decoder if config.assignment_decoder is not None else "auto"
+    )
     return {
         "requestedPositionPrior": requested_position,
         "resolvedPositionPrior": requested_position,
@@ -119,6 +137,11 @@ def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
         "resolvedSequencePrior": requested_sequence,
         "requestedStringEvidence": requested_evidence,
         "resolvedStringEvidence": requested_evidence,
+        "requestedAssignmentDecoder": requested_decoder,
+        "resolvedAssignmentDecoder": "baseline"
+        if requested_decoder == "auto"
+        else requested_decoder,
+        "assignmentDecoderReason": "legacy pipeline result",
         "artifactVersions": {},
         "artifactSha256": {},
     }
@@ -141,6 +164,9 @@ def _unpack_pipeline_result(
         "resolvedSequencePrior": policy.resolved_sequence_prior,
         "requestedStringEvidence": policy.requested_string_evidence,
         "resolvedStringEvidence": policy.resolved_string_evidence,
+        "requestedAssignmentDecoder": policy.requested_assignment_decoder,
+        "resolvedAssignmentDecoder": policy.resolved_assignment_decoder,
+        "assignmentDecoderReason": policy.assignment_decoder_reason,
         "artifactVersions": {item.name: item.version for item in artifacts},
         "artifactSha256": {item.name: item.sha256 for item in artifacts},
     }
@@ -185,7 +211,9 @@ def tab_events_to_tab_document(
     high_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "high")
     med_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "medium")
     low_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "low")
-    max_time = max((note.get("endTime", note["timestamp"]) for note in notes_data), default=0.0)
+    max_time = max(
+        (note.get("endTime", note["timestamp"]) for note in notes_data), default=0.0
+    )
 
     merged_diagnostics = _video_diagnostics(config.video_enabled)
     if diagnostics:
@@ -207,7 +235,8 @@ def tab_events_to_tab_document(
             "videoConfirmedNotes": merged_diagnostics["notesAffectedByVideo"],
             "averageConfidence": (
                 sum(note["confidence"] for note in notes_data) / total_notes
-                if total_notes > 0 else 0
+                if total_notes > 0
+                else 0
             ),
             "pipelineVersion": "v1",
             "audioBackend": config.audio_backend,
@@ -230,7 +259,9 @@ def run_v1_transcription(
     progress_callback: Callable[[str], None] | None = None,
 ) -> str:
     """Run v1 transcription and write a frontend-compatible result JSON."""
-    config = replace(config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode)
+    config = replace(
+        config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode
+    )
     runner = pipeline_runner or _load_v1_runner()
     GuitarConfig, SessionConfig = _load_v1_types()
 
@@ -241,9 +272,20 @@ def run_v1_transcription(
     }
 
     common_kwargs = {
-        "position_prior": config.position_prior if config.position_prior is not None else "none",
-        "sequence_prior": config.sequence_prior if config.sequence_prior is not None else "none",
-        "string_evidence": config.string_evidence if config.string_evidence is not None else "none",
+        "position_prior": config.position_prior
+        if config.position_prior is not None
+        else "none",
+        "sequence_prior": config.sequence_prior
+        if config.sequence_prior is not None
+        else "none",
+        "string_evidence": config.string_evidence
+        if config.string_evidence is not None
+        else "none",
+        "assignment_decoder": (
+            config.assignment_decoder
+            if config.assignment_decoder is not None
+            else "auto"
+        ),
         "video_enabled": config.video_enabled,
         "melodic_prior_enabled": config.melodic_prior_enabled,
         "lambda_vision": 1.0 if config.video_enabled else 0.0,
@@ -278,7 +320,9 @@ def run_v1_transcription(
         )
         effective_config = replace(config, audio_backend=fallback)
 
-    events, inference_policy = _unpack_pipeline_result(pipeline_result, effective_config)
+    events, inference_policy = _unpack_pipeline_result(
+        pipeline_result, effective_config
+    )
 
     tab_document = tab_events_to_tab_document(
         job,
@@ -325,7 +369,11 @@ def humanize_pipeline_error(exc: BaseException) -> str:
             "No audio could be read from the file. Make sure the recording has an "
             "audio track (was the microphone enabled?) and try again."
         )
-    if "audio decode failed" in low or "ffprobe failed" in low or "invalid data found" in low:
+    if (
+        "audio decode failed" in low
+        or "ffprobe failed" in low
+        or "invalid data found" in low
+    ):
         return (
             "The file could not be decoded — its format or codec isn't supported. "
             "Try MP4, MOV, WEBM, WAV, MP3, or M4A."
@@ -337,7 +385,9 @@ def humanize_pipeline_error(exc: BaseException) -> str:
             "The transcription model could not be downloaded. Check the server's "
             "internet connection and try again in a few minutes."
         )
-    first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    first_line = (
+        str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    )
     return f"Transcription failed: {first_line[:200]}"
 
 

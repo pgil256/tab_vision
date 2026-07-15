@@ -39,6 +39,7 @@ from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.playability import set_transition_prior
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
 from tabvision.fusion.transition_prior import load_transition_prior
+from tabvision.fusion.viterbi import assignment_decoder_context
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
@@ -135,6 +136,7 @@ def run_pipeline_with_artifacts(
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
+    assignment_decoder: str | None = None,
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -198,6 +200,7 @@ def run_pipeline_with_artifacts(
         requested_position_prior=position_prior,
         requested_sequence_prior=sequence_prior,
         requested_string_evidence=string_evidence,
+        requested_assignment_decoder=assignment_decoder,
         cfg=cfg,
         session=session,
         audio_backend_name=resolved_audio_backend_name,
@@ -256,9 +259,10 @@ def run_pipeline_with_artifacts(
     # cannot observe each other's policy.
     with _SEQUENCE_DECODE_LOCK:
         _install_sequence_prior(policy.resolved_sequence_prior)
-        tab_events = tuple(
-            fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision)
-        )
+        with assignment_decoder_context(policy.resolved_assignment_decoder):
+            tab_events = tuple(
+                fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision)
+            )
     return PipelineArtifacts(
         tab_events=tab_events,
         audio_events=tuple(audio_events),
@@ -280,6 +284,7 @@ def run_pipeline(
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
+    assignment_decoder: str | None = None,
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -301,6 +306,7 @@ def run_pipeline(
         position_prior=position_prior,
         sequence_prior=sequence_prior,
         string_evidence=string_evidence,
+        assignment_decoder=assignment_decoder,
         melodic_prior_enabled=melodic_prior_enabled,
         audio_filters=audio_filters,
         cfg=cfg,

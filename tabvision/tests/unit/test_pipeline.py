@@ -140,6 +140,26 @@ def test_detailed_pipeline_result_preserves_events_and_resolved_policy(monkeypat
     assert result.policy.resolved_position_prior == "none"
     assert result.policy.resolved_sequence_prior == "none"
     assert result.policy.resolved_string_evidence == "none"
+    assert result.policy.requested_assignment_decoder == "auto"
+    assert result.policy.resolved_assignment_decoder == "baseline"
+
+
+def test_detailed_pipeline_result_reports_explicit_segment_decoder(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
+    audio = _FakeAudioBackend(
+        events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
+    )
+    result = pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=audio,
+        video_enabled=False,
+        position_prior="none",
+        sequence_prior="none",
+        string_evidence="none",
+        assignment_decoder="segment-v1",
+    )
+    assert result.policy.requested_assignment_decoder == "segment-v1"
+    assert result.policy.resolved_assignment_decoder == "segment-v1"
 
 
 def test_concurrent_jobs_do_not_share_resolved_sequence_prior(monkeypatch):

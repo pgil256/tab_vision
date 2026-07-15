@@ -20,10 +20,19 @@ spaces and §2 for the cost decomposition.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from tabvision.fusion import chord, chord_shapes, playability
 from tabvision.fusion.candidates import Candidate, candidate_positions
+from tabvision.fusion.inference_policy import resolve_assignment_decoder
+from tabvision.fusion.segment_decoder import (
+    DEFAULT_SEGMENT_CONFIG,
+    SegmentDecoderConfig,
+    SegmentDecodeResult,
+    decode_segment_clusters,
+)
 from tabvision.types import (
     AudioEvent,
     FrameFingering,
@@ -31,6 +40,24 @@ from tabvision.types import (
     SessionConfig,
     TabEvent,
 )
+
+_ASSIGNMENT_DECODER: ContextVar[str | None] = ContextVar(
+    "tabvision_assignment_decoder",
+    default=None,
+)
+
+
+@contextmanager
+def assignment_decoder_context(resolved_decoder: str) -> Iterator[None]:
+    """Install a request-local resolved decoder without process-global state."""
+
+    if resolved_decoder not in {"baseline", "segment-v1"}:
+        raise ValueError(f"unsupported resolved assignment decoder: {resolved_decoder!r}")
+    token = _ASSIGNMENT_DECODER.set(resolved_decoder)
+    try:
+        yield
+    finally:
+        _ASSIGNMENT_DECODER.reset(token)
 
 
 def fuse(
@@ -68,7 +95,14 @@ def fuse(
         cfg = GuitarConfig()
     if session is None:
         session = SessionConfig()
-    del session  # not consumed by Phase 5; preserves signature for callers.
+
+    resolved_decoder = _ASSIGNMENT_DECODER.get()
+    if resolved_decoder is None:
+        _requested, resolved_decoder, _reason = resolve_assignment_decoder(
+            None,
+            cfg=cfg,
+            session=session,
+        )
 
     if not events:
         return []
@@ -89,7 +123,63 @@ def fuse(
     if not cluster_data:
         return []
 
-    return _viterbi_clusters(cluster_data, fingerings, cfg, lambda_vision)
+    baseline = _viterbi_clusters(cluster_data, fingerings, cfg, lambda_vision)
+    if resolved_decoder == "baseline":
+        return baseline
+    if resolved_decoder == "segment-v1":
+        result = decode_segment_clusters(
+            cluster_data,
+            baseline,
+            fingerings,
+            cfg,
+            lambda_vision,
+        )
+        return list(result.paths[0].events) if result.paths else []
+    raise ValueError(f"unsupported resolved assignment decoder: {resolved_decoder!r}")
+
+
+def decode_segment_v1_with_analysis(
+    events: Sequence[AudioEvent],
+    fingerings: Sequence[FrameFingering] = (),
+    cfg: GuitarConfig | None = None,
+    session: SessionConfig | None = None,
+    lambda_vision: float = 1.0,
+    *,
+    config: SegmentDecoderConfig = DEFAULT_SEGMENT_CONFIG,
+    k_paths: int = 3,
+    retain_analysis: bool = True,
+) -> SegmentDecodeResult:
+    """Evaluation entrypoint retaining exact K-best paths and min-margins."""
+
+    cfg = cfg or GuitarConfig()
+    session = session or SessionConfig()
+    _requested, resolved, reason = resolve_assignment_decoder(
+        "segment-v1",
+        cfg=cfg,
+        session=session,
+    )
+    if resolved != "segment-v1":
+        raise ValueError(reason)
+    valid_events = [event for event in events if candidate_positions(event.pitch_midi, cfg)]
+    clusters = chord.cluster_events(valid_events)
+    cluster_data: list[tuple[list[AudioEvent], list[tuple[Candidate, ...]]]] = []
+    for cluster in clusters:
+        states = chord.enumerate_chord_states(cluster, cfg)
+        if states:
+            cluster_data.append((cluster, states))
+    if not cluster_data:
+        return SegmentDecodeResult((), (), (), ())
+    baseline = _viterbi_clusters(cluster_data, fingerings, cfg, lambda_vision)
+    return decode_segment_clusters(
+        cluster_data,
+        baseline,
+        fingerings,
+        cfg,
+        lambda_vision,
+        config=config,
+        k_paths=k_paths,
+        retain_analysis=retain_analysis,
+    )
 
 
 def _viterbi_clusters(
@@ -228,4 +318,4 @@ def _string_flip_margin(
     return max(0.0, alt - global_opt)
 
 
-__all__ = ["fuse"]
+__all__ = ["assignment_decoder_context", "decode_segment_v1_with_analysis", "fuse"]
