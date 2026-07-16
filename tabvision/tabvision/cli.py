@@ -127,7 +127,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
+        choices=[
+            "basicpitch",
+            "highres",
+            "highres-fl",
+            "highres-ensemble",
+            "highres-electric",
+            "auto",
+        ],
         default="auto",
         help=(
             "audio transcription backend. 'auto' (default) is the tone "
@@ -136,7 +143,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "(Phase 2) wraps Riley/Edwards + Cwitkowitz GAPS via "
             "hf-midi-transcription (MIT) — needs torch + extras; first run "
             "downloads the checkpoint once (~37 s). 'highres-fl' uses the "
-            "Francois Leduc checkpoint. 'basicpitch' (Phase 1, Apache-2.0) "
+            "Francois Leduc checkpoint. 'highres-ensemble' is the registered "
+            "Phase 3 clean-acoustic GAPS+FL selector; it is explicit until the "
+            "Phase 7 rollout. 'basicpitch' (Phase 1, Apache-2.0) "
             "is the fast CPU-only baseline."
         ),
     )
@@ -281,7 +290,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
+        choices=[
+            "basicpitch",
+            "highres",
+            "highres-fl",
+            "highres-ensemble",
+            "highres-electric",
+            "auto",
+        ],
         default="basicpitch",
         help="audio transcription backend used for the diagnostic decode",
     )

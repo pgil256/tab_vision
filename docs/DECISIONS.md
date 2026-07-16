@@ -2359,3 +2359,44 @@ metrics/error CSVs, training history, run provenance JSON, unregistered
 TorchScript artifact, and hash-verified manifest. Per phase discipline, Phase
 3 does not start without a new explicit `proceed` after this report is checked
 in.
+
+## 2026-07-15 - sequential Tab F1 Phase 3 registers an explicit checkpoint ensemble and closes posterior lattices
+
+**Phase:** Tab F1 accuracy sequential program, Phase 3.
+**Posterior branch:** Real 100 Hz onset, frame, offset, and velocity matrices
+are now exposed as a side channel and cached with version, shape, source,
+checkpoint, demux, FFmpeg, and package provenance. The fixed posterior-lattice
+gate failed: top-2 raw posterior choices contained the reference for `30.8%`
+of current pitch-off/missed errors, but the bounded eligible lattice recovered
+only `2.5%` while adding `6.45` false candidates per ten correct events. Do not
+build or enlarge a posterior lattice from this signal.
+**Checkpoint branch:** Five player-held-out development folds selected the
+predeclared `confidence_winner` condition. Macro Tab F1 moved `0.5581 ->
+0.6017` (`+0.0436`, paired 95% CI `[+0.0376, +0.0497]`); onset F1 moved
+`0.8838 -> 0.9187`, pitch F1 `0.8476 -> 0.8956`, and every player improved
+(worst `+0.0246`). The frozen player-05 confirmation moved aggregate Tab F1
+`0.6126 -> 0.6339` (`+0.0213`, CI `[+0.0104, +0.0342]`), solo `+0.0085`,
+comp `+0.0341`, onset `0.9320 -> 0.9491`, and pitch `0.9169 -> 0.9403`.
+No player-05 result changed the selector, threshold, or calibrators.
+**Integration decision:** Register the two-checkpoint artifact and
+`highres-ensemble` as an explicit clean-acoustic evaluation backend, preserving
+agreed GAPS events and using the frozen scalar posterior calibrators only for
+disagreements. Keep automatic audio routing on `highres`: the broader automatic
+guardrails fail because confirmation solo lift is below `+0.03` and ambiguous
+same-pitch wrong-position reduction is only `5.3%`, below `10%`. GAPS classical
+and Guitar-TECHS electric safety routes therefore have exactly zero Phase 3
+delta. Explicit non-clean/non-acoustic use deterministically falls back to GAPS.
+Phase 7 owns any later automatic integrated rollout.
+**Runtime and safety:** Checkpoints load sequentially and release GAPS before
+FL, after an attempted parallel cache fill demonstrated unacceptable memory
+pressure. Two isolated 60-second end-to-end CPU runs took `59.108 s` and
+`64.213 s`, peaked at about `2.06 GB`, and produced the identical output hash
+`1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3`.
+The calibration artifact is `1,166` bytes. No SPEC §8 or `fuse(...)` contract
+changed and no paid training or new shipping dependency was introduced.
+**Verification and evidence:** The v1 suite passed `818` tests with `12`
+skipped; the frozen server suite passed `296` with `3` skipped; Ruff lint and
+format passed; mypy passed `72` source files. Evidence is in
+`docs/EVAL_REPORTS/string_assignment_phase3_2026-07-15.md`, its condition and
+error CSVs, provenance JSON, and benchmark JSON. Per phase discipline, Phase 4
+does not start without a new explicit `proceed`.

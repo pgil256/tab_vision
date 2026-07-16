@@ -12,6 +12,7 @@ def test_available_backends_includes_phase_1_and_2():
     assert "basicpitch" in names
     assert "highres" in names
     assert "highres-fl" in names
+    assert "highres-ensemble" in names
 
 
 def test_make_unknown_backend_raises():
@@ -41,6 +42,13 @@ def test_make_highres_does_not_download_weights():
 def test_highres_fl_factory_uses_fl_checkpoint():
     b = make("highres-fl")
     assert b.checkpoint == "guitar_fl"  # type: ignore[attr-defined]
+
+
+def test_highres_ensemble_factory_loads_registered_artifact_without_weights():
+    b = make("highres-ensemble")
+
+    assert b.name == "highres-ensemble"
+    assert b.artifact.threshold == 0.5  # type: ignore[attr-defined]
 
 
 def test_highres_rejects_unknown_checkpoint():

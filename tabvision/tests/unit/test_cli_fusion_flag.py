@@ -129,7 +129,8 @@ def test_audio_backend_default_is_auto():
 
 
 @pytest.mark.parametrize(
-    "choice", ["basicpitch", "highres", "highres-fl", "highres-electric", "auto"]
+    "choice",
+    ["basicpitch", "highres", "highres-fl", "highres-ensemble", "highres-electric", "auto"],
 )
 def test_audio_backend_choices_parsed(choice):
     """``highres-electric`` and ``auto`` are registered in

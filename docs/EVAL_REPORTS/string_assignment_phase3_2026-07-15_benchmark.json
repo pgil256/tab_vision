@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "command": ".\\.venv\\Scripts\\python.exe -m scripts.eval.string_assignment_phase3_benchmark %USERPROFILE%\\.tabvision\\data\\guitarset\\audio_mono-mic\\00_Jazz1-200-B_solo_mic.wav",
+  "source": "C:\\Users\\patri\\.tabvision\\data\\guitarset\\audio_mono-mic\\00_Jazz1-200-B_solo_mic.wav",
+  "source_sha256": "d8df477ac8d17da5df76bbfafe94449b9f1c398e120db99d5765deeab59fbfb6",
+  "constructed_duration_s": 60.0,
+  "sample_rate": 44100,
+  "runs": [
+    {
+      "wall_seconds": 59.107845599995926,
+      "baseline_rss_bytes": 54149120,
+      "peak_rss_bytes": 2062364672,
+      "incremental_peak_rss_bytes": 2008215552,
+      "audio_event_count": 188,
+      "tab_event_count": 188,
+      "output_sha256": "1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3"
+    },
+    {
+      "wall_seconds": 64.21325249999063,
+      "baseline_rss_bytes": 54312960,
+      "peak_rss_bytes": 2061873152,
+      "incremental_peak_rss_bytes": 2007560192,
+      "audio_event_count": 188,
+      "tab_event_count": 188,
+      "output_sha256": "1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3"
+    }
+  ],
+  "deterministic_output": true,
+  "checkpoint_execution": "sequential",
+  "artifact": {
+    "path": "tabvision/tabvision/audio/ensemble_v1.json",
+    "bytes": 1166,
+    "sha256": "b6cad83e68ad181337eb935419382610e39d40ce4acbca3720ee05377a7f8296",
+    "automatic_activation": false
+  },
+  "automatic_routing": {
+    "clean_acoustic": "highres",
+    "clean_classical": "highres",
+    "clean_electric": "highres-electric",
+    "distorted_acoustic": "highres",
+    "phase3_ensemble_selected": false
+  }
+}
