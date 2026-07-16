@@ -47,7 +47,16 @@ The artifact is registered for explicit clean-acoustic evaluation; automatic rou
 
 The reproducible 60-second end-to-end audio-only pipeline benchmark ran the two checkpoints sequentially in isolated processes. It completed in `59.108 s` and `64.213 s`, with peak working sets of `2,062,364,672` and `2,061,873,152` bytes. Both runs emitted 188 audio events and 188 tab events with the identical SHA-256 `1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3`. The measured maximum remains well below the five-minute limit; the development-cache projection of `100.41 s` is conservative.
 
-The registered scalar-calibration artifact is `1,166` bytes with SHA-256 `b6cad83e68ad181337eb935419382610e39d40ce4acbca3720ee05377a7f8296`. GAPS is released before FL is loaded; the sequential-backend test pins maximum simultaneous checkpoint instances to one. Full benchmark provenance is in `string_assignment_phase3_2026-07-15_benchmark.json`.
+The registered scalar-calibration artifact as committed with canonical LF line
+endings is `1,111` bytes with SHA-256
+`1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2`.
+The original Windows working-tree report recorded the semantically identical
+CRLF serialization (`1,166` bytes,
+`b6cad83e68ad181337eb935419382610e39d40ce4acbca3720ee05377a7f8296`);
+Phase 7 corrected this provenance-only mismatch against the committed bytes.
+GAPS is released before FL is loaded; the sequential-backend test pins maximum
+simultaneous checkpoint instances to one. Full benchmark provenance is in
+`string_assignment_phase3_2026-07-15_benchmark.json`.
 
 ## Domain routing and integration scope
 

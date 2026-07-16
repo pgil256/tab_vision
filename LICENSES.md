@@ -1,6 +1,6 @@
 # LICENSES — TabVision Dependency & Asset Map
 
-**Last updated:** 2026-07-16 (Phase 5 direct per-string gate rejected)
+**Last updated:** 2026-07-16 (Phase 7 integrated verification)
 **Spec reference:** SPEC.md §1.5 (portfolio-friendly licensing) and §6 (resource acquisition)
 
 ## Posture
@@ -80,6 +80,18 @@ official paper/project material: no dataset download or dataset-license grant
 suitable for shipped derived weights was found; the arXiv paper license is not
 a dataset license. GOAT, SynthTab, GAPS, EGDB, and private data were excluded
 from training. See the frozen Phase 5A design and Phase 5 evaluation report.
+
+### Phase 7 integrated audit addendum (2026-07-16)
+
+Phase 7 introduced no dataset, runtime dependency, trained weight, or
+redistributed media. Its clean replay used only the already mapped GuitarSet
+(CC-BY-4.0), GAPS, and Guitar-TECHS (CC-BY-4.0) evaluation inputs. The Phase 3
+scalar ensemble JSON remains an explicit-only artifact; its committed LF bytes
+and SHA-256 are now recorded consistently in the Phase 3 and Phase 7 reports.
+Failed Phase 2, 4, 5, and 6 artifacts remain unregistered or absent from the
+runtime. `scripts/check_default_licenses.py --pyproject pyproject.toml` passed
+both the default dependency and default artifact policies from a clean
+checkout and from a fresh `.[dev]` install.
 
 ## Library dependencies (default pipeline)
 

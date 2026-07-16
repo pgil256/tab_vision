@@ -29,8 +29,8 @@
   "checkpoint_execution": "sequential",
   "artifact": {
     "path": "tabvision/tabvision/audio/ensemble_v1.json",
-    "bytes": 1166,
-    "sha256": "b6cad83e68ad181337eb935419382610e39d40ce4acbca3720ee05377a7f8296",
+    "bytes": 1111,
+    "sha256": "1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2",
     "automatic_activation": false
   },
   "automatic_routing": {

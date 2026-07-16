@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-import torch
 
-from tabvision.eval.review_queue import (
+torch = pytest.importorskip("torch")
+
+from tabvision.eval.review_queue import (  # noqa: E402
     FEATURE_COUNT,
     ReviewQueueNet,
     binary_roc_auc,

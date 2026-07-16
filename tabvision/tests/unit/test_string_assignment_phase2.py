@@ -6,6 +6,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
+pytest.importorskip("torch")
+
 from scripts.eval.string_assignment_phase0 import DEV_PLAYERS
 from scripts.eval.string_assignment_phase2 import (
     PreparedTrack,

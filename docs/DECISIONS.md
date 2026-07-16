@@ -2528,3 +2528,45 @@ Evidence is in
 budget, feature, model, and provenance artifacts. Phase 7 requires a new
 explicit `proceed` and is independently entry-gated by at least one prior
 gate-passed result.
+
+## 2026-07-16 - Phase 7 closes the sequential Tab F1 program on the bounded-negative branch
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 7.
+**Entry and completion rule:** Phase 3's explicit two-checkpoint ensemble had
+passed its narrow development and confirmation safety gates, so integrated
+verification could begin. Program completion requires either a cumulatively
+gate-passed automatic approach verified in production or a documented result
+for every bounded automatic branch.
+**Branch taken:** Complete on the second condition. Phase 1 segment decoding,
+Phase 2 symbolic context, Phase 3 posterior lattice and cumulative automatic
+ensemble promotion, Phase 4 native-rate timbre, and Phase 5 direct per-string
+model all reproduced their negative automatic decisions. Phase 6's assisted
+detector/replay also reproduced both prerequisite failures before UI work.
+The Phase 3 ensemble remains explicit-only; `auto` remains the accepted
+single-checkpoint high-resolution/GAPS backend plus the clean-acoustic global
+position/sequence pair, with no string evidence and the baseline assignment
+decoder.
+**Integrated evidence:** Fresh Phase 0 and Phase 1 note tables matched their
+frozen SHA-256 values byte-for-byte. Phase 2 through Phase 6 reproduced their
+metrics, branch decisions, and prediction hashes. Guitar-TECHS forced-acoustic
+top-1 remained `0.2027`; classical and electric auto routes remained neutral.
+Two isolated 60-second explicit-ensemble runs produced the frozen event hash
+`1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3`
+and completed in `258.045 s` cold / `196.001 s` warm, both below five minutes.
+The committed LF artifact hash is
+`1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2`;
+the earlier Phase 3 CRLF working-copy hash was corrected as provenance only.
+**Release safety:** Core, server, routing, adapter metadata, concurrency,
+missing/corrupt artifact, license, and fresh-install checks passed. Optional
+PyTorch tests now skip collection under a clean `.[dev]` install rather than
+making the documented install path fail. No SPEC Section 8 contract, runtime
+dependency, dataset, trained weight, web client, or live production
+configuration changed in Phase 7. Because no automatic candidate passed,
+decoder enablement and assisted rollout steps are inapplicable. Rollback
+controls remain `TABVISION_ASSIGNMENT_DECODER=baseline`,
+`TABVISION_STRING_EVIDENCE=none`, and the existing position/sequence switches.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase7_2026-07-16.md` and its provenance
+JSON. The program is closed; any electric, new-video, score-informed,
+calibration, hardware-assisted, or newly collected-data work requires a new
+explicitly approved program rather than extension of this bounded search.

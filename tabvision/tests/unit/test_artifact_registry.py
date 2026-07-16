@@ -91,3 +91,24 @@ def test_corrupt_registered_artifact_is_rejected(tmp_path, monkeypatch) -> None:
             registry.load_artifact_manifest("broken-v1", expected_kind="position")
     finally:
         registry.load_artifact_manifest.cache_clear()
+
+
+def test_missing_registered_artifact_is_rejected(tmp_path, monkeypatch) -> None:
+    manifest = {
+        "schema_version": 1,
+        "artifact_kind": "position",
+        "artifact_version": "missing-v1",
+        "artifact_file": "missing.json",
+        "artifact_sha256": "0" * 64,
+        "registered": True,
+    }
+    manifest_name = "missing.manifest.json"
+    (tmp_path / manifest_name).write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(registry, "_ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(registry, "_MANIFEST_FILES", {"missing-v1": manifest_name})
+    registry.load_artifact_manifest.cache_clear()
+    try:
+        with pytest.raises(ConfigurationError, match="artifact file is missing"):
+            registry.load_artifact_manifest("missing-v1", expected_kind="position")
+    finally:
+        registry.load_artifact_manifest.cache_clear()

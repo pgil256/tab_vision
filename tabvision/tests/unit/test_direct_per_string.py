@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-import torch
 
-from tabvision.eval.direct_per_string import (
+torch = pytest.importorskip("torch")
+
+from tabvision.eval.direct_per_string import (  # noqa: E402
     MEL_BANDS,
     PITCH_CLASSES,
     STRINGS,
