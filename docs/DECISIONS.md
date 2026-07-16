@@ -2400,3 +2400,43 @@ format passed; mypy passed `72` source files. Evidence is in
 `docs/EVAL_REPORTS/string_assignment_phase3_2026-07-15.md`, its condition and
 error CSVs, provenance JSON, and benchmark JSON. Per phase discipline, Phase 4
 does not start without a new explicit `proceed`.
+
+## 2026-07-16 - sequential Tab F1 Phase 4 closes the native-rate compact timbral path
+
+**Phase:** Tab F1 accuracy sequential program, Phase 4.
+**Fixed gate:** Continue from the free signal probe only if a player-held-out
+regularized linear adjacent-string classifier improves ambiguous-note top-1 by
+at least `+0.05` over the production-equivalent prior and no player fold
+regresses by more than `0.03`. A passing probe would reach a separate explicit
+cost/license approval gate before any GPU training.
+**Method:** The probe used 35,959 frozen production-equivalent OOF
+pitch-correct events from GuitarSet players 00-04 and constructed 56,742
+physically adjacent gold-vs-alternative pairs from the hex-derived per-string
+JAMS labels. It extracted deterministic 64 ms pre-onset + 448 ms post-onset
+descriptors from the original 44.1 kHz microphone waveform: multi-resolution
+harmonic envelopes through Nyquist, pick-noise/centroid/rolloff, decay,
+inharmonicity, and separately retained raw RMS/spectral slopes. Five
+class-balanced L2-linear pair models were trained in five player-held folds;
+their log-odds were added to a player-held OOF position prior at the fixed
+weight `1.0`. No regularization, temperature, threshold, or fusion-weight grid
+was run.
+**Result and branch:** The production comparator scored ambiguous top-1
+`0.6548`. Native audio alone scored `0.6503`; position plus native audio scored
+`0.6621`, only `+0.0072` (clip-stratified 95% interval `[-0.0152, +0.0291]`).
+Player deltas were `-0.0315`, `+0.0478`, `+0.0420`, `-0.0275`, and `+0.0085`.
+The aggregate lift missed the `+0.05` gate and player 00 narrowly exceeded the
+allowed regression. **Close the compact high-frequency timbral path.** Do not
+train the under-one-million-parameter CNN, request GPU approval, enlarge the
+window/model, tune on the failure set, or open player 05.
+**Safety and reproducibility:** No artifact was registered and no runtime code
+was integrated, so shipping artifact size and added inference time are zero;
+onset/pitch events and every automatic clean-acoustic, GAPS classical,
+Guitar-TECHS electric, distorted, capo, alternate-tuning, and non-highres route
+remain unchanged. An uncached extraction took `240.485 s` over `9,140.36 s` of
+audio (`1.579 s` per source minute); two complete OOF fits took `9.227 s` and
+peaked at `1,181,988,272` bytes. The repeated prediction hash matched at
+`a8fb946ebdf06f7a2f73c543dadd92dfd8c39152434b14ca83d7242a857b57a10`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase4_2026-07-16.md`, condition/fold/pair
+and grouped-error CSVs, and the source/data/model/cache-hashed provenance JSON.
+Per phase discipline, Phase 5 does not start without a new explicit `proceed`.
