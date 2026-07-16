@@ -1,6 +1,6 @@
 # LICENSES — TabVision Dependency & Asset Map
 
-**Last updated:** 2026-07-16 (native-rate adjacent-string probe rejected)
+**Last updated:** 2026-07-16 (Phase 5 direct per-string gate rejected)
 **Spec reference:** SPEC.md §1.5 (portfolio-friendly licensing) and §6 (resource acquisition)
 
 ## Posture
@@ -68,6 +68,18 @@ Phase 0 (this document) produces the initial map; Phase 9 verifies.
 | ~~User clips (the private eval + training corpus)~~ | BANNED | self-owned | ⛔ | Banned from all roles per 2026-06-11 cleanup: not as accuracy gate, dev set, label source, or historical benchmark source. The tracked tabs and stale result artifacts were removed; replace with GuitarSet / Kaggle UT-Austin / GAPS-style offline public corpora depending on the eval tier. |
 | PDMX (`no_license_conflict` subset, 222,856 songs) | v1.1 A15 (sequence-prior corpus; committed artifacts `pdmx-seq-v1`, `guitarset-pdmx-seq-v1`) | **CC-BY (dataset) over PD-Mark/CC0 scores** | ✅ cleared 2026-07-02; conditions honoured 2026-07-05 | Long et al., "PDMX: A Large-Scale Public Domain MusicXML Dataset for Symbolic Music Processing", ICASSP 2025; arXiv 2409.10831 / Zenodo 10.5281/zenodo.15571083 / github.com/pnlong/PDMX. **License review 2026-07-02 (read-only, no downloads): CLEAR-WITH-CONDITIONS** for a shipped derived n-gram prior — same artifact class as the GuitarSet-derived `guitarset-v1`/`guitarset-seq-v1` priors. Conditions honoured 2026-07-05: attribution here + `tabvision/README.md` ("Dataset attribution"); `no_license_conflict` subset only (CSV filter in `scripts/acquire/pdmx_extract_transitions.py`); count tables only — no score content committed (archive + CSV stay in the local data root). Yield resolved: 3,435 guitar songs → 734 TAB-bearing → 554 standard-tuning used → 71,527 singleton transitions. MXL files targeted (MuseScore 3.6.2 exports preserve `<technical><string>/<fret>`), NOT MusicRender JSON. |
 | Roboflow `b101/guitar-3` | 3 (training) | **CC BY 4.0** | ✅ | **Verified 2026-05-05.** Source: https://universe.roboflow.com/b101/guitar-3. Forked into Patrick's workspace as `patricks-workspace-vozcg/guitar-3-4efcd` v2; YOLOv8-OBB export downloaded (926 images, 710/144/72 split, classes: fret / neck / nut). License declared in the dataset's README.dataset.txt: "License: CC BY 4.0". Attribution: "guitar 3" by b101 on Roboflow Universe (https://universe.roboflow.com/b101/guitar-3), CC BY 4.0; export downloaded May 5, 2026 via the Roboflow SDK. **Required attribution must appear in the public README and any blog post.** |
+
+### Phase 5 data/license addendum (2026-07-16)
+
+The original direct per-string experiment used only the CC-BY-4.0 GuitarSet
+microphone/JAMS material for players 00-04. Player 05 remained sealed. The OOF
+gold-pitch gate failed, so no learned weight was exported, registered, or
+shipped. Guitar-TECHS remains a separate CC-BY-4.0 electric track and was not
+mixed into the acoustic acceptance model. GOAT was rechecked against its
+official paper/project material: no dataset download or dataset-license grant
+suitable for shipped derived weights was found; the arXiv paper license is not
+a dataset license. GOAT, SynthTab, GAPS, EGDB, and private data were excluded
+from training. See the frozen Phase 5A design and Phase 5 evaluation report.
 
 ## Library dependencies (default pipeline)
 

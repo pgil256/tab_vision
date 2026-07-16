@@ -2440,3 +2440,40 @@ peaked at `1,181,988,272` bytes. The repeated prediction hash matched at
 `docs/EVAL_REPORTS/string_assignment_phase4_2026-07-16.md`, condition/fold/pair
 and grouped-error CSVs, and the source/data/model/cache-hashed provenance JSON.
 Per phase discipline, Phase 5 does not start without a new explicit `proceed`.
+
+## 2026-07-16 - Phase 5 direct per-string model fails the gold-pitch gate
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 5.
+**Decision tree:** Open real-event integration only if an original six-string
+model exceeds the best contextual/timbral ambiguous-note top-1 by at least
+`+0.05` under player-held-out OOF evaluation.
+**Branch taken:** Close the direct-model branch. Do not open player 05, perform
+real-event integration, enlarge or retrain the fixed architecture, register a
+weight, or replace the accepted high-resolution backend.
+**Data/license decision:** GuitarSet players 00-04 were the sole training and
+development core under CC-BY-4.0. Guitar-TECHS stayed separate for electric
+work. GOAT was excluded because the official material inspected did not expose
+a dataset download or dataset-license grant suitable for shipped derived
+weights. SynthTab, GAPS, EGDB, and private data were excluded. The 69,670-
+parameter PyTorch network and training code are original TabVision code.
+**Evidence:** Across 35,959 pitch-correct ambiguous events, direct-only top-1
+was `0.4948`; direct plus the player-held position prior was `0.5920`. The
+previous best was `0.6621` and the required gate was `0.7121`, so the primary
+condition missed by `0.1201` and regressed `0.0700` from the comparator. All
+five player folds regressed (`-0.0589`, `-0.0721`, `-0.0374`, `-0.0915`, and
+`-0.0856`). Two independent CPU runs reproduced prediction hash
+`50c0d976b8750e9e6885c4205fe66c27bc2b53ae0e94ce7bb6dbe1518bcc9a14f`
+and model hash
+`213dbb122b60311e0282725d4c6a2ca4d62dbc8cfb1becd23eed786dfd80ef8e`.
+No runtime path changed, so shipping artifact size, added automatic latency,
+and onset/pitch/Tab event deltas are zero.
+The v1 suite passed `834` tests with `12` skipped; Ruff lint and format checks
+passed; mypy passed `75` source files. The frozen server suite passed `296`
+tests with `3` skipped.
+**Reasoning:** The mandatory first gate failed decisively before player-05 or
+real-event access. Continuing would tune on a failed development signal and
+violate the sequential plan. Evidence is in
+`docs/plans/2026-07-16-tab-f1-phase5-data-license-design.md` and
+`docs/EVAL_REPORTS/string_assignment_phase5_2026-07-16.md` plus its condition,
+fold, grouped-error, selection, and provenance files. Phase 6 requires a new
+explicit `proceed`.

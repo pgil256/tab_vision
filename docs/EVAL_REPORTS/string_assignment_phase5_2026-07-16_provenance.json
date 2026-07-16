@@ -1,0 +1,2825 @@
+{
+  "added_automatic_inference_s": 0.0,
+  "audio_manifest": [
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "59e1e3c9bebdabd48afe28050a2c031e6cf36e5697268301cdf2e74bc66b71f1",
+      "track_id": "00_BN1-129-Eb_comp"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "2a6057d0485d8ee2f4a04175ee085d610c0f7a13194e083b13ce803bec091d43",
+      "track_id": "00_BN1-129-Eb_solo"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "699b80b22b903b0ed58529fa0d68eb843ad1693430baf10f0c5bd882229b3e9d",
+      "track_id": "00_BN1-147-Gb_comp"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "07bb305f064e77312319aada10b1acf7c326b1ec7506f5a456748f04c8c06e9e",
+      "track_id": "00_BN1-147-Gb_solo"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "eff298aea64674e2976d1d80ab73612375fc7b59819867435fa295357de51146",
+      "track_id": "00_BN2-131-B_comp"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "fbc13c6efdd05455b4812bc855ed1d22f8cb2cfeeefe2fa09e2b3bf85ed8ff71",
+      "track_id": "00_BN2-131-B_solo"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "96f8d2baad5be003dd901c2048917a4dc8cacc7dca1ec3fea607900f201a3a55",
+      "track_id": "00_BN2-166-Ab_comp"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "d55cb5f934c763a94383a25c7d6fd6fd35a534cf73ce4582f69228c6d17a4cbe",
+      "track_id": "00_BN2-166-Ab_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "56b5650341df8455f93e86ea7beb1b422e04f0ff412cae344b122144a23bf359",
+      "track_id": "00_BN3-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "5593591eb81e6ef7a922b2286536cc444461eb02eec64825a909d5b26ca283da",
+      "track_id": "00_BN3-119-G_solo"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "6ee12efff4f1d7958b6a2baee5d9added45633c708053f7bef585f1e2862f929",
+      "track_id": "00_BN3-154-E_comp"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "dc7a848d1ec7e995c0379eb93ce4933c0c9d97903a6431e10e718b98c5dd13e8",
+      "track_id": "00_BN3-154-E_solo"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "15eb54c1249e69e75c69d6611bd332c51735199c8ced22a35b87d662a81e5ba9",
+      "track_id": "00_Funk1-114-Ab_comp"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "a3de6523399ff052aa54479b72a5584f757f7efdff53f7993c66cfe679e831a0",
+      "track_id": "00_Funk1-114-Ab_solo"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "ba5c2a1ef5a14cfcd6e8a018fcea13aed94054c5df2b0bd3b2d5cbedcbd3a235",
+      "track_id": "00_Funk1-97-C_comp"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "8e0d08e0e2c8b1a66ff50cb7e0a7433d87068620d9c607394412ca4248238ee3",
+      "track_id": "00_Funk1-97-C_solo"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "8e6a1c38db071723f91444c597e39adf8ced5e980ecf21bf9f61f2c1464e9010",
+      "track_id": "00_Funk2-108-Eb_comp"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "87bf9ef1a8ba9809cd4831c47ddd34bcca180c7c1226d36c0ae42ee871cc5717",
+      "track_id": "00_Funk2-108-Eb_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "94b32bcaeb915add436a971355b4cf467e2d5eeabad05856d0462e24abe6e3e1",
+      "track_id": "00_Funk2-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "4cb571f05512f8f1bf3f655b1ed6f31ea08045fd6c90a5bdf83a79c1a7ce3b67",
+      "track_id": "00_Funk2-119-G_solo"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "88f2e5f66f62a87bc99f7679b38752ec24f6bb19e0ee68be3f1ab73f5bf1f471",
+      "track_id": "00_Funk3-112-C#_comp"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "42251765d19c8da0faa5f098f1a963310b149435cf21da420035eaa8e0a5e1d1",
+      "track_id": "00_Funk3-112-C#_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "ca88d2b7b0717f6978aaa3bf972220e8c3778505b50ad40095833d897dfc6225",
+      "track_id": "00_Funk3-98-A_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "58910fd5ea0073347fb6e09e805d51556f4b38a3385dd8ca20d8c895a1ec5546",
+      "track_id": "00_Funk3-98-A_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "b686a47b0a0a58dbdd818d2ebc9c31da87e4bed1af889dd62b1ffd1d1496f827",
+      "track_id": "00_Jazz1-130-D_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "275623936a0f6cf7cb959a7e81ff801c6fcc4d3128a939e1ba7ef89b8dbb413d",
+      "track_id": "00_Jazz1-130-D_solo"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "eb4be0b56d1100fc0b168a11c2f4dc6c7e5090a11847b3967e8b21ac2cd05252",
+      "track_id": "00_Jazz1-200-B_comp"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "d8df477ac8d17da5df76bbfafe94449b9f1c398e120db99d5765deeab59fbfb6",
+      "track_id": "00_Jazz1-200-B_solo"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "47f1d3da58af0239febcbe1fb8d27da9d17a21b403f5011d01f011eda4406764",
+      "track_id": "00_Jazz2-110-Bb_comp"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "77884729ebc69b5441508254d16292f4f46c78d38d4f3840945a6fa696536d8e",
+      "track_id": "00_Jazz2-110-Bb_solo"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "80a465e983eb70dcce01f94e055a41cf0ac7d91a1241afce24cc7cc764cfba81",
+      "track_id": "00_Jazz2-187-F#_comp"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "746aefd895490a408a36e4f1932ba3badfd4e98e30da2a4fe560b0a867f9607d",
+      "track_id": "00_Jazz2-187-F#_solo"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "fd427e112544d6a2c193bdc7e461f226b9a4cefa8ff6a8a14c226029fa90a11b",
+      "track_id": "00_Jazz3-137-Eb_comp"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "763f20dbe21e478a09f4a5634fb476cd58ab7f724d6a60ed16c47f9a304356b1",
+      "track_id": "00_Jazz3-137-Eb_solo"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "c98aeec857a65e4b25b97431558a894f4dad84e1f5104efc799846df91ca50a4",
+      "track_id": "00_Jazz3-150-C_comp"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "4556e8e41539a067771113e196a8818bc1eecf26b5ed0702f2e8c55d824397bd",
+      "track_id": "00_Jazz3-150-C_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "deb5aa62bc4ba99e394574a44bbfb95c22c789f8a4c4b4d8d5eccc0aa5e8392d",
+      "track_id": "00_Rock1-130-A_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "f8811017bcb62a3b08db1a27f3745219c0116abb7e80189445280b578bd2d995",
+      "track_id": "00_Rock1-130-A_solo"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "be6ed27920c0d83fa13f519c6b5cc4ef6a39fcc5d5972ed4de56ce2e9f8b2949",
+      "track_id": "00_Rock1-90-C#_comp"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "7027f166d92969ef4e442a998ffbffdb6a9d78ba1c77bfdde1c73f3b3193b083",
+      "track_id": "00_Rock1-90-C#_solo"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "1f15351a6df0e47aa7b7aa82816317ca0921fcecc75189ec8f5d0ffb1606b159",
+      "track_id": "00_Rock2-142-D_comp"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "a85fbf8dec3090f8521b5d2878ee9e96229b11e2516c9adf9e188eddea810667",
+      "track_id": "00_Rock2-142-D_solo"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "5d5882f6fcdcb7f87fec383be08fed1fe69e650a855d4bea6481c092454a5181",
+      "track_id": "00_Rock2-85-F_comp"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "e3036161fa5c14533e0431276f84c00927b4b79efca08a1c336ad276e30c2697",
+      "track_id": "00_Rock2-85-F_solo"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "fd88ab632cc5f7717ca9e500f674886f80e0224c42abebde1b01a604a7affebb",
+      "track_id": "00_Rock3-117-Bb_comp"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "ebb841a89a3681e276cc6a1a77d17aca6d7c56f8fae4593bb6b37c025b2450ab",
+      "track_id": "00_Rock3-117-Bb_solo"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "de26d924d9a1dc9931f9a9ea9b2fa9d71a639b51b25a7e76dcfc9680049685d3",
+      "track_id": "00_Rock3-148-C_comp"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "158a42a533aca9d89d6e8999fd747f1f166e795e5efbd2bc7ce1c9be7c0a515a",
+      "track_id": "00_Rock3-148-C_solo"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "4180689b2d372b7588253f3bf6782e904af04feef4d80726160965387d443662",
+      "track_id": "00_SS1-100-C#_comp"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "41a3bf8c5cacf65a601b1171e5cbc36787170bcae6d0d1d970a31a5d4e231e0d",
+      "track_id": "00_SS1-100-C#_solo"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "f301b36c16e3a4e7646905f1f8da82f539afbacccdbf33928dc77a0a4f55b7b7",
+      "track_id": "00_SS1-68-E_comp"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "9ed56c43f64845e87fc19796317f46fbe62c1895054868f00fa672aa88aadfe7",
+      "track_id": "00_SS1-68-E_solo"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "a38692e129bb3291c73ce82eece5655cfeed81e6c139726e82e0e30b1176f88e",
+      "track_id": "00_SS2-107-Ab_comp"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "71fc3ccc8b5eba4ad5cc7dd0896c0fc50f284d297d2673869a58d0062e52d70e",
+      "track_id": "00_SS2-107-Ab_solo"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "2f2c5c65d86fd135a15c47d38e9d61e3748c0c31a5ca163632b36eba239811f4",
+      "track_id": "00_SS2-88-F_comp"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "229eeb552e688aa30fdc248073d659cfec1e9110c188108636c677c1957e0e0b",
+      "track_id": "00_SS2-88-F_solo"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "ece4c3e67d8ab31ca6665ef8cd143a61aedeeb6145e45fa4b74120630024039b",
+      "track_id": "00_SS3-84-Bb_comp"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "80a49927a646455d974c70e6358874b84f5ae7a6fa556826e71a6605d9bcab19",
+      "track_id": "00_SS3-84-Bb_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "7c039c4f555c6d8a8f277244db89213026f05fb8e3f50dace4ef1512a7c68d85",
+      "track_id": "00_SS3-98-C_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "57574b363a2a277e1b8cfa43325b31867a443eafe3addf0e6bc99bc8f982393b",
+      "track_id": "00_SS3-98-C_solo"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "4f7f2359cc26d32307c8cc6793579d9d5ce602f483194ca079efd719a870b671",
+      "track_id": "01_BN1-129-Eb_comp"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "76330537c6a88df56c7e338da9dd81d84cbf7f3a5ae7cd1b32a663bded6b76b4",
+      "track_id": "01_BN1-129-Eb_solo"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "dff0776bdba3e9ed3c7d8fb313f5c775cc66d2f9607a9dc16433722be0ceb89e",
+      "track_id": "01_BN1-147-Gb_comp"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "781fe30fb282f037cf234a1c04e5e8d735f341cd4899826dfc89d59fd47eb90f",
+      "track_id": "01_BN1-147-Gb_solo"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "bc9f4e89b043a68e9bc5512d7376e9cd356505464e20712bda0bd2f0ac140acd",
+      "track_id": "01_BN2-131-B_comp"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "26793be902c9a3d7b957c3903fa24c1c649cc45a12a24ea923f21df73e27b04b",
+      "track_id": "01_BN2-131-B_solo"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "6aa9debf130ca3e27ed5fe30d4986ad4dcd2620a21760a1984e548cc0231b62c",
+      "track_id": "01_BN2-166-Ab_comp"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "6e92a265dc0e22d9cf640f2fad5affbb80163fb85223ad9dda8152de9517db36",
+      "track_id": "01_BN2-166-Ab_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "fea30c0096900151e49c1593db6aa6cb7c4da1f71d5e5d2f040db34a87856889",
+      "track_id": "01_BN3-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "3116e397759c82cb4cd3301553de826acb7d549a820a376afe78edb4e1766feb",
+      "track_id": "01_BN3-119-G_solo"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "e7cd59dc3006ed366f8e30eebc129768542b308a38047f95808f0dca7a6b6b17",
+      "track_id": "01_BN3-154-E_comp"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "577d510d0afb383b58b76d01b17f2fe39fbef630c9421855c85dcd7abd005e78",
+      "track_id": "01_BN3-154-E_solo"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "9ee4888317faba89ba1a9929d6e3b044a3363eb925e6c432b2b30e4f3c83ab22",
+      "track_id": "01_Funk1-114-Ab_comp"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "8e301305985cf6d26bfe0abfb76b60adb29df962d91071985b5dc65eba0cdd4e",
+      "track_id": "01_Funk1-114-Ab_solo"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "c6dc6620cbd1a1c5e1bb4c24beca3f5c7176ce7a8685bc56f067dfea1b2ae289",
+      "track_id": "01_Funk1-97-C_comp"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "00ae184307da8f9d36667546bd5fe543f46f7f03d9f8fa1c432ff52982b1b384",
+      "track_id": "01_Funk1-97-C_solo"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "ed6170345637448e9d75996da516cfe7f7d5286d5a490eb333f576fc905b2918",
+      "track_id": "01_Funk2-108-Eb_comp"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "fb2b6044f99b615c89b4f6b1093c54ac6c7f5e71a89d49fbf0f7e95d4bde5056",
+      "track_id": "01_Funk2-108-Eb_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "4112ba7fb59f847ee302d49db9bc7c0cc1f246bf98cccbcb7d443c9df61499a6",
+      "track_id": "01_Funk2-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "5ab14d6e9d5ab560862fc6f29ccd5aa2194a784e67450cbed6ae31ed28fcfb04",
+      "track_id": "01_Funk2-119-G_solo"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "1279e6cce685a8bdff6d4a185a5b12637d75a52c3e6539ff7ac6048a460a735a",
+      "track_id": "01_Funk3-112-C#_comp"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "0499a36847ede38ff76dc540d9904e4070859a9f7352b4b3fb9c342e2418d8a5",
+      "track_id": "01_Funk3-112-C#_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "ef267891e9fc18679c8a5339b2c55096d971736061f8dc40a02cee3cde2ddce3",
+      "track_id": "01_Funk3-98-A_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "3f05bc4e8e0dc1bdb379dc1917d6bdbef1fc2fbeb2194b6b9d9fa34f038b9cfa",
+      "track_id": "01_Funk3-98-A_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "d45184fa42482eefc1d21d5cef3777bf85e772bf9d8ba7508ff441b77a8ee199",
+      "track_id": "01_Jazz1-130-D_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "726991869569d7b76fe69b36fbefb3571f030556f020a7e3d599f0728d60f3ef",
+      "track_id": "01_Jazz1-130-D_solo"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "19a0eeb68e488b3cfe320bdba37d166079baaa2e1790f91d7e7864ca64648514",
+      "track_id": "01_Jazz1-200-B_comp"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "a738c0a3a2934d40a8e162795c8fc8d5fc59a8ef99aad41bcc96494229ecda54",
+      "track_id": "01_Jazz1-200-B_solo"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "58f53e19e2420391afba687c7a10f2d1c80a89cf0392821729549e629b9ba55a",
+      "track_id": "01_Jazz2-110-Bb_comp"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "8d3bdfd4befab11e2dab11fe4c778feeb5799946dbc2d313c0c5648bfc0ac362",
+      "track_id": "01_Jazz2-110-Bb_solo"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "f91bc905f7554d25497d1585a054683799bc5e5c91d97b16f871785460b3a146",
+      "track_id": "01_Jazz2-187-F#_comp"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "1709e23d524e05e5b5e7c344b722b8c6826426feaf3eb97bd9bd7242611e3f0e",
+      "track_id": "01_Jazz2-187-F#_solo"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "d4c9a0439ec37dc0dd0f4741a00ae40fd70458787dab89ebb459ba85758b6456",
+      "track_id": "01_Jazz3-137-Eb_comp"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "b0caf1c81ca1e9785d85fbdb47689c2bb3d4185f2c8cc701d7a756bfe1ab6399",
+      "track_id": "01_Jazz3-137-Eb_solo"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "052c25a49deb385d8a2cbc5a1834aad079eed0fd3686c6e83ceea561674286d9",
+      "track_id": "01_Jazz3-150-C_comp"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "d62d0d52ac51b0e65eb37a9d9e4fc15db975ade0b146524dbe0a7ba9ba010933",
+      "track_id": "01_Jazz3-150-C_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "1ead2a124768727b6ee3ddcfec2df7ad5f7087fa74ac0a49822d0028685f8731",
+      "track_id": "01_Rock1-130-A_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "650a35f45d80be91e46859568fbb1a85392bcd7a8a5116dbf02b8ac9cba47fb1",
+      "track_id": "01_Rock1-130-A_solo"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "2dc712e3457bcde208ae59bf8fab8d7f0d7335368271dd211856a13323b50bee",
+      "track_id": "01_Rock1-90-C#_comp"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "978ac8c3e925704f8c7f1ef592bd0819ae2ec4fba961b25aaa713baefe01a243",
+      "track_id": "01_Rock1-90-C#_solo"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "93df9d80cbba876d6fb0ff45c92b9978ae072d205436a738b3bd813cfdf05973",
+      "track_id": "01_Rock2-142-D_comp"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "b984aa0034aee4859199433d261c66974478045fccf5d22351d9046a5d4daa24",
+      "track_id": "01_Rock2-142-D_solo"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "be67838b6159a088a3559a5f9971d60c31b5d99220edbcde0c73738786514db4",
+      "track_id": "01_Rock2-85-F_comp"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "1719050da2c618b30fb469d04303ab89ab6970f7e8ed7bad2cbf011a43261376",
+      "track_id": "01_Rock2-85-F_solo"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "bf445156f5cfeaa54968c4933ea5d95f62e9d74f0f8bea36c95fe52312ebe320",
+      "track_id": "01_Rock3-117-Bb_comp"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "40c9a226f326c603970b68ee85c795d91a2bc276f780fa5a0b85f57920492b68",
+      "track_id": "01_Rock3-117-Bb_solo"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "4c873326c1cafddb484cc0b25ee36217eeb443ce3ca39b32db008175b19cef4d",
+      "track_id": "01_Rock3-148-C_comp"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "0ba930e658dba87c77c7cd9e5572a4c2010db550532a4fb6e70ad9e3170ed03e",
+      "track_id": "01_Rock3-148-C_solo"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "c8b3cb71fa42be463da53bc2114f42741366a9b1e5b80a158a38402961a3c5a2",
+      "track_id": "01_SS1-100-C#_comp"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "2b9c9eda652c2ebf9dab32d906f757973427c00c3df9f945e357a54156e47069",
+      "track_id": "01_SS1-100-C#_solo"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "278b9058cde0102ad19c58e22415fc73788a85a074b765250fea1370a0ed25d5",
+      "track_id": "01_SS1-68-E_comp"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "2ed5d98c2380c3d367f2ee4d782c1255d2532d038a6d663fa3b063c320350e88",
+      "track_id": "01_SS1-68-E_solo"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "36bbde7f7a6f952786fb1aee2e69aab5538668c8016993a3cd0a0570c3544f58",
+      "track_id": "01_SS2-107-Ab_comp"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "874905a621edb1bf38ddf76d5a865fb806b575e84874806d63f43f961bacffed",
+      "track_id": "01_SS2-107-Ab_solo"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "0e2f0a2b957f8a9224d06bfe5c446f7488266c7fb4cc82f3264fa1e5c1105a86",
+      "track_id": "01_SS2-88-F_comp"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "eed2e966799068762bf6db5b0fabb0360e5a909334978651702533f0d60fddcb",
+      "track_id": "01_SS2-88-F_solo"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "67fe454c6afc1ecc59ffeb47932ebf4a2c3ecff00c1340fe26a5b95484be0201",
+      "track_id": "01_SS3-84-Bb_comp"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "70e2c1ff002f8189dbdb8e19429c4affd24aa356012fc865b82fb15dd100d170",
+      "track_id": "01_SS3-84-Bb_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "325cdcbb3adfac8c68f1b98b6c3e15a6746f063d3043d04af5dcbcb63925fedc",
+      "track_id": "01_SS3-98-C_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "3a1c3c0af24807ebbd63963d607d05e25f3f0b0ca078e1dadbd7dd034e536985",
+      "track_id": "01_SS3-98-C_solo"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "54d0b5d30a727ddbf3f9dbe18663063d6c55c979627ab6993fdede63f0a54cc0",
+      "track_id": "02_BN1-129-Eb_comp"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "9a99f25ef470da34b6a85189d2895f64b59c20b653114b59b24cf7efa3239f13",
+      "track_id": "02_BN1-129-Eb_solo"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "8ec470a71b945327761f7a9001a0195ad32c29ec012c16ec86914f14ba60e05d",
+      "track_id": "02_BN1-147-Gb_comp"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "99c71715b672f4271f4eccb7b6193a6f2947f093ea8191e22feca3f156cf82e4",
+      "track_id": "02_BN1-147-Gb_solo"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "6478e7ade863d3b84ec26b443499979ee8db10a726d60ad0836e805f5349af83",
+      "track_id": "02_BN2-131-B_comp"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "5fbec1a2812360183811773320e7ad05016be2ab5af1dbcab09dd5f540511081",
+      "track_id": "02_BN2-131-B_solo"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "4e3b4f683b1bb9dc106570e56189ec1c555b644aefaf1c13ca510cd04479908e",
+      "track_id": "02_BN2-166-Ab_comp"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "355011d9d666875b5472601dc589f402b671c853a44a3ca4d3fab9132c6de596",
+      "track_id": "02_BN2-166-Ab_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "b72774cb9f5aeadf66ecd12124604c4d45b95721283f868db0e6abb5a2f62bb7",
+      "track_id": "02_BN3-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "d222e019f95dcc47380a6a5577dac4bb00de8573fafd2efc5f5bbf5e08183f58",
+      "track_id": "02_BN3-119-G_solo"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "52ae768bd2a1deda7bc3889cc7438f821d2ca915e5fc7e84e4f168e55891e604",
+      "track_id": "02_BN3-154-E_comp"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "77efacd7c3378e0c95fe246ceadbb7ce4b766206a871958092d584b7f59eaff8",
+      "track_id": "02_BN3-154-E_solo"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "cbe0eac7ebf0f5f0c38642d56b5317187a9fbc406bc8ab1425452d88b56420cf",
+      "track_id": "02_Funk1-114-Ab_comp"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "7c10e95b9d378a4bae8b3d5a6ce11841a3fdfa4e65059df0e6fe3526eb31b7a2",
+      "track_id": "02_Funk1-114-Ab_solo"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "297b0e0cda8e9e7018801b6adba68f19cfeccd5df48377285a204411648a4f81",
+      "track_id": "02_Funk1-97-C_comp"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "49cdbffc10ee8b7a3f1d45d3cd0e3751df9e41a0198fee9f045ad1240f2905cd",
+      "track_id": "02_Funk1-97-C_solo"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "18fb8ba717efeaaa5b1c9180cd97801107d2ad6c5677499d1522970a7117b63e",
+      "track_id": "02_Funk2-108-Eb_comp"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "1cede35cfc35f708a64d166342809aee6e545a9833a218d8b51d89db02b0e2c5",
+      "track_id": "02_Funk2-108-Eb_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "426f9c1e0aeec6a2909aad153c4bc739b9a23f4f24ccf34e2e11fcef4009d037",
+      "track_id": "02_Funk2-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "deb59f119b5b762656ad20fa1a15dbbf87e5d02bf7fbd88e324bc34422ea99d4",
+      "track_id": "02_Funk2-119-G_solo"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "b85381638984aafa8aff67691ccdd839c2fa4fb10bdc6f18a52810059b0a44f7",
+      "track_id": "02_Funk3-112-C#_comp"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "02fa4e4d3d42a7469ea34f5f95582dc66e17285a3b46e117aca5870c401717d3",
+      "track_id": "02_Funk3-112-C#_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "9fced33aa426bd1622a70f66d173c1689c0d5198e5664265c8e26c24cafa5d64",
+      "track_id": "02_Funk3-98-A_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "17816ba0df63878efd655b7807c3f114b7b2c03fe242e925c846fa428446aad0",
+      "track_id": "02_Funk3-98-A_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "7b769c278bb3d44440420a79cba1e486119f823a33f78465aa9acdcdef277df5",
+      "track_id": "02_Jazz1-130-D_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "178728e013d354d2dd8c0818df8dc03cf553d81e6bb43d45a996fc6df5652433",
+      "track_id": "02_Jazz1-130-D_solo"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "429c8a7c7585691285d3699b2036177f1514ff7523dd3d21bfd004ec39e1797a",
+      "track_id": "02_Jazz1-200-B_comp"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "f17cdd6926e198487041238f1539d0fd695189ae8b6d28604ab0717c6fcff70e",
+      "track_id": "02_Jazz1-200-B_solo"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "4740b6cb39c681728776d9b8350797ad00eb2a0d1974c0be2c259c62e70f9f48",
+      "track_id": "02_Jazz2-110-Bb_comp"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "bcd85839107291baa56521bff5988a53e142504d873833e2be8268497d5bdae0",
+      "track_id": "02_Jazz2-110-Bb_solo"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "8c8f612a0a9f52bab9b8c10d490d10edfffa40fff86f09e4ff5e1b9faf766aae",
+      "track_id": "02_Jazz2-187-F#_comp"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "218d77c69150fd0bf4dd05cd21df88920dea4d25dddefddc4b7f00f22f097894",
+      "track_id": "02_Jazz2-187-F#_solo"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "eb728567600f39832053569b7fd369a28b6fb8c1715d4498b88bde9bc21908b3",
+      "track_id": "02_Jazz3-137-Eb_comp"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "80be5dc8887231d3f4bf021b66b78b3383735406d699d2ed9f9b526251ede8df",
+      "track_id": "02_Jazz3-137-Eb_solo"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "5ef9f8b09a777aebeead918428a939679c8c1cd952d0418d8082b4fc544f9ea7",
+      "track_id": "02_Jazz3-150-C_comp"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "a8fd7b466fed6838802ce6afdd1df2b8b990738b548005164a8a1b396ac52476",
+      "track_id": "02_Jazz3-150-C_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "4fc7ab1c7da41459abe8c30d9ae70c944affdc5398dba171d08197add4b0e608",
+      "track_id": "02_Rock1-130-A_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "567cb38a651c2ea950e155a9d31a9d93305983b20573e3fe88723d8d8f66afd2",
+      "track_id": "02_Rock1-130-A_solo"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "9147eaf49e538d10e877229d550b4703323680ed9e8d6978bfbbf4bd62c1e908",
+      "track_id": "02_Rock1-90-C#_comp"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "a49c56e71e5fc71f15a7f5fc80452de627b23931074adb40f767306cc845407f",
+      "track_id": "02_Rock1-90-C#_solo"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "7dc2d6867e3fe588a3b595be64cf4787ae2d14610a45c1fdc493d5c78aef5f96",
+      "track_id": "02_Rock2-142-D_comp"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "ed462f1a9f9566aa8568150aa712e5cf3d2aed5758080fdd01979d2617ff0f55",
+      "track_id": "02_Rock2-142-D_solo"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "bfefc125bb731a159d26bfbed90aa583a5f20602aa1021a042d43119cb9d85ea",
+      "track_id": "02_Rock2-85-F_comp"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "df9c2ec90012c08a067f5d03ed76fcf209337a4325fb94d06dd238476a38acc4",
+      "track_id": "02_Rock2-85-F_solo"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "31016348798736b434d542efa0b036daf5b56d9bd7b93a1f69cac0d4157fe52f",
+      "track_id": "02_Rock3-117-Bb_comp"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "2401b959b0398d01a560f57649663a0ebb893f9dfbfc334bd815fa7106ccb8c4",
+      "track_id": "02_Rock3-117-Bb_solo"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "0ce12b6c42e79f6d02e82577b7128de77c2c02d79f4b6600833df2afdbdfa5ff",
+      "track_id": "02_Rock3-148-C_comp"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "fad305d82f5ec985e80ce775e667707ad4a20a97de6c9a5f246af20295dc9ad4",
+      "track_id": "02_Rock3-148-C_solo"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "2010d893d0ee8c5aa8ed64eb9890f52c2bacb46d74878936002ae6d93a5c082a",
+      "track_id": "02_SS1-100-C#_comp"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "1866e928ccc36ab697754b30bbfc293e603deb445362372472e5b01f320f9623",
+      "track_id": "02_SS1-100-C#_solo"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "57ea3c4905aeb0dbf2aaac4fb10c57008a4a0e21220718b0d7b0e74c13cf4187",
+      "track_id": "02_SS1-68-E_comp"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "ecef11904f658c226b2c46eb5b9bfb8d068f635f2c3f3bb660d9192882ec2dce",
+      "track_id": "02_SS1-68-E_solo"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "41c3ba125a614a46b9b5cb146ff9d5c267abaa993beaef40a5b04178489bcf9a",
+      "track_id": "02_SS2-107-Ab_comp"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "62dd76b1551d81484981161808a281eb5785027110b6ace56c701edd04320685",
+      "track_id": "02_SS2-107-Ab_solo"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "f68b2f066e6d512c901ea58423b05dcb14faeb2dfbd239aea36589797a93a3d3",
+      "track_id": "02_SS2-88-F_comp"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "ba204ea5373cd0aa9ccb2d27aac54f9d1d2f20b06fd964fbb6019bf12c44f600",
+      "track_id": "02_SS2-88-F_solo"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "85de753f245d0dc14bf3ba1cb9285631f4a973b6e67d8872c581f773332cbe97",
+      "track_id": "02_SS3-84-Bb_comp"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "7a0ff415b0dbcd81307a7b418af827c9079cbec31c85cee4775933dbe73d515a",
+      "track_id": "02_SS3-84-Bb_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "9306563753b3a65de235608a8c09032a7761bfdf137196be11c4f7af33d6c4c0",
+      "track_id": "02_SS3-98-C_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "e8601f8b9145170436ada516c332044c20b76027ddc3c754db8ed64bed7b76ae",
+      "track_id": "02_SS3-98-C_solo"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "8fef5aa0807d145e57c5a4befdc729cf3f185cfcc41c64fee7ead7cb1876b629",
+      "track_id": "03_BN1-129-Eb_comp"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "51ec6f1d43b4866a02ca5ff43bb5cfcb7f2b8069fe12b078385e091a8f8d78f4",
+      "track_id": "03_BN1-129-Eb_solo"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "3e5c46c368cd02ba7add7864e4f938e01f757dfea30b7cb6dc4457703a33bafa",
+      "track_id": "03_BN1-147-Gb_comp"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "576511de7739a4709b3dccbebab6d9387129ed2b8abf45fd4bd5e5917de4eeee",
+      "track_id": "03_BN1-147-Gb_solo"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "4f42243d2e201711b3aa55c9fd265306d08260589f00e7c19043b6a99e49cd48",
+      "track_id": "03_BN2-131-B_comp"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "8dd9e582228f0433cb22a571cc8f72add4b2901ce0f2ecbf536e955447c32c9c",
+      "track_id": "03_BN2-131-B_solo"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "8187c43a481b77f345ed6eb8c657bb854d048886a8cceaad468f27f4bc098b3c",
+      "track_id": "03_BN2-166-Ab_comp"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "f902e9e99de4fe987146351c0b0d1f568f081d2efe296dbbf25a12aee0936a9d",
+      "track_id": "03_BN2-166-Ab_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "51ab913544b8ec0d01b9b2e5249612197d338367ada41851b679969684f25bce",
+      "track_id": "03_BN3-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "363ecc7d9a3817fb48e20a81889021734f6c1070a106131a8c132868a37be057",
+      "track_id": "03_BN3-119-G_solo"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "641614acb515ca353d65d2efd138dc238e019f1c0cfcd6cff60ab1dc5b3630a2",
+      "track_id": "03_BN3-154-E_comp"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "4bc9e2591fb13b6cffba5687af0e132c4436a3718c908337de20e007c6ac4931",
+      "track_id": "03_BN3-154-E_solo"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "796ccebfb5265044b6f8b33b84d2b2004f7dfa9b2b44b28dd0de65e45c257f0d",
+      "track_id": "03_Funk1-114-Ab_comp"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "f69c5fb997091ffb63e265c1a99bf7f1b5bc39dcb1d53b9879f747d0b5d17ebb",
+      "track_id": "03_Funk1-114-Ab_solo"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "239ff130c2a0cddc995d581d19088c2e755065c197f8e7d4e1ea995893d857fd",
+      "track_id": "03_Funk1-97-C_comp"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "efbe697c928f77cddb8ee612919c86f9ee04ff1490f89c6dd16284f8ded3c5c8",
+      "track_id": "03_Funk1-97-C_solo"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "ec620fee25a9a0717488cb8d098e02a87a2ecc38bacd955e918e40658c801b8a",
+      "track_id": "03_Funk2-108-Eb_comp"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "563e2299cffc695c0f5bd7ad29ba405414fb7b449c99e676398c28ac2ef640e5",
+      "track_id": "03_Funk2-108-Eb_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "4983a9a6ab867425273b9348d301754b96a445f59907cb9c59d6a99dd74410f4",
+      "track_id": "03_Funk2-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "08df5e87b8450b2cd49a9cc9111f2b0f572cee5b0871333db38912f2699f91c8",
+      "track_id": "03_Funk2-119-G_solo"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "9c72d7e513bfa196bf0d885f024dbc42c1e65aeec55da372d6f92b1bffc4141c",
+      "track_id": "03_Funk3-112-C#_comp"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "c375ae8564920ad603a73f04c44a777dba7af50a64ad1281f4006d332725139b",
+      "track_id": "03_Funk3-112-C#_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "947c8659277d30ebe602f836fa937db3c592f4a6d38ea9f8d6a050419933856b",
+      "track_id": "03_Funk3-98-A_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "5609564bd31d9908e4ba77b561b14b0d9db1c22f18a6dae06441103d99022c6b",
+      "track_id": "03_Funk3-98-A_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "c02e73454f0cfcc2fb7c1a3eba799627ee3787964385041fb1ccd847c735903c",
+      "track_id": "03_Jazz1-130-D_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "088c1afa042e7b860228b1a74015cdd7f6bb59c44cc25e8cc70c17047c32a802",
+      "track_id": "03_Jazz1-130-D_solo"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "2bcc479599713e00c934cdfd382e7f217438369cbf36ff6125ef0049a6761373",
+      "track_id": "03_Jazz1-200-B_comp"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "8b217d43c99a8fbb000b8296848b03038d95df5bf8a4140c7f99eb8001c250c3",
+      "track_id": "03_Jazz1-200-B_solo"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "d1797bfc302378d05a38df6d8a43993b85587f7b793e55a77d72fa57cb3e2221",
+      "track_id": "03_Jazz2-110-Bb_comp"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "44b1d87dfda1833356b380b87520bd3b3548e2ab67d3498a63bb3fdc01de856c",
+      "track_id": "03_Jazz2-110-Bb_solo"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "96592fcfddeddd03ef3aecee798032c44aada53f4c3e56008ff52000b89c5b06",
+      "track_id": "03_Jazz2-187-F#_comp"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "7d39e6e441440806d9427506ecc26da23d9e0b72fbf703b006795a2a761f85d6",
+      "track_id": "03_Jazz2-187-F#_solo"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "92dd4fe5a53feddd66b219e83e893065f6cdcd5edbad7a02b24931992e0b6d3e",
+      "track_id": "03_Jazz3-137-Eb_comp"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "5beca829247e8af93d9c0a58e8a7ca3cf16209761ee4684fbdb534548cd803f7",
+      "track_id": "03_Jazz3-137-Eb_solo"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "f6640808cd13b2f0a0f7ed4c4f6ae460ee9d05aaa7ce6ca0f9edc3ff0bfdf000",
+      "track_id": "03_Jazz3-150-C_comp"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "4befbd57d5b92011f56b76fe03f6f8dec86bc546ed2b905c627fbcde316330cd",
+      "track_id": "03_Jazz3-150-C_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "5e71387daf08213651f8b8f0d9b1db7d589cbc6b9fefd8e052e13a1f8f7286ca",
+      "track_id": "03_Rock1-130-A_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "eb0175a92ae22478d64060e5c72043ad8fa58d7c75ee519d1558746db3c1d5b1",
+      "track_id": "03_Rock1-130-A_solo"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "27c60c30fb65808a75e7137844254df91c7acf1c0a34f02b7902764a3e34b01a",
+      "track_id": "03_Rock1-90-C#_comp"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "9e56cd2f1659e4a3f619594b9c6c3f15f8022addf8ffdae7f75718215d4c5bc3",
+      "track_id": "03_Rock1-90-C#_solo"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "0e5f71ad66419d6ba9bc3caafd4e7c2aab0573e40d6136459344c286e9abe80e",
+      "track_id": "03_Rock2-142-D_comp"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "c3a26f324d5e5f1c466fd4644d38c44d567627a01a02f9fe15e8b1c17ce6405d",
+      "track_id": "03_Rock2-142-D_solo"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "92c14ad5a2fbb49de78acf2aaaa3e961a3459292ca0daf2cf8c35370253b0515",
+      "track_id": "03_Rock2-85-F_comp"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "6cef0f0edd3f3edfe0096280e68834024b5f35a754a6f075982daaf774f14b2a",
+      "track_id": "03_Rock2-85-F_solo"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "75d81c0b546d9dea445f81b448d3956c065f7d9f302780951287b6494a9c9030",
+      "track_id": "03_Rock3-117-Bb_comp"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "8234aca0cd57810a93c684faac40cce4f71c323c98a3fee2e0c1c6a882794a8e",
+      "track_id": "03_Rock3-117-Bb_solo"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "f427266c83e2cd89bfbe76ba99172457537357bc14e83c1ee7cd556dbd576775",
+      "track_id": "03_Rock3-148-C_comp"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "688898f2eb793127b89e3bf38b90b9af14ad3d2745bf459ed0ec8a9c3524ce6c",
+      "track_id": "03_Rock3-148-C_solo"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "8cfa48ee4515f40d1ac1329b532e4421f56b471d592b5c7d0acc1b173e633876",
+      "track_id": "03_SS1-100-C#_comp"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "26913110e0daa319160ed395eda4fe77ee3cd589c335b0da59449c97114c410d",
+      "track_id": "03_SS1-100-C#_solo"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "b5bac89b11bc785121bf6a071c3003615646165ffc0c3d81297f091f6763e37b",
+      "track_id": "03_SS1-68-E_comp"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "7b195fa71448d467ec14d665be30b65b68f7b3e1e6ba753bbd53bab6b7fcd402",
+      "track_id": "03_SS1-68-E_solo"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "dffd9da81133d1f9556e1e21e32d4151688db00cd8abbfc178c182af0a2c9300",
+      "track_id": "03_SS2-107-Ab_comp"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "120d5955fae86806d16875b70b8dbbd6118ae78494c5f88aa8c45e615731c22b",
+      "track_id": "03_SS2-107-Ab_solo"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "6b4c895403809d2a53032c2eaecf1cdd94146a41c0fd1ff5acd419b0f920cf94",
+      "track_id": "03_SS2-88-F_comp"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "4b7e9683441a607f9dff46cca7abb8e39dc1d3377162fd6419aaea30102ab29a",
+      "track_id": "03_SS2-88-F_solo"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "dcd3b1855030c613ea05b2469225ce2ce31587a6d50d7bd287a2989d0754f332",
+      "track_id": "03_SS3-84-Bb_comp"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "ed3e18f2b4990404f613fc16c40677eb4ebab1bdf4f236c49e72d8da877001d3",
+      "track_id": "03_SS3-84-Bb_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "541e936a3a2375572e325684dd448bc69f609518ba667f40cac14def634c2aff",
+      "track_id": "03_SS3-98-C_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "32e3ffb4de68f197c1304471974ff4ac813076f8888022435d958a7235ef578b",
+      "track_id": "03_SS3-98-C_solo"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "ca4b487760400edabb87ed478a523ad0587c020b8463f97429af4009789f4ebd",
+      "track_id": "04_BN1-129-Eb_comp"
+    },
+    {
+      "bytes": 1969056,
+      "frames": 984506,
+      "sample_rate": 44100,
+      "sha256": "3003186fc9122d51d761c1b2ef2591d528c51aaaf991fa2a885f500b4c97bcaf",
+      "track_id": "04_BN1-129-Eb_solo"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "1a7a63967927554cc21a6ae0ab02bdb08cb79c0b8eff984e8cbccfece7694bdf",
+      "track_id": "04_BN1-147-Gb_comp"
+    },
+    {
+      "bytes": 1727494,
+      "frames": 863725,
+      "sample_rate": 44100,
+      "sha256": "83df41f9ae3f9c46dcf84b32c65b4ca8803e6c34bdb927409f812a4baf6413ff",
+      "track_id": "04_BN1-147-Gb_solo"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "43f6a70622e8ff66237307768c38578e0d8cd5fdd16d48ac97733673965f863e",
+      "track_id": "04_BN2-131-B_comp"
+    },
+    {
+      "bytes": 2584868,
+      "frames": 1292412,
+      "sample_rate": 44100,
+      "sha256": "745ef123db4c7bc1cd092cf98fdecc7bc51331cfbbc76487d3a496d68af59fe8",
+      "track_id": "04_BN2-131-B_solo"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "dbb14cb99fff84d5daddf9354faa71cb823b67beef61b9cf7b640c74362723a8",
+      "track_id": "04_BN2-166-Ab_comp"
+    },
+    {
+      "bytes": 2040110,
+      "frames": 1020033,
+      "sample_rate": 44100,
+      "sha256": "973969ded4b4787856fb0863b83d8ad9fde18d0b79e624b5127e7440806473ff",
+      "track_id": "04_BN2-166-Ab_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "465c8e5cf72fdfa2cb03e55999020b5368d6e508f2bff74340959a94d9a926d9",
+      "track_id": "04_BN3-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "9d572fbf8c4432afd6e18e82a0d99ef1f24d01331a6cc33760b660cf6ed751f3",
+      "track_id": "04_BN3-119-G_solo"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "d26d18e314a0abb1c8ace15e7a940763194611e861b34a56b59191edfd548566",
+      "track_id": "04_BN3-154-E_comp"
+    },
+    {
+      "bytes": 2199046,
+      "frames": 1099501,
+      "sample_rate": 44100,
+      "sha256": "ee1c59c05cc97c214f780c2b43e2ffb83f711c10093944ac1260f9cdc3f732d5",
+      "track_id": "04_BN3-154-E_solo"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "6e2a6fc4fdce9b250ab11a090a8f5c4efcc12f83a60b17c8ca206ffeda07a8f0",
+      "track_id": "04_Funk1-114-Ab_comp"
+    },
+    {
+      "bytes": 2227834,
+      "frames": 1113895,
+      "sample_rate": 44100,
+      "sha256": "baf346f568302a185484de83a2ec0a273b560eed501c16fed3f633e02c12dc4c",
+      "track_id": "04_Funk1-114-Ab_solo"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "4a452551a41e6770920f0b30c73ef4d356f4a9b5ef4e65babe674654e4082228",
+      "track_id": "04_Funk1-97-C_comp"
+    },
+    {
+      "bytes": 2618560,
+      "frames": 1309258,
+      "sample_rate": 44100,
+      "sha256": "b670a20f31c1b52855325193bfb79f1067c87ddf7ccc4f35e91a0fe8697b590c",
+      "track_id": "04_Funk1-97-C_solo"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "5d111f9bf109a875d4775e2db980e43e4385dbb775580432a375e9ebd5f8b266",
+      "track_id": "04_Funk2-108-Eb_comp"
+    },
+    {
+      "bytes": 3135412,
+      "frames": 1567684,
+      "sample_rate": 44100,
+      "sha256": "f1d2b786faabbf6330ee3e78edb1f107e29320d233053b1daedcfe058830c499",
+      "track_id": "04_Funk2-108-Eb_solo"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "a1241d1af68f1bad6b3eceb491d8bf9ccf91a14ab822ff5ee88d5ff170d53669",
+      "track_id": "04_Funk2-119-G_comp"
+    },
+    {
+      "bytes": 2845658,
+      "frames": 1422807,
+      "sample_rate": 44100,
+      "sha256": "444e5dfa0eba17e8a4c6ec3b45a2fc2a5973a098558c31024674bf199f3c42a6",
+      "track_id": "04_Funk2-119-G_solo"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "9004ab458e0a0f0509f0deb10fd788d1a94f6eb76da93d6f2d0aacf11a3e575a",
+      "track_id": "04_Funk3-112-C#_comp"
+    },
+    {
+      "bytes": 3023928,
+      "frames": 1511942,
+      "sample_rate": 44100,
+      "sha256": "607c7ab4221495ed2fb74fabe3528000bb9e9588695e26037bc08666dc464701",
+      "track_id": "04_Funk3-112-C#_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "3d7fb64713873bc9fdaeb30b2e126ecdc45bbf210e77df40c9aad16a894c44cc",
+      "track_id": "04_Funk3-98-A_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "17ff2f41141a7b6c01ef546b64bdc08e0f245fdaf879a7bc21da67e35e2f4ffd",
+      "track_id": "04_Funk3-98-A_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "69a9b13b9b4206c7b05ababa7dc4f63027212596aa9d255cac9301487099c899",
+      "track_id": "04_Jazz1-130-D_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "71243666f41a2f1f0c68da42733348891f20677e0624a77bf01d9554bd2d2afb",
+      "track_id": "04_Jazz1-130-D_solo"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "cd53e62b1ea9313d3abaa1a6e2c3903c091a1299c4f3e12a14b728832ab61593",
+      "track_id": "04_Jazz1-200-B_comp"
+    },
+    {
+      "bytes": 1270124,
+      "frames": 635040,
+      "sample_rate": 44100,
+      "sha256": "4f567c6c6501ae25086ed7423eb3f9d3c653c002d3fb75373d17bf3136730bda",
+      "track_id": "04_Jazz1-200-B_solo"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "5f028fbe1bde26d30494b2075a7c967812e866a33f5554a00078887336b14668",
+      "track_id": "04_Jazz2-110-Bb_comp"
+    },
+    {
+      "bytes": 3078506,
+      "frames": 1539231,
+      "sample_rate": 44100,
+      "sha256": "302fa1c23166565ee9197d481a8bd05c763ceaf14c67cf1ac8b4f905364a124b",
+      "track_id": "04_Jazz2-110-Bb_solo"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "eaf2a0047227569c8b8c2359242ba6fdafdceca116f991cca17884d2808ad9c1",
+      "track_id": "04_Jazz2-187-F#_comp"
+    },
+    {
+      "bytes": 1810966,
+      "frames": 905461,
+      "sample_rate": 44100,
+      "sha256": "051334190a0f57bc6004e9ad8cad00e2e7e3694a88d09f76077436c11d6a53b3",
+      "track_id": "04_Jazz2-187-F#_solo"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "2df1a8cbad149591e1d6cd3cf4504f2bd199f8005aff98638d34a6fd20280b88",
+      "track_id": "04_Jazz3-137-Eb_comp"
+    },
+    {
+      "bytes": 2471690,
+      "frames": 1235823,
+      "sample_rate": 44100,
+      "sha256": "bd0ee85baf2aa03e4479fccb5930db0ce5338c0788af02d2bc1ca12a6a5ae08b",
+      "track_id": "04_Jazz3-137-Eb_solo"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "2c6f27f7b7511f419dee0a1746822e8c72770004a8f32942bd6b1a353010d7cf",
+      "track_id": "04_Jazz3-150-C_comp"
+    },
+    {
+      "bytes": 2257964,
+      "frames": 1128960,
+      "sample_rate": 44100,
+      "sha256": "3b8c788685428fc31a9579735d5e85d87d6bfe35c59ead8220299d169f2df1d0",
+      "track_id": "04_Jazz3-150-C_solo"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "139d6293709a89d256105fc65850129754de98b8d076e4eb1da8f706af80a26a",
+      "track_id": "04_Rock1-130-A_comp"
+    },
+    {
+      "bytes": 1953428,
+      "frames": 976692,
+      "sample_rate": 44100,
+      "sha256": "ae20b3c54b9c5b2b001eb6acf07efeab26faee270cdbec238d62bc4055d51a2e",
+      "track_id": "04_Rock1-130-A_solo"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "db3c7aeac0d3e956c3a63ac35d7f9693df67558e6c29dbf65db543d92b8a2b59",
+      "track_id": "04_Rock1-90-C#_comp"
+    },
+    {
+      "bytes": 2822444,
+      "frames": 1411200,
+      "sample_rate": 44100,
+      "sha256": "2de4774b7b3005e91fc9d571ac322b44190cc4a2a2a040f0d5ca8d2c510e8848",
+      "track_id": "04_Rock1-90-C#_solo"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "77589eeda2dfd7a8e8652b9b0c8a002529d911786e4be29c7bafda31fa32ba99",
+      "track_id": "04_Rock2-142-D_comp"
+    },
+    {
+      "bytes": 2385114,
+      "frames": 1192535,
+      "sample_rate": 44100,
+      "sha256": "0cb70571359b36a52e5b0aa77e40e68737b4c4e9726a529a03c639890a1afea9",
+      "track_id": "04_Rock2-142-D_solo"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "922c7bf773689e55e059c86fd7055fcdc5b3dc33bda75d2ecc4a97ac1f5f431b",
+      "track_id": "04_Rock2-85-F_comp"
+    },
+    {
+      "bytes": 3984320,
+      "frames": 1992138,
+      "sample_rate": 44100,
+      "sha256": "0bc0cc32d83302843b391a8e50db4f997034dd4dfbbbe9efe519957b5c531cfb",
+      "track_id": "04_Rock2-85-F_solo"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "f0a11df45ec4c378edbea38007e95367ed07b90d6c13c5a0b306b4c7fceeacec",
+      "track_id": "04_Rock3-117-Bb_comp"
+    },
+    {
+      "bytes": 2894450,
+      "frames": 1447203,
+      "sample_rate": 44100,
+      "sha256": "989dd1959423d4a4538ac6765626525c01884059dead39ea7e2044f6f49f2ef6",
+      "track_id": "04_Rock3-117-Bb_solo"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "d391bc4f59ce53effcad6b2ad9d1efa8025b26b15bfb012469230a1d40d69fc2",
+      "track_id": "04_Rock3-148-C_comp"
+    },
+    {
+      "bytes": 2288022,
+      "frames": 1143989,
+      "sample_rate": 44100,
+      "sha256": "fdcf68211a04118e309bacbad70ce6aa513e5cbb04434ff42649420dd56f5046",
+      "track_id": "04_Rock3-148-C_solo"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "39b592e5ab79e457a7901e865b4320e04014903465acdebd64235b4f44416650",
+      "track_id": "04_SS1-100-C#_comp"
+    },
+    {
+      "bytes": 2540204,
+      "frames": 1270080,
+      "sample_rate": 44100,
+      "sha256": "753a0b4d27b68ed362a1c509bb14300dd23f2c5bf2a8513c76c28006aa408543",
+      "track_id": "04_SS1-100-C#_solo"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "d0e64f7be9b5dfc99f7ff0e1a43971c0533aae2d8b800dcfc3c1ae704aea4e58",
+      "track_id": "04_SS1-68-E_comp"
+    },
+    {
+      "bytes": 3734996,
+      "frames": 1867476,
+      "sample_rate": 44100,
+      "sha256": "028856ae012f90a830a576a1679326b651b076376c25e0633c203c58c4c8d6e3",
+      "track_id": "04_SS1-68-E_solo"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "6222641015ef25c1423453949988509353c7bd6cae2b16032a3c64b9d990cd7b",
+      "track_id": "04_SS2-107-Ab_comp"
+    },
+    {
+      "bytes": 3165224,
+      "frames": 1582590,
+      "sample_rate": 44100,
+      "sha256": "e4edcc321fc3540d5c5b532e1b149e816a2a3d6ac46eda2ccd6299c28032b6f7",
+      "track_id": "04_SS2-107-Ab_solo"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "1c1c5351e498a64ec226e06a114c846ee2c6eaf575083339b534ad911aa56f12",
+      "track_id": "04_SS2-88-F_comp"
+    },
+    {
+      "bytes": 3848140,
+      "frames": 1924048,
+      "sample_rate": 44100,
+      "sha256": "6fb6e7ebc19e516eb5e11609e29563784b5abb02cc40161ffb3f04c31be02503",
+      "track_id": "04_SS2-88-F_solo"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "5b2ad5e596fd060fa98c03528b3fdbc8d8f652c48a3b39919f85c9617b6a8981",
+      "track_id": "04_SS3-84-Bb_comp"
+    },
+    {
+      "bytes": 4031454,
+      "frames": 2015705,
+      "sample_rate": 44100,
+      "sha256": "b561865c4b8d541d80e3183ba43cc0fa096fbbe426cd0e21b4b4c807577d34e9",
+      "track_id": "04_SS3-84-Bb_solo"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "ffd315c2999a31d800ac707d330e661aa58cc2d4b6d3dd99230326860d11ca68",
+      "track_id": "04_SS3-98-C_comp"
+    },
+    {
+      "bytes": 3455614,
+      "frames": 1727785,
+      "sample_rate": 44100,
+      "sha256": "b7a8821cbf4bc1d18d3528d5cf181c31e9d9a0c9c04e28307daaaa0570e3e99a",
+      "track_id": "04_SS3-98-C_solo"
+    }
+  ],
+  "audio_manifest_sha256": "3b22ce282ae28931e5eeb65abc04db259e54c8fbef1edce63592e2ae38fabfc7",
+  "automatic_routing_changed": false,
+  "cache": {
+    "audio_manifest_sha256": "3b22ce282ae28931e5eeb65abc04db259e54c8fbef1edce63592e2ae38fabfc7",
+    "cache_hit": false,
+    "event_ids_sha256": "17b7d3b3a7da24f82de778fffc84cff73ee012c2c10d80fd82dc9727020fce3c",
+    "extraction_wall_s": 35.50975450000078,
+    "feature_bytes": 299179008,
+    "feature_path": "C:\\Users\\patri\\.tabvision\\cache\\string_assignment_phase5\\direct_per_string_logmel_v1.npy",
+    "feature_sha256": "ce6d96c0eb5de39612f89166c66d2bde08f1da8414a292502c2bada114b2c745",
+    "mel_bands": 64,
+    "notes_sha256": "6f06758525f0908be82b1eeb5d74731f1ee647fba74a5c5111e8bf44e231a530",
+    "rows": 35959,
+    "sample_rate": 16000,
+    "schema_version": 1,
+    "source_sha256": {
+      "model_module": "2512eceaf02a18f572aeaa22ee7dbdfd53cfc6892628f961d2ca0196a9574d6c",
+      "phase4_rows": "9791b1cc6df06b4c075864ff82ced13bab375d7e65f1a270745821caa3e3a68a",
+      "phase5_design": "66fda340026ff6c252138ed6c48eaa1b36e9fbc1b8ff812188a0078ee96b33e6",
+      "probe_script": "4be85a9b98e31e8348d9d3d69ea857cbd9c915be1ede93942332ad004e5688aa"
+    },
+    "target_bytes": 353975,
+    "target_path": "C:\\Users\\patri\\.tabvision\\cache\\string_assignment_phase5\\direct_per_string_targets_v1.npz",
+    "target_sha256": "492dec966a2d33908d3768f3da1d7bf36d2b7ce1284bc58bcee74dc354bc31cf",
+    "time_frames": 65,
+    "window_samples": 8192
+  },
+  "command": [
+    "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\tabvision\\scripts\\eval\\string_assignment_phase5.py",
+    "--compare-to-provenance",
+    "..\\docs\\EVAL_REPORTS\\string_assignment_phase5_2026-07-16_provenance.json"
+  ],
+  "comparison_provenance": "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\docs\\EVAL_REPORTS\\string_assignment_phase5_2026-07-16_provenance.json",
+  "conditions": [
+    {
+      "ambiguous_top1": 0.6548291109318947,
+      "ambiguous_top3": 0.996746294390834,
+      "condition": "production_prior",
+      "delta_vs_best_previous": -0.007230456909257721,
+      "same_pitch_wrong_rate": 0.34517088906810534
+    },
+    {
+      "ambiguous_top1": 0.6620595678411524,
+      "ambiguous_top3": 0.9998053338524431,
+      "condition": "best_previous_contextual_timbral",
+      "delta_vs_best_previous": 0.0,
+      "same_pitch_wrong_rate": 0.3379404321588476
+    },
+    {
+      "ambiguous_top1": 0.4947857281904391,
+      "ambiguous_top3": 0.9993603826580272,
+      "condition": "direct_per_string_only",
+      "delta_vs_best_previous": -0.1672738396507133,
+      "same_pitch_wrong_rate": 0.5052142718095609
+    },
+    {
+      "ambiguous_top1": 0.5920353736199561,
+      "ambiguous_top3": 0.999833143302094,
+      "condition": "direct_per_string_plus_oof_position",
+      "delta_vs_best_previous": -0.07002419422119632,
+      "same_pitch_wrong_rate": 0.40796462638004394
+    }
+  ],
+  "dataset_license": "GuitarSet CC-BY-4.0; local evaluation data not redistributed",
+  "deterministic_rerun": true,
+  "events": 35959,
+  "excluded_data": [
+    "Guitar-TECHS",
+    "GOAT",
+    "SynthTab",
+    "GAPS",
+    "private data"
+  ],
+  "fixed_constants": {
+    "batch_size": 256,
+    "best_previous_top1": 0.6620595678411524,
+    "development_players": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04"
+    ],
+    "direct_prior_weight": 1.0,
+    "final_epochs": 3,
+    "gold_pitch_gate_delta": 0.05,
+    "gold_pitch_gate_target": 0.7120595678411524,
+    "grid": [
+      [
+        0.0003,
+        0.0001
+      ],
+      [
+        0.001,
+        1e-05
+      ]
+    ],
+    "inner_epochs": 2,
+    "mel_bands": 64,
+    "model_parameters": 69670,
+    "parameter_cap": 5000000,
+    "sample_rate": 16000,
+    "seed": 5519,
+    "window_samples": 8192
+  },
+  "folds": [
+    {
+      "combined_accuracy": 0.5548005536680508,
+      "combined_delta_vs_phase4": -0.05889014722536812,
+      "combined_top3": 1.0,
+      "direct_accuracy": 0.5009437523593809,
+      "direct_top3": 0.9991191644645778,
+      "examples": 7947,
+      "model_sha256": "4659931d1006d5952211970c6669763fedfeec273a18f2fd80316f2331d0a3dd",
+      "phase4_best_accuracy": 0.6136907008934189,
+      "player": "00"
+    },
+    {
+      "combined_accuracy": 0.569626168224299,
+      "combined_delta_vs_phase4": -0.07207943925233651,
+      "combined_top3": 0.9996495327102803,
+      "direct_accuracy": 0.48574766355140186,
+      "direct_top3": 0.9989485981308411,
+      "examples": 8560,
+      "model_sha256": "a1524bc7668dbb691ca364baf08e3831b1caea7e5fd908eb1581d867ae998b51",
+      "phase4_best_accuracy": 0.6417056074766355,
+      "player": "01"
+    },
+    {
+      "combined_accuracy": 0.635866690178099,
+      "combined_delta_vs_phase4": -0.03738317757009346,
+      "combined_top3": 1.0,
+      "direct_accuracy": 0.5399400458472933,
+      "direct_top3": 1.0,
+      "examples": 5671,
+      "model_sha256": "dca777792743fb5d8428e05644009f089133f6e6f9f9d88e497cd38f7ae5e54f",
+      "phase4_best_accuracy": 0.6732498677481925,
+      "player": "02"
+    },
+    {
+      "combined_accuracy": 0.6045654331490146,
+      "combined_delta_vs_phase4": -0.09145044661846025,
+      "combined_top3": 0.9995746490854955,
+      "direct_accuracy": 0.48334042251524173,
+      "direct_top3": 0.9990075145328229,
+      "examples": 7053,
+      "model_sha256": "8a1a85f561794120adb3aca4d26c52d2af064ddcae716b7b64f534b6a76e50ea",
+      "phase4_best_accuracy": 0.6960158797674748,
+      "player": "03"
+    },
+    {
+      "combined_accuracy": 0.6144470868014269,
+      "combined_delta_vs_phase4": -0.0856123662306777,
+      "combined_top3": 1.0,
+      "direct_accuracy": 0.47294887039239003,
+      "direct_top3": 1.0,
+      "examples": 6728,
+      "model_sha256": "1992dbc9598ac611466c87d41dbd03ee296c34f2ed4e24a650d01ba67093eabf",
+      "phase4_best_accuracy": 0.7000594530321046,
+      "player": "04"
+    }
+  ],
+  "gate_passed": false,
+  "model_sha256": "213dbb122b60311e0282725d4c6a2ca4d62dbc8cfb1becd23eed786dfd80ef8e",
+  "notes_path": "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\docs\\EVAL_REPORTS\\string_assignment_phase0_2026-07-15_notes.csv",
+  "notes_sha256": "6f06758525f0908be82b1eeb5d74731f1ee647fba74a5c5111e8bf44e231a530",
+  "packages": {
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "soundfile": "0.13.1",
+    "torch": "2.12.0"
+  },
+  "performance": {
+    "feature_extraction_seconds_per_60s": 0.23309633931407847,
+    "feature_extraction_wall_s": 35.50975450000078,
+    "first_oof_wall_s": 925.1611259999991,
+    "peak_rss_bytes": 1313316864,
+    "second_oof_wall_s": 925.1611259999991,
+    "total_wall_s": 965.2307951999992
+  },
+  "phase5_decision": "close_direct_model",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "player05_opened": false,
+  "prediction_sha256": "50c0d976b8750e9e685c4205fe66c27bc2b53ae0e94ce7bb6dbe1518bcc9a14f",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "real_event_integration_run": false,
+  "schema_version": 1,
+  "selections": [
+    {
+      "final_history": [
+        {
+          "duplicate_inhibition": 2.0559976168654184,
+          "frame": 0.3165345521135764,
+          "global_pitch": 0.5956682749769905,
+          "occupancy": 0.8436468400738456,
+          "onset": 0.36032171831889587,
+          "total": 0.9812176552685824
+        },
+        {
+          "duplicate_inhibition": 0.12176421311768619,
+          "frame": 0.13058137094432656,
+          "global_pitch": 0.42594695849852127,
+          "occupancy": 0.7443188000809062,
+          "onset": 0.16489706554196099,
+          "total": 0.5288424023173072
+        },
+        {
+          "duplicate_inhibition": 0.09338709833947095,
+          "frame": 0.11015814258293673,
+          "global_pitch": 0.3981318381699649,
+          "occupancy": 0.6974887734109705,
+          "onset": 0.1463669942183928,
+          "total": 0.4800205721096559
+        }
+      ],
+      "final_model_sha256": "4659931d1006d5952211970c6669763fedfeec273a18f2fd80316f2331d0a3dd",
+      "grid": [
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 6.22275700067219,
+              "frame": 0.5970305592605942,
+              "global_pitch": 0.7905467246708117,
+              "occupancy": 0.8830910191724175,
+              "onset": 0.6426902170244017,
+              "total": 1.6707527904134047
+            },
+            {
+              "duplicate_inhibition": 1.8625266167678332,
+              "frame": 0.33406725800351095,
+              "global_pitch": 0.5931769978058966,
+              "occupancy": 0.8601505583838412,
+              "onset": 0.37525980017687144,
+              "total": 0.9987516434569108
+            }
+          ],
+          "inner_combined_accuracy": 0.5623831775700935,
+          "inner_combined_top3": 0.9996495327102803,
+          "inner_direct_accuracy": 0.5566588785046729,
+          "inner_direct_top3": 0.984929906542056,
+          "learning_rate": 0.0003,
+          "model_sha256": "cdd95f58570ecc0dfba767c898904c4ed0412e83a0b92824cdd4a96885160b8e",
+          "weight_decay": 0.0001
+        },
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 2.885376841614121,
+              "frame": 0.38327825677238014,
+              "global_pitch": 0.6509781440621928,
+              "occupancy": 0.8723510911590174,
+              "onset": 0.4313025919622497,
+              "total": 1.1480428733323749
+            },
+            {
+              "duplicate_inhibition": 0.16533321583349453,
+              "frame": 0.14606985783106402,
+              "global_pitch": 0.46283789998606634,
+              "occupancy": 0.7991779030937898,
+              "onset": 0.18588268247089887,
+              "total": 0.582688221805974
+            }
+          ],
+          "inner_combined_accuracy": 0.5734813084112149,
+          "inner_combined_top3": 0.9989485981308411,
+          "inner_direct_accuracy": 0.5669392523364486,
+          "inner_direct_top3": 0.9985981308411215,
+          "learning_rate": 0.001,
+          "model_sha256": "8ce69b2c3089883ecdb2321ae49f6eb4f729aabe6f5e102bb0b52012cd4ed466",
+          "weight_decay": 1e-05
+        }
+      ],
+      "inner_training_players": [
+        "02",
+        "03",
+        "04"
+      ],
+      "inner_validation_player": "01",
+      "outer_player": "00",
+      "outer_training_players": [
+        "01",
+        "02",
+        "03",
+        "04"
+      ],
+      "selected_learning_rate": 0.001,
+      "selected_weight_decay": 1e-05
+    },
+    {
+      "final_history": [
+        {
+          "duplicate_inhibition": 2.104880169034004,
+          "frame": 0.3310963710149129,
+          "global_pitch": 0.6382701052007852,
+          "occupancy": 0.8880894752564253,
+          "onset": 0.3750771801504824,
+          "total": 1.027459274839472
+        },
+        {
+          "duplicate_inhibition": 0.14031901500291294,
+          "frame": 0.1442883581061054,
+          "global_pitch": 0.4794802100018219,
+          "occupancy": 0.7920573557968493,
+          "onset": 0.18707482820307766,
+          "total": 0.5841193497180939
+        },
+        {
+          "duplicate_inhibition": 0.10910330567922857,
+          "frame": 0.12380891265692534,
+          "global_pitch": 0.4414671529774313,
+          "occupancy": 0.7465089222899189,
+          "onset": 0.16552197201936333,
+          "total": 0.5298756126452375
+        }
+      ],
+      "final_model_sha256": "a1524bc7668dbb691ca364baf08e3831b1caea7e5fd908eb1581d867ae998b51",
+      "grid": [
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 5.74853380427641,
+              "frame": 0.5789050992797403,
+              "global_pitch": 0.8513886318487279,
+              "occupancy": 0.9182851721258725,
+              "onset": 0.6379937866154839,
+              "total": 1.6572914852815517
+            },
+            {
+              "duplicate_inhibition": 1.4036208741805132,
+              "frame": 0.31059782469973846,
+              "global_pitch": 0.6323620333391078,
+              "occupancy": 0.8963367349961224,
+              "onset": 0.36207163158585043,
+              "total": 0.9697262770989362
+            }
+          ],
+          "inner_combined_accuracy": 0.587727032269441,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.4232057838123788,
+          "inner_direct_top3": 0.9984129783107035,
+          "learning_rate": 0.0003,
+          "model_sha256": "8baa34c117d2a888f2118ea1b45813e2b3a8ac9bbe7ce51e38b3902ab59af1f4",
+          "weight_decay": 0.0001
+        },
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 2.691558065133936,
+              "frame": 0.38054884689695695,
+              "global_pitch": 0.6823089171858395,
+              "occupancy": 0.9037043725743014,
+              "onset": 0.4231522011406281,
+              "total": 1.1445078618386213
+            },
+            {
+              "duplicate_inhibition": 0.16780286816989673,
+              "frame": 0.15463738073320948,
+              "global_pitch": 0.49658584454480337,
+              "occupancy": 0.825121460942661,
+              "onset": 0.19835587652290568,
+              "total": 0.6144915363367867
+            }
+          ],
+          "inner_combined_accuracy": 0.5879033680126962,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.4873919943572562,
+          "inner_direct_top3": 1.0,
+          "learning_rate": 0.001,
+          "model_sha256": "f63726853e931df3b23987da82fce2fd523c497d0116513362213e9cf1d37325",
+          "weight_decay": 1e-05
+        }
+      ],
+      "inner_training_players": [
+        "00",
+        "03",
+        "04"
+      ],
+      "inner_validation_player": "02",
+      "outer_player": "01",
+      "outer_training_players": [
+        "00",
+        "02",
+        "03",
+        "04"
+      ],
+      "selected_learning_rate": 0.001,
+      "selected_weight_decay": 1e-05
+    },
+    {
+      "final_history": [
+        {
+          "duplicate_inhibition": 2.000284306016289,
+          "frame": 0.3203578646443471,
+          "global_pitch": 0.6113715189344743,
+          "occupancy": 0.8760980012036171,
+          "onset": 0.3669784453486194,
+          "total": 0.9990389742771116
+        },
+        {
+          "duplicate_inhibition": 0.13543840234770493,
+          "frame": 0.14147090730296463,
+          "global_pitch": 0.46110135617376374,
+          "occupancy": 0.7799193603651864,
+          "onset": 0.18227265687549815,
+          "total": 0.5700352121801937
+        },
+        {
+          "duplicate_inhibition": 0.10661459000421171,
+          "frame": 0.12202204532232605,
+          "global_pitch": 0.42606603097514945,
+          "occupancy": 0.7258398998685244,
+          "onset": 0.16117138284094193,
+          "total": 0.5154896153121435
+        }
+      ],
+      "final_model_sha256": "dca777792743fb5d8428e05644009f089133f6e6f9f9d88e497cd38f7ae5e54f",
+      "grid": [
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 5.942605600252256,
+              "frame": 0.5902622767857143,
+              "global_pitch": 0.826774551318242,
+              "occupancy": 0.9111374348074526,
+              "onset": 0.6230196687546405,
+              "total": 1.6497590921737335
+            },
+            {
+              "duplicate_inhibition": 1.3430620327100649,
+              "frame": 0.3061386079906107,
+              "global_pitch": 0.6058046071083991,
+              "occupancy": 0.9029884358028789,
+              "onset": 0.34106679047857014,
+              "total": 0.9384874616350446
+            }
+          ],
+          "inner_combined_accuracy": 0.5837232383382958,
+          "inner_combined_top3": 0.9995746490854955,
+          "inner_direct_accuracy": 0.4983694881610662,
+          "inner_direct_top3": 0.9978732454274777,
+          "learning_rate": 0.0003,
+          "model_sha256": "6cde0c20519743e41ab279fd8bd7d06578f720b90b3e14fd32570eb9da4a8da8",
+          "weight_decay": 0.0001
+        },
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 2.504714070931896,
+              "frame": 0.36696896022492714,
+              "global_pitch": 0.6552334303384298,
+              "occupancy": 0.8994311768930037,
+              "onset": 0.40895246051170014,
+              "total": 1.106338803584759
+            },
+            {
+              "duplicate_inhibition": 0.164146520115517,
+              "frame": 0.15569122512261946,
+              "global_pitch": 0.4861614370084071,
+              "occupancy": 0.8226937500985114,
+              "onset": 0.1955196927864473,
+              "total": 0.6087864283676986
+            }
+          ],
+          "inner_combined_accuracy": 0.6187437969658302,
+          "inner_combined_top3": 0.9995746490854955,
+          "inner_direct_accuracy": 0.5107046646816957,
+          "inner_direct_top3": 0.9991492981709911,
+          "learning_rate": 0.001,
+          "model_sha256": "fcf61735925ab748e75244ad3d529a8e611c1f65a9de902277f9f29704ed583b",
+          "weight_decay": 1e-05
+        }
+      ],
+      "inner_training_players": [
+        "00",
+        "01",
+        "04"
+      ],
+      "inner_validation_player": "03",
+      "outer_player": "02",
+      "outer_training_players": [
+        "00",
+        "01",
+        "03",
+        "04"
+      ],
+      "selected_learning_rate": 0.001,
+      "selected_weight_decay": 1e-05
+    },
+    {
+      "final_history": [
+        {
+          "duplicate_inhibition": 5.00731575911024,
+          "frame": 0.5341613825443572,
+          "global_pitch": 0.7800111237880403,
+          "occupancy": 0.9008081091188751,
+          "onset": 0.5954110210975715,
+          "total": 1.533062310345405
+        },
+        {
+          "duplicate_inhibition": 0.7996976378217208,
+          "frame": 0.2542204206759951,
+          "global_pitch": 0.5639284326966885,
+          "occupancy": 0.8730427126968856,
+          "onset": 0.30060499036206606,
+          "total": 0.826942872157139
+        },
+        {
+          "duplicate_inhibition": 0.27884878574219424,
+          "frame": 0.1844396556900666,
+          "global_pitch": 0.505318831289764,
+          "occupancy": 0.8310877506711841,
+          "onset": 0.2244888368697293,
+          "total": 0.6647527507976093
+        }
+      ],
+      "final_model_sha256": "8a1a85f561794120adb3aca4d26c52d2af064ddcae716b7b64f534b6a76e50ea",
+      "grid": [
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 5.768213077523242,
+              "frame": 0.5834302292473015,
+              "global_pitch": 0.8295440708083668,
+              "occupancy": 0.9202993642324688,
+              "onset": 0.6380273596993808,
+              "total": 1.65561398144426
+            },
+            {
+              "duplicate_inhibition": 1.4215547956269363,
+              "frame": 0.3183682410196326,
+              "global_pitch": 0.6177694968793584,
+              "occupancy": 0.8951265928389012,
+              "onset": 0.3584509152790596,
+              "total": 0.9669368054674959
+            }
+          ],
+          "inner_combined_accuracy": 0.5665873959571938,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.4340071343638526,
+          "inner_direct_top3": 0.9995541022592153,
+          "learning_rate": 0.0003,
+          "model_sha256": "d59f53e3564752569a97d2359c65aa450c66278ae3206438668f273c7b7d5499",
+          "weight_decay": 0.0001
+        },
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 2.5405927571071976,
+              "frame": 0.370406330488194,
+              "global_pitch": 0.6625340217831491,
+              "occupancy": 0.8905851402501951,
+              "onset": 0.41626476385127537,
+              "total": 1.1167773494775268
+            },
+            {
+              "duplicate_inhibition": 0.1732347782315879,
+              "frame": 0.15891299645105997,
+              "global_pitch": 0.48224043092508423,
+              "occupancy": 0.8175241488149796,
+              "onset": 0.1952769417187263,
+              "total": 0.6083363205537029
+            }
+          ],
+          "inner_combined_accuracy": 0.5331450653983353,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.42464328180737215,
+          "inner_direct_top3": 0.9997027348394768,
+          "learning_rate": 0.001,
+          "model_sha256": "bdd5ff4298d6127c8781632daf98177e9c4a4512a10e135bc0cd413a866b110a",
+          "weight_decay": 1e-05
+        }
+      ],
+      "inner_training_players": [
+        "00",
+        "01",
+        "02"
+      ],
+      "inner_validation_player": "04",
+      "outer_player": "03",
+      "outer_training_players": [
+        "00",
+        "01",
+        "02",
+        "04"
+      ],
+      "selected_learning_rate": 0.0003,
+      "selected_weight_decay": 0.0001
+    },
+    {
+      "final_history": [
+        {
+          "duplicate_inhibition": 2.079550513884296,
+          "frame": 0.32845984334531036,
+          "global_pitch": 0.6108105058255403,
+          "occupancy": 0.8924366152804831,
+          "onset": 0.36788259990837263,
+          "total": 1.0119018362916035
+        },
+        {
+          "duplicate_inhibition": 0.13369541725386744,
+          "frame": 0.14098800809487053,
+          "global_pitch": 0.45855975021486695,
+          "occupancy": 0.8067491095999013,
+          "onset": 0.17912793612998465,
+          "total": 0.5726339231366696
+        },
+        {
+          "duplicate_inhibition": 0.1095234567704408,
+          "frame": 0.12295768533063972,
+          "global_pitch": 0.42644466680029164,
+          "occupancy": 0.7522276961285135,
+          "onset": 0.16008073039676832,
+          "total": 0.5217038320458454
+        }
+      ],
+      "final_model_sha256": "1992dbc9598ac611466c87d41dbd03ee296c34f2ed4e24a650d01ba67093eabf",
+      "grid": [
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 5.732883118447804,
+              "frame": 0.5712298470593634,
+              "global_pitch": 0.8049535850683848,
+              "occupancy": 0.8843734370810645,
+              "onset": 0.6243906886804671,
+              "total": 1.6189815472988855
+            },
+            {
+              "duplicate_inhibition": 1.3739916604189646,
+              "frame": 0.2999594078532287,
+              "global_pitch": 0.5847396155198415,
+              "occupancy": 0.8619965804474694,
+              "onset": 0.3404424179877554,
+              "total": 0.9208057536965325
+            }
+          ],
+          "inner_combined_accuracy": 0.5200704668428338,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.4808103686925884,
+          "inner_direct_top3": 0.990562476406191,
+          "learning_rate": 0.0003,
+          "model_sha256": "6df9db7bb3b52955c6c9d7db9399bbbd2d6bf5f11f71032485f2cb68e4ed588c",
+          "weight_decay": 0.0001
+        },
+        {
+          "history": [
+            {
+              "duplicate_inhibition": 2.5631232419539067,
+              "frame": 0.3602565402785937,
+              "global_pitch": 0.6482923282753854,
+              "occupancy": 0.8606743386813572,
+              "onset": 0.40339788670341176,
+              "total": 1.0889239829211008
+            },
+            {
+              "duplicate_inhibition": 0.14672401627259596,
+              "frame": 0.14121575848687262,
+              "global_pitch": 0.4431282750197819,
+              "occupancy": 0.7787092633190609,
+              "onset": 0.17587883646289507,
+              "total": 0.5592822993085498
+            }
+          ],
+          "inner_combined_accuracy": 0.5239713099282748,
+          "inner_combined_top3": 1.0,
+          "inner_direct_accuracy": 0.46923367308418273,
+          "inner_direct_top3": 0.9991191644645778,
+          "learning_rate": 0.001,
+          "model_sha256": "7682ab40c5708f2a19de16741943d4a666ec61847684b4f524a8d915306cb174",
+          "weight_decay": 1e-05
+        }
+      ],
+      "inner_training_players": [
+        "01",
+        "02",
+        "03"
+      ],
+      "inner_validation_player": "00",
+      "outer_player": "04",
+      "outer_training_players": [
+        "00",
+        "01",
+        "02",
+        "03"
+      ],
+      "selected_learning_rate": 0.001,
+      "selected_weight_decay": 1e-05
+    }
+  ],
+  "shipping_artifact_bytes": 0,
+  "source_commit": "6cc6d25a49f52fdb40c95fdf5995d7aa86093fcf",
+  "source_duration_s": 9140.363492063492,
+  "source_sha256": {
+    "model_module": "2512eceaf02a18f572aeaa22ee7dbdfd53cfc6892628f961d2ca0196a9574d6c",
+    "phase4_rows": "9791b1cc6df06b4c075864ff82ced13bab375d7e65f1a270745821caa3e3a68a",
+    "phase5_design": "66fda340026ff6c252138ed6c48eaa1b36e9fbc1b8ff812188a0078ee96b33e6",
+    "probe_script": "4be85a9b98e31e8348d9d3d69ea857cbd9c915be1ede93942332ad004e5688aa"
+  },
+  "tracked_outputs": {
+    "string_assignment_phase5_2026-07-16.md": {
+      "bytes": 3866,
+      "sha256": "7c7849b5de4bec4b295cb8d8c5254d5624af7e6ed47e7f5f184a4bbf36d19c93"
+    },
+    "string_assignment_phase5_2026-07-16_conditions.csv": {
+      "bytes": 494,
+      "sha256": "7bc715a0275bbedcfccdd38a4bbc2ef08ec63249e39190cf5717b2f0e3c88225"
+    },
+    "string_assignment_phase5_2026-07-16_errors.csv": {
+      "bytes": 4226,
+      "sha256": "5e4217cb556737cfc31a3f768c29c5ddd00f399c7fe9878b1c6ec28a50b5b600"
+    },
+    "string_assignment_phase5_2026-07-16_folds.csv": {
+      "bytes": 1011,
+      "sha256": "4cf5c63dd4c91c92ecb630ee29c6e2f3ed2c8e8ce6d69cd8a6bb7db718b4eb6a"
+    },
+    "string_assignment_phase5_2026-07-16_selections.json": {
+      "bytes": 16653,
+      "sha256": "1b3a493cc01e2da3cc726ecf82bbd428da169ec9db4165d20fdd861e2b4a358a"
+    }
+  }
+}
