@@ -2477,3 +2477,54 @@ violate the sequential plan. Evidence is in
 `docs/EVAL_REPORTS/string_assignment_phase5_2026-07-16.md` plus its condition,
 fold, grouped-error, selection, and provenance files. Phase 6 requires a new
 explicit `proceed`.
+
+## 2026-07-16 - Phase 6 assisted review path fails both offline gates
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 6.
+**Decision tree:** Production UI work may begin only if a player-held-out error
+detector reaches ROC AUC `>=0.75`, its highest-risk 10% contains at least twice
+the global wrong-position rate, and an offline 60-second-per-clip replay removes
+at least 50% of residual wrong-position errors without pitch changes or wrong
+propagation.
+**Branch taken:** Close the fixed learned-review path. Do not open GuitarSet
+player 05, integrate a production review UI, persist edits into the job-result
+store, tune the detector/review timing against this failure, or change automatic
+transcription.
+**Method:** A frozen original 321-parameter `10 -> 16 -> 8 -> 1` MLP used
+path margin, candidate count, OOF segment/native-timbre disagreement, timbre
+strength, accepted-checkpoint posterior entropy, the explicit clean-acoustic
+domain score, chord size, segment inconsistency, and solo/comp mode. Five
+player-held outer folds used nested inner-OOF Platt calibration. The development
+population was the 35,959 production-equivalent pitch-correct ambiguous
+GuitarSet events from players 00-04. Player 05 was not read.
+**Evidence:** Overall OOF AUC was `0.7127`, below `0.75`. The global wrong-
+position rate was `0.3452`; the highest-risk 10% was `0.6101`, only `1.77x`
+enrichment versus the required `2.0x`. At detector note budgets of 10%, 20%,
+and 30%, precision/recall were `0.6101/0.1768`, `0.6164/0.3572`, and
+`0.5875/0.5106`. A conservative two-second-per-note replay reproduced the
+frozen baseline aggregate/solo/comp Tab F1 at `0.5581/0.5460/0.5702` and
+reached `0.6873/0.7309/0.6437` after 60 seconds per clip, but corrected only
+`4,811/12,412` residual wrong positions (`38.76%`), below the `50%` target.
+Pitch changes and wrong propagation were both zero. Two complete evaluations
+matched prediction hash
+`d044a80525b4e4dc266ffd9fae40fe053023b6c65db47838c474e145fef486021`
+and model hash
+`b748a9fd97a3ec3556cccfe083f6875bd3ca94f3db9d518085b1054a9369cd3dd`.
+**Reusable but unintegrated work:** The tested core supports pitch-preserving
+candidate cycling, all-or-nothing one-string phrase moves, up to three unique
+K-best phrase alternatives, atomic accept/reject/undo, exact repeated-motif
+previews without automatic propagation, and default-off calibration, starting
+position, score-reference, licensed-reference, and private-prior modes. Because
+the offline gate failed, no production UI or localStorage/job-result persistence
+was implemented, as required by the plan's UI gate.
+**Reasoning:** Both prerequisite gates failed before confirmation or UI work.
+Automatic Tab/onset/pitch results, routing, and SPEC contracts are unchanged.
+The v1 suite passed `844` tests with `12` skipped; Ruff lint and format checks
+passed; mypy passed `78` source files. The frozen server suite passed `296`
+tests with `3` skipped.
+Evidence is in
+`docs/plans/2026-07-16-tab-f1-phase6-assisted-accuracy-design.md` and
+`docs/EVAL_REPORTS/string_assignment_phase6_2026-07-16.md` plus its fold,
+budget, feature, model, and provenance artifacts. Phase 7 requires a new
+explicit `proceed` and is independently entry-gated by at least one prior
+gate-passed result.
