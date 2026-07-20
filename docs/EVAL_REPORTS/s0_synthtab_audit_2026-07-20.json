@@ -1,0 +1,191 @@
+{
+  "directory": "C:\\Users\\patri\\.tabvision\\data\\datasets\\synthtab",
+  "archives": [
+    {
+      "file": "all_jams_midi_V2_60000_tracks.zip",
+      "bytes": 1113087972,
+      "sha256": "da678dba303a45984b8944ef644e7a5fef33301db49d53137c0f5ce52dc0576d",
+      "members": 453315,
+      "by_extension": {
+        ".mid": 271415,
+        "<dir>": 60634,
+        ".jams": 60633,
+        ".txt": 60633
+      },
+      "crc_ok": true
+    },
+    {
+      "file": "SynthTab_Dev.zip",
+      "bytes": 822158849,
+      "sha256": "0501d1404a4dfe6abfed87a391ea278a43da23b3c56f10c7d5e8ec50a76cda4f",
+      "members": 2729,
+      "by_extension": {
+        ".pkl": 826,
+        ".mid": 821,
+        "<dir>": 573,
+        ".flac": 171,
+        ".jams": 169,
+        ".txt": 169
+      },
+      "crc_ok": true
+    }
+  ],
+  "jams_samples": [
+    {
+      "member": "outall/ - Isolated - gp4__1 - Distortion Guitar__midi/1 - Distortion Guitar.jams",
+      "namespaces": {
+        "note_tab": 6,
+        "tempo": 1
+      },
+      "note_tab_annotations": 6,
+      "strings": [
+        {
+          "string_index": 1,
+          "open_tuning": 64,
+          "notes": 379
+        },
+        {
+          "string_index": 2,
+          "open_tuning": 59,
+          "notes": 334
+        },
+        {
+          "string_index": 3,
+          "open_tuning": 55,
+          "notes": 215
+        },
+        {
+          "string_index": 4,
+          "open_tuning": 50,
+          "notes": 206
+        },
+        {
+          "string_index": 5,
+          "open_tuning": 45,
+          "notes": 152
+        },
+        {
+          "string_index": 6,
+          "open_tuning": 40,
+          "notes": 168
+        }
+      ],
+      "first_note": {
+        "time": 1920.0,
+        "duration": 480.0,
+        "value": {
+          "fret": 12,
+          "velocity": 95
+        }
+      },
+      "track_sandbox": {
+        "instrument": 30,
+        "fret_count": 24
+      }
+    },
+    {
+      "member": "outall/Fugazi - Waiting Room - gp3__2 - Distortion Guitar__midi/2 - Distortion Guitar.jams",
+      "namespaces": {
+        "note_tab": 6,
+        "tempo": 1
+      },
+      "note_tab_annotations": 6,
+      "strings": [
+        {
+          "string_index": 1,
+          "open_tuning": 64,
+          "notes": 11
+        },
+        {
+          "string_index": 2,
+          "open_tuning": 59,
+          "notes": 0
+        },
+        {
+          "string_index": 3,
+          "open_tuning": 55,
+          "notes": 0
+        },
+        {
+          "string_index": 4,
+          "open_tuning": 50,
+          "notes": 0
+        },
+        {
+          "string_index": 5,
+          "open_tuning": 45,
+          "notes": 0
+        },
+        {
+          "string_index": 6,
+          "open_tuning": 40,
+          "notes": 0
+        }
+      ],
+      "first_note": {
+        "time": 125280.0,
+        "duration": 120.0,
+        "value": {
+          "fret": 14,
+          "velocity": 95
+        }
+      },
+      "track_sandbox": {
+        "instrument": 30,
+        "fret_count": 24
+      }
+    },
+    {
+      "member": "outall/Oldfield, Mike - Tubular bells (2) - gp3__1 - Acoustic Nylon Guitar__midi/1 - Acoustic Nylon Guitar.jams",
+      "namespaces": {
+        "note_tab": 6,
+        "tempo": 1
+      },
+      "note_tab_annotations": 6,
+      "strings": [
+        {
+          "string_index": 1,
+          "open_tuning": 64,
+          "notes": 256
+        },
+        {
+          "string_index": 2,
+          "open_tuning": 59,
+          "notes": 190
+        },
+        {
+          "string_index": 3,
+          "open_tuning": 55,
+          "notes": 142
+        },
+        {
+          "string_index": 4,
+          "open_tuning": 50,
+          "notes": 180
+        },
+        {
+          "string_index": 5,
+          "open_tuning": 45,
+          "notes": 86
+        },
+        {
+          "string_index": 6,
+          "open_tuning": 38,
+          "notes": 140
+        }
+      ],
+      "first_note": {
+        "time": 960.0,
+        "duration": 480.0,
+        "value": {
+          "fret": 1,
+          "velocity": 95
+        }
+      },
+      "track_sandbox": {
+        "instrument": 24,
+        "fret_count": 24
+      }
+    }
+  ]
+}

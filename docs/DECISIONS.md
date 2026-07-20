@@ -2647,3 +2647,106 @@ baseline/candidate/decomposition companions); manifests carry the gate.
 test-22 improvement with clean train/test separation; both hold with a
 CI-significant paired delta, and cross-domain safety is structural (the pair
 resolves only for clean classical, standard tuning, capo 0).
+
+---
+
+## 2026-07-20 — NC second-opinion + SynthTab program authorized
+
+**Phase:** New program kickoff (post-personal-posture)
+**Decision tree:** 2026-07-16 closure entry ("new explicitly approved program"
+requirement) + SPEC §1.5 amendment
+**Branch taken:** The user directed (chat, 2026-07-20): "Execute both" — (1)
+pretrained NC checkpoints as ensemble second opinions via the Phase 3
+match/merge harness; (2) DadaGP/SynthTab-scale training (contextual-reranker
+pretraining + per-string model retraining). Plan:
+`docs/plans/2026-07-20-nc-second-opinion-and-synthtab-program.md`.
+**Execution interpretation (recorded so governance stays explicit):** the
+directive covers $0 local reversible development work without per-step
+confirmation; user checkpoints remain mandatory for paid compute, new
+shipping-package runtime dependencies, artifact registration or `auto`-routing
+changes, production deploys, and bulk data downloads beyond the ~1 GB SynthTab
+symbolic slice + Dev set.
+**Retained exclusions:** private/user recordings banned from all
+training/eval/label roles; hardware capture, commissioned data, and the video
+program remain out of scope per the 2026-07-20 posture entry.
+**Evidence:** this entry; plan doc; survey report below.
+
+---
+
+## 2026-07-20 — Program N0/S0 survey gate: PASSED
+
+**Phase:** NC second-opinion + SynthTab program, shared Phase 0
+**Decision tree:** plan N0/S0 gates
+**Branch taken:** Proceed to N1 (kroma) and S0-acquisition (SynthTab).
+Findings (all primary-source-verified, see report): (1) the backend's own HF
+repo `xavriley/midi-transcription-models` (MIT, updated 2026-03-13, after our
+audit pin) contains an unused `guitar_kroma.safetensors` — 24.66M params whose
+tensor names match the pinned high-resolution CRNN family exactly →
+architecture-compatible third checkpoint at $0. (2) SynthTab is CC-BY-NC 4.0
+(admissible under amended §1.5), 60k DadaGP-derived tracks, with the symbolic
+JAMS/per-string-MIDI slice separable at ≈1 GB and audio partitioned in
+<50 GB zips — Program S substrate confirmed without DadaGP's request gate.
+(3) MIDI-to-Tab (ISMIR 2024) has no public code/weights → S1b implements
+originally per the architecture-audit rule. (4) MuScriptor-large (CC-BY-NC,
+1.3B, 2026) and YourMT3+ (GPL-3.0 code) are second-line offline-only
+candidates. DadaGP direct access stays an optional user email.
+**Evidence:**
+`docs/EVAL_REPORTS/nc_checkpoint_dataset_survey_2026-07-20.md`.
+**Reasoning:** both programs have verified, license-clean, $0-start paths;
+the cheapest highest-probability lever (same-family third checkpoint) was
+invisible to prior audits because the upstream repo gained the file after the
+2026-05 pin.
+
+---
+
+## 2026-07-20 — Program N1: guitar_kroma CLOSED (near-duplicate of registered gaps member)
+
+**Phase:** NC second-opinion program, Phase N1
+**Decision tree:** plan N1 gate (load + sanity F1 within 0.05 of best
+registered member) with forensics on anomalous equality
+**Branch taken:** Close the kroma branch. The converted checkpoint loads
+correctly through the local-path mechanism (live-weight equality verified),
+but its outputs are bit-identical to `guitar_gaps` on all five smoke clips.
+Tensor forensics: 316/316 keys/shapes align with `guitar-gaps.pth`; the only
+diffs > 1e-2 are 16 BatchNorm running statistics; median learned-weight max
+diff is 4.6e-4. `guitar_kroma.safetensors` is the same trained network
+re-exported, so it provides zero ensemble diversity and cannot be a third
+opinion. The nominal gate row (pitch Δ −0.0564 vs `fl`) is an artifact of
+kroma≡gaps trailing `fl` on this slice; the substantive verdict is
+redundancy. Program N proceeds to the MuScriptor complementarity probe
+(next candidate per plan N-branch); no runtime code, artifact, or routing
+changed.
+**Evidence:** `docs/EVAL_REPORTS/n1_kroma_smoke_2026-07-20.md` (+ `.json`);
+`scripts/eval/convert_kroma_checkpoint.py`; `scripts/eval/n1_kroma_smoke.py`;
+conversion manifest in `~/.tabvision/data/models/guitar-kroma.manifest.json`.
+**Reasoning:** a second opinion has value only if it disagrees usefully;
+bit-identical event streams cannot change any merge decision. Closing early
+cost three CPU-minutes of forensics and spares a full dev-set cache build.
+
+---
+
+## 2026-07-20 — Program S0: SynthTab acquisition gate PASSED
+
+**Phase:** SynthTab-scale program, Phase S0
+**Decision tree:** plan S0 gate (≥ 50k tracks parse with usable
+string+fret+onset in standard-tuning six-string form)
+**Branch taken:** PASS — proceed to S1a (SynthTab-scale count priors) on the
+next explicit `proceed`. Acquired with user download approval (chat,
+2026-07-20): `all_jams_midi_V2_60000_tracks.zip` (1,113,087,972 bytes,
+SHA-256 `da678dba…2dc0576d`) and `SynthTab_Dev.zip` (822,158,849 bytes,
+SHA-256 `0501d140…a76cda4f`) from the official UR Box shares. Audit: 60,633
+JAMS tracks, all-member CRC clean; per-string `note_tab` annotations carry
+`string_index` + `open_tuning` + per-note `{fret, velocity}` with tick
+times and a tempo map; tuning and GM instrument are explicit per
+string/track, so standard-tuning + acoustic filtering for `synthtab-v1` is
+symbolic. Dev set holds 169 audio tracks (flac + per-string F0 pkl) for S2
+bring-up. LICENSES.md gained the CC-BY-NC-4.0 rows (NC program acquisition
+addendum); media/annotations stay under `TABVISION_DATA_ROOT`, never
+committed. MuScriptor probe explicitly held pending S1 results (user,
+2026-07-20).
+**Evidence:** `docs/EVAL_REPORTS/s0_synthtab_audit_2026-07-20.md` (+ `.json`);
+`scripts/eval/s0_synthtab_audit.py`.
+**Reasoning:** the substrate matches the S1 requirement exactly (DadaGP-derived
+per-string tab at 60k-track scale, domain-matched to the ambiguous-note
+problem), and the licensing basis is SynthTab's CC-BY-NC redistribution —
+no DadaGP request gate needed.
