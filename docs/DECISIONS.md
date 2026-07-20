@@ -2647,3 +2647,52 @@ baseline/candidate/decomposition companions); manifests carry the gate.
 test-22 improvement with clean train/test separation; both hold with a
 CI-significant paired delta, and cross-domain safety is structural (the pair
 resolves only for clean classical, standard tuning, capo 0).
+
+---
+
+## 2026-07-20 — NC second-opinion + SynthTab program authorized
+
+**Phase:** New program kickoff (post-personal-posture)
+**Decision tree:** 2026-07-16 closure entry ("new explicitly approved program"
+requirement) + SPEC §1.5 amendment
+**Branch taken:** The user directed (chat, 2026-07-20): "Execute both" — (1)
+pretrained NC checkpoints as ensemble second opinions via the Phase 3
+match/merge harness; (2) DadaGP/SynthTab-scale training (contextual-reranker
+pretraining + per-string model retraining). Plan:
+`docs/plans/2026-07-20-nc-second-opinion-and-synthtab-program.md`.
+**Execution interpretation (recorded so governance stays explicit):** the
+directive covers $0 local reversible development work without per-step
+confirmation; user checkpoints remain mandatory for paid compute, new
+shipping-package runtime dependencies, artifact registration or `auto`-routing
+changes, production deploys, and bulk data downloads beyond the ~1 GB SynthTab
+symbolic slice + Dev set.
+**Retained exclusions:** private/user recordings banned from all
+training/eval/label roles; hardware capture, commissioned data, and the video
+program remain out of scope per the 2026-07-20 posture entry.
+**Evidence:** this entry; plan doc; survey report below.
+
+---
+
+## 2026-07-20 — Program N0/S0 survey gate: PASSED
+
+**Phase:** NC second-opinion + SynthTab program, shared Phase 0
+**Decision tree:** plan N0/S0 gates
+**Branch taken:** Proceed to N1 (kroma) and S0-acquisition (SynthTab).
+Findings (all primary-source-verified, see report): (1) the backend's own HF
+repo `xavriley/midi-transcription-models` (MIT, updated 2026-03-13, after our
+audit pin) contains an unused `guitar_kroma.safetensors` — 24.66M params whose
+tensor names match the pinned high-resolution CRNN family exactly →
+architecture-compatible third checkpoint at $0. (2) SynthTab is CC-BY-NC 4.0
+(admissible under amended §1.5), 60k DadaGP-derived tracks, with the symbolic
+JAMS/per-string-MIDI slice separable at ≈1 GB and audio partitioned in
+<50 GB zips — Program S substrate confirmed without DadaGP's request gate.
+(3) MIDI-to-Tab (ISMIR 2024) has no public code/weights → S1b implements
+originally per the architecture-audit rule. (4) MuScriptor-large (CC-BY-NC,
+1.3B, 2026) and YourMT3+ (GPL-3.0 code) are second-line offline-only
+candidates. DadaGP direct access stays an optional user email.
+**Evidence:**
+`docs/EVAL_REPORTS/nc_checkpoint_dataset_survey_2026-07-20.md`.
+**Reasoning:** both programs have verified, license-clean, $0-start paths;
+the cheapest highest-probability lever (same-family third checkpoint) was
+invisible to prior audits because the upstream repo gained the file after the
+2026-05 pin.
