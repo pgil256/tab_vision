@@ -28,9 +28,9 @@
   "gate": {
     "report": "docs/EVAL_REPORTS/gaps_classical_prior_2026-07-20.md",
     "comparison": "coupled with gaps-v1 minus no-prior baseline, GAPS test-22",
-    "mean_delta": null,
-    "lower_95": null,
-    "upper_95": null,
-    "decision": "pending 2026-07-20 evaluation"
+    "mean_delta": 0.0082,
+    "lower_95": 0.001,
+    "upper_95": 0.0152,
+    "decision": "passed and registered"
   }
 }

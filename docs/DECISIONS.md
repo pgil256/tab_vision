@@ -2624,3 +2624,26 @@ public-portfolio artifact, not accuracy physics. With the user explicitly
 accepting NC terms and the measured trade-offs, the highest-EV shelved wins
 (ensemble +0.021 aggregate; assisted −38.76% residual wrong-position errors)
 ship, and the classical route gets its first in-domain prior.
+
+---
+
+## 2026-07-20 — GAPS classical priors gate: PASSED and registered
+
+**Phase:** Personal-posture program, Tier 2 execution
+**Decision tree:** gaps-v1/gaps-seq-v1 registration gate (same-day entry above)
+**Branch taken:** Register both artifacts and enable the classical auto route.
+Built from the GAPS train split only (212 standard-tuning scores; 171,059
+position events; 70,933 singleton transitions; test split provably excluded,
+stems SHA `67a5230b…`). GAPS test-22 single-line Tab F1 0.6969 → **0.7051**;
+paired clip-stratified 10k bootstrap **Δ = +0.0082 [+0.0010, +0.0152]** (lower
+bound > 0; 16/22 clips improve, worst clip −0.0338). Chord-instance 0.6821 →
+0.6951. Onset/pitch F1 byte-identical (string-assignment-only). The lift is
+small relative to the GuitarSet-prior analog because the no-prior decoder's
+playability terms already fit open-position classical repertoire; the
+structural win is an in-domain prior on a route that previously had none.
+**Evidence:** `docs/EVAL_REPORTS/gaps_classical_prior_2026-07-20.md` (+
+baseline/candidate/decomposition companions); manifests carry the gate.
+**Reasoning:** Gate declared in the same-day posture entry required a GAPS
+test-22 improvement with clean train/test separation; both hold with a
+CI-significant paired delta, and cross-domain safety is structural (the pair
+resolves only for clean classical, standard tuning, capo 0).
