@@ -2722,3 +2722,31 @@ conversion manifest in `~/.tabvision/data/models/guitar-kroma.manifest.json`.
 **Reasoning:** a second opinion has value only if it disagrees usefully;
 bit-identical event streams cannot change any merge decision. Closing early
 cost three CPU-minutes of forensics and spares a full dev-set cache build.
+
+---
+
+## 2026-07-20 — Program S0: SynthTab acquisition gate PASSED
+
+**Phase:** SynthTab-scale program, Phase S0
+**Decision tree:** plan S0 gate (≥ 50k tracks parse with usable
+string+fret+onset in standard-tuning six-string form)
+**Branch taken:** PASS — proceed to S1a (SynthTab-scale count priors) on the
+next explicit `proceed`. Acquired with user download approval (chat,
+2026-07-20): `all_jams_midi_V2_60000_tracks.zip` (1,113,087,972 bytes,
+SHA-256 `da678dba…2dc0576d`) and `SynthTab_Dev.zip` (822,158,849 bytes,
+SHA-256 `0501d140…a76cda4f`) from the official UR Box shares. Audit: 60,633
+JAMS tracks, all-member CRC clean; per-string `note_tab` annotations carry
+`string_index` + `open_tuning` + per-note `{fret, velocity}` with tick
+times and a tempo map; tuning and GM instrument are explicit per
+string/track, so standard-tuning + acoustic filtering for `synthtab-v1` is
+symbolic. Dev set holds 169 audio tracks (flac + per-string F0 pkl) for S2
+bring-up. LICENSES.md gained the CC-BY-NC-4.0 rows (NC program acquisition
+addendum); media/annotations stay under `TABVISION_DATA_ROOT`, never
+committed. MuScriptor probe explicitly held pending S1 results (user,
+2026-07-20).
+**Evidence:** `docs/EVAL_REPORTS/s0_synthtab_audit_2026-07-20.md` (+ `.json`);
+`scripts/eval/s0_synthtab_audit.py`.
+**Reasoning:** the substrate matches the S1 requirement exactly (DadaGP-derived
+per-string tab at 60k-track scale, domain-matched to the ambiguous-note
+problem), and the licensing basis is SynthTab's CC-BY-NC redistribution —
+no DadaGP request gate needed.

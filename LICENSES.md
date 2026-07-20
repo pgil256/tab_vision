@@ -109,6 +109,23 @@ previously governance-blocked items are promoted:
 
 Private/user recordings remain banned from all roles (unchanged).
 
+### NC program acquisition addendum (2026-07-20, Programs N/S)
+
+Recorded at N0/S0 (DECISIONS.md same date; plan
+`docs/plans/2026-07-20-nc-second-opinion-and-synthtab-program.md`):
+
+| Artifact | Role | License | Status | Notes |
+|---|---|---|---|---|
+| SynthTab symbolic annotations (`all_jams_midi_V2_60000_tracks.zip`) | Program S training substrate (S1 priors + reranker pretraining) | **CC-BY-NC-4.0** | ✅ NC accepted (personal posture) | DadaGP-derived JAMS + per-string MIDI, 60k tracks; official UR Box share, downloaded 2026-07-20; SHA-256 in the S0 audit report. Any derived artifact (e.g. `synthtab-v1`) inherits NC and must be labeled here before registration. Media/annotations never committed. |
+| SynthTab Dev set (`SynthTab_Dev.zip`) | S2 bring-up audio slice | CC-BY-NC-4.0 | ✅ NC accepted | Same share and terms. |
+| `guitar_kroma.safetensors` | Program N candidate — CLOSED | MIT | ➖ closed 2026-07-20 | Near-duplicate of `guitar-gaps.pth` (N1 report); local converted copy only, never registered. |
+| MuScriptor-large weights | Program N second-line candidate | CC-BY-NC-4.0 | ⏸ not acquired | On hold pending S1 results (user, 2026-07-20). |
+
+DadaGP itself (request-gated, research terms) is **not** acquired; SynthTab's
+CC-BY-NC redistribution of the derived annotations is the licensing basis for
+Program S. This supersedes the open "Phase 7: verify DadaGP license for
+synthetic-data rendering" action item below for Program S purposes.
+
 ### Phase 7 integrated audit addendum (2026-07-16)
 
 Phase 7 introduced no dataset, runtime dependency, trained weight, or
