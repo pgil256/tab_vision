@@ -2750,3 +2750,38 @@ committed. MuScriptor probe explicitly held pending S1 results (user,
 per-string tab at 60k-track scale, domain-matched to the ambiguous-note
 problem), and the licensing basis is SynthTab's CC-BY-NC redistribution —
 no DadaGP request gate needed.
+
+---
+
+## 2026-07-20 — Program S1a: SynthTab-scale count priors CLOSED (bounded negative, both arms)
+
+**Phase:** SynthTab-scale program, Phase S1a
+**Decision tree:** plan S1a gate (CI-significant dev aggregate improvement +
+comp non-inferiority) over the two predeclared arms (swap, blend)
+**Branch taken:** Close the count-prior path. Built `synthtab-v1` /
+`synthtab-seq-v1` in the exact registered artifact class from the audited
+S0 substrate (acoustic: 9,317 tracks / 9.23M position events / 1.91M
+transitions; all-guitar: 34,621 / 34.06M / 7.91M — 54×/199× the gaps-v1
+substrate). On the 300-clip GuitarSet dev oracle probe (players 00–04,
+sequence weight 4.0, paired stratified 10k bootstrap): every swap is
+CI-significantly negative (st-acoustic −0.1941; st-all −0.1412; position
+alone −0.1809; sequence alone −0.0202) and every count blend is
+neutral-at-best (best cell seq-only λ=0.25 at +0.0002 [−0.0020, +0.0025]),
+with a monotone dose-response bracketing intermediate settings. This is the
+strongest-form replication of the A15/PDMX "domain match beats scale"
+result — now with domain-matched guitar tablature — so the excuse that PDMX
+was piano-skewed is retired. `guitarset-v1` + `guitarset-seq-v1` remain the
+clean-acoustic defaults; no artifact was registered; routing unchanged.
+Do not re-run count-prior variants without a materially new hypothesis.
+**Evidence:** `docs/EVAL_REPORTS/s1a_synthtab_priors_2026-07-20.md`
+(closure), `s1a_synthtab_prior_probe_2026-07-20.md` (+`.json`),
+`s1a_synthtab_blend_probe_2026-07-20.md` (+`.json`);
+`scripts/eval/build_synthtab_v1_prior.py`,
+`build_synthtab_blend_prior.py`, `s1a_synthtab_prior_probe.py`.
+**Reasoning:** the gate and both arms were predeclared; the negative is
+informative for S1b design (repertoire skew + notation-vs-performance
+position conventions are the surviving mismatch hypotheses, which a
+GuitarSet-finetuned contextual model — not raw counts — could in principle
+absorb). S1b entry remains a user decision; its prior probability is
+lowered by this result and should be weighed against the held MuScriptor
+probe and the untouched 6C side-information modes.
