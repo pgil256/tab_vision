@@ -32,6 +32,8 @@ const SECTIONS: { title: string; shortcuts: ShortcutRow[] }[] = [
       { keys: ['0-9'], description: 'Set fret number' },
       { keys: ['Shift', '↑'], description: 'Move to higher string (keep pitch)' },
       { keys: ['Shift', '↓'], description: 'Move to lower string (keep pitch)' },
+      { keys: ['C'], description: 'Cycle ranked alternative position' },
+      { keys: ['Shift', 'C'], description: 'Cycle alternative backwards' },
       { keys: ['X'], description: 'Mark as muted (X)' },
       { keys: ['Del'], description: 'Delete note' },
       { keys: ['I'], description: 'Insert note at playhead' },
@@ -39,6 +41,14 @@ const SECTIONS: { title: string; shortcuts: ShortcutRow[] }[] = [
       { keys: ['Esc'], description: 'Deselect note' },
       { keys: ['Ctrl', 'Z'], description: 'Undo' },
       { keys: ['Ctrl', 'Shift', 'Z'], description: 'Redo' },
+    ],
+  },
+  {
+    title: 'Review',
+    shortcuts: [
+      { keys: ['R'], description: 'Start / end low-confidence review' },
+      { keys: ['N'], description: 'Next note in review queue' },
+      { keys: ['P'], description: 'Previous note in review queue' },
     ],
   },
 ];

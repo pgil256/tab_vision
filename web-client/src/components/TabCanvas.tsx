@@ -40,6 +40,7 @@ const COLORS = {
   noteText: '#ffffff',
   noteTextDark: '#1a1a1a',
   beatLine: 'rgba(99, 102, 241, 0.06)',
+  reviewRing: '#38bdf8',
 };
 
 interface NoteHitbox {
@@ -73,6 +74,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     isFollowingPlayback,
     pendingFretInput,
     zoomLevel,
+    reviewActive,
+    reviewIds,
+    reviewIndex,
     selectNote,
     selectAdjacentNote,
     setCurrentTime,
@@ -83,6 +87,11 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     moveNoteString,
     deleteNote,
     insertNote,
+    startReview,
+    exitReview,
+    reviewNext,
+    reviewPrev,
+    cycleNoteCandidate,
     undo,
     redo,
     zoomIn,
@@ -287,6 +296,36 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         ctx.fill();
       }
 
+      // Review mode: dashed ring around every queued note so the user can see
+      // where the review will travel.
+      if (reviewActive && !isSelected && reviewIds.includes(note.id)) {
+        ctx.strokeStyle = COLORS.reviewRing;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.roundRect(x - NOTE_SIZE / 2 - 3, y - NOTE_SIZE / 2 - 3, NOTE_SIZE + 6, NOTE_SIZE + 6, 7);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Selected note with ranked alternatives: show "pos k/m" under the note
+      // so C-cycling has visible state.
+      if (isSelected && note.fret !== 'X' && (note.candidates?.length ?? 0) > 1) {
+        const candidates = note.candidates!;
+        const current = candidates.findIndex(
+          c => c.string === note.string && c.fret === note.fret
+        );
+        ctx.fillStyle = COLORS.reviewRing;
+        ctx.font = '600 9px "SF Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(
+          `${current === -1 ? '·' : current + 1}/${candidates.length}`,
+          x,
+          y + NOTE_SIZE / 2 + 3
+        );
+      }
+
       // Draw technique indicator
       if (note.fret !== 'X' && note.technique) {
         const technique = note.technique;
@@ -356,6 +395,8 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     hoveredNoteId,
     pendingFretInput,
     zoomLevel,
+    reviewActive,
+    reviewIds,
     timestampToX,
     stringToY,
     getNoteColor,
@@ -544,10 +585,45 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         return;
       }
 
-      // Escape
+      // Review mode (2026-07-20): R toggles, N/P step the queue, C cycles the
+      // selected note through its ranked pitch-preserving alternatives.
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        commitPendingEdit();
+        if (reviewActive) {
+          exitReview();
+        } else {
+          startReview();
+        }
+        return;
+      }
+      if ((e.key === 'c' || e.key === 'C') && selectedNoteId) {
+        e.preventDefault();
+        setPendingFretInput('');
+        cycleNoteCandidate(e.shiftKey ? -1 : 1);
+        return;
+      }
+      if ((e.key === 'n' || e.key === 'N') && reviewActive) {
+        e.preventDefault();
+        commitPendingEdit();
+        reviewNext();
+        return;
+      }
+      if ((e.key === 'p' || e.key === 'P') && reviewActive) {
+        e.preventDefault();
+        commitPendingEdit();
+        reviewPrev();
+        return;
+      }
+
+      // Escape — leaves review mode first, then clears selection.
       if (e.key === 'Escape') {
         e.preventDefault();
         setPendingFretInput('');
+        if (reviewActive) {
+          exitReview();
+          return;
+        }
         selectNote(null);
         return;
       }
@@ -617,6 +693,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     currentTime,
     selectedNoteId,
     pendingFretInput,
+    reviewActive,
     selectNote,
     selectAdjacentNote,
     setPendingFretInput,
@@ -625,11 +702,31 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     moveNoteString,
     deleteNote,
     insertNote,
+    startReview,
+    exitReview,
+    reviewNext,
+    reviewPrev,
+    cycleNoteCandidate,
     undo,
     redo,
     zoomIn,
     zoomOut,
   ]);
+
+  // Review mode: keep the note under review in view. Runs on queue-step (and
+  // on entering review); manual scrolling stays free between steps.
+  useEffect(() => {
+    if (!reviewActive || !selectedNoteId || !containerRef.current || !tabDocument) return;
+    const note = tabDocument.notes.find(n => n.id === selectedNoteId);
+    if (!note) return;
+    const container = containerRef.current;
+    const noteX = timestampToX(note.timestamp);
+    container.scrollTo({
+      left: Math.max(0, noteX - container.clientWidth / 2),
+      behavior: 'smooth',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviewActive, reviewIndex, selectedNoteId]);
 
   // Cleanup timeouts
   useEffect(() => {
@@ -643,11 +740,36 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     return null;
   }
 
+  const reviewNote =
+    reviewActive && selectedNoteId
+      ? tabDocument.notes.find(n => n.id === selectedNoteId)
+      : undefined;
+  const reviewAlternatives = reviewNote?.candidates?.length ?? 0;
+
   return (
     <div
       className="h-full flex flex-col"
       style={{ background: COLORS.background }}
     >
+      {reviewActive && (
+        <div
+          data-testid="review-banner"
+          className="flex items-center gap-3 px-3 py-1.5 text-xs font-medium"
+          style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8' }}
+        >
+          <span>
+            Review {Math.min(reviewIndex + 1, reviewIds.length)}/{reviewIds.length} — lowest-confidence notes
+          </span>
+          <span style={{ color: '#7dd3fc' }}>
+            {reviewAlternatives > 1
+              ? `C cycle position (${reviewAlternatives} options) · Shift+C back`
+              : 'no ranked alternatives for this note — edit directly or N to skip'}
+          </span>
+          <span className="ml-auto" style={{ color: '#7dd3fc' }}>
+            N next · P previous · R/Esc done
+          </span>
+        </div>
+      )}
       {/* Scrollable canvas */}
       <div
         ref={containerRef}

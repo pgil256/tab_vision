@@ -149,9 +149,15 @@ def test_v1_transcription_saves_frontend_document_and_uses_context(tmp_path):
 
 def test_v1_config_defaults_do_not_enable_basicpitch_fallback(monkeypatch):
     monkeypatch.delenv("TABVISION_FALLBACK_AUDIO_BACKEND", raising=False)
+    monkeypatch.delenv("TABVISION_AUDIO_BACKEND", raising=False)
 
-    assert V1PipelineConfig().fallback_audio_backend is None
-    assert V1PipelineConfig.from_env().fallback_audio_backend is None
+    # 2026-07-20: default backend is the auto tone toggle (clean acoustic →
+    # highres-ensemble); the default fallback is the single highres
+    # checkpoint. Neither default may ever silently degrade to basicpitch.
+    assert V1PipelineConfig().audio_backend == "auto"
+    assert V1PipelineConfig().fallback_audio_backend == "highres"
+    assert V1PipelineConfig.from_env().audio_backend == "auto"
+    assert V1PipelineConfig.from_env().fallback_audio_backend == "highres"
 
 
 def test_v1_config_defaults_all_learned_evidence_to_auto(monkeypatch):
@@ -416,3 +422,77 @@ def test_v1_transcription_falls_back_to_basicpitch_when_highres_fails(tmp_path):
     assert (
         "highres unavailable" in document["metadata"]["diagnostics"]["fallbackReason"]
     )
+
+
+def test_note_candidates_computed_and_serialized_for_review_ui():
+    """2026-07-20 assisted program: ranked pitch-preserving alternatives ride
+    along on each note (client string convention), computed from the real
+    analysis decode over the pipeline's retained audio events."""
+    from app.v1_adapter import _compute_note_candidates, _ensure_v1_on_path
+
+    _ensure_v1_on_path()
+    from tabvision.fusion import fuse
+    from tabvision.types import AudioEvent, GuitarConfig, SessionConfig
+
+    events = [
+        AudioEvent(
+            onset_s=0.5 * i,
+            offset_s=0.5 * i + 0.4,
+            pitch_midi=pitch,
+            velocity=0.8,
+            confidence=0.9,
+        )
+        for i, pitch in enumerate([64, 67, 69])
+    ]
+    tab_events = fuse(events, [], GuitarConfig(), SessionConfig(), lambda_vision=0.0)
+    result = SimpleNamespace(
+        tab_events=tuple(tab_events),
+        audio_events=tuple(events),
+        policy=SimpleNamespace(resolved_sequence_prior="none"),
+    )
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+
+    candidates = _compute_note_candidates(result, job)
+
+    assert candidates is not None
+    assert len(candidates) == len(tab_events)
+    document = tab_events_to_tab_document(
+        job,
+        tab_events,
+        V1PipelineConfig(audio_backend="highres"),
+        note_candidates=candidates,
+    )
+    for note in document["notes"]:
+        assert note["candidates"], "each ambiguous note should carry alternatives"
+        assert {"string": note["string"], "fret": note["fret"]} in note["candidates"]
+        for cand in note["candidates"]:
+            assert 1 <= cand["string"] <= 6
+            assert cand["fret"] >= 0
+    assert document["metadata"]["assistCandidateNotes"] == len(document["notes"])
+
+
+def test_note_candidates_degrade_to_none_on_legacy_results():
+    from app.v1_adapter import _compute_note_candidates
+
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    legacy = [
+        _TabEvent(
+            onset_s=0.0,
+            duration_s=0.4,
+            string_idx=4,
+            fret=3,
+            pitch_midi=62,
+            confidence=0.8,
+        )
+    ]
+
+    assert _compute_note_candidates(legacy, job) is None
+
+    document = tab_events_to_tab_document(
+        job,
+        legacy,
+        V1PipelineConfig(audio_backend="highres"),
+        note_candidates=None,
+    )
+    assert "candidates" not in document["notes"][0]
+    assert document["metadata"]["assistCandidateNotes"] == 0

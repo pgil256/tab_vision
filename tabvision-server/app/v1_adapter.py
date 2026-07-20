@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 class V1PipelineConfig:
     """Runtime-selectable v1 pipeline settings."""
 
-    audio_backend: str = "highres"
-    fallback_audio_backend: str | None = None
+    # "auto" follows tabvision.pipeline.audio_backend_for_session: clean
+    # acoustic → highres-ensemble (promoted 2026-07-20), electric →
+    # highres-electric, else highres.
+    audio_backend: str = "auto"
+    fallback_audio_backend: str | None = "highres"
     position_prior: str | None = "auto"
     sequence_prior: str | None = "auto"
     string_evidence: str | None = "auto"
@@ -34,11 +37,11 @@ class V1PipelineConfig:
     @classmethod
     def from_env(cls) -> "V1PipelineConfig":
         return cls(
-            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "highres")
+            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "auto")
             .strip()
             .lower(),
             fallback_audio_backend=_optional_env(
-                "TABVISION_FALLBACK_AUDIO_BACKEND", None
+                "TABVISION_FALLBACK_AUDIO_BACKEND", "highres"
             ),
             position_prior=_policy_env("TABVISION_POSITION_PRIOR", "auto"),
             sequence_prior=_policy_env("TABVISION_SEQUENCE_PRIOR", "auto"),
@@ -131,6 +134,7 @@ def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
         config.assignment_decoder if config.assignment_decoder is not None else "auto"
     )
     return {
+        "resolvedAudioBackend": config.audio_backend,
         "requestedPositionPrior": requested_position,
         "resolvedPositionPrior": requested_position,
         "requestedSequencePrior": requested_sequence,
@@ -147,6 +151,49 @@ def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
     }
 
 
+def _compute_note_candidates(
+    pipeline_result: Any,
+    job: Job,
+) -> list[list[dict[str, Any]] | None] | None:
+    """Ranked pitch-preserving alternatives per note, in onset-sorted order.
+
+    Advisory metadata for the review UI (2026-07-20 assisted program). Any
+    failure — legacy runner results without audio events, import problems,
+    decode misalignment — degrades to ``None``; it must never break a job.
+    """
+    tab_events = getattr(pipeline_result, "tab_events", None)
+    audio_events = getattr(pipeline_result, "audio_events", None)
+    policy = getattr(pipeline_result, "policy", None)
+    if not tab_events or audio_events is None or policy is None:
+        return None
+    try:
+        _ensure_v1_on_path()
+        from tabvision.assist import compute_note_candidates
+        from tabvision.types import GuitarConfig
+
+        sorted_events = sorted(tab_events, key=lambda event: event.onset_s)
+        ranked = compute_note_candidates(
+            sorted_events,
+            audio_events,
+            cfg=GuitarConfig(capo=job.capo_fret),
+            sequence_prior=policy.resolved_sequence_prior,
+        )
+        return [
+            (
+                [
+                    {"string": 6 - cand.string_idx, "fret": int(cand.fret)}
+                    for cand in candidates
+                ]
+                if candidates
+                else None
+            )
+            for candidates in ranked
+        ]
+    except Exception:  # noqa: BLE001 — advisory metadata must never fail a job
+        logger.exception("assist candidate computation failed; continuing without")
+        return None
+
+
 def _unpack_pipeline_result(
     result: Any,
     config: V1PipelineConfig,
@@ -158,6 +205,8 @@ def _unpack_pipeline_result(
     policy = result.policy
     artifacts = tuple(getattr(policy, "artifacts", ()))
     metadata = {
+        "resolvedAudioBackend": getattr(result, "resolved_audio_backend", "")
+        or config.audio_backend,
         "requestedPositionPrior": policy.requested_position_prior,
         "resolvedPositionPrior": policy.resolved_position_prior,
         "requestedSequencePrior": policy.requested_sequence_prior,
@@ -180,8 +229,14 @@ def tab_events_to_tab_document(
     *,
     diagnostics: dict[str, Any] | None = None,
     inference_policy: dict[str, Any] | None = None,
+    note_candidates: list[list[dict[str, Any]] | None] | None = None,
 ) -> dict[str, Any]:
-    """Convert v1 TabEvents to the existing frontend TabDocument JSON."""
+    """Convert v1 TabEvents to the existing frontend TabDocument JSON.
+
+    ``note_candidates``, when given, is aligned to the onset-sorted note order
+    (the same sort applied here) and carries each note's ranked
+    pitch-preserving alternatives for the review UI.
+    """
     event_list = sorted(list(events), key=lambda event: event.onset_s)
     notes_data: list[dict[str, Any]] = []
 
@@ -202,12 +257,15 @@ def tab_events_to_tab_document(
             "confidenceLevel": _confidence_level(confidence),
             "isEdited": False,
         }
+        if note_candidates and index < len(note_candidates) and note_candidates[index]:
+            note["candidates"] = note_candidates[index]
         techniques = tuple(getattr(event, "techniques", ()) or ())
         if techniques:
             note["technique"] = techniques[0]
         notes_data.append(note)
 
     total_notes = len(notes_data)
+    candidate_notes = sum(1 for note in notes_data if note.get("candidates"))
     high_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "high")
     med_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "medium")
     low_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "low")
@@ -239,12 +297,13 @@ def tab_events_to_tab_document(
                 else 0
             ),
             "pipelineVersion": "v1",
-            "audioBackend": config.audio_backend,
+            "audioBackend": policy.get("resolvedAudioBackend") or config.audio_backend,
             "positionPrior": policy["resolvedPositionPrior"],
             **policy,
             "videoEnabled": config.video_enabled,
             "accuracyMode": config.accuracy_mode,
             "noteCountRatio": None,
+            "assistCandidateNotes": candidate_notes,
             "diagnostics": merged_diagnostics,
         },
     }
@@ -323,6 +382,7 @@ def run_v1_transcription(
     events, inference_policy = _unpack_pipeline_result(
         pipeline_result, effective_config
     )
+    note_candidates = _compute_note_candidates(pipeline_result, job)
 
     tab_document = tab_events_to_tab_document(
         job,
@@ -330,6 +390,7 @@ def run_v1_transcription(
         effective_config,
         diagnostics=diagnostics,
         inference_policy=inference_policy,
+        note_candidates=note_candidates,
     )
 
     os.makedirs(output_dir, exist_ok=True)
