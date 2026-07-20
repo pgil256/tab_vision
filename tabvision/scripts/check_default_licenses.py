@@ -42,6 +42,14 @@ BLOCKED_DEFAULT_PACKAGES = {
 # LICENSES.md ✅ rows. Keep this in sync with LICENSES.md.
 PERMISSIVE_DEFAULT_ARTIFACTS = {
     "highres": ("xavriley/midi-transcription-models:guitar-gaps.pth", "MIT"),
+    # Promoted to the clean-acoustic auto default 2026-07-20 (personal-use
+    # posture; DECISIONS.md). Loads both MIT checkpoints plus the in-repo
+    # calibration artifact.
+    "highres-ensemble": (
+        "xavriley/midi-transcription-models:{guitar-gaps.pth,guitar-fl.pth}"
+        " + tabvision/audio/ensemble_v1.json",
+        "MIT (checkpoints) + repo license (calibration artifact)",
+    ),
     "guitarset-v1": (
         "tabvision/fusion/priors/guitarset_v1.json",
         "CC-BY-4.0 (derived count statistics, attribution in LICENSES.md)",
@@ -50,13 +58,25 @@ PERMISSIVE_DEFAULT_ARTIFACTS = {
         "tabvision/fusion/priors/guitarset_seq_v1.json",
         "CC-BY-4.0 (derived count statistics, attribution in LICENSES.md)",
     ),
+    # Classical-route priors derived from the GAPS train split. NC-SA under the
+    # amended 2026-07-20 posture (LICENSES.md labels them; personal
+    # non-commercial use only).
+    "gaps-v1": (
+        "tabvision/fusion/priors/gaps_v1.json",
+        "CC-BY-NC-SA-4.0 (derived count statistics; NC-labeled in LICENSES.md)",
+    ),
+    "gaps-seq-v1": (
+        "tabvision/fusion/priors/gaps_seq_v1.json",
+        "CC-BY-NC-SA-4.0 (derived count statistics; NC-labeled in LICENSES.md)",
+    ),
     "none": ("(no artifact)", "n/a"),
 }
 
 # Artifact keys that must NEVER be the default (they exist for opt-in / v2 use).
+# 2026-07-20: guitar-fl.pth removed — the ensemble default loads it (MIT; the
+# old block was a scope rule from before the ensemble promotion).
 BLOCKED_DEFAULT_ARTIFACTS = {
     "highres-electric": "electric checkpoint is v2 / opt-in, not the acoustic default",
-    "guitar-fl.pth": "electric/jazz checkpoint — not the acoustic default",
     "ultralytics": "AGPL-3.0 YOLO detector — vision extra only, never default",
 }
 
@@ -136,9 +156,16 @@ def _resolve_default_artifacts() -> list[tuple[str, str]]:
 
     backend = ns.audio_backend
     if backend == "auto":
-        # Tone toggle: electric routes to the electric checkpoint; the default
-        # instrument is acoustic → highres.
-        backend = "highres-electric" if ns.instrument == "electric" else "highres"
+        # Mirror of tabvision.pipeline.audio_backend_for_session (kept inline
+        # so this check stays torch-free): electric → electric checkpoint;
+        # clean acoustic → the promoted GAPS+FL ensemble (2026-07-20);
+        # else → single-checkpoint highres.
+        if ns.instrument == "electric":
+            backend = "highres-electric"
+        elif ns.instrument == "acoustic" and ns.tone == "clean":
+            backend = "highres-ensemble"
+        else:
+            backend = "highres"
 
     policy = resolve_inference_policy(
         requested_position_prior=ns.position_prior,

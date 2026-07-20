@@ -149,9 +149,15 @@ def test_v1_transcription_saves_frontend_document_and_uses_context(tmp_path):
 
 def test_v1_config_defaults_do_not_enable_basicpitch_fallback(monkeypatch):
     monkeypatch.delenv("TABVISION_FALLBACK_AUDIO_BACKEND", raising=False)
+    monkeypatch.delenv("TABVISION_AUDIO_BACKEND", raising=False)
 
-    assert V1PipelineConfig().fallback_audio_backend is None
-    assert V1PipelineConfig.from_env().fallback_audio_backend is None
+    # 2026-07-20: default backend is the auto tone toggle (clean acoustic →
+    # highres-ensemble); the default fallback is the single highres
+    # checkpoint. Neither default may ever silently degrade to basicpitch.
+    assert V1PipelineConfig().audio_backend == "auto"
+    assert V1PipelineConfig().fallback_audio_backend == "highres"
+    assert V1PipelineConfig.from_env().audio_backend == "auto"
+    assert V1PipelineConfig.from_env().fallback_audio_backend == "highres"
 
 
 def test_v1_config_defaults_all_learned_evidence_to_auto(monkeypatch):
@@ -159,17 +165,21 @@ def test_v1_config_defaults_all_learned_evidence_to_auto(monkeypatch):
         "TABVISION_POSITION_PRIOR",
         "TABVISION_SEQUENCE_PRIOR",
         "TABVISION_STRING_EVIDENCE",
+        "TABVISION_ASSIGNMENT_DECODER",
     ):
         monkeypatch.delenv(name, raising=False)
     config = V1PipelineConfig.from_env()
     assert config.position_prior == "auto"
     assert config.sequence_prior == "auto"
     assert config.string_evidence == "auto"
+    assert config.assignment_decoder == "auto"
 
 
 def test_detailed_pipeline_result_writes_resolved_artifact_metadata(tmp_path):
     job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
-    artifact = SimpleNamespace(name="guitarset-v1", version="guitarset-v1", sha256="abc123")
+    artifact = SimpleNamespace(
+        name="guitarset-v1", version="guitarset-v1", sha256="abc123"
+    )
     policy = SimpleNamespace(
         requested_position_prior="auto",
         resolved_position_prior="guitarset-v1",
@@ -177,6 +187,9 @@ def test_detailed_pipeline_result_writes_resolved_artifact_metadata(tmp_path):
         resolved_sequence_prior="guitarset-seq-v1",
         requested_string_evidence="auto",
         resolved_string_evidence="none",
+        requested_assignment_decoder="auto",
+        resolved_assignment_decoder="baseline",
+        assignment_decoder_reason="segment-v1 has not passed the automatic promotion gate",
         artifacts=(artifact,),
     )
 
@@ -206,6 +219,8 @@ def test_detailed_pipeline_result_writes_resolved_artifact_metadata(tmp_path):
     assert metadata["requestedPositionPrior"] == "auto"
     assert metadata["resolvedPositionPrior"] == "guitarset-v1"
     assert metadata["resolvedStringEvidence"] == "none"
+    assert metadata["requestedAssignmentDecoder"] == "auto"
+    assert metadata["resolvedAssignmentDecoder"] == "baseline"
     assert metadata["artifactVersions"] == {"guitarset-v1": "guitarset-v1"}
     assert metadata["artifactSha256"] == {"guitarset-v1": "abc123"}
 
@@ -263,7 +278,9 @@ def test_process_v1_job_persists_real_pipeline_stages(tmp_path):
             )
         ]
 
-    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+    process_v1_job(
+        job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner
+    )
 
     assert job.status == "completed"
     assert job.video_enabled is False
@@ -292,7 +309,9 @@ def test_process_v1_job_ignores_unknown_pipeline_stages(tmp_path):
         kwargs["progress_callback"]("some_future_stage")
         return []
 
-    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+    process_v1_job(
+        job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner
+    )
 
     assert job.status == "completed"
     assert "some_future_stage" not in [stage for _s, stage, _p in storage.history]
@@ -308,7 +327,9 @@ def test_process_v1_job_maps_failure_to_short_message(tmp_path):
     def fake_runner(video_path, **kwargs):
         raise RuntimeError("ffmpeg not on PATH; required by tabvision.demux")
 
-    process_v1_job(job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner)
+    process_v1_job(
+        job, storage, str(tmp_path), config=config, pipeline_runner=fake_runner
+    )
 
     assert job.status == "failed"
     assert "ffmpeg" in job.error_message
@@ -320,19 +341,32 @@ def test_process_v1_job_maps_failure_to_short_message(tmp_path):
 @pytest.mark.parametrize(
     ("exc", "needle"),
     [
-        (RuntimeError("ffmpeg not on PATH; required by tabvision.demux"), "audio toolkit"),
-        (RuntimeError("ffprobe not on PATH; required by tabvision.demux"), "audio toolkit"),
+        (
+            RuntimeError("ffmpeg not on PATH; required by tabvision.demux"),
+            "audio toolkit",
+        ),
+        (
+            RuntimeError("ffprobe not on PATH; required by tabvision.demux"),
+            "audio toolkit",
+        ),
         (RuntimeError("ffmpeg returned empty audio stream"), "No audio"),
         (
-            RuntimeError("ffmpeg audio decode failed: Output file #0 does not contain any stream"),
+            RuntimeError(
+                "ffmpeg audio decode failed: Output file #0 does not contain any stream"
+            ),
             "No audio",
         ),
-        (RuntimeError("ffmpeg audio decode failed: Invalid data found"), "format or codec"),
+        (
+            RuntimeError("ffmpeg audio decode failed: Invalid data found"),
+            "format or codec",
+        ),
         (RuntimeError("ffprobe failed: moov atom not found"), "format or codec"),
         (RuntimeError("video file not found: /tmp/gone.mp4"), "upload it again"),
         (FileNotFoundError("/tmp/gone.mp4"), "upload it again"),
         (
-            ConnectionError("HTTPSConnectionPool(host='huggingface.co'): Max retries exceeded"),
+            ConnectionError(
+                "HTTPSConnectionPool(host='huggingface.co'): Max retries exceeded"
+            ),
             "could not be downloaded",
         ),
         (RuntimeError("getaddrinfo failed"), "could not be downloaded"),
@@ -385,4 +419,80 @@ def test_v1_transcription_falls_back_to_basicpitch_when_highres_fails(tmp_path):
     assert calls == ["highres", "basicpitch"]
     assert document["metadata"]["audioBackend"] == "basicpitch"
     assert document["metadata"]["diagnostics"]["fallbackUsed"] is True
-    assert "highres unavailable" in document["metadata"]["diagnostics"]["fallbackReason"]
+    assert (
+        "highres unavailable" in document["metadata"]["diagnostics"]["fallbackReason"]
+    )
+
+
+def test_note_candidates_computed_and_serialized_for_review_ui():
+    """2026-07-20 assisted program: ranked pitch-preserving alternatives ride
+    along on each note (client string convention), computed from the real
+    analysis decode over the pipeline's retained audio events."""
+    from app.v1_adapter import _compute_note_candidates, _ensure_v1_on_path
+
+    _ensure_v1_on_path()
+    from tabvision.fusion import fuse
+    from tabvision.types import AudioEvent, GuitarConfig, SessionConfig
+
+    events = [
+        AudioEvent(
+            onset_s=0.5 * i,
+            offset_s=0.5 * i + 0.4,
+            pitch_midi=pitch,
+            velocity=0.8,
+            confidence=0.9,
+        )
+        for i, pitch in enumerate([64, 67, 69])
+    ]
+    tab_events = fuse(events, [], GuitarConfig(), SessionConfig(), lambda_vision=0.0)
+    result = SimpleNamespace(
+        tab_events=tuple(tab_events),
+        audio_events=tuple(events),
+        policy=SimpleNamespace(resolved_sequence_prior="none"),
+    )
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+
+    candidates = _compute_note_candidates(result, job)
+
+    assert candidates is not None
+    assert len(candidates) == len(tab_events)
+    document = tab_events_to_tab_document(
+        job,
+        tab_events,
+        V1PipelineConfig(audio_backend="highres"),
+        note_candidates=candidates,
+    )
+    for note in document["notes"]:
+        assert note["candidates"], "each ambiguous note should carry alternatives"
+        assert {"string": note["string"], "fret": note["fret"]} in note["candidates"]
+        for cand in note["candidates"]:
+            assert 1 <= cand["string"] <= 6
+            assert cand["fret"] >= 0
+    assert document["metadata"]["assistCandidateNotes"] == len(document["notes"])
+
+
+def test_note_candidates_degrade_to_none_on_legacy_results():
+    from app.v1_adapter import _compute_note_candidates
+
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+    legacy = [
+        _TabEvent(
+            onset_s=0.0,
+            duration_s=0.4,
+            string_idx=4,
+            fret=3,
+            pitch_midi=62,
+            confidence=0.8,
+        )
+    ]
+
+    assert _compute_note_candidates(legacy, job) is None
+
+    document = tab_events_to_tab_document(
+        job,
+        legacy,
+        V1PipelineConfig(audio_backend="highres"),
+        note_candidates=None,
+    )
+    assert "candidates" not in document["notes"][0]
+    assert document["metadata"]["assistCandidateNotes"] == 0

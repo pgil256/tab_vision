@@ -2235,3 +2235,415 @@ accuracy objective is complete. No paid training was used; the `$25` training
 budget remains unspent.
 **Evidence:**
 `docs/EVAL_REPORTS/string_assignment_phase4_verification_2026-07-14.md`.
+
+---
+
+## 2026-07-15 - sequential Tab F1 Phase 0 passes with strong segment signal
+
+**Phase:** Tab F1 accuracy sequential program, Phase 0.
+**Decision tree:** Freeze the production-equivalent benchmark and diagnostic
+ceilings before changing fusion. Later work is blocked unless the baseline
+reproduces within `1e-4`; the segment branch passes when the cluster-safe
+four-second joint `(string offset, fret zone)` oracle improves ambiguous-note
+accuracy by at least `+0.10`.
+**Branch taken:** **Pass Phase 0 and stop for the user's explicit `proceed` before
+Phase 1.** Do not change fusion or production routing in this phase. The frozen
+baseline reproduced exactly at macro Tab F1 `0.6126` (solo `0.5418`, comp
+`0.6834`; micro `0.6279`), ambiguous top-1 `0.6770`, and top-3 `0.9986`.
+The four-second joint oracle reached ambiguous accuracy `0.8217` (`+0.1446`)
+and macro Tab F1 `0.7570` (`+0.1444`); the cluster-safe four-second offset-only
+ceiling was `0.8249` / Tab F1 `0.7508`. This is the plan's **strong segment
+signal** branch, so Phase 1 should implement the bounded segment decoder after
+authorization rather than skip to Phase 2.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase0_2026-07-15.md`, its deterministic
+summary CSV, and provenance JSON. The ignored stable note table is reproducible
+from all 360 hash-identified GuitarSet tracks and the 360-entry high-resolution
+event cache. Provenance records clean source commit `7890026`, exact commands,
+package versions, cache/artifact/output hashes, `203.46 s` wall time, and
+`398,721,024` peak process bytes. Verification before the frozen run: `765`
+tests passed / `12` skipped; repository-wide Ruff lint and format passed; mypy
+passed for `67` source files.
+**Reasoning:** The baseline and provenance gates are satisfied, and the measured
+four-second lift is comfortably above the predeclared threshold. The signal is
+diagnostic rather than shippable because gold labels select each state, but it
+supports the next bounded hypothesis: a gold-free latent hand-position decoder
+over existing pitch-preserving candidates. Phase discipline remains binding;
+no Phase 1 implementation starts without a new explicit `proceed`.
+
+## 2026-07-15 - sequential Tab F1 Phase 1 closes rule-based segment decoding
+
+**Phase:** Tab F1 accuracy sequential program, Phase 1.
+**Decision tree:** Promote only at `+0.02` aggregate and `+0.03` solo Tab F1
+with positive paired confidence, at least 10% fewer same-pitch position errors,
+comp non-inferiority, unchanged event metrics, and bounded CPU. Bank for Phase
+2 composition only at OOF aggregate `>= +0.01` with no player below `-0.02`.
+Close when OOF aggregate is below `+0.01` or two folds regress below `-0.02`.
+**Branch taken:** **Close rule-based segment decoding.** The fixed 11-point OOF
+grid selected `prior_0p5` inside the hard comp non-inferiority set, but its OOF
+aggregate lift was only `+0.0004` (`0.5581 -> 0.5585`, paired 95% CI
+`[-0.0005, +0.0014]`). Solo moved `+0.0009`; comp moved `-0.0001`; the worst
+player moved `-0.0007`; wrong-position rate changed `0.3452 -> 0.3449`.
+Player 05, opened only after the configuration froze, moved aggregate Tab F1
+`0.6126 -> 0.6143` (`+0.0017`), solo `0.5418 -> 0.5453` (`+0.0035`), comp
+was unchanged at `0.6834`, and wrong-position rate changed `0.3230 -> 0.3220`
+(`0.3%` relative reduction). These results are far below both promotion and
+banking thresholds despite the strong Phase 0 gold oracle.
+**Integration:** Preserve `segment-v1` as an explicit, reproducible comparison
+decoder with the frozen `prior_weight=0.5`, but keep production `auto` resolved
+to `baseline`. Classical, electric, distorted, capo, and alternate-tuning
+sessions resolve to baseline before fusion. No repeat-consistency term shipped;
+no learned artifact or new dependency was added. The additive API metadata
+records requested/resolved decoder and reason, and request-local selection does
+not share mutable state.
+**Runtime and invariants:** Baseline versus production-top-1 decoding over
+`1828.1 s` of player-05 audio took `4.026 s` versus `26.385 s`, adding an
+extrapolated `0.734 s` per 60-second clip and projecting `45.73 s` total, below
+both runtime limits. Onset F1 `0.9302` and pitch F1 `0.9154` are unchanged;
+pitch equivalence, chord constraints, domain routing, K-best ordering, and
+concurrent policy isolation are covered by tests. The deterministic player-05
+prediction hash is
+`9788d929bea9a7ca414050f8de10370a352d4fe848ed8baedb053f66cdb5d7ef`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase1_2026-07-15.md`, its fixed-grid and
+diagnostic summary CSVs, and provenance JSON. The ignored row-level note table
+is reproducible from the hash-identified 360-track GuitarSet cache. The clean
+benchmark source was commit `a3d3ff7`; total wall time was `1116.17 s`, peak
+working set was `246,927,360` bytes, and the exact top-1 rerun hash matched.
+Per phase discipline, Phase 2 does not start without a new explicit `proceed`.
+
+## 2026-07-15 - sequential Tab F1 Phase 2 closes symbolic context expansion
+
+**Phase:** Tab F1 accuracy sequential program, Phase 2.
+**Decision tree:** Promote only when the cumulative automatic gate passes and
+at least four of five player folds improve. Preserve an offline diagnostic when
+ambiguous top-1 gains at least `+0.03` but release gates fail. Close symbolic
+context when its OOF ambiguous top-1 gain is below `+0.02`, without increasing
+model size or beginning an open-ended architecture search.
+**Branch taken:** **Close symbolic-context expansion.** The fixed two-layer,
+64-wide contextual encoder plus the Phase 1 segment decoder was the best of the
+four predeclared compositions, but OOF macro Tab F1 moved only `0.5581 ->
+0.5617` (`+0.0036`, paired 95% CI `[+0.0018, +0.0055]`) and ambiguous top-1
+moved only `+0.0056`. Wrong-position errors fell `1.7%` relatively, far below
+the 10% gate. Player deltas were `+0.0051`, `-0.0014`, `+0.0012`, `+0.0133`,
+and `+0.00005`; four of five folds were therefore technically positive, but
+that fold-count gate could not rescue the failed accuracy and error-reduction
+thresholds. The masked linear control reached macro Tab F1 `0.5619` and
+ambiguous top-1 `+0.0062`, so the contextual encoder did not add value beyond
+deterministic features.
+Ambiguity in this phase means at least two physically playable,
+pitch-preserving candidates, applied identically to baseline and candidates.
+**Confirmation:** After the OOF decision and median five-epoch final schedule
+froze, player 05 moved aggregate Tab F1 `0.6126 -> 0.6152`, solo `0.5418 ->
+0.5453`, comp `0.6834 -> 0.6850`, and ambiguous top-1 `0.6809 -> 0.6840`.
+This historical confirmation result does not override the failed development
+gate and was not used for tuning.
+**Integration:** Preserve the 82,561-parameter TorchScript model and manifest
+as an unregistered diagnostic artifact. `context-v1`, including missing,
+corrupt, unregistered, incompatible, classical, electric, distorted, capo, or
+alternate-tuning requests, resolves safely to `baseline`; `auto` remains the
+production baseline. Candidate masks are regenerated from MIDI pitch, uniform
+context evidence is neutral, and the immutable `fuse(...)` and §8 contracts are
+unchanged. PDMX pretraining did not run because the GuitarSet-only aggregate
+gain was below its `+0.015` trigger.
+**Runtime and reproducibility:** Context evaluation added `0.520 s` per 60 s
+and projects `45.52 s` total pipeline time. The player-05 prediction and rerun
+hashes matched at
+`d3ab8c8a96302e6e978374815c5e6a4caf3dcb3b50fa1ffde04a03565ef84109`.
+Training used CPU-only deterministic PyTorch, five player-held-out folds,
+inverse joint-frequency weighting, and early stopping on held-out macro Tab
+F1. Onset F1 `0.9302` and pitch F1 `0.9154` remain unchanged.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase2_2026-07-15.md`, the OOF checkpoint,
+metrics/error CSVs, training history, run provenance JSON, unregistered
+TorchScript artifact, and hash-verified manifest. Per phase discipline, Phase
+3 does not start without a new explicit `proceed` after this report is checked
+in.
+
+## 2026-07-15 - sequential Tab F1 Phase 3 registers an explicit checkpoint ensemble and closes posterior lattices
+
+**Phase:** Tab F1 accuracy sequential program, Phase 3.
+**Posterior branch:** Real 100 Hz onset, frame, offset, and velocity matrices
+are now exposed as a side channel and cached with version, shape, source,
+checkpoint, demux, FFmpeg, and package provenance. The fixed posterior-lattice
+gate failed: top-2 raw posterior choices contained the reference for `30.8%`
+of current pitch-off/missed errors, but the bounded eligible lattice recovered
+only `2.5%` while adding `6.45` false candidates per ten correct events. Do not
+build or enlarge a posterior lattice from this signal.
+**Checkpoint branch:** Five player-held-out development folds selected the
+predeclared `confidence_winner` condition. Macro Tab F1 moved `0.5581 ->
+0.6017` (`+0.0436`, paired 95% CI `[+0.0376, +0.0497]`); onset F1 moved
+`0.8838 -> 0.9187`, pitch F1 `0.8476 -> 0.8956`, and every player improved
+(worst `+0.0246`). The frozen player-05 confirmation moved aggregate Tab F1
+`0.6126 -> 0.6339` (`+0.0213`, CI `[+0.0104, +0.0342]`), solo `+0.0085`,
+comp `+0.0341`, onset `0.9320 -> 0.9491`, and pitch `0.9169 -> 0.9403`.
+No player-05 result changed the selector, threshold, or calibrators.
+**Integration decision:** Register the two-checkpoint artifact and
+`highres-ensemble` as an explicit clean-acoustic evaluation backend, preserving
+agreed GAPS events and using the frozen scalar posterior calibrators only for
+disagreements. Keep automatic audio routing on `highres`: the broader automatic
+guardrails fail because confirmation solo lift is below `+0.03` and ambiguous
+same-pitch wrong-position reduction is only `5.3%`, below `10%`. GAPS classical
+and Guitar-TECHS electric safety routes therefore have exactly zero Phase 3
+delta. Explicit non-clean/non-acoustic use deterministically falls back to GAPS.
+Phase 7 owns any later automatic integrated rollout.
+**Runtime and safety:** Checkpoints load sequentially and release GAPS before
+FL, after an attempted parallel cache fill demonstrated unacceptable memory
+pressure. Two isolated 60-second end-to-end CPU runs took `59.108 s` and
+`64.213 s`, peaked at about `2.06 GB`, and produced the identical output hash
+`1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3`.
+The calibration artifact is `1,166` bytes. No SPEC §8 or `fuse(...)` contract
+changed and no paid training or new shipping dependency was introduced.
+**Verification and evidence:** The v1 suite passed `818` tests with `12`
+skipped; the frozen server suite passed `296` with `3` skipped; Ruff lint and
+format passed; mypy passed `72` source files. Evidence is in
+`docs/EVAL_REPORTS/string_assignment_phase3_2026-07-15.md`, its condition and
+error CSVs, provenance JSON, and benchmark JSON. Per phase discipline, Phase 4
+does not start without a new explicit `proceed`.
+
+## 2026-07-16 - sequential Tab F1 Phase 4 closes the native-rate compact timbral path
+
+**Phase:** Tab F1 accuracy sequential program, Phase 4.
+**Fixed gate:** Continue from the free signal probe only if a player-held-out
+regularized linear adjacent-string classifier improves ambiguous-note top-1 by
+at least `+0.05` over the production-equivalent prior and no player fold
+regresses by more than `0.03`. A passing probe would reach a separate explicit
+cost/license approval gate before any GPU training.
+**Method:** The probe used 35,959 frozen production-equivalent OOF
+pitch-correct events from GuitarSet players 00-04 and constructed 56,742
+physically adjacent gold-vs-alternative pairs from the hex-derived per-string
+JAMS labels. It extracted deterministic 64 ms pre-onset + 448 ms post-onset
+descriptors from the original 44.1 kHz microphone waveform: multi-resolution
+harmonic envelopes through Nyquist, pick-noise/centroid/rolloff, decay,
+inharmonicity, and separately retained raw RMS/spectral slopes. Five
+class-balanced L2-linear pair models were trained in five player-held folds;
+their log-odds were added to a player-held OOF position prior at the fixed
+weight `1.0`. No regularization, temperature, threshold, or fusion-weight grid
+was run.
+**Result and branch:** The production comparator scored ambiguous top-1
+`0.6548`. Native audio alone scored `0.6503`; position plus native audio scored
+`0.6621`, only `+0.0072` (clip-stratified 95% interval `[-0.0152, +0.0291]`).
+Player deltas were `-0.0315`, `+0.0478`, `+0.0420`, `-0.0275`, and `+0.0085`.
+The aggregate lift missed the `+0.05` gate and player 00 narrowly exceeded the
+allowed regression. **Close the compact high-frequency timbral path.** Do not
+train the under-one-million-parameter CNN, request GPU approval, enlarge the
+window/model, tune on the failure set, or open player 05.
+**Safety and reproducibility:** No artifact was registered and no runtime code
+was integrated, so shipping artifact size and added inference time are zero;
+onset/pitch events and every automatic clean-acoustic, GAPS classical,
+Guitar-TECHS electric, distorted, capo, alternate-tuning, and non-highres route
+remain unchanged. An uncached extraction took `240.485 s` over `9,140.36 s` of
+audio (`1.579 s` per source minute); two complete OOF fits took `9.227 s` and
+peaked at `1,181,988,272` bytes. The repeated prediction hash matched at
+`a8fb946ebdf06f7a2f73c543dadd92dfd8c39152434b14ca83d7242a857b57a10`.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase4_2026-07-16.md`, condition/fold/pair
+and grouped-error CSVs, and the source/data/model/cache-hashed provenance JSON.
+Per phase discipline, Phase 5 does not start without a new explicit `proceed`.
+
+## 2026-07-16 - Phase 5 direct per-string model fails the gold-pitch gate
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 5.
+**Decision tree:** Open real-event integration only if an original six-string
+model exceeds the best contextual/timbral ambiguous-note top-1 by at least
+`+0.05` under player-held-out OOF evaluation.
+**Branch taken:** Close the direct-model branch. Do not open player 05, perform
+real-event integration, enlarge or retrain the fixed architecture, register a
+weight, or replace the accepted high-resolution backend.
+**Data/license decision:** GuitarSet players 00-04 were the sole training and
+development core under CC-BY-4.0. Guitar-TECHS stayed separate for electric
+work. GOAT was excluded because the official material inspected did not expose
+a dataset download or dataset-license grant suitable for shipped derived
+weights. SynthTab, GAPS, EGDB, and private data were excluded. The 69,670-
+parameter PyTorch network and training code are original TabVision code.
+**Evidence:** Across 35,959 pitch-correct ambiguous events, direct-only top-1
+was `0.4948`; direct plus the player-held position prior was `0.5920`. The
+previous best was `0.6621` and the required gate was `0.7121`, so the primary
+condition missed by `0.1201` and regressed `0.0700` from the comparator. All
+five player folds regressed (`-0.0589`, `-0.0721`, `-0.0374`, `-0.0915`, and
+`-0.0856`). Two independent CPU runs reproduced prediction hash
+`50c0d976b8750e9e6885c4205fe66c27bc2b53ae0e94ce7bb6dbe1518bcc9a14f`
+and model hash
+`213dbb122b60311e0282725d4c6a2ca4d62dbc8cfb1becd23eed786dfd80ef8e`.
+No runtime path changed, so shipping artifact size, added automatic latency,
+and onset/pitch/Tab event deltas are zero.
+The v1 suite passed `834` tests with `12` skipped; Ruff lint and format checks
+passed; mypy passed `75` source files. The frozen server suite passed `296`
+tests with `3` skipped.
+**Reasoning:** The mandatory first gate failed decisively before player-05 or
+real-event access. Continuing would tune on a failed development signal and
+violate the sequential plan. Evidence is in
+`docs/plans/2026-07-16-tab-f1-phase5-data-license-design.md` and
+`docs/EVAL_REPORTS/string_assignment_phase5_2026-07-16.md` plus its condition,
+fold, grouped-error, selection, and provenance files. Phase 6 requires a new
+explicit `proceed`.
+
+## 2026-07-16 - Phase 6 assisted review path fails both offline gates
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 6.
+**Decision tree:** Production UI work may begin only if a player-held-out error
+detector reaches ROC AUC `>=0.75`, its highest-risk 10% contains at least twice
+the global wrong-position rate, and an offline 60-second-per-clip replay removes
+at least 50% of residual wrong-position errors without pitch changes or wrong
+propagation.
+**Branch taken:** Close the fixed learned-review path. Do not open GuitarSet
+player 05, integrate a production review UI, persist edits into the job-result
+store, tune the detector/review timing against this failure, or change automatic
+transcription.
+**Method:** A frozen original 321-parameter `10 -> 16 -> 8 -> 1` MLP used
+path margin, candidate count, OOF segment/native-timbre disagreement, timbre
+strength, accepted-checkpoint posterior entropy, the explicit clean-acoustic
+domain score, chord size, segment inconsistency, and solo/comp mode. Five
+player-held outer folds used nested inner-OOF Platt calibration. The development
+population was the 35,959 production-equivalent pitch-correct ambiguous
+GuitarSet events from players 00-04. Player 05 was not read.
+**Evidence:** Overall OOF AUC was `0.7127`, below `0.75`. The global wrong-
+position rate was `0.3452`; the highest-risk 10% was `0.6101`, only `1.77x`
+enrichment versus the required `2.0x`. At detector note budgets of 10%, 20%,
+and 30%, precision/recall were `0.6101/0.1768`, `0.6164/0.3572`, and
+`0.5875/0.5106`. A conservative two-second-per-note replay reproduced the
+frozen baseline aggregate/solo/comp Tab F1 at `0.5581/0.5460/0.5702` and
+reached `0.6873/0.7309/0.6437` after 60 seconds per clip, but corrected only
+`4,811/12,412` residual wrong positions (`38.76%`), below the `50%` target.
+Pitch changes and wrong propagation were both zero. Two complete evaluations
+matched prediction hash
+`d044a80525b4e4dc266ffd9fae40fe053023b6c65db47838c474e145fef486021`
+and model hash
+`b748a9fd97a3ec3556cccfe083f6875bd3ca94f3db9d518085b1054a9369cd3dd`.
+**Reusable but unintegrated work:** The tested core supports pitch-preserving
+candidate cycling, all-or-nothing one-string phrase moves, up to three unique
+K-best phrase alternatives, atomic accept/reject/undo, exact repeated-motif
+previews without automatic propagation, and default-off calibration, starting
+position, score-reference, licensed-reference, and private-prior modes. Because
+the offline gate failed, no production UI or localStorage/job-result persistence
+was implemented, as required by the plan's UI gate.
+**Reasoning:** Both prerequisite gates failed before confirmation or UI work.
+Automatic Tab/onset/pitch results, routing, and SPEC contracts are unchanged.
+The v1 suite passed `844` tests with `12` skipped; Ruff lint and format checks
+passed; mypy passed `78` source files. The frozen server suite passed `296`
+tests with `3` skipped.
+Evidence is in
+`docs/plans/2026-07-16-tab-f1-phase6-assisted-accuracy-design.md` and
+`docs/EVAL_REPORTS/string_assignment_phase6_2026-07-16.md` plus its fold,
+budget, feature, model, and provenance artifacts. Phase 7 requires a new
+explicit `proceed` and is independently entry-gated by at least one prior
+gate-passed result.
+
+## 2026-07-16 - Phase 7 closes the sequential Tab F1 program on the bounded-negative branch
+
+**Phase:** Correct-pitch / wrong-string accuracy program, Phase 7.
+**Entry and completion rule:** Phase 3's explicit two-checkpoint ensemble had
+passed its narrow development and confirmation safety gates, so integrated
+verification could begin. Program completion requires either a cumulatively
+gate-passed automatic approach verified in production or a documented result
+for every bounded automatic branch.
+**Branch taken:** Complete on the second condition. Phase 1 segment decoding,
+Phase 2 symbolic context, Phase 3 posterior lattice and cumulative automatic
+ensemble promotion, Phase 4 native-rate timbre, and Phase 5 direct per-string
+model all reproduced their negative automatic decisions. Phase 6's assisted
+detector/replay also reproduced both prerequisite failures before UI work.
+The Phase 3 ensemble remains explicit-only; `auto` remains the accepted
+single-checkpoint high-resolution/GAPS backend plus the clean-acoustic global
+position/sequence pair, with no string evidence and the baseline assignment
+decoder.
+**Integrated evidence:** Fresh Phase 0 and Phase 1 note tables matched their
+frozen SHA-256 values byte-for-byte. Phase 2 through Phase 6 reproduced their
+metrics, branch decisions, and prediction hashes. Guitar-TECHS forced-acoustic
+top-1 remained `0.2027`; classical and electric auto routes remained neutral.
+Two isolated 60-second explicit-ensemble runs produced the frozen event hash
+`1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3`
+and completed in `258.045 s` cold / `196.001 s` warm, both below five minutes.
+The committed LF artifact hash is
+`1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2`;
+the earlier Phase 3 CRLF working-copy hash was corrected as provenance only.
+**Release safety:** Core, server, routing, adapter metadata, concurrency,
+missing/corrupt artifact, license, and fresh-install checks passed. Optional
+PyTorch tests now skip collection under a clean `.[dev]` install rather than
+making the documented install path fail. No SPEC Section 8 contract, runtime
+dependency, dataset, trained weight, web client, or live production
+configuration changed in Phase 7. Because no automatic candidate passed,
+decoder enablement and assisted rollout steps are inapplicable. Rollback
+controls remain `TABVISION_ASSIGNMENT_DECODER=baseline`,
+`TABVISION_STRING_EVIDENCE=none`, and the existing position/sequence switches.
+**Evidence:**
+`docs/EVAL_REPORTS/string_assignment_phase7_2026-07-16.md` and its provenance
+JSON. The program is closed; any electric, new-video, score-informed,
+calibration, hardware-assisted, or newly collected-data work requires a new
+explicitly approved program rather than extension of this bounded search.
+
+---
+
+## 2026-07-20 — personal non-commercial posture; ensemble + assisted promotion; GAPS training program
+
+**Phase:** New user-approved program (post-sequential-closure)
+**Decision tree:** SPEC §1.5 licensing posture + Phase 7 rollout disposition +
+Phase 6 terminal rule
+**Branch taken:** The user reviewed the full accuracy audit and directed (chat,
+2026-07-20): "Let's do Tier 0 and 2 (Just omit my own recordings for tier 2)."
+This is the explicit new-program approval the 2026-07-16 closure entry
+requires, and it makes four governance changes:
+
+1. **SPEC §1.5 amended** from portfolio-permissive-only to personal
+   non-commercial: CC-BY-NC / CC-BY-NC-SA datasets and weights are acceptable
+   in the shipping default and as training substrate for shipped derived
+   artifacts, with attribution/ShareAlike honored and every NC-derived
+   artifact labeled NC in LICENSES.md. Hardware capture, commissioned/paid
+   data+training, and the video program stay out of scope (user: "Forget
+   Tier 1 and 3"; video/Tier 4 not authorized).
+2. **`highres-ensemble` is promoted to the clean-acoustic `auto` audio
+   backend.** It passed its own Phase 3 ensemble gate (dev +0.0436, player-05
+   aggregate +0.0213 [+0.0104, +0.0342] → 0.6339, onset 0.9491, pitch 0.9403)
+   and was held explicit-only solely by the broader cumulative guardrail
+   (solo +0.0085 < +0.03), which the user has now waived for this promotion.
+   The `guitar-fl.pth` default-artifact block (a scope rule, not a license
+   finding — the checkpoint is MIT) is lifted. Electric and classical routes
+   are unchanged; non-clean-acoustic sessions keep the single-checkpoint
+   deterministic rollback inside the ensemble backend itself.
+3. **The Phase 6 assisted path's "terminal" rule is superseded**: the user
+   accepts shipping the review queue + pitch-preserving correction UI at the
+   measured level (OOF detector AUC 0.7127; 38.76% residual wrong-position
+   reduction at a 60 s budget; dev Tab F1 0.5581 → 0.6873) rather than the
+   unmet 50% gate. Assisted results remain reported separately from automatic
+   Tab F1 per SPEC §1.4.1 mode separation.
+4. **GAPS train split becomes classical-route training substrate**: build
+   `gaps-v1` position + `gaps-seq-v1` sequence priors (count statistics, same
+   artifact class as `guitarset-v1`), register them, and extend domain routing
+   so classical sessions resolve to them instead of `none`. Gate: GAPS test-22
+   improvement over the 0.6969 post-A6 baseline with the eval splits provably
+   absent from training manifests. Derived artifacts are labeled CC-BY-NC-SA.
+
+**Retained exclusions:** private/user recordings stay banned from all
+training/eval/label roles (2026-06-11 cleanup) — explicitly re-confirmed by
+the user in the same directive.
+**Evidence:** SPEC.md §1.5 (amended), LICENSES.md posture + 2026-07-20
+addendum, this entry. Implementation and eval reports follow in the same
+change series.
+**Reasoning:** The app is not commercial; the portfolio-permissive rule and
+the cumulative promotion guardrails were governance choices calibrated for a
+public-portfolio artifact, not accuracy physics. With the user explicitly
+accepting NC terms and the measured trade-offs, the highest-EV shelved wins
+(ensemble +0.021 aggregate; assisted −38.76% residual wrong-position errors)
+ship, and the classical route gets its first in-domain prior.
+
+---
+
+## 2026-07-20 — GAPS classical priors gate: PASSED and registered
+
+**Phase:** Personal-posture program, Tier 2 execution
+**Decision tree:** gaps-v1/gaps-seq-v1 registration gate (same-day entry above)
+**Branch taken:** Register both artifacts and enable the classical auto route.
+Built from the GAPS train split only (212 standard-tuning scores; 171,059
+position events; 70,933 singleton transitions; test split provably excluded,
+stems SHA `67a5230b…`). GAPS test-22 single-line Tab F1 0.6969 → **0.7051**;
+paired clip-stratified 10k bootstrap **Δ = +0.0082 [+0.0010, +0.0152]** (lower
+bound > 0; 16/22 clips improve, worst clip −0.0338). Chord-instance 0.6821 →
+0.6951. Onset/pitch F1 byte-identical (string-assignment-only). The lift is
+small relative to the GuitarSet-prior analog because the no-prior decoder's
+playability terms already fit open-position classical repertoire; the
+structural win is an in-domain prior on a route that previously had none.
+**Evidence:** `docs/EVAL_REPORTS/gaps_classical_prior_2026-07-20.md` (+
+baseline/candidate/decomposition companions); manifests carry the gate.
+**Reasoning:** Gate declared in the same-day posture entry required a GAPS
+test-22 improvement with clean train/test separation; both hold with a
+CI-significant paired delta, and cross-domain safety is structural (the pair
+resolves only for clean classical, standard tuning, capo 0).

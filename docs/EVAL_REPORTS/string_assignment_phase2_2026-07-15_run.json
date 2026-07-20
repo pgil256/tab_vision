@@ -1,0 +1,63 @@
+{
+  "artifact_sha256": "9d0df2eba2c99f2271e2932e7b791cb9ebb228c6b1d44bb27099fcd66ce56fea",
+  "decision": "Close symbolic-context expansion",
+  "final_epochs": 5,
+  "fold_epochs": {
+    "context": [
+      12,
+      1,
+      5,
+      14,
+      1
+    ],
+    "control": [
+      6,
+      5,
+      4,
+      8,
+      3
+    ]
+  },
+  "manifest_sha256": "71dd6bbd4c7d7167e16e72b6894e4df99163381db0e1aef710e3e79c4e44f7f0",
+  "metrics": {
+    "oof_aggregate_delta": 0.0036400015573858635,
+    "oof_ambiguous_top1_gain": 0.005565664133575954,
+    "oof_baseline_macro_tab_f1": 0.5580912326237556,
+    "oof_context_macro_tab_f1": 0.5617312341811415,
+    "oof_wrong_position_relative_reduction": 0.016659991990388343,
+    "player_fold_deltas": {
+      "00": 0.0051496216926453136,
+      "01": -0.0014162239641776404,
+      "02": 0.0011504526237722343,
+      "03": 0.013267182217308365,
+      "04": 4.8975217381378006e-05
+    },
+    "selected_composition": "context_segment"
+  },
+  "packages": {
+    "hf-midi-transcription": "0.1.1",
+    "mir_eval": "0.8.2",
+    "mypy": "2.1.0",
+    "numpy": "2.4.6",
+    "pytest": "9.0.3",
+    "ruff": "0.15.15"
+  },
+  "promoted": false,
+  "runtime": {
+    "added_seconds_per_60s": 0.520160515949692,
+    "context_seconds": 15.848187299998244,
+    "deterministic_rerun_sha256": "d3ab8c8a96302e6e978374815c5e6a4caf3dcb3b50fa1ffde04a03565ef84109",
+    "peak_memory_bytes": 755650560,
+    "prediction_sha256": "d3ab8c8a96302e6e978374815c5e6a4caf3dcb3b50fa1ffde04a03565ef84109",
+    "projected_total_seconds_per_60s": 45.52016051594969,
+    "source_duration_s": 1828.0726984126977
+  },
+  "selected_composition": "context_segment",
+  "source": {
+    "backend": "highres",
+    "entries": 360,
+    "key_schema": "sha1-16(canonical absolute media path, backend, media mtime_ns)",
+    "manifest_sha256": "8fc6353eef9b5b3be509d67e1787b3c40d81293b3b11a9e5c1dc49078bdbdabf",
+    "total_bytes": 9331583
+  }
+}

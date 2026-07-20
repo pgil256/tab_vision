@@ -1,0 +1,394 @@
+{
+  "schema_version": 1,
+  "benchmark_source": {
+    "commit": "a3d3ff720b0a0cca292fe72a31bf610414ee6bab",
+    "tracked_worktree_clean": true,
+    "script": "tabvision\\scripts\\eval\\string_assignment_phase1.py",
+    "command": [
+      "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\tabvision\\.venv\\Scripts\\python.exe",
+      "-m",
+      "scripts.eval.string_assignment_phase1",
+      "--data-home",
+      "C:\\Users\\patri\\.tabvision\\data\\guitarset",
+      "--output-dir",
+      "..\\docs\\EVAL_REPORTS",
+      "--date",
+      "2026-07-15"
+    ]
+  },
+  "dataset": "GuitarSet",
+  "dataset_version": "original public 360-track mono-mic/JAMS release",
+  "license": "CC-BY-4.0",
+  "split": {
+    "development_players": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04"
+    ],
+    "confirmation_player": "05"
+  },
+  "development_track_ids_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+  "development_annotations_sha256": "ae67ab869c542c9b22586464f78e555beb796b4016787391228b91dd5ce14d71",
+  "audio_event_cache": {
+    "backend": "highres",
+    "key_schema": "sha1-16(canonical absolute media path, backend, media mtime_ns)",
+    "entries": 360,
+    "total_bytes": 9331583,
+    "manifest_sha256": "8fc6353eef9b5b3be509d67e1787b3c40d81293b3b11a9e5c1dc49078bdbdabf"
+  },
+  "phase0_four_second_joint_oracle_lift": 0.1446,
+  "grid": [
+    {
+      "name": "z1_o1_s1_p0_t1",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "zone_0p5",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 0.5,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "zone_2",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 2.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "offset_0p5",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 0.5,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "offset_2",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 2.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "state_0p5",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 0.5,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "state_2",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 2.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "prior_0p25",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.25,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "prior_0p5",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.5,
+        "transition_weight": 1.0,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "transition_0p75",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 0.75,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    },
+    {
+      "name": "transition_1p25",
+      "config": {
+        "rest_boundary_s": 0.75,
+        "max_segment_s": 4.0,
+        "max_segment_notes": 32,
+        "zone_centers": [
+          2,
+          5,
+          7,
+          10,
+          13
+        ],
+        "zone_weight": 1.0,
+        "offset_weight": 1.0,
+        "state_change_weight": 1.0,
+        "prior_weight": 0.0,
+        "transition_weight": 1.25,
+        "repeat_weight": 0.0,
+        "relaxed_state_change_scale": 0.25,
+        "register_jump_semitones": 7
+      }
+    }
+  ],
+  "selected": {
+    "name": "prior_0p5",
+    "zone_weight": 1.0,
+    "offset_weight": 1.0,
+    "state_change_weight": 1.0,
+    "prior_weight": 0.5,
+    "transition_weight": 1.0,
+    "macro_tab_f1": 0.5585236729443702,
+    "delta": 0.00043244032061464657,
+    "ci_lower": -0.0005251050931941902,
+    "ci_upper": 0.0013650378185618233,
+    "solo_delta": 0.0009450031815851319,
+    "solo_ci_lower": -0.0009707123945103678,
+    "solo_ci_upper": 0.0027987404790172474,
+    "comp_delta": -8.012254035583884e-05,
+    "comp_ci_lower": -0.0004336043360433606,
+    "comp_ci_upper": 0.00019323671497584405,
+    "wrong_rate": 0.3337793000107032,
+    "wall_seconds": 42.66857019998133,
+    "departure": 0.5,
+    "worst_player_delta": -0.0007299270072992914,
+    "players_regressed_over_0p02": 0,
+    "comp_noninferiority_eligible": 1,
+    "player_00_delta": 0.001744762606945005,
+    "player_01_delta": -0.0007299270072992914,
+    "player_02_delta": -0.0003613369467027061,
+    "player_03_delta": 0.0008323268921094362,
+    "player_04_delta": 0.0006763760580207334,
+    "selected": 1
+  },
+  "selection_reason": "selected within the hard comp non-inferiority set",
+  "gate_decision": "close_rule_based_segment_decoding",
+  "prediction_sha256": "9788d929bea9a7ca414050f8de10370a352d4fe848ed8baedb053f66cdb5d7ef",
+  "environment": {
+    "python": "3.12.10",
+    "python_implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "numpy": "2.4.6",
+      "mir_eval": "0.8.2",
+      "hf-midi-transcription": "0.1.1",
+      "pytest": "9.0.3",
+      "ruff": "0.15.15",
+      "mypy": "2.1.0"
+    }
+  },
+  "performance_observation": {
+    "wall_seconds": 1116.17379,
+    "peak_process_memory_bytes": 246927360,
+    "grid_wall_seconds": {
+      "z1_o1_s1_p0_t1": 37.304477,
+      "zone_0p5": 35.683967,
+      "zone_2": 34.07011,
+      "offset_0p5": 34.17533,
+      "offset_2": 34.234383,
+      "state_0p5": 35.55726,
+      "state_2": 33.80097,
+      "prior_0p25": 37.675223,
+      "prior_0p5": 42.66857,
+      "transition_0p75": 36.56339,
+      "transition_1p25": 36.902974
+    },
+    "frozen_oof_k3_seconds": 450.147396,
+    "frozen_confirmation_k3_seconds": 140.237625,
+    "runtime_benchmark": {
+      "baseline_seconds": 4.025877300009597,
+      "segment_seconds": 26.38456100001349,
+      "source_duration_s": 1828.0726984126984,
+      "added_seconds_per_60s": 0.7338444598866698,
+      "projected_total_seconds_per_60s": 45.73384445988667,
+      "prediction_sha256": "9788d929bea9a7ca414050f8de10370a352d4fe848ed8baedb053f66cdb5d7ef"
+    },
+    "artifact_bytes": 0
+  },
+  "reporting_note": "The checked-in report adds the frozen Phase 0 onset/pitch table and explicit safety-routing interpretation; benchmark metrics and decoder outputs are unchanged.",
+  "deterministic_outputs": {
+    "string_assignment_phase1_2026-07-15.md": {
+      "sha256": "8beea1cf21084e0bb23fcadb695a48f5ec5b69e673c1028fd37a587185676aaa",
+      "bytes": 5025,
+      "tracked": true
+    },
+    "string_assignment_phase1_2026-07-15_grid.csv": {
+      "sha256": "61b6491dfd181873a7f8bbcb566ba6aca663bf568f63b6b960a2b9d09665ae47",
+      "bytes": 2541,
+      "tracked": true
+    },
+    "string_assignment_phase1_2026-07-15_summary.csv": {
+      "sha256": "7bd5c0ca1fee6d2cf349a5d8f8c6685c714c6b6c1a425eff005a4a428b206fb6",
+      "bytes": 211508,
+      "tracked": true
+    },
+    "string_assignment_phase1_2026-07-15_notes.csv": {
+      "sha256": "541220a6edd0341fa1799d92313a180a8e7a20139be1c93dc5b52a6d94c9b3e1",
+      "bytes": 34031250,
+      "tracked": false
+    }
+  }
+}

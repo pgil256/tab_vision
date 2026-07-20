@@ -62,7 +62,8 @@ def test_default_artifact_resolver_tracks_shipped_cli_defaults() -> None:
     spec.loader.exec_module(module)
 
     resolved = dict(module._resolve_default_artifacts())
-    assert resolved["audio-backend"] == "highres"
+    # Clean-acoustic default flipped to the ensemble 2026-07-20 (DECISIONS.md).
+    assert resolved["audio-backend"] == "highres-ensemble"
     assert resolved["position-prior"] == "guitarset-v1"
     assert resolved["sequence-prior"] == "guitarset-seq-v1"
     # Every resolved default must be on the permissive allowlist.

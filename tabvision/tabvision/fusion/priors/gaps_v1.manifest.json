@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "position",
+  "artifact_version": "gaps-v1",
+  "name": "gaps-v1",
+  "artifact_file": "gaps_v1.json",
+  "artifact_sha256": "6cce3a688173efe877547c6df6d2b9c7aa517afca87e8a2c16052503f4d85d2b",
+  "registered": true,
+  "compatible_position_prior": null,
+  "compatible_sequence_prior": "gaps-seq-v1",
+  "dataset": "GAPS",
+  "dataset_reference": "Riley et al., ISMIR 2024 (Zenodo 10.5281/zenodo.13962272)",
+  "license": "CC-BY-NC-SA-4.0 (derived count statistics; NC-labeled per LICENSES.md 2026-07-20 posture)",
+  "training_players": ["gaps-train-split (212 standard-tuning scores)"],
+  "excluded_players": ["gaps-test-split", "gaps-validation-split", "non-standard tunings"],
+  "mode": "all",
+  "training_tracks": 212,
+  "source_track_ids_sha256": "67a5230bce8e3995fef975433a546413e39afa5f9e73e2e6333e878fec56811f",
+  "source_annotations_sha256": null,
+  "construction_command": "python -m scripts.eval.build_gaps_v1_prior --gaps-root <GAPS_ROOT>",
+  "parameters": {
+    "alpha": 1.0,
+    "power": 2.0
+  },
+  "source_commit": "ed0f327b272db6c79ba51e192d88a5e3b3f9a06f",
+  "gate": {
+    "report": "docs/EVAL_REPORTS/gaps_classical_prior_2026-07-20.md",
+    "comparison": "gaps-v1 (+coupled gaps-seq-v1) minus no-prior baseline, GAPS test-22",
+    "mean_delta": 0.0082,
+    "lower_95": 0.001,
+    "upper_95": 0.0152,
+    "decision": "passed and registered"
+  }
+}

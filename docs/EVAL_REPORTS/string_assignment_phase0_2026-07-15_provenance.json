@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "benchmark_source": {
+    "commit": "7890026a23bc2e988bb694e74ad4caebb2f9f3ae",
+    "tracked_worktree_clean": true,
+    "script": "tabvision\\scripts\\eval\\string_assignment_phase0.py",
+    "command": [
+      "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\tabvision\\.venv\\Scripts\\python.exe",
+      "-m",
+      "scripts.eval.string_assignment_phase0",
+      "--data-home",
+      "C:\\Users\\patri\\.tabvision\\data\\guitarset",
+      "--output-dir",
+      "..\\docs\\EVAL_REPORTS",
+      "--date",
+      "2026-07-15"
+    ]
+  },
+  "dataset": "GuitarSet",
+  "dataset_version": "original public 360-track mono-mic/JAMS release",
+  "dataset_reference": "Xi et al., ISMIR 2018",
+  "license": "CC-BY-4.0",
+  "split": {
+    "training_players": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04"
+    ],
+    "held_out_player": "05"
+  },
+  "training_tracks": 300,
+  "training_track_ids_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+  "training_annotations_sha256": "ae67ab869c542c9b22586464f78e555beb796b4016787391228b91dd5ce14d71",
+  "all_tracks": 360,
+  "all_track_ids_sha256": "5b808a1de16fa4cca25ff734a0ff1ae87d284d41f757378a5b737a30c14d1fbf",
+  "all_annotations_sha256": "25614102519bfbb8ce67ec9eeaf28d2088179d3356ec704c7e2df3ffb5012f16",
+  "audio_event_cache": {
+    "backend": "highres",
+    "key_schema": "sha1-16(canonical absolute media path, backend, media mtime_ns)",
+    "entries": 360,
+    "total_bytes": 9331583,
+    "manifest_sha256": "8fc6353eef9b5b3be509d67e1787b3c40d81293b3b11a9e5c1dc49078bdbdabf"
+  },
+  "artifacts": [
+    {
+      "artifact": "guitarset_v1.json",
+      "canonical_json_sha256": "71f491cb7d377c163b5d08cbea69ebc7c47783059bf06eb727b9a66e8f7fd003",
+      "source_commit": "936a5ccf2b4ecbb9d79bddb38c2d0115d471fc7b",
+      "construction_command": "python -m scripts.eval.build_guitarset_v1_prior --data-home <GUITARSET> --validation-player 05 --output <OUTPUT>",
+      "constants": {
+        "alpha": 1.0,
+        "power": 2.0
+      },
+      "declared_validation_player": "05",
+      "declared_training_tracks": 300,
+      "rebuild_status": "semantic and canonical-LF byte match in this run"
+    },
+    {
+      "artifact": "guitarset_seq_v1.json",
+      "canonical_json_sha256": "3c657db2891f6e22f4fae4c6c9025551b197218c7165779fa8712ce9f40f5e8e",
+      "source_commit": "e6244c5e132cbc8b2816da67b8d70a73df6a8e5d",
+      "construction_command": "python -m scripts.eval.build_guitarset_seq_v1_prior --data-home <GUITARSET> --validation-player 05 --scheme delta_fret --alpha 0.5 --backoff-kappa 8.0 --output <OUTPUT>",
+      "constants": {
+        "scheme": "delta_fret",
+        "alpha": 0.5,
+        "backoff_kappa": 8.0,
+        "singleton_only": true
+      },
+      "declared_validation_player": "05",
+      "declared_training_tracks": 300,
+      "rebuild_status": "semantic and canonical-LF byte match in this run"
+    }
+  ],
+  "environment": {
+    "python": "3.12.10",
+    "python_implementation": "CPython",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "numpy": "2.4.6",
+      "mir_eval": "0.8.2",
+      "hf-midi-transcription": "0.1.1",
+      "pytest": "9.0.3",
+      "ruff": "0.15.15",
+      "mypy": "2.1.0"
+    }
+  },
+  "performance_observation": {
+    "wall_seconds": 203.455531,
+    "peak_process_memory_bytes": 398721024,
+    "artifact_bytes": 70355417,
+    "note": "observational metadata; excluded from deterministic report/CSV hashes"
+  },
+  "deterministic_outputs": {
+    "string_assignment_phase0_2026-07-15.md": {
+      "sha256": "05d8392612d03a90fae7bb2b28b9581ed5055749de01a4621a1e57a8ae7cf099",
+      "bytes": 6353,
+      "tracked": true
+    },
+    "string_assignment_phase0_2026-07-15_summary.csv": {
+      "sha256": "dd3d7f256e61cf095dff0a2b99475ebbd319e9f493c4d4d88a744c5757b2d313",
+      "bytes": 446420,
+      "tracked": true
+    },
+    "string_assignment_phase0_2026-07-15_notes.csv": {
+      "sha256": "6f06758525f0908be82b1eeb5d74731f1ee647fba74a5c5111e8bf44e231a530",
+      "bytes": 69902644,
+      "tracked": false
+    }
+  }
+}

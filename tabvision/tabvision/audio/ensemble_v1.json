@@ -1,0 +1,56 @@
+{
+  "automatic_activation": false,
+  "calibrators": {
+    "fl": {
+      "mean": [
+        0.5820130650398663
+      ],
+      "scale": [
+        0.15739903956431875
+      ],
+      "weights": [
+        0.4419862186573622,
+        0.9570905287027572
+      ]
+    },
+    "gaps": {
+      "mean": [
+        0.5479782918933048
+      ],
+      "scale": [
+        0.1669961003916575
+      ],
+      "weights": [
+        -2.0398846475273613,
+        0.4253316369807807
+      ]
+    }
+  },
+  "checkpoints": {
+    "fl": "guitar_fl",
+    "gaps": "guitar_gaps"
+  },
+  "confirmation_split": "GuitarSet player 05; not used for fitting",
+  "development_ci_lower": 0.03762979907418646,
+  "development_delta": 0.043633485519034385,
+  "development_macro_tab_f1": 0.60172471814279,
+  "match_tolerance_s": 0.05,
+  "registered": true,
+  "schema_version": 1,
+  "threshold": 0.5,
+  "training_split": "GuitarSet players 00-04",
+  "validated_domain": {
+    "capo": 0,
+    "instrument": "acoustic",
+    "tone": "clean",
+    "tuning_midi": [
+      40,
+      45,
+      50,
+      55,
+      59,
+      64
+    ]
+  },
+  "winner": "confidence_winner"
+}

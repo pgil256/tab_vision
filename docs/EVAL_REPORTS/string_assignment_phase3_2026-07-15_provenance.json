@@ -1,0 +1,500 @@
+{
+  "automatic_guardrails_pass": false,
+  "cache_stats": [
+    {
+      "cache_bytes": 267824247,
+      "checkpoint": "guitar_gaps",
+      "inference_wall_s": 8394.244926500001,
+      "new_tracks": 0,
+      "source_duration_s": 9140.363492079996,
+      "tracks": 300
+    },
+    {
+      "cache_bytes": 323917259,
+      "checkpoint": "guitar_fl",
+      "inference_wall_s": 8441.6919216,
+      "new_tracks": 0,
+      "source_duration_s": 9140.363492079996,
+      "tracks": 300
+    }
+  ],
+  "command": [
+    "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\tabvision\\scripts\\eval\\string_assignment_phase3.py"
+  ],
+  "condition_rows": [
+    {
+      "ambiguous_top1": 0.6659263619822327,
+      "ambiguous_top3": 0.9998394519961469,
+      "ci_lower": 0.0,
+      "ci_upper": 0.0,
+      "comp_tab_f1": 0.5701653134149596,
+      "condition": "baseline",
+      "delta": 0.0,
+      "macro_tab_f1": 0.5580912326237556,
+      "micro_tab_f1": 0.5577408929269433,
+      "onset_f1": 0.8837832840137261,
+      "pitch_f1": 0.8476456243214435,
+      "player_00_delta": 0.0,
+      "player_01_delta": 0.0,
+      "player_02_delta": 0.0,
+      "player_03_delta": 0.0,
+      "player_04_delta": 0.0,
+      "same_pitch_total": 37372,
+      "same_pitch_wrong": 12485,
+      "same_pitch_wrong_rate": 0.3340736380177673,
+      "solo_tab_f1": 0.5460171518325516,
+      "worst_player_delta": 0.0
+    },
+    {
+      "ambiguous_top1": 0.6659263619822327,
+      "ambiguous_top3": 0.9998394519961469,
+      "ci_lower": 0.0,
+      "ci_upper": 0.0,
+      "comp_tab_f1": 0.5701653134149596,
+      "condition": "gaps",
+      "delta": 0.0,
+      "macro_tab_f1": 0.5580912326237556,
+      "micro_tab_f1": 0.5577408929269433,
+      "onset_f1": 0.8837832840137261,
+      "pitch_f1": 0.8476456243214435,
+      "player_00_delta": 0.0,
+      "player_01_delta": 0.0,
+      "player_02_delta": 0.0,
+      "player_03_delta": 0.0,
+      "player_04_delta": 0.0,
+      "same_pitch_total": 37372,
+      "same_pitch_wrong": 12485,
+      "same_pitch_wrong_rate": 0.3340736380177673,
+      "solo_tab_f1": 0.5460171518325516,
+      "worst_player_delta": 0.0
+    },
+    {
+      "ambiguous_top1": 0.6956591824985607,
+      "ambiguous_top3": 0.9998848589522165,
+      "ci_lower": 0.03483091622997639,
+      "ci_upper": 0.04886297428806186,
+      "comp_tab_f1": 0.6460505678112908,
+      "condition": "fl",
+      "delta": 0.04186302139080067,
+      "macro_tab_f1": 0.5999542540145563,
+      "micro_tab_f1": 0.6241902029403971,
+      "onset_f1": 0.9150443117716939,
+      "pitch_f1": 0.8912693312678225,
+      "player_00_delta": 0.05049082655227745,
+      "player_01_delta": 0.04127132491712387,
+      "player_02_delta": 0.06587411787589884,
+      "player_03_delta": 0.027131605496661045,
+      "player_04_delta": 0.02454723211204216,
+      "same_pitch_total": 43425,
+      "same_pitch_wrong": 13216,
+      "same_pitch_wrong_rate": 0.30434081750143926,
+      "solo_tab_f1": 0.5538579402178219,
+      "worst_player_delta": 0.02454723211204216
+    },
+    {
+      "ambiguous_top1": 0.6913566217414032,
+      "ambiguous_top3": 0.9998409054751244,
+      "ci_lower": 0.017930853624644538,
+      "ci_upper": 0.029758005263607834,
+      "comp_tab_f1": 0.6180166785715102,
+      "condition": "union",
+      "delta": 0.02381327153353454,
+      "macro_tab_f1": 0.5819045041572901,
+      "micro_tab_f1": 0.6008649602824361,
+      "onset_f1": 0.8973908067701751,
+      "pitch_f1": 0.8713195761823755,
+      "player_00_delta": 0.037564364426548966,
+      "player_01_delta": 0.019419976059161213,
+      "player_02_delta": 0.043714851565450956,
+      "player_03_delta": 0.010256645149032044,
+      "player_04_delta": 0.008110520467479534,
+      "same_pitch_total": 43999,
+      "same_pitch_wrong": 13580,
+      "same_pitch_wrong_rate": 0.3086433782585968,
+      "solo_tab_f1": 0.5457923297430701,
+      "worst_player_delta": 0.008110520467479534
+    },
+    {
+      "ambiguous_top1": 0.6649116000665077,
+      "ambiguous_top3": 0.999889153688411,
+      "ci_lower": 0.012252999462136349,
+      "ci_upper": 0.018851676125017328,
+      "comp_tab_f1": 0.5935139260941545,
+      "condition": "intersection",
+      "delta": 0.015555334034944688,
+      "macro_tab_f1": 0.5736465666587003,
+      "micro_tab_f1": 0.575619686265118,
+      "onset_f1": 0.8914663480938917,
+      "pitch_f1": 0.868775377765435,
+      "player_00_delta": 0.009733588801135526,
+      "player_01_delta": 0.023914466056694155,
+      "player_02_delta": 0.018006545599149062,
+      "player_03_delta": 0.014499748902579223,
+      "player_04_delta": 0.01162232081516547,
+      "same_pitch_total": 36086,
+      "same_pitch_wrong": 12092,
+      "same_pitch_wrong_rate": 0.3350883999334922,
+      "solo_tab_f1": 0.553779207223246,
+      "worst_player_delta": 0.009733588801135526
+    },
+    {
+      "ambiguous_top1": 0.6887104506232024,
+      "ambiguous_top3": 0.9999041227229146,
+      "ci_lower": 0.03762979907418646,
+      "ci_upper": 0.04969008831870535,
+      "comp_tab_f1": 0.645763533350749,
+      "condition": "confidence_winner",
+      "delta": 0.043633485519034385,
+      "macro_tab_f1": 0.60172471814279,
+      "micro_tab_f1": 0.6228200545574264,
+      "onset_f1": 0.918699274842221,
+      "pitch_f1": 0.8955727483485472,
+      "player_00_delta": 0.05230649315990744,
+      "player_01_delta": 0.04470885218279615,
+      "player_02_delta": 0.0674035452376552,
+      "player_03_delta": 0.0291254001208082,
+      "player_04_delta": 0.02462313689400496,
+      "same_pitch_total": 41720,
+      "same_pitch_wrong": 12987,
+      "same_pitch_wrong_rate": 0.3112895493767977,
+      "solo_tab_f1": 0.557685902934831,
+      "worst_player_delta": 0.02462313689400496
+    },
+    {
+      "ambiguous_top1": 0.6888204540571511,
+      "ambiguous_top3": 0.99990450953711,
+      "ci_lower": 0.03734592816696222,
+      "ci_upper": 0.0493746359495335,
+      "comp_tab_f1": 0.6457597020206184,
+      "condition": "logistic",
+      "delta": 0.04334201215397471,
+      "macro_tab_f1": 0.6014332447777303,
+      "micro_tab_f1": 0.6232425431269123,
+      "onset_f1": 0.9187114382832027,
+      "pitch_f1": 0.8959448911546635,
+      "player_00_delta": 0.04857579121285269,
+      "player_01_delta": 0.04575929493680019,
+      "player_02_delta": 0.06768603477188155,
+      "player_03_delta": 0.02871923189148579,
+      "player_04_delta": 0.025969707956853324,
+      "same_pitch_total": 41889,
+      "same_pitch_wrong": 13035,
+      "same_pitch_wrong_rate": 0.31117954594284897,
+      "solo_tab_f1": 0.5571067875348422,
+      "worst_player_delta": 0.025969707956853324
+    }
+  ],
+  "confirmation_cache_stats": [
+    {
+      "cache_bytes": 51119275,
+      "checkpoint": "guitar_gaps",
+      "inference_wall_s": 823.3578908999999,
+      "new_tracks": 0,
+      "source_duration_s": 1828.0726984159992,
+      "tracks": 60
+    },
+    {
+      "cache_bytes": 61505048,
+      "checkpoint": "guitar_fl",
+      "inference_wall_s": 788.5760026999998,
+      "new_tracks": 0,
+      "source_duration_s": 1828.0726984159992,
+      "tracks": 60
+    }
+  ],
+  "confirmation_models": {
+    "combiner": {
+      "mean": [
+        0.5703067202804928,
+        0.8320091098876867,
+        0.15066148223767142,
+        0.7861962381592196,
+        0.45076614343293375,
+        0.656047516198704,
+        0.0,
+        0.19721922246220303,
+        0.26967130724154453,
+        0.16062203554545185,
+        0.7166017239861046
+      ],
+      "scale": [
+        0.1615755195855065,
+        0.22285387175796084,
+        0.1273870124926653,
+        0.006782430401772943,
+        0.08129692080482535,
+        0.4750254442534469,
+        1.0,
+        0.3978992344219604,
+        0.11147251877238164,
+        0.19495230160825003,
+        0.15459608565741856
+      ],
+      "weights": [
+        -0.5186679689161807,
+        0.6796254185776169,
+        0.2609489130869793,
+        0.02148581795846913,
+        0.03801613616073004,
+        -0.22427819622604975,
+        1.1139925091881158,
+        0.0,
+        -0.08479926136510892,
+        -0.07221019154120978,
+        -0.11700121717523153,
+        0.10209958415471258
+      ]
+    },
+    "fl_calibrator": {
+      "mean": [
+        0.5820130650398663
+      ],
+      "scale": [
+        0.15739903956431875
+      ],
+      "weights": [
+        0.4419862186573622,
+        0.9570905287027572
+      ]
+    },
+    "gaps_calibrator": {
+      "mean": [
+        0.5479782918933048
+      ],
+      "scale": [
+        0.1669961003916575
+      ],
+      "weights": [
+        -2.0398846475273613,
+        0.4253316369807807
+      ]
+    }
+  },
+  "confirmation_rows": [
+    {
+      "ambiguous_top1": 0.6809128630705394,
+      "ambiguous_top3": 0.9997233748271093,
+      "ci_lower": 0.0,
+      "ci_upper": 0.0,
+      "comp_tab_f1": 0.6833623272852234,
+      "condition": "baseline",
+      "delta": 0.0,
+      "macro_tab_f1": 0.6125773120656742,
+      "micro_tab_f1": 0.6278948888247184,
+      "onset_f1": 0.9320419654848837,
+      "pitch_f1": 0.9169067218659468,
+      "same_pitch_total": 7230,
+      "same_pitch_wrong": 2307,
+      "same_pitch_wrong_rate": 0.31908713692946056,
+      "solo_tab_f1": 0.541792296846125,
+      "worst_player_delta": 0.0
+    },
+    {
+      "ambiguous_top1": 0.6978851963746223,
+      "ambiguous_top3": 0.9997372914751084,
+      "ci_lower": 0.01039890663879178,
+      "ci_upper": 0.034182584049445554,
+      "comp_tab_f1": 0.7175086329969252,
+      "condition": "confidence_winner",
+      "delta": 0.021327012999382514,
+      "macro_tab_f1": 0.6339043250650567,
+      "micro_tab_f1": 0.6641313742437339,
+      "onset_f1": 0.9490712683787799,
+      "pitch_f1": 0.9403446276452372,
+      "same_pitch_total": 7613,
+      "same_pitch_wrong": 2300,
+      "same_pitch_wrong_rate": 0.3021148036253776,
+      "solo_tab_f1": 0.550300017133188,
+      "worst_player_delta": 0.021327012999382514
+    }
+  ],
+  "confirmation_safety_pass": true,
+  "ensemble_artifact": "C:\\Users\\patri\\Documents\\Projects\\tab_vision\\tabvision\\tabvision\\audio\\ensemble_v1.json",
+  "ensemble_artifact_sha256": "1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2",
+  "ensemble_gate": true,
+  "fixed_constants": {
+    "alt_min_probability": 0.2,
+    "alt_min_ratio": 0.5,
+    "checkpoints": [
+      "guitar_gaps",
+      "guitar_fl"
+    ],
+    "conditions": [
+      "baseline",
+      "gaps",
+      "fl",
+      "union",
+      "intersection",
+      "confidence_winner",
+      "logistic"
+    ],
+    "logistic_iterations": 50,
+    "logistic_l2": 1.0,
+    "match_tolerance_s": 0.05,
+    "selector_threshold": 0.5
+  },
+  "fold_model_weights": {
+    "00": {
+      "combiner": [
+        -0.6295158047676841,
+        0.6489901323070936,
+        0.3106006369648572,
+        0.05884723499166629,
+        0.04025056156684347,
+        -0.27705774295666025,
+        1.1293334725273962,
+        0.0,
+        -0.09738712767810667,
+        -0.123573199703567,
+        -0.14899797038942542,
+        0.11020548493509386
+      ],
+      "fl_calibrator": [
+        0.42079648911879863,
+        0.9537604888492117
+      ],
+      "gaps_calibrator": [
+        -2.1313750294714287,
+        0.466139034375098
+      ]
+    },
+    "01": {
+      "combiner": [
+        -0.4111307710291913,
+        0.7030826405373855,
+        0.22885331036068202,
+        -0.0022130038276881392,
+        0.03972720767287862,
+        -0.17790356693805098,
+        1.0928496154133476,
+        0.0,
+        -0.06945792919936834,
+        -0.06916975594728277,
+        -0.11673048393066132,
+        0.07809176635071156
+      ],
+      "fl_calibrator": [
+        0.4579631517603412,
+        0.9516153619441338
+      ],
+      "gaps_calibrator": [
+        -1.991862904763168,
+        0.4248943880236086
+      ]
+    },
+    "02": {
+      "combiner": [
+        -0.6482628722579059,
+        0.6360854507933814,
+        0.2598284574407368,
+        0.021910810222284353,
+        0.027782374969650886,
+        -0.22186294537939158,
+        1.155445592889841,
+        0.0,
+        -0.06705030909135175,
+        -0.026158806958708678,
+        -0.10240142105937637,
+        0.1047551732848241
+      ],
+      "fl_calibrator": [
+        0.36865227525212313,
+        0.9238513745516848
+      ],
+      "gaps_calibrator": [
+        -2.051701027531336,
+        0.3399251463433501
+      ]
+    },
+    "03": {
+      "combiner": [
+        -0.47844013819136716,
+        0.6761431295675538,
+        0.27184974295092196,
+        0.016456313426657085,
+        0.04729909214402921,
+        -0.26991390019304606,
+        1.0680659960628984,
+        0.0,
+        -0.11272832411662176,
+        -0.07902351237081971,
+        -0.1069806523826378,
+        0.12967779238918356
+      ],
+      "fl_calibrator": [
+        0.45415675537952704,
+        0.9673750053291066
+      ],
+      "gaps_calibrator": [
+        -2.0087278589274233,
+        0.4314912642090108
+      ]
+    },
+    "04": {
+      "combiner": [
+        -0.4477805892408295,
+        0.7222289553154898,
+        0.241504347105395,
+        0.018706105304858237,
+        0.0314371489113494,
+        -0.18342755638927408,
+        1.1127857733657593,
+        0.0,
+        -0.07500678578963237,
+        -0.088415297603634,
+        -0.11951208953621378,
+        0.08566688190660612
+      ],
+      "fl_calibrator": [
+        0.49606898313028486,
+        0.9814591601933573
+      ],
+      "gaps_calibrator": [
+        -2.021669039435709,
+        0.4665052941067301
+      ]
+    }
+  },
+  "oracle": {
+    "correct_events": 43258,
+    "current_errors": 10503,
+    "extra_false_candidates": 27886,
+    "lattice_recoverable": 264,
+    "missed_errors": 4222,
+    "missed_subthreshold_frame": 133,
+    "missed_subthreshold_onset": 854,
+    "pitch_off_errors": 6281,
+    "top2_recoverable": 3232,
+    "top3_recoverable": 4482
+  },
+  "phase3_decision": "promote_confidence_winner",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "player05_opened": true,
+  "posterior_gate": false,
+  "projected_runtime_seconds_per_60s": 100.41371694187839,
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "wall_seconds": 575.286274299986,
+  "winner": {
+    "ambiguous_top1": 0.6887104506232024,
+    "ambiguous_top3": 0.9999041227229146,
+    "ci_lower": 0.03762979907418646,
+    "ci_upper": 0.04969008831870535,
+    "comp_tab_f1": 0.645763533350749,
+    "condition": "confidence_winner",
+    "delta": 0.043633485519034385,
+    "macro_tab_f1": 0.60172471814279,
+    "micro_tab_f1": 0.6228200545574264,
+    "onset_f1": 0.918699274842221,
+    "pitch_f1": 0.8955727483485472,
+    "player_00_delta": 0.05230649315990744,
+    "player_01_delta": 0.04470885218279615,
+    "player_02_delta": 0.0674035452376552,
+    "player_03_delta": 0.0291254001208082,
+    "player_04_delta": 0.02462313689400496,
+    "same_pitch_total": 41720,
+    "same_pitch_wrong": 12987,
+    "same_pitch_wrong_rate": 0.3112895493767977,
+    "solo_tab_f1": 0.557685902934831,
+    "worst_player_delta": 0.02462313689400496
+  }
+}

@@ -16,16 +16,19 @@ from typing import Any, Literal, cast
 
 from tabvision.errors import ConfigurationError
 
-ArtifactKind = Literal["position", "sequence", "string_evidence"]
+ArtifactKind = Literal["position", "sequence", "string_evidence", "assignment_context"]
 
 _ARTIFACT_DIR = Path(__file__).with_name("priors")
 _MANIFEST_FILES: dict[str, str] = {
     "guitarset-v1": "guitarset_v1.manifest.json",
     "guitarset-seq-v1": "guitarset_seq_v1.manifest.json",
+    "gaps-v1": "gaps_v1.manifest.json",
+    "gaps-seq-v1": "gaps_seq_v1.manifest.json",
     "guitarset-solo-v1": "guitarset_solo_v1.manifest.json",
     "guitarset-solo-seq-v1": "guitarset_solo_seq_v1.manifest.json",
     "guitarset-comp-v1": "guitarset_comp_v1.manifest.json",
     "guitarset-comp-seq-v1": "guitarset_comp_seq_v1.manifest.json",
+    "context-v1": "context_v1.manifest.json",
 }
 
 
@@ -71,7 +74,7 @@ def load_artifact_manifest(
         raise ConfigurationError(f"unsupported artifact manifest schema: {manifest_path}")
 
     kind = str(payload.get("artifact_kind", ""))
-    if kind not in {"position", "sequence", "string_evidence"}:
+    if kind not in {"position", "sequence", "string_evidence", "assignment_context"}:
         raise ConfigurationError(f"invalid artifact kind in {manifest_path}: {kind!r}")
     if expected_kind is not None and kind != expected_kind:
         raise ConfigurationError(f"artifact {name!r} is {kind}, expected {expected_kind}")

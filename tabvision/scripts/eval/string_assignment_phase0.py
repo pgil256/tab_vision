@@ -17,9 +17,14 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import importlib.metadata
 import json
 import math
+import os
+import platform
 import subprocess
+import sys
+import time
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -29,8 +34,14 @@ from typing import Any
 from scripts.eval.a3_fusion_sweep import _raw_events_cached, make_shared_audio_backend
 from scripts.eval.build_guitarset_seq_v1_prior import build_payload as build_sequence_payload
 from scripts.eval.build_guitarset_v1_prior import build_payload as build_position_payload
+from scripts.eval.string_assignment_oracles import (
+    OracleApplication,
+    apply_gold_oracle,
+    fixed_window_groups,
+    track_groups,
+)
 from tabvision.eval.guitarset_audio import list_guitarset_track_ids, parse_guitarset_jams
-from tabvision.eval.metrics import TabF1Result, tab_f1
+from tabvision.eval.metrics import TabF1Result, event_f1, tab_f1
 from tabvision.eval.string_assignment import (
     DecodeAnalysis,
     decode_with_analysis,
@@ -40,7 +51,7 @@ from tabvision.eval.string_assignment import (
     phrase_windows,
     wrong_below_correct_auc,
 )
-from tabvision.fusion import playability
+from tabvision.fusion import chord, playability
 from tabvision.fusion.candidates import Candidate
 from tabvision.fusion.position_prior import (
     PitchPositionPrior,
@@ -60,6 +71,7 @@ FINAL_PLAYER = "05"
 CONDITIONS = ("none", "position_only", "production_equivalent", "mode_specific")
 SEQUENCE_WEIGHT = 4.0
 DEFAULT_CACHE = Path.home() / ".tabvision/cache/a3_fusion_sweep"
+WINDOW_SIZES = (1.0, 2.0, 4.0, 8.0, 16.0)
 
 
 @dataclass(frozen=True)
@@ -70,6 +82,8 @@ class Track:
     style: str
     media_path: Path
     annotation_path: Path
+    audio_cache_key: str
+    audio_cache_path: Path
     gold: tuple[TabEvent, ...]
     raw_events: tuple[AudioEvent, ...]
 
@@ -92,6 +106,22 @@ class PriorBundle:
     mode_sequence: Mapping[str, TransitionPrior]
 
 
+@dataclass
+class OracleAggregate:
+    """One held-out oracle row accumulated across all clips."""
+
+    name: str
+    ambiguous_correct: int = 0
+    ambiguous_total: int = 0
+    dropped_impossible: int = 0
+    clip_tab: dict[str, TabF1Result] = field(default_factory=dict)
+    state_counts: Counter[str] = field(default_factory=Counter)
+
+    @property
+    def ambiguous_accuracy(self) -> float:
+        return self.ambiguous_correct / self.ambiguous_total
+
+
 def _track_metadata(track_id: str) -> tuple[str, str, str]:
     player, body = track_id.split("_", 1)
     mode = body.rsplit("_", 1)[1]
@@ -103,6 +133,22 @@ def _track_metadata(track_id: str) -> tuple[str, str, str]:
 
 def _session_for_mode(mode: str) -> SessionConfig:
     return SessionConfig(style="fingerstyle" if mode == "solo" else "strumming")
+
+
+def _audio_cache_identity(
+    media_path: Path,
+    backend_name: str,
+    cache_dir: Path,
+) -> tuple[str, Path]:
+    key = json.dumps(
+        {
+            "media": str(media_path.resolve()),
+            "backend": backend_name,
+            "mtime": media_path.stat().st_mtime_ns,
+        }
+    )
+    digest = hashlib.sha1(key.encode()).hexdigest()[:16]
+    return digest, cache_dir / f"{media_path.stem}.{digest}.json"
 
 
 def load_tracks(
@@ -122,6 +168,7 @@ def load_tracks(
         player, mode, style = _track_metadata(track_id)
         media = data_home / "audio_mono-mic" / f"{track_id}_mic.wav"
         annotation = data_home / "annotation" / f"{track_id}.jams"
+        cache_key, cache_path = _audio_cache_identity(media, backend_name, cache_dir)
         raw = _raw_events_cached(
             media,
             _session_for_mode(mode),
@@ -138,6 +185,8 @@ def load_tracks(
                 style,
                 media,
                 annotation,
+                cache_key,
+                cache_path,
                 tuple(gold),
                 tuple(raw),
             )
@@ -215,7 +264,7 @@ def evaluate_condition(
             result.strata[track.track_id] = f"{track.player}|{track.mode}"
             if keep_analyses:
                 result.analyses[track.track_id] = analysis
-            result.note_rows.extend(_note_diagnostics(name, track, analysis))
+            result.note_rows.extend(_note_diagnostics(name, track, analysis, cfg))
     finally:
         playability.set_transition_prior(None)
     return result
@@ -225,13 +274,26 @@ def _note_diagnostics(
     condition: str,
     track: Track,
     analysis: DecodeAnalysis,
+    cfg: GuitarConfig,
 ) -> list[dict[str, Any]]:
     predicted = analysis.paths[0].events
     matches = label_prediction_matches(predicted, track.gold)
+    cluster_positions: dict[int, tuple[int, int]] = {}
+    flat_index = 0
+    clusters = chord.cluster_events(list(analysis.audio_events))
+    for cluster_index, cluster_events in enumerate(clusters):
+        for cluster_event_index in range(len(cluster_events)):
+            cluster_positions[flat_index] = (cluster_index, cluster_event_index)
+            flat_index += 1
+    if flat_index != len(predicted):
+        raise AssertionError("cluster indexing drifted from the decoded event order")
+
+    session = _session_for_mode(track.mode)
     rows: list[dict[str, Any]] = []
     for match in matches:
         event = predicted[match.predicted_index]
         ranks = analysis.candidate_ranks[match.predicted_index]
+        cluster_index, cluster_event_index = cluster_positions[match.predicted_index]
         gold = track.gold[match.gold_index] if match.gold_index is not None else None
         gold_rank: int | str = ""
         if gold is not None:
@@ -245,6 +307,10 @@ def _note_diagnostics(
             )
         pitch_matched = match.label in ("correct", "wrong_position_same_pitch")
         ambiguous = pitch_matched and len(ranks) >= 2
+        candidate_path = ";".join(
+            f"{candidate.string_idx}:{candidate.fret}:{candidate.cost_delta_from_best:.8f}"
+            for candidate in ranks
+        )
         rows.append(
             {
                 "condition": condition,
@@ -255,13 +321,29 @@ def _note_diagnostics(
                 "player": track.player,
                 "mode": track.mode,
                 "style": track.style,
+                "session_instrument": session.instrument,
+                "session_tone": session.tone,
+                "session_style": session.style,
+                "tuning_midi": ",".join(str(pitch) for pitch in cfg.tuning_midi),
+                "capo": cfg.capo,
+                "max_fret": cfg.max_fret,
+                "audio_cache_key": track.audio_cache_key,
+                "event_id": f"{track.track_id}:{match.predicted_index:06d}",
+                "event_index": match.predicted_index,
+                "cluster_index": cluster_index,
+                "cluster_event_index": cluster_event_index,
+                "gold_index": "" if match.gold_index is None else match.gold_index,
                 "onset_s": f"{event.onset_s:.6f}",
                 "pitch_midi": event.pitch_midi,
                 "candidate_count": len(ranks),
+                "candidate_path": candidate_path,
                 "predicted_string": event.string_idx,
                 "predicted_fret": event.fret,
                 "reference_string": "" if gold is None else gold.string_idx,
                 "reference_fret": "" if gold is None else gold.fret,
+                "predicted_minus_reference_string": (
+                    "" if gold is None else event.string_idx - gold.string_idx
+                ),
                 "fret_displacement": "" if gold is None else event.fret - gold.fret,
                 "confidence": f"{event.confidence:.8f}",
                 "reference_rank": gold_rank,
@@ -339,10 +421,15 @@ def _oracle_probe(
 ) -> dict[str, float]:
     baseline_correct = anchored_correct = best3_correct = total = phrases = 0
     infeasible_phrases = 0
+    baseline_tab_scores: list[float] = []
+    anchored_tab_scores: list[float] = []
+    best3_tab_scores: list[float] = []
     try:
         for track in final_tracks:
             analysis = baseline.analyses[track.track_id]
             predicted = analysis.paths[0].events
+            anchored_predicted = list(predicted)
+            best3_predicted = list(predicted)
             matches = label_prediction_matches(predicted, track.gold)
             gold_by_index = {
                 match.predicted_index: track.gold[match.gold_index]
@@ -423,10 +510,18 @@ def _oracle_probe(
                     )
                     for path in phrase.paths
                 ]
+                best_path_index = max(range(len(path_correct)), key=path_correct.__getitem__)
+                anchored_predicted[window.start_index : window.end_index] = phrase.paths[0].events
+                best3_predicted[window.start_index : window.end_index] = phrase.paths[
+                    best_path_index
+                ].events
                 anchored_correct += path_correct[0]
                 best3_correct += max(path_correct)
                 total += len(local_gold)
                 phrases += 1
+            baseline_tab_scores.append(tab_f1(predicted, track.gold).f1)
+            anchored_tab_scores.append(tab_f1(anchored_predicted, track.gold).f1)
+            best3_tab_scores.append(tab_f1(best3_predicted, track.gold).f1)
     finally:
         playability.set_transition_prior(None)
     if not total:
@@ -443,7 +538,111 @@ def _oracle_probe(
         "best_of_three": best3_accuracy,
         "anchor_lift": anchored_accuracy - baseline_accuracy,
         "top3_lift": best3_accuracy - anchored_accuracy,
+        "baseline_tab_f1": _mean(baseline_tab_scores),
+        "anchored_top1_tab_f1": _mean(anchored_tab_scores),
+        "best_of_three_tab_f1": _mean(best3_tab_scores),
     }
+
+
+def _segment_oracles(
+    final_tracks: Sequence[Track],
+    baseline: ConditionResult,
+    cfg: GuitarConfig,
+) -> list[OracleAggregate]:
+    names = ["baseline"]
+    for strategy in ("offset", "fret_zone", "joint"):
+        names.append(f"{strategy}_track")
+        names.extend(f"{strategy}_{window:g}s" for window in WINDOW_SIZES)
+    aggregates = {name: OracleAggregate(name) for name in names}
+
+    for track in final_tracks:
+        analysis = baseline.analyses[track.track_id]
+        predicted = analysis.paths[0].events
+        matches = label_prediction_matches(predicted, track.gold)
+        gold_by_index = {
+            match.predicted_index: track.gold[match.gold_index]
+            for match in matches
+            if match.gold_index is not None
+            and match.label in ("correct", "wrong_position_same_pitch")
+            and len(analysis.candidate_ranks[match.predicted_index]) >= 2
+        }
+        baseline_correct = sum(
+            (predicted[index].string_idx, predicted[index].fret) == (gold.string_idx, gold.fret)
+            for index, gold in gold_by_index.items()
+        )
+        baseline_row = aggregates["baseline"]
+        baseline_row.ambiguous_correct += baseline_correct
+        baseline_row.ambiguous_total += len(gold_by_index)
+        baseline_row.clip_tab[track.track_id] = tab_f1(predicted, track.gold)
+
+        groupings = {"track": track_groups(set(gold_by_index))}
+        groupings.update(
+            {
+                f"{window:g}s": fixed_window_groups(
+                    predicted,
+                    set(gold_by_index),
+                    window,
+                )
+                for window in WINDOW_SIZES
+            }
+        )
+        for strategy in ("offset", "fret_zone", "joint"):
+            for grouping_name, groups in groupings.items():
+                application = apply_gold_oracle(
+                    predicted,
+                    analysis.candidate_ranks,
+                    gold_by_index,
+                    groups,
+                    strategy=strategy,
+                    cfg=cfg,
+                )
+                _add_oracle_application(
+                    aggregates[f"{strategy}_{grouping_name}"],
+                    track,
+                    application,
+                )
+
+    baseline_accuracy = aggregates["baseline"].ambiguous_accuracy
+    baseline_tab = _oracle_tab_summary(aggregates["baseline"])["macro_tab_f1"]
+    for aggregate in aggregates.values():
+        if aggregate.ambiguous_accuracy + 1e-12 < baseline_accuracy:
+            raise AssertionError(f"{aggregate.name} ambiguous accuracy regressed below baseline")
+        if _oracle_tab_summary(aggregate)["macro_tab_f1"] + 1e-12 < baseline_tab:
+            raise AssertionError(f"{aggregate.name} Tab F1 regressed below baseline")
+    return [aggregates[name] for name in names]
+
+
+def _add_oracle_application(
+    aggregate: OracleAggregate,
+    track: Track,
+    application: OracleApplication,
+) -> None:
+    aggregate.ambiguous_correct += application.ambiguous_correct
+    aggregate.ambiguous_total += application.ambiguous_total
+    aggregate.dropped_impossible += application.dropped_impossible
+    aggregate.state_counts.update(dict(application.state_counts))
+    aggregate.clip_tab[track.track_id] = tab_f1(application.events, track.gold)
+
+
+def _oracle_tab_summary(aggregate: OracleAggregate) -> dict[str, float]:
+    micro = _sum_tab(aggregate.clip_tab.values())
+    return {
+        "macro_tab_f1": _mean(result.f1 for result in aggregate.clip_tab.values()),
+        "micro_tab_f1": micro.f1,
+    }
+
+
+def _baseline_event_metrics(
+    final_tracks: Sequence[Track],
+    baseline: ConditionResult,
+) -> dict[str, float]:
+    onset_scores: list[float] = []
+    pitch_scores: list[float] = []
+    for track in final_tracks:
+        predicted = baseline.analyses[track.track_id].paths[0].events
+        onset_scores.append(event_f1(predicted, track.gold, match_pitch=False).f1)
+        pitch_scores.append(event_f1(predicted, track.gold, match_pitch=True).f1)
+    return {"onset_f1": _mean(onset_scores), "pitch_f1": _mean(pitch_scores)}
 
 
 def _write_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
@@ -459,21 +658,37 @@ def _write_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
 def _aggregate_rows(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     dimensions = (
-        "player",
-        "mode",
-        "style",
-        "pitch_midi",
-        "candidate_count",
-        "predicted_string",
-        "reference_string",
-        "fret_displacement",
+        ("player", lambda row: str(row["player"])),
+        ("mode", lambda row: str(row["mode"])),
+        ("style", lambda row: str(row["style"])),
+        ("track_id", lambda row: str(row["track_id"])),
+        ("pitch_midi", lambda row: str(row["pitch_midi"])),
+        ("candidate_count", lambda row: str(row["candidate_count"])),
+        ("candidate_rank", lambda row: str(row["reference_rank"])),
+        ("predicted_string", lambda row: str(row["predicted_string"])),
+        ("reference_string", lambda row: str(row["reference_string"])),
+        (
+            "predicted_minus_reference_string",
+            lambda row: str(row["predicted_minus_reference_string"]),
+        ),
+        ("fret_displacement", lambda row: str(row["fret_displacement"])),
+        (
+            "candidate_rank_by_player_mode",
+            lambda row: f"{row['player']}|{row['mode']}|{row['reference_rank']}",
+        ),
+        (
+            "string_fret_displacement",
+            lambda row: f"{row['predicted_minus_reference_string']}|{row['fret_displacement']}",
+        ),
     )
     for result in results:
         evaluation_split = str(result.note_rows[0]["evaluation_split"])
-        for dimension in dimensions:
-            values = sorted({str(row[dimension]) for row in result.note_rows})
-            for value in values:
-                rows = [row for row in result.note_rows if str(row[dimension]) == value]
+        for dimension, value_for in dimensions:
+            buckets: dict[str, list[dict[str, Any]]] = {}
+            for row in result.note_rows:
+                buckets.setdefault(value_for(row), []).append(row)
+            for value in sorted(buckets):
+                rows = buckets[value]
                 ambiguous = [row for row in rows if row["ambiguous_pitch_match"] == 1]
                 out.append(
                     {
@@ -483,6 +698,10 @@ def _aggregate_rows(results: Sequence[ConditionResult]) -> list[dict[str, Any]]:
                         "value": value,
                         "predicted_notes": len(rows),
                         "ambiguous_pitch_matches": len(ambiguous),
+                        "correct_notes": sum(row["label"] == "correct" for row in rows),
+                        "wrong_position_same_pitch": sum(
+                            row["label"] == "wrong_position_same_pitch" for row in rows
+                        ),
                         "position_accuracy": _mean(
                             float(row["label"] == "correct") for row in ambiguous
                         ),
@@ -537,12 +756,20 @@ def _report(
     dev: Sequence[ConditionResult],
     final: Sequence[ConditionResult],
     oracle: Mapping[str, float],
+    segment_oracles: Sequence[OracleAggregate],
+    event_metrics: Mapping[str, float],
     provenance_path: Path,
 ) -> str:
     dev_by = {result.name: result for result in dev}
     final_by = {result.name: result for result in final}
     baseline_dev = dev_by["production_equivalent"]
     baseline_final = final_by["production_equivalent"]
+    baseline_final_macro = _metric_summary(baseline_final)["macro_tab_f1"]
+    segment_by = {result.name: result for result in segment_oracles}
+    segment_baseline = segment_by["baseline"]
+    segment_baseline_tab = _oracle_tab_summary(segment_baseline)
+    joint_four = segment_by["joint_4s"]
+    joint_lift = joint_four.ambiguous_accuracy - segment_baseline.ambiguous_accuracy
     lines = [
         "# Correct-pitch / wrong-string Phase 0 benchmark",
         "",
@@ -640,9 +867,61 @@ def _report(
     lines.extend(
         [
             "",
+            (
+                "Phase 0 baseline reproduction gate (`abs(delta) <= 1e-4`): "
+                f"**{'PASS' if abs(baseline_final_macro - 0.6126) <= 1e-4 else 'FAIL'}** "
+                f"(expected `0.6126`, observed "
+                f"`{baseline_final_macro:.4f}`)."
+            ),
+            "",
             "### Held-out production string confusion matrix",
             "",
             *_confusion_markdown(baseline_final, FINAL_PLAYER),
+            "",
+            "### Held-out audio-event metrics",
+            "",
+            "| onset F1 | pitch F1 |",
+            "|---:|---:|",
+            f"| {event_metrics['onset_f1']:.4f} | {event_metrics['pitch_f1']:.4f} |",
+            "",
+            (
+                "The segment/oracle transforms below operate only on string/fret "
+                "assignment. The frozen baseline audio events are unchanged."
+            ),
+            "",
+            "## Segment and fret-zone diagnostic ceilings",
+            "",
+            (
+                "Each row chooses one gold state per track or fixed window. Fixed "
+                "windows are cluster-safe; every selected position is a real candidate "
+                "for the unchanged MIDI pitch. Impossible shifted candidates are dropped."
+            ),
+            "",
+            (
+                "| oracle | ambiguous accuracy | lift | macro Tab F1 | lift | micro "
+                "Tab F1 | dropped impossible |"
+            ),
+            "|---|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for result in segment_oracles:
+        tab = _oracle_tab_summary(result)
+        lines.append(
+            f"| `{result.name}` | {result.ambiguous_accuracy:.4f} | "
+            f"{result.ambiguous_accuracy - segment_baseline.ambiguous_accuracy:+.4f} | "
+            f"{tab['macro_tab_f1']:.4f} | "
+            f"{tab['macro_tab_f1'] - segment_baseline_tab['macro_tab_f1']:+.4f} | "
+            f"{tab['micro_tab_f1']:.4f} | {result.dropped_impossible} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "Phase 0 segment-signal gate (four-second joint lift `>= +0.10`): "
+                f"**{'PASS' if joint_lift >= 0.10 else 'FAIL'}** "
+                f"({segment_baseline.ambiguous_accuracy:.4f} -> "
+                f"{joint_four.ambiguous_accuracy:.4f}, {joint_lift:+.4f})."
+            ),
             "",
             "## Phrase oracle",
             "",
@@ -653,12 +932,18 @@ def _report(
                 "phrases count as no improvement rather than being dropped."
             ),
             "",
-            "| baseline | one gold anchor, top-1 | lift | best of 3 | lift over anchored top-1 |",
-            "|---:|---:|---:|---:|---:|",
+            (
+                "| baseline ambiguous | one gold anchor, top-1 | lift | best of 3 | "
+                "lift over anchored top-1 | baseline Tab F1 | anchored Tab F1 | "
+                "best-of-3 Tab F1 |"
+            ),
+            "|---:|---:|---:|---:|---:|---:|---:|---:|",
             (
                 f"| {oracle['baseline']:.4f} | {oracle['anchored_top1']:.4f} | "
                 f"{oracle['anchor_lift']:+.4f} | {oracle['best_of_three']:.4f} | "
-                f"{oracle['top3_lift']:+.4f} |"
+                f"{oracle['top3_lift']:+.4f} | {oracle['baseline_tab_f1']:.4f} | "
+                f"{oracle['anchored_top1_tab_f1']:.4f} | "
+                f"{oracle['best_of_three_tab_f1']:.4f} |"
             ),
             "",
             (
@@ -682,9 +967,11 @@ def _report(
             "",
             (
                 f"Artifact and dataset provenance: `{provenance_path.name}`. The grouped "
-                "diagnostic summary is checked in as the sibling summary CSV. The raw "
-                "note CSV is generated locally and git-ignored because it is reproducible "
-                "and approximately 26 MB."
+                "diagnostic summary includes candidate-rank, displacement, player/mode, "
+                "pitch, style, and clip slices. The raw stable note table is generated "
+                "locally and git-ignored because it is reproducible and approximately "
+                "30 MB. Runtime/peak-memory observations, exact command/environment, "
+                "cache identities, and deterministic output hashes live in provenance."
             ),
             "",
         ]
@@ -709,7 +996,58 @@ def _source_hash(tracks: Sequence[Track]) -> tuple[str, str]:
     return ids_hash, annotations.hexdigest()
 
 
-def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _package_versions() -> dict[str, str]:
+    versions: dict[str, str] = {}
+    for distribution in ("numpy", "mir_eval", "hf-midi-transcription", "pytest", "ruff", "mypy"):
+        try:
+            versions[distribution] = importlib.metadata.version(distribution)
+        except importlib.metadata.PackageNotFoundError:
+            versions[distribution] = "not-installed"
+    return versions
+
+
+def _cache_provenance(tracks: Sequence[Track], backend_name: str) -> dict[str, Any]:
+    records: list[str] = []
+    total_bytes = 0
+    for track in sorted(tracks, key=lambda item: item.track_id):
+        if not track.audio_cache_path.exists():
+            raise RuntimeError(f"missing audio-event cache after load: {track.audio_cache_path}")
+        size = track.audio_cache_path.stat().st_size
+        total_bytes += size
+        records.append(
+            f"{track.track_id}\0{track.audio_cache_key}\0"
+            f"{_file_sha256(track.audio_cache_path)}\0{size}"
+        )
+    manifest = "\n".join(records) + "\n"
+    return {
+        "backend": backend_name,
+        "key_schema": "sha1-16(canonical absolute media path, backend, media mtime_ns)",
+        "entries": len(records),
+        "total_bytes": total_bytes,
+        "manifest_sha256": hashlib.sha256(manifest.encode()).hexdigest(),
+    }
+
+
+def _write_provenance(
+    path: Path,
+    training_tracks: Sequence[Track],
+    all_tracks: Sequence[Track],
+    *,
+    backend_name: str,
+    command: Sequence[str],
+    outputs: Mapping[str, Mapping[str, Any]],
+    runtime_seconds: float,
+    peak_memory_bytes: int,
+    source_worktree_clean: bool,
+) -> None:
     priors_dir = Path(__file__).resolve().parents[2] / "tabvision" / "fusion" / "priors"
     repo_root = Path(__file__).resolve().parents[3]
     benchmark_source_commit = subprocess.check_output(
@@ -717,12 +1055,8 @@ def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
         cwd=repo_root,
         text=True,
     ).strip()
-    tracked_status = subprocess.check_output(
-        ["git", "status", "--short", "--untracked-files=no"],
-        cwd=repo_root,
-        text=True,
-    ).strip()
     ids_hash, annotations_hash = _source_hash(training_tracks)
+    all_ids_hash, all_annotations_hash = _source_hash(all_tracks)
     data_home = training_tracks[0].annotation_path.parents[1]
     rebuilt_payloads = {
         "guitarset_v1.json": build_position_payload(
@@ -739,7 +1073,7 @@ def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
         ),
     }
     artifacts = []
-    for filename, source_commit, command, constants in (
+    for filename, source_commit, construction_command, constants in (
         (
             "guitarset_v1.json",
             "936a5ccf2b4ecbb9d79bddb38c2d0115d471fc7b",
@@ -769,7 +1103,7 @@ def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
                 "artifact": filename,
                 "canonical_json_sha256": _canonical_json_hash(artifact),
                 "source_commit": source_commit,
-                "construction_command": command,
+                "construction_command": construction_command,
                 "constants": constants,
                 "declared_validation_player": payload["validation_player"],
                 "declared_training_tracks": payload["training_tracks"],
@@ -780,18 +1114,57 @@ def _write_provenance(path: Path, training_tracks: Sequence[Track]) -> None:
         "schema_version": 1,
         "benchmark_source": {
             "commit": benchmark_source_commit,
-            "tracked_worktree_clean": not tracked_status,
+            "tracked_worktree_clean": source_worktree_clean,
+            "script": str(Path(__file__).resolve().relative_to(repo_root)),
+            "command": list(command),
         },
         "dataset": "GuitarSet",
+        "dataset_version": "original public 360-track mono-mic/JAMS release",
         "dataset_reference": "Xi et al., ISMIR 2018",
         "license": "CC-BY-4.0",
         "split": {"training_players": list(DEV_PLAYERS), "held_out_player": FINAL_PLAYER},
         "training_tracks": len(training_tracks),
         "training_track_ids_sha256": ids_hash,
         "training_annotations_sha256": annotations_hash,
+        "all_tracks": len(all_tracks),
+        "all_track_ids_sha256": all_ids_hash,
+        "all_annotations_sha256": all_annotations_hash,
+        "audio_event_cache": _cache_provenance(all_tracks, backend_name),
         "artifacts": artifacts,
+        "environment": {
+            "python": platform.python_version(),
+            "python_implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+            "packages": _package_versions(),
+        },
+        "performance_observation": {
+            "wall_seconds": round(runtime_seconds, 6),
+            "peak_process_memory_bytes": peak_memory_bytes,
+            "artifact_bytes": sum(int(item["bytes"]) for item in outputs.values()),
+            "note": "observational metadata; excluded from deterministic report/CSV hashes",
+        },
+        "deterministic_outputs": dict(outputs),
     }
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def _peak_process_memory_bytes() -> int:
+    if os.name == "nt":
+        output = subprocess.check_output(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-Command",
+                f"(Get-Process -Id {os.getpid()}).PeakWorkingSet64",
+            ],
+            text=True,
+        )
+        return int(output.strip())
+
+    import resource  # noqa: PLC0415
+
+    peak = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    return peak if sys.platform == "darwin" else peak * 1024
 
 
 def _checked_in_bundle(cfg: GuitarConfig) -> PriorBundle:
@@ -806,13 +1179,21 @@ def _checked_in_bundle(cfg: GuitarConfig) -> PriorBundle:
 
 
 def main(argv: list[str] | None = None) -> int:
+    started_at = time.perf_counter()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-home", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
     parser.add_argument("--backend", default="highres")
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--date", default="2026-07-14")
+    parser.add_argument("--date", default="2026-07-15")
     args = parser.parse_args(argv)
+
+    repo_root = Path(__file__).resolve().parents[3]
+    source_worktree_clean = not subprocess.check_output(
+        ["git", "status", "--short", "--untracked-files=no"],
+        cwd=repo_root,
+        text=True,
+    ).strip()
 
     cfg = GuitarConfig()
     tracks = load_tracks(
@@ -865,6 +1246,20 @@ def main(argv: list[str] | None = None) -> int:
         final_bundle,
         cfg,
     )
+    segment_oracles = _segment_oracles(
+        final_tracks,
+        final_results["production_equivalent"],
+        cfg,
+    )
+    event_metrics = _baseline_event_metrics(
+        final_tracks,
+        final_results["production_equivalent"],
+    )
+    reproduced = _metric_summary(final_results["production_equivalent"])["macro_tab_f1"]
+    if abs(reproduced - 0.6126) > 1e-4:
+        raise RuntimeError(
+            f"production baseline mismatch: expected 0.6126 within 1e-4, got {reproduced:.6f}"
+        )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     stem = f"string_assignment_phase0_{args.date}"
@@ -875,11 +1270,35 @@ def main(argv: list[str] | None = None) -> int:
     all_results = [*dev_results.values(), *final_results.values()]
     _write_csv(note_path, [row for result in all_results for row in result.note_rows])
     _write_csv(summary_path, _aggregate_rows(all_results))
-    _write_provenance(provenance_path, dev_tracks)
     report = _report(
-        list(dev_results.values()), list(final_results.values()), oracle, provenance_path
+        list(dev_results.values()),
+        list(final_results.values()),
+        oracle,
+        segment_oracles,
+        event_metrics,
+        provenance_path,
     )
     report_path.write_text(report, encoding="utf-8", newline="\n")
+    outputs = {
+        output.name: {
+            "sha256": _file_sha256(output),
+            "bytes": output.stat().st_size,
+            "tracked": output != note_path,
+        }
+        for output in (report_path, summary_path, note_path)
+    }
+    command = [sys.executable, "-m", "scripts.eval.string_assignment_phase0", *sys.argv[1:]]
+    _write_provenance(
+        provenance_path,
+        dev_tracks,
+        tracks,
+        backend_name=args.backend,
+        command=command,
+        outputs=outputs,
+        runtime_seconds=time.perf_counter() - started_at,
+        peak_memory_bytes=_peak_process_memory_bytes(),
+        source_worktree_clean=source_worktree_clean,
+    )
     print(f"wrote {report_path}")
     print(f"wrote {note_path}")
     print(f"wrote {summary_path}")

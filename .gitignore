@@ -74,3 +74,4 @@ tabvision/data/eval/local_*.toml
 
 # Large, reproducible Phase 0 note-level diagnostics; grouped summaries are tracked.
 docs/EVAL_REPORTS/string_assignment_phase0_*_notes.csv
+docs/EVAL_REPORTS/string_assignment_phase1_*_notes.csv

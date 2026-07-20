@@ -1,4 +1,5 @@
 """Adapter from the v1 ``tabvision`` package to the Flask API contract."""
+
 from __future__ import annotations
 
 import json
@@ -20,11 +21,15 @@ logger = logging.getLogger(__name__)
 class V1PipelineConfig:
     """Runtime-selectable v1 pipeline settings."""
 
-    audio_backend: str = "highres"
-    fallback_audio_backend: str | None = None
+    # "auto" follows tabvision.pipeline.audio_backend_for_session: clean
+    # acoustic → highres-ensemble (promoted 2026-07-20), electric →
+    # highres-electric, else highres.
+    audio_backend: str = "auto"
+    fallback_audio_backend: str | None = "highres"
     position_prior: str | None = "auto"
     sequence_prior: str | None = "auto"
     string_evidence: str | None = "auto"
+    assignment_decoder: str | None = "auto"
     video_enabled: bool = False
     melodic_prior_enabled: bool = False
     accuracy_mode: str = "accurate"
@@ -32,16 +37,23 @@ class V1PipelineConfig:
     @classmethod
     def from_env(cls) -> "V1PipelineConfig":
         return cls(
-            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "highres").strip().lower(),
+            audio_backend=os.getenv("TABVISION_AUDIO_BACKEND", "auto")
+            .strip()
+            .lower(),
             fallback_audio_backend=_optional_env(
-                "TABVISION_FALLBACK_AUDIO_BACKEND", None
+                "TABVISION_FALLBACK_AUDIO_BACKEND", "highres"
             ),
             position_prior=_policy_env("TABVISION_POSITION_PRIOR", "auto"),
             sequence_prior=_policy_env("TABVISION_SEQUENCE_PRIOR", "auto"),
             string_evidence=_policy_env("TABVISION_STRING_EVIDENCE", "auto"),
+            assignment_decoder=_policy_env("TABVISION_ASSIGNMENT_DECODER", "auto"),
             video_enabled=_truthy(os.getenv("TABVISION_VIDEO_ENABLED", "false")),
-            melodic_prior_enabled=_truthy(os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")),
-            accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate").strip().lower(),
+            melodic_prior_enabled=_truthy(
+                os.getenv("TABVISION_MELODIC_PRIOR_ENABLED", "false")
+            ),
+            accuracy_mode=os.getenv("TABVISION_ACCURACY_MODE", "accurate")
+            .strip()
+            .lower(),
         )
 
 
@@ -109,19 +121,77 @@ def _video_diagnostics(video_enabled: bool) -> dict[str, Any]:
 def _fallback_policy_metadata(config: V1PipelineConfig) -> dict[str, Any]:
     """Metadata for legacy/injected runners that still return a bare list."""
 
-    requested_position = config.position_prior if config.position_prior is not None else "none"
-    requested_sequence = config.sequence_prior if config.sequence_prior is not None else "none"
-    requested_evidence = config.string_evidence if config.string_evidence is not None else "none"
+    requested_position = (
+        config.position_prior if config.position_prior is not None else "none"
+    )
+    requested_sequence = (
+        config.sequence_prior if config.sequence_prior is not None else "none"
+    )
+    requested_evidence = (
+        config.string_evidence if config.string_evidence is not None else "none"
+    )
+    requested_decoder = (
+        config.assignment_decoder if config.assignment_decoder is not None else "auto"
+    )
     return {
+        "resolvedAudioBackend": config.audio_backend,
         "requestedPositionPrior": requested_position,
         "resolvedPositionPrior": requested_position,
         "requestedSequencePrior": requested_sequence,
         "resolvedSequencePrior": requested_sequence,
         "requestedStringEvidence": requested_evidence,
         "resolvedStringEvidence": requested_evidence,
+        "requestedAssignmentDecoder": requested_decoder,
+        "resolvedAssignmentDecoder": "baseline"
+        if requested_decoder == "auto"
+        else requested_decoder,
+        "assignmentDecoderReason": "legacy pipeline result",
         "artifactVersions": {},
         "artifactSha256": {},
     }
+
+
+def _compute_note_candidates(
+    pipeline_result: Any,
+    job: Job,
+) -> list[list[dict[str, Any]] | None] | None:
+    """Ranked pitch-preserving alternatives per note, in onset-sorted order.
+
+    Advisory metadata for the review UI (2026-07-20 assisted program). Any
+    failure — legacy runner results without audio events, import problems,
+    decode misalignment — degrades to ``None``; it must never break a job.
+    """
+    tab_events = getattr(pipeline_result, "tab_events", None)
+    audio_events = getattr(pipeline_result, "audio_events", None)
+    policy = getattr(pipeline_result, "policy", None)
+    if not tab_events or audio_events is None or policy is None:
+        return None
+    try:
+        _ensure_v1_on_path()
+        from tabvision.assist import compute_note_candidates
+        from tabvision.types import GuitarConfig
+
+        sorted_events = sorted(tab_events, key=lambda event: event.onset_s)
+        ranked = compute_note_candidates(
+            sorted_events,
+            audio_events,
+            cfg=GuitarConfig(capo=job.capo_fret),
+            sequence_prior=policy.resolved_sequence_prior,
+        )
+        return [
+            (
+                [
+                    {"string": 6 - cand.string_idx, "fret": int(cand.fret)}
+                    for cand in candidates
+                ]
+                if candidates
+                else None
+            )
+            for candidates in ranked
+        ]
+    except Exception:  # noqa: BLE001 — advisory metadata must never fail a job
+        logger.exception("assist candidate computation failed; continuing without")
+        return None
 
 
 def _unpack_pipeline_result(
@@ -135,12 +205,17 @@ def _unpack_pipeline_result(
     policy = result.policy
     artifacts = tuple(getattr(policy, "artifacts", ()))
     metadata = {
+        "resolvedAudioBackend": getattr(result, "resolved_audio_backend", "")
+        or config.audio_backend,
         "requestedPositionPrior": policy.requested_position_prior,
         "resolvedPositionPrior": policy.resolved_position_prior,
         "requestedSequencePrior": policy.requested_sequence_prior,
         "resolvedSequencePrior": policy.resolved_sequence_prior,
         "requestedStringEvidence": policy.requested_string_evidence,
         "resolvedStringEvidence": policy.resolved_string_evidence,
+        "requestedAssignmentDecoder": policy.requested_assignment_decoder,
+        "resolvedAssignmentDecoder": policy.resolved_assignment_decoder,
+        "assignmentDecoderReason": policy.assignment_decoder_reason,
         "artifactVersions": {item.name: item.version for item in artifacts},
         "artifactSha256": {item.name: item.sha256 for item in artifacts},
     }
@@ -154,8 +229,14 @@ def tab_events_to_tab_document(
     *,
     diagnostics: dict[str, Any] | None = None,
     inference_policy: dict[str, Any] | None = None,
+    note_candidates: list[list[dict[str, Any]] | None] | None = None,
 ) -> dict[str, Any]:
-    """Convert v1 TabEvents to the existing frontend TabDocument JSON."""
+    """Convert v1 TabEvents to the existing frontend TabDocument JSON.
+
+    ``note_candidates``, when given, is aligned to the onset-sorted note order
+    (the same sort applied here) and carries each note's ranked
+    pitch-preserving alternatives for the review UI.
+    """
     event_list = sorted(list(events), key=lambda event: event.onset_s)
     notes_data: list[dict[str, Any]] = []
 
@@ -176,16 +257,21 @@ def tab_events_to_tab_document(
             "confidenceLevel": _confidence_level(confidence),
             "isEdited": False,
         }
+        if note_candidates and index < len(note_candidates) and note_candidates[index]:
+            note["candidates"] = note_candidates[index]
         techniques = tuple(getattr(event, "techniques", ()) or ())
         if techniques:
             note["technique"] = techniques[0]
         notes_data.append(note)
 
     total_notes = len(notes_data)
+    candidate_notes = sum(1 for note in notes_data if note.get("candidates"))
     high_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "high")
     med_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "medium")
     low_conf = sum(1 for note in notes_data if note["confidenceLevel"] == "low")
-    max_time = max((note.get("endTime", note["timestamp"]) for note in notes_data), default=0.0)
+    max_time = max(
+        (note.get("endTime", note["timestamp"]) for note in notes_data), default=0.0
+    )
 
     merged_diagnostics = _video_diagnostics(config.video_enabled)
     if diagnostics:
@@ -207,15 +293,17 @@ def tab_events_to_tab_document(
             "videoConfirmedNotes": merged_diagnostics["notesAffectedByVideo"],
             "averageConfidence": (
                 sum(note["confidence"] for note in notes_data) / total_notes
-                if total_notes > 0 else 0
+                if total_notes > 0
+                else 0
             ),
             "pipelineVersion": "v1",
-            "audioBackend": config.audio_backend,
+            "audioBackend": policy.get("resolvedAudioBackend") or config.audio_backend,
             "positionPrior": policy["resolvedPositionPrior"],
             **policy,
             "videoEnabled": config.video_enabled,
             "accuracyMode": config.accuracy_mode,
             "noteCountRatio": None,
+            "assistCandidateNotes": candidate_notes,
             "diagnostics": merged_diagnostics,
         },
     }
@@ -230,7 +318,9 @@ def run_v1_transcription(
     progress_callback: Callable[[str], None] | None = None,
 ) -> str:
     """Run v1 transcription and write a frontend-compatible result JSON."""
-    config = replace(config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode)
+    config = replace(
+        config or V1PipelineConfig.from_env(), accuracy_mode=job.accuracy_mode
+    )
     runner = pipeline_runner or _load_v1_runner()
     GuitarConfig, SessionConfig = _load_v1_types()
 
@@ -241,9 +331,20 @@ def run_v1_transcription(
     }
 
     common_kwargs = {
-        "position_prior": config.position_prior if config.position_prior is not None else "none",
-        "sequence_prior": config.sequence_prior if config.sequence_prior is not None else "none",
-        "string_evidence": config.string_evidence if config.string_evidence is not None else "none",
+        "position_prior": config.position_prior
+        if config.position_prior is not None
+        else "none",
+        "sequence_prior": config.sequence_prior
+        if config.sequence_prior is not None
+        else "none",
+        "string_evidence": config.string_evidence
+        if config.string_evidence is not None
+        else "none",
+        "assignment_decoder": (
+            config.assignment_decoder
+            if config.assignment_decoder is not None
+            else "auto"
+        ),
         "video_enabled": config.video_enabled,
         "melodic_prior_enabled": config.melodic_prior_enabled,
         "lambda_vision": 1.0 if config.video_enabled else 0.0,
@@ -278,7 +379,10 @@ def run_v1_transcription(
         )
         effective_config = replace(config, audio_backend=fallback)
 
-    events, inference_policy = _unpack_pipeline_result(pipeline_result, effective_config)
+    events, inference_policy = _unpack_pipeline_result(
+        pipeline_result, effective_config
+    )
+    note_candidates = _compute_note_candidates(pipeline_result, job)
 
     tab_document = tab_events_to_tab_document(
         job,
@@ -286,6 +390,7 @@ def run_v1_transcription(
         effective_config,
         diagnostics=diagnostics,
         inference_policy=inference_policy,
+        note_candidates=note_candidates,
     )
 
     os.makedirs(output_dir, exist_ok=True)
@@ -325,7 +430,11 @@ def humanize_pipeline_error(exc: BaseException) -> str:
             "No audio could be read from the file. Make sure the recording has an "
             "audio track (was the microphone enabled?) and try again."
         )
-    if "audio decode failed" in low or "ffprobe failed" in low or "invalid data found" in low:
+    if (
+        "audio decode failed" in low
+        or "ffprobe failed" in low
+        or "invalid data found" in low
+    ):
         return (
             "The file could not be decoded — its format or codec isn't supported. "
             "Try MP4, MOV, WEBM, WAV, MP3, or M4A."
@@ -337,7 +446,9 @@ def humanize_pipeline_error(exc: BaseException) -> str:
             "The transcription model could not be downloaded. Check the server's "
             "internet connection and try again in a few minutes."
         )
-    first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    first_line = (
+        str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+    )
     return f"Transcription failed: {first_line[:200]}"
 
 

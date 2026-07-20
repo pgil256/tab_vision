@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-16",
+  "evaluation_source_commit": "f30546096f987cfcef986bb746b39c95e38186b9",
+  "tracked_verification_checkout_clean": true,
+  "environment": {
+    "os": "Windows 11 Pro 10.0.26200",
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+    "logical_processors": 8,
+    "visible_memory_bytes": 34048368640,
+    "python": "3.12.10",
+    "numpy": "2.4.6",
+    "torch": "2.12.0+cpu",
+    "mir_eval": "0.8.2",
+    "hf_midi_transcription": "0.1.1"
+  },
+  "dataset": {
+    "guitarset_development_players": ["00", "01", "02", "03", "04"],
+    "guitarset_confirmation_player": "05",
+    "development_tracks": 300,
+    "confirmation_tracks": 60,
+    "development_annotations_sha256": "ae67ab869c542c9b22586464f78e555beb796b4016787391228b91dd5ce14d71",
+    "all_annotations_sha256": "25614102519bfbb8ce67ec9eeaf28d2088179d3356ec704c7e2df3ffb5012f16",
+    "guitar_techs_pairable_clips": 94,
+    "guitar_techs_annotation_sha256": "3f53b76dc456d792f6b1b75e486eedf51bab1fa008c71fe2743e31a090ce5f6c"
+  },
+  "commands": {
+    "phase0": "python -m scripts.eval.string_assignment_phase0 --data-home C:\\Users\\patri\\.tabvision\\data\\guitarset --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase0 --date 2026-07-16-phase7",
+    "phase1": "python -m scripts.eval.string_assignment_phase1 --data-home C:\\Users\\patri\\.tabvision\\data\\guitarset --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase1 --date 2026-07-16-phase7",
+    "phase2": "python -m scripts.eval.string_assignment_phase2 --data-home C:\\Users\\patri\\.tabvision\\data\\guitarset --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase2",
+    "phase3_development": "python -m scripts.eval.string_assignment_phase3 --data-home C:\\Users\\patri\\.tabvision\\data\\guitarset --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase3",
+    "phase3_confirmation": "python -m scripts.eval.string_assignment_phase3 --data-home C:\\Users\\patri\\.tabvision\\data\\guitarset --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase3 --confirm-player05",
+    "phase4": "python -m scripts.eval.string_assignment_phase4 --notes C:\\Users\\patri\\.tabvision\\phase7\\phase0\\string_assignment_phase0_2026-07-16-phase7_notes.csv --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase4",
+    "phase5": "python -m scripts.eval.string_assignment_phase5 --notes C:\\Users\\patri\\.tabvision\\phase7\\phase0\\string_assignment_phase0_2026-07-16-phase7_notes.csv --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase5",
+    "phase6": "python -m scripts.eval.string_assignment_phase6 --notes C:\\Users\\patri\\.tabvision\\phase7\\phase1\\string_assignment_phase1_2026-07-16-phase7_notes.csv --output-dir C:\\Users\\patri\\.tabvision\\phase7\\phase6",
+    "domain_routing": "python -m scripts.eval.phase1_domain_routing --guitar-techs-root C:\\Users\\patri\\.tabvision\\data\\guitar-techs --output C:\\Users\\patri\\.tabvision\\phase7\\domain-routing.md",
+    "benchmark": "python -m scripts.eval.string_assignment_phase3_benchmark C:\\Users\\patri\\.tabvision\\data\\guitarset\\audio_mono-mic\\00_Jazz1-200-B_solo_mic.wav",
+    "core_verify": "pytest -v; ruff check .; ruff format --check .; mypy tabvision",
+    "server_verify": "pytest -v",
+    "license": "python scripts/check_default_licenses.py --pyproject pyproject.toml",
+    "fresh_install": "python -m venv .venv; python -m pip install -e .[dev]; tabvision --version; python scripts/check_default_licenses.py --pyproject pyproject.toml; pytest -v -m render"
+  },
+  "phase_results": {
+    "phase0": {"decision": "pass_baseline_and_oracle", "player05_tab_f1": 0.6126},
+    "phase1": {"decision": "close_rule_based_segment_decoding", "prediction_sha256": "9788d929bea9a7ca414050f8de10370a352d4fe848ed8baedb053f66cdb5d7ef"},
+    "phase2": {"decision": "close_symbolic_context_expansion", "prediction_sha256": "d3ab8c8a96302e6e978374815c5e6a4caf3dcb3b50fa1ffde04a03565ef84109"},
+    "phase3": {"decision": "explicit_ensemble_only_auto_unchanged", "development_tab_f1": 0.6017, "confirmation_tab_f1": 0.6339},
+    "phase4": {"decision": "close_native_rate_timbre", "prediction_sha256": "a8fb946ebdf06f7a2f73c543dadd92dfd8c39152434b14ca83d7242a857b57a10"},
+    "phase5": {"decision": "close_direct_per_string", "prediction_sha256": "50c0d976b8750e9e6885c4205fe66c27bc2b53ae0e94ce7bb6dbe1518bcc9a14f"},
+    "phase6": {"decision": "close_assisted_review", "prediction_sha256": "d044a80525b4e4dc266ffd9fae40fe053023b6c65db47838c474e145fef486021"}
+  },
+  "benchmark": {
+    "source_sha256": "d8df477ac8d17da5df76bbfafe94449b9f1c398e120db99d5765deeab59fbfb6",
+    "duration_s": 60.0,
+    "artifact_bytes": 1111,
+    "artifact_sha256": "1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2",
+    "runs": [
+      {"wall_seconds": 258.0446101999987, "peak_rss_bytes": 1925480448, "audio_events": 188, "tab_events": 188, "output_sha256": "1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3"},
+      {"wall_seconds": 196.0010284999953, "peak_rss_bytes": 1917591552, "audio_events": 188, "tab_events": 188, "output_sha256": "1d4ece2570ac73b99f9a825700f6aa2dd1ff9dd2dbaeab73321c012d05c11d5e3"}
+    ]
+  },
+  "verification": {
+    "core_pytest": {"passed": 845, "skipped": 12},
+    "server_pytest": {"passed": 296, "skipped": 3},
+    "ruff_check": "pass",
+    "ruff_format": "pass",
+    "mypy_source_files": 78,
+    "default_license_policy": "pass",
+    "fresh_dev_install": "pass",
+    "web_client": "not_applicable_phase6_ui_gate_failed",
+    "spec_contract_diff_from_phase0": "none",
+    "live_production_change": "none_no_automatic_candidate_passed"
+  },
+  "external_evidence_sha256": {
+    "phase0_notes_csv": "6f06758525f0908be82b1eeb5d74731f1ee647fba74a5c5111e8bf44e231a530",
+    "phase1_notes_csv": "541220a6edd0341fa1799d92313a180a8e7a20139be1c93dc5b52a6d94c9b3e1",
+    "phase2_run_json": "c8ac7b606c7659416e262b39679a1e10d2f8cf0ff689ee8eebd9e9b4af961920",
+    "phase3_provenance_json": "3235355c70bb4b6b698a2efc16c9e02698a452757d7d37aa5d539348b1061395",
+    "phase4_provenance_json": "c49e3daacbba2aec321528954c74154d1c12b043cfc60e42168f27e89bd35821",
+    "phase5_provenance_json": "29cd71328c6127ae5e9cf0d53f0c9aa86e66a5627030a09ba5a6292fe2f8556c",
+    "phase6_provenance_json": "ccb67508d6a0ad684adba1d60e9d1960d51dcc6d5b28bd75686d593aea9776a9",
+    "domain_routing_md": "ed37e2cd16586484b79bd7a365c321de5c477fd94d9e1535e0c59d16758665ec"
+  },
+  "completion_decision": "complete_all_bounded_automatic_branches_documented_no_automatic_promotion"
+}

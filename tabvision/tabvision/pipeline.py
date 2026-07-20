@@ -25,6 +25,7 @@ import logging
 import os
 import threading
 from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -39,6 +40,7 @@ from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.playability import set_transition_prior
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
 from tabvision.fusion.transition_prior import load_transition_prior
+from tabvision.fusion.viterbi import assignment_decoder_context
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
@@ -106,6 +108,21 @@ def _install_sequence_prior(
     logger.info("installed fingering-sequence prior %s", resolved)
 
 
+@contextmanager
+def sequence_decode_context(sequence_prior: str | None) -> Iterator[None]:
+    """Serialize a decode that depends on the process-global sequence prior.
+
+    Any decode outside :func:`run_pipeline_with_artifacts` that must mirror
+    production costs (e.g. the assisted-review candidate ranking) has to see
+    the same installed transition prior without racing a concurrent pipeline
+    run. This acquires the same lock and installs ``sequence_prior`` (a
+    resolved policy name or ``"none"``) for the duration of the block.
+    """
+    with _SEQUENCE_DECODE_LOCK:
+        _install_sequence_prior(sequence_prior)
+        yield
+
+
 @dataclass(frozen=True)
 class _VideoStackResult:
     fingerings: list[FrameFingering]
@@ -119,6 +136,9 @@ class PipelineArtifacts:
     tab_events: tuple[TabEvent, ...]
     audio_events: tuple[AudioEvent, ...]
     policy: ResolvedInferencePolicy
+    # Additive (2026-07-20): the backend that actually ran after "auto"
+    # routing (e.g. "highres-ensemble"). Empty string on legacy constructors.
+    resolved_audio_backend: str = ""
 
 
 def run_pipeline_with_artifacts(
@@ -135,6 +155,7 @@ def run_pipeline_with_artifacts(
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
+    assignment_decoder: str | None = None,
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -198,6 +219,7 @@ def run_pipeline_with_artifacts(
         requested_position_prior=position_prior,
         requested_sequence_prior=sequence_prior,
         requested_string_evidence=string_evidence,
+        requested_assignment_decoder=assignment_decoder,
         cfg=cfg,
         session=session,
         audio_backend_name=resolved_audio_backend_name,
@@ -256,13 +278,15 @@ def run_pipeline_with_artifacts(
     # cannot observe each other's policy.
     with _SEQUENCE_DECODE_LOCK:
         _install_sequence_prior(policy.resolved_sequence_prior)
-        tab_events = tuple(
-            fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision)
-        )
+        with assignment_decoder_context(policy.resolved_assignment_decoder):
+            tab_events = tuple(
+                fuse(audio_events, fingerings, cfg, session, lambda_vision=lambda_vision)
+            )
     return PipelineArtifacts(
         tab_events=tab_events,
         audio_events=tuple(audio_events),
         policy=policy,
+        resolved_audio_backend=resolved_audio_backend_name,
     )
 
 
@@ -280,6 +304,7 @@ def run_pipeline(
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
+    assignment_decoder: str | None = None,
     melodic_prior_enabled: bool = False,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -301,6 +326,7 @@ def run_pipeline(
         position_prior=position_prior,
         sequence_prior=sequence_prior,
         string_evidence=string_evidence,
+        assignment_decoder=assignment_decoder,
         melodic_prior_enabled=melodic_prior_enabled,
         audio_filters=audio_filters,
         cfg=cfg,
@@ -407,13 +433,18 @@ def audio_backend_for_session(session: SessionConfig) -> str:
     """Audio backend for a session's declared instrument — the user-facing toggle.
 
     Electric → the separately fine-tuned electric checkpoint (``highres-electric``);
-    acoustic / classical → the acoustic ``highres`` default. Separate checkpoints,
-    so the acoustic model is never disturbed (see
-    ``docs/plans/2026-06-02-electric-backbone-finetune-design.md``). Used when
-    ``run_pipeline`` is called with ``audio_backend_name="auto"``.
+    clean acoustic → the registered GAPS+FL ``highres-ensemble`` (Phase 3 gate
+    passed; promoted to the default by the 2026-07-20 personal-use decision —
+    player-05 aggregate +0.0213, onset/pitch improve, ~2× audio inference time);
+    classical / distorted-acoustic → the single-checkpoint ``highres``. The
+    ensemble backend itself deterministically rolls back to the single GAPS
+    checkpoint outside clean acoustic, so this routing is belt-and-suspenders.
+    Used when ``run_pipeline`` is called with ``audio_backend_name="auto"``.
     """
     if session.instrument == "electric":
         return "highres-electric"
+    if session.instrument == "acoustic" and session.tone == "clean":
+        return "highres-ensemble"
     return "highres"
 
 

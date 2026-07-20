@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from tabvision.errors import ConfigurationError
@@ -24,6 +25,9 @@ class ResolvedInferencePolicy:
     resolved_sequence_prior: str
     requested_string_evidence: str
     resolved_string_evidence: str
+    requested_assignment_decoder: str
+    resolved_assignment_decoder: str
+    assignment_decoder_reason: str
     artifacts: tuple[ArtifactIdentity, ...]
     resolution_reason: str
 
@@ -36,6 +40,7 @@ def resolve_inference_policy(
     cfg: GuitarConfig,
     session: SessionConfig,
     audio_backend_name: str,
+    requested_assignment_decoder: str | None = None,
 ) -> ResolvedInferencePolicy:
     """Resolve requested policy without loading model weights.
 
@@ -59,6 +64,15 @@ def resolve_inference_policy(
                 position_manifest = load_artifact_manifest("guitarset-v1", expected_kind="position")
             except ConfigurationError as exc:
                 reasons.append(f"automatic position prior unavailable: {exc}")
+        elif _automatic_classical_domain(cfg, session):
+            # 2026-07-20 personal-posture program: classical sessions get the
+            # GAPS-trained pair instead of neutral. Unregistered/missing
+            # artifacts degrade to none, never to the acoustic prior (the
+            # banked -13.8pp cross-domain regression).
+            try:
+                position_manifest = load_artifact_manifest("gaps-v1", expected_kind="position")
+            except ConfigurationError as exc:
+                reasons.append(f"automatic classical position prior unavailable: {exc}")
         else:
             reasons.append("session is outside the validated acoustic prior domain")
     elif requested_position != "none":
@@ -98,6 +112,12 @@ def resolve_inference_policy(
     elif requested_timbre == "auto":
         reasons.append("no gate-passed timbral artifact is registered")
 
+    requested_decoder, resolved_decoder, decoder_reason = resolve_assignment_decoder(
+        requested_assignment_decoder,
+        cfg=cfg,
+        session=session,
+    )
+
     manifests = [position_manifest, sequence_manifest, timbre_manifest]
     identities = tuple(
         ArtifactIdentity(item.name, item.version, item.sha256)
@@ -111,6 +131,9 @@ def resolve_inference_policy(
         resolved_sequence_prior=resolved_sequence,
         requested_string_evidence=requested_timbre,
         resolved_string_evidence=resolved_timbre,
+        requested_assignment_decoder=requested_decoder,
+        resolved_assignment_decoder=resolved_decoder,
+        assignment_decoder_reason=decoder_reason,
         artifacts=identities,
         resolution_reason="; ".join(reasons) or "explicit registered policy",
     )
@@ -130,6 +153,16 @@ def _automatic_acoustic_domain(cfg: GuitarConfig, session: SessionConfig) -> boo
     )
 
 
+def _automatic_classical_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
+    """Clean classical, standard tuning, capo 0 — the gaps-v1 validated domain."""
+    return (
+        session.instrument == "classical"
+        and session.tone == "clean"
+        and cfg.tuning_midi == DEFAULT_TUNING_MIDI
+        and cfg.capo == 0
+    )
+
+
 def _automatic_timbre_domain(
     cfg: GuitarConfig,
     session: SessionConfig,
@@ -138,8 +171,73 @@ def _automatic_timbre_domain(
     return _automatic_acoustic_domain(cfg, session) and audio_backend_name == "highres"
 
 
+def resolve_assignment_decoder(
+    requested: str | None,
+    *,
+    cfg: GuitarConfig,
+    session: SessionConfig,
+) -> tuple[str, str, str]:
+    """Resolve the additive string-assignment decoder policy.
+
+    During Phase 1, ``auto`` deliberately remains the legacy baseline.  An
+    explicit ``segment-v1`` request is available only in the validation domain;
+    unsupported instruments/configurations fall back safely to ``baseline``.
+    """
+
+    value = requested
+    if value is None:
+        value = os.environ.get("TABVISION_ASSIGNMENT_DECODER", "auto")
+    requested_decoder = _choice(value, default="auto")
+    choices = {"auto", "baseline", "segment-v1", "context-v1"}
+    if requested_decoder not in choices:
+        raise ConfigurationError(
+            "assignment decoder must be one of auto, baseline, segment-v1, context-v1; "
+            f"got {requested_decoder!r}"
+        )
+    if requested_decoder == "baseline":
+        return requested_decoder, "baseline", "explicit rollback decoder"
+    if requested_decoder == "auto":
+        return (
+            requested_decoder,
+            "baseline",
+            "segment-v1 has not passed the automatic promotion gate",
+        )
+    if requested_decoder == "context-v1":
+        if not _automatic_acoustic_domain(cfg, session):
+            return (
+                requested_decoder,
+                "baseline",
+                "context-v1 is restricted to clean acoustic, standard tuning, capo 0",
+            )
+        try:
+            load_artifact_manifest("context-v1", expected_kind="assignment_context")
+        except ConfigurationError as exc:
+            return (
+                requested_decoder,
+                "baseline",
+                f"context-v1 is unavailable; falling back to baseline: {exc}",
+            )
+        # A gate-passed artifact must be integrated as candidate evidence
+        # before this branch can become reachable. Keeping the final guard
+        # fail-safe prevents a manifest edit alone from enabling an incomplete
+        # runtime path.
+        return (
+            requested_decoder,
+            "baseline",
+            "context-v1 runtime activation requires an integrated gate-passed artifact",
+        )
+    if not _automatic_acoustic_domain(cfg, session):
+        return (
+            requested_decoder,
+            "baseline",
+            "segment-v1 is restricted to clean acoustic, standard tuning, capo 0",
+        )
+    return requested_decoder, "segment-v1", "explicit validated-domain request"
+
+
 __all__ = [
     "ArtifactIdentity",
     "ResolvedInferencePolicy",
+    "resolve_assignment_decoder",
     "resolve_inference_policy",
 ]

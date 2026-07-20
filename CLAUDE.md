@@ -2,6 +2,20 @@
 
 Guidance for Claude Code when working in this repository.
 
+## Posture update (2026-07-20)
+
+TabVision is a **personal, non-commercial application** (SPEC §1.5 amended;
+DECISIONS.md 2026-07-20). NC-licensed datasets/weights (CC-BY-NC[-SA]) are
+acceptable in the shipping default and as training substrate — each NC-derived
+artifact is labeled in LICENSES.md. Private/user recordings remain banned from
+all training/eval roles. Shipped under this posture: `highres-ensemble` is the
+clean-acoustic `auto` audio backend (+0.021 player-05 aggregate Tab F1);
+classical sessions route to the GAPS-trained `gaps-v1`/`gaps-seq-v1` priors;
+the web editor has an assisted review queue (R key) with server-ranked
+pitch-preserving candidate cycling (C key), shipped at the measured Phase 6
+level (38.76% wrong-position reduction @60s), reported separately from
+automatic Tab F1.
+
 ## Project status (2026-05-05)
 
 **TabVision is mid-spec-adoption.** A new canonical specification at

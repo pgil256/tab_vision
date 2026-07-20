@@ -46,7 +46,7 @@ _NAMED_PRIORS = {
     "pdmx-seq-v1": _PRIORS_DIR / "pdmx_seq_v1.json",
     "guitarset-pdmx-seq-v1": _PRIORS_DIR / "guitarset_pdmx_seq_v1.json",
 }
-_REGISTERED_NAMED_PRIORS = {"guitarset-seq-v1"}
+_REGISTERED_NAMED_PRIORS = {"guitarset-seq-v1", "gaps-seq-v1"}
 
 CLUSTER_GAP_S = 0.080
 """Chord-cluster chain gap — mirrors :data:`tabvision.fusion.chord.CHORD_MAX_GAP_S`

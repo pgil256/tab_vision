@@ -127,17 +127,27 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
+        choices=[
+            "basicpitch",
+            "highres",
+            "highres-fl",
+            "highres-ensemble",
+            "highres-electric",
+            "auto",
+        ],
         default="auto",
         help=(
             "audio transcription backend. 'auto' (default) is the tone "
             "toggle: routes to 'highres-electric' when --instrument "
-            "electric, else 'highres' — the accepted v1 config. 'highres' "
+            "electric, to 'highres-ensemble' for clean acoustic (promoted "
+            "2026-07-20: +0.021 aggregate Tab F1, better onset/pitch, ~2x "
+            "audio inference time), else 'highres'. 'highres' "
             "(Phase 2) wraps Riley/Edwards + Cwitkowitz GAPS via "
             "hf-midi-transcription (MIT) — needs torch + extras; first run "
             "downloads the checkpoint once (~37 s). 'highres-fl' uses the "
-            "Francois Leduc checkpoint. 'basicpitch' (Phase 1, Apache-2.0) "
-            "is the fast CPU-only baseline."
+            "Francois Leduc checkpoint. 'highres-ensemble' is the registered "
+            "Phase 3 clean-acoustic GAPS+FL selector. 'basicpitch' "
+            "(Phase 1, Apache-2.0) is the fast CPU-only baseline."
         ),
     )
     t.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
@@ -175,18 +185,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--position-prior",
-        choices=["auto", "none", "guitarset-v1"],
+        choices=["auto", "none", "guitarset-v1", "gaps-v1"],
         default="auto",
         help=(
             "pitch-to-string/fret prior. 'auto' (default) uses the "
-            "hash-verified GuitarSet artifact only in its validated clean "
-            "acoustic, standard-tuning, capo-zero domain. 'none' disables it; "
+            "hash-verified GuitarSet artifact in its validated clean "
+            "acoustic, standard-tuning, capo-zero domain, and the "
+            "GAPS-trained 'gaps-v1' for clean classical sessions "
+            "(2026-07-20). 'none' disables it; "
             "an explicit artifact is for reproducible evaluation or rollback."
         ),
     )
     t.add_argument(
         "--sequence-prior",
-        choices=["auto", "none", "guitarset-seq-v1"],
+        choices=["auto", "none", "guitarset-seq-v1", "gaps-seq-v1"],
         default="auto",
         help=(
             "learned fingering-sequence prior on the decode's transitions "
@@ -281,7 +293,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument(
         "--audio-backend",
-        choices=["basicpitch", "highres", "highres-fl", "highres-electric", "auto"],
+        choices=[
+            "basicpitch",
+            "highres",
+            "highres-fl",
+            "highres-ensemble",
+            "highres-electric",
+            "auto",
+        ],
         default="basicpitch",
         help="audio transcription backend used for the diagnostic decode",
     )

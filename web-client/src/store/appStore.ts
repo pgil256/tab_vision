@@ -72,6 +72,13 @@ interface AppState {
   isFollowingPlayback: boolean;
   pendingFretInput: string;
 
+  // Review mode (2026-07-20 assisted program): step through the
+  // lowest-confidence notes and cycle each one's ranked pitch-preserving
+  // alternatives (server-computed min-marginal candidates).
+  reviewActive: boolean;
+  reviewIds: string[];
+  reviewIndex: number;
+
   // UI state
   zoomLevel: number;
   capoFretInput: number;
@@ -112,6 +119,13 @@ interface AppState {
   // Selection actions
   selectNote: (noteId: string | null) => void;
   selectAdjacentNote: (direction: 'left' | 'right' | 'up' | 'down') => void;
+
+  // Review actions
+  startReview: () => void;
+  exitReview: () => void;
+  reviewNext: () => void;
+  reviewPrev: () => void;
+  cycleNoteCandidate: (direction: 1 | -1) => void;
 
   // Editing actions
   updateNoteFret: (noteId: string, newFret: number | "X") => void;
@@ -168,6 +182,11 @@ const initialState = {
   selectedNoteId: null as string | null,
   isFollowingPlayback: true,
   pendingFretInput: '',
+
+  // Review mode
+  reviewActive: false,
+  reviewIds: [] as string[],
+  reviewIndex: -1,
 
   // UI state
   zoomLevel: 1.0,
@@ -289,6 +308,69 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (nextNote) {
       set({ selectedNoteId: nextNote.id, pendingFretInput: '' });
     }
+  },
+
+  // Review actions — the review queue is the phase-6 design at its measured
+  // level: lowest-confidence unedited notes first (the Viterbi string-flip
+  // margin drives `confidence`), a 30-note budget (the offline 60-second
+  // replay), and candidate cycling instead of free-form re-entry.
+  startReview: () => {
+    const { tabDocument, setFollowingPlayback } = get();
+    if (!tabDocument) return;
+    const REVIEW_BUDGET = 30;
+    const ids = [...tabDocument.notes]
+      .filter(n => !n.isEdited && n.fret !== 'X')
+      .sort((a, b) => a.confidence - b.confidence)
+      .slice(0, REVIEW_BUDGET)
+      .map(n => n.id);
+    if (!ids.length) return;
+    setFollowingPlayback(false);
+    set({
+      reviewActive: true,
+      reviewIds: ids,
+      reviewIndex: 0,
+      selectedNoteId: ids[0],
+      pendingFretInput: '',
+    });
+  },
+
+  exitReview: () => set({ reviewActive: false, reviewIds: [], reviewIndex: -1 }),
+
+  reviewNext: () => {
+    const { reviewActive, reviewIds, reviewIndex, exitReview } = get();
+    if (!reviewActive) return;
+    const next = reviewIndex + 1;
+    if (next >= reviewIds.length) {
+      exitReview();
+      return;
+    }
+    set({ reviewIndex: next, selectedNoteId: reviewIds[next], pendingFretInput: '' });
+  },
+
+  reviewPrev: () => {
+    const { reviewActive, reviewIds, reviewIndex } = get();
+    if (!reviewActive) return;
+    const prev = Math.max(0, reviewIndex - 1);
+    set({ reviewIndex: prev, selectedNoteId: reviewIds[prev], pendingFretInput: '' });
+  },
+
+  // Cycle the selected note through its server-ranked pitch-preserving
+  // alternatives. The list always contains the emitted position, so cycling
+  // can never change pitch or land on an unplayable position.
+  cycleNoteCandidate: (direction) => {
+    const { tabDocument, selectedNoteId, updateNotePosition } = get();
+    if (!tabDocument || !selectedNoteId) return;
+    const note = tabDocument.notes.find(n => n.id === selectedNoteId);
+    if (!note || note.fret === 'X') return;
+    const candidates = note.candidates ?? [];
+    if (candidates.length < 2) return;
+    const current = candidates.findIndex(
+      c => c.string === note.string && c.fret === note.fret
+    );
+    const base = current === -1 ? 0 : current;
+    const next = candidates[(base + direction + candidates.length) % candidates.length];
+    if (next.string < MIN_STRING || next.string > MAX_STRING) return;
+    updateNotePosition(selectedNoteId, next.string, next.fret);
   },
 
   // Editing actions
