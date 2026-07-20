@@ -2696,3 +2696,29 @@ candidates. DadaGP direct access stays an optional user email.
 the cheapest highest-probability lever (same-family third checkpoint) was
 invisible to prior audits because the upstream repo gained the file after the
 2026-05 pin.
+
+---
+
+## 2026-07-20 — Program N1: guitar_kroma CLOSED (near-duplicate of registered gaps member)
+
+**Phase:** NC second-opinion program, Phase N1
+**Decision tree:** plan N1 gate (load + sanity F1 within 0.05 of best
+registered member) with forensics on anomalous equality
+**Branch taken:** Close the kroma branch. The converted checkpoint loads
+correctly through the local-path mechanism (live-weight equality verified),
+but its outputs are bit-identical to `guitar_gaps` on all five smoke clips.
+Tensor forensics: 316/316 keys/shapes align with `guitar-gaps.pth`; the only
+diffs > 1e-2 are 16 BatchNorm running statistics; median learned-weight max
+diff is 4.6e-4. `guitar_kroma.safetensors` is the same trained network
+re-exported, so it provides zero ensemble diversity and cannot be a third
+opinion. The nominal gate row (pitch Δ −0.0564 vs `fl`) is an artifact of
+kroma≡gaps trailing `fl` on this slice; the substantive verdict is
+redundancy. Program N proceeds to the MuScriptor complementarity probe
+(next candidate per plan N-branch); no runtime code, artifact, or routing
+changed.
+**Evidence:** `docs/EVAL_REPORTS/n1_kroma_smoke_2026-07-20.md` (+ `.json`);
+`scripts/eval/convert_kroma_checkpoint.py`; `scripts/eval/n1_kroma_smoke.py`;
+conversion manifest in `~/.tabvision/data/models/guitar-kroma.manifest.json`.
+**Reasoning:** a second opinion has value only if it disagrees usefully;
+bit-identical event streams cannot change any merge decision. Closing early
+cost three CPU-minutes of forensics and spares a full dev-set cache build.

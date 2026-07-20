@@ -1,0 +1,169 @@
+{
+  "clips": [
+    "00_BN1-129-Eb_comp",
+    "01_BN1-129-Eb_comp",
+    "02_BN1-129-Eb_comp",
+    "03_BN1-129-Eb_comp",
+    "04_BN1-129-Eb_comp"
+  ],
+  "selection_rule": "sorted dev annotations, every len//count-th stem",
+  "per_clip": [
+    {
+      "condition": "guitar_gaps",
+      "track_id": "00_BN1-129-Eb_comp",
+      "onset_f1": 0.9069767441860466,
+      "pitch_f1": 0.8837209302325582,
+      "events": 125,
+      "gold_notes": 133,
+      "seconds": 25.125
+    },
+    {
+      "condition": "guitar_gaps",
+      "track_id": "01_BN1-129-Eb_comp",
+      "onset_f1": 0.876847290640394,
+      "pitch_f1": 0.8571428571428572,
+      "events": 98,
+      "gold_notes": 105,
+      "seconds": 14.054
+    },
+    {
+      "condition": "guitar_gaps",
+      "track_id": "02_BN1-129-Eb_comp",
+      "onset_f1": 0.847682119205298,
+      "pitch_f1": 0.8278145695364238,
+      "events": 148,
+      "gold_notes": 154,
+      "seconds": 13.198
+    },
+    {
+      "condition": "guitar_gaps",
+      "track_id": "03_BN1-129-Eb_comp",
+      "onset_f1": 0.9127516778523491,
+      "pitch_f1": 0.8926174496644297,
+      "events": 141,
+      "gold_notes": 157,
+      "seconds": 13.41
+    },
+    {
+      "condition": "guitar_gaps",
+      "track_id": "04_BN1-129-Eb_comp",
+      "onset_f1": 0.9561752988047808,
+      "pitch_f1": 0.9243027888446215,
+      "events": 124,
+      "gold_notes": 127,
+      "seconds": 12.762
+    },
+    {
+      "condition": "guitar_fl",
+      "track_id": "00_BN1-129-Eb_comp",
+      "onset_f1": 0.9272030651340997,
+      "pitch_f1": 0.9195402298850575,
+      "events": 128,
+      "gold_notes": 133,
+      "seconds": 15.16
+    },
+    {
+      "condition": "guitar_fl",
+      "track_id": "01_BN1-129-Eb_comp",
+      "onset_f1": 0.9245283018867924,
+      "pitch_f1": 0.9245283018867924,
+      "events": 107,
+      "gold_notes": 105,
+      "seconds": 12.931
+    },
+    {
+      "condition": "guitar_fl",
+      "track_id": "02_BN1-129-Eb_comp",
+      "onset_f1": 0.9062499999999999,
+      "pitch_f1": 0.9,
+      "events": 166,
+      "gold_notes": 154,
+      "seconds": 12.525
+    },
+    {
+      "condition": "guitar_fl",
+      "track_id": "03_BN1-129-Eb_comp",
+      "onset_f1": 0.9620253164556962,
+      "pitch_f1": 0.9620253164556962,
+      "events": 159,
+      "gold_notes": 157,
+      "seconds": 12.479
+    },
+    {
+      "condition": "guitar_fl",
+      "track_id": "04_BN1-129-Eb_comp",
+      "onset_f1": 0.9615384615384616,
+      "pitch_f1": 0.9615384615384616,
+      "events": 133,
+      "gold_notes": 127,
+      "seconds": 12.976
+    },
+    {
+      "condition": "guitar_kroma",
+      "track_id": "00_BN1-129-Eb_comp",
+      "onset_f1": 0.9069767441860466,
+      "pitch_f1": 0.8837209302325582,
+      "events": 125,
+      "gold_notes": 133,
+      "seconds": 13.463
+    },
+    {
+      "condition": "guitar_kroma",
+      "track_id": "01_BN1-129-Eb_comp",
+      "onset_f1": 0.876847290640394,
+      "pitch_f1": 0.8571428571428572,
+      "events": 98,
+      "gold_notes": 105,
+      "seconds": 12.756
+    },
+    {
+      "condition": "guitar_kroma",
+      "track_id": "02_BN1-129-Eb_comp",
+      "onset_f1": 0.847682119205298,
+      "pitch_f1": 0.8278145695364238,
+      "events": 148,
+      "gold_notes": 154,
+      "seconds": 12.375
+    },
+    {
+      "condition": "guitar_kroma",
+      "track_id": "03_BN1-129-Eb_comp",
+      "onset_f1": 0.9127516778523491,
+      "pitch_f1": 0.8926174496644297,
+      "events": 141,
+      "gold_notes": 157,
+      "seconds": 14.924
+    },
+    {
+      "condition": "guitar_kroma",
+      "track_id": "04_BN1-129-Eb_comp",
+      "onset_f1": 0.9561752988047808,
+      "pitch_f1": 0.9243027888446215,
+      "events": 124,
+      "gold_notes": 127,
+      "seconds": 14.498
+    }
+  ],
+  "means": {
+    "guitar_gaps": {
+      "onset_f1": 0.9000866261377738,
+      "pitch_f1": 0.8771197190841781
+    },
+    "guitar_fl": {
+      "onset_f1": 0.9363090290030099,
+      "pitch_f1": 0.9335264619532015
+    },
+    "guitar_kroma": {
+      "onset_f1": 0.9000866261377738,
+      "pitch_f1": 0.8771197190841781
+    }
+  },
+  "gate": {
+    "tolerance": 0.05,
+    "onset_delta_vs_best_registered": -0.03622240286523615,
+    "pitch_delta_vs_best_registered": -0.056406742869023474,
+    "pass": false
+  },
+  "kroma_pth": "C:\\Users\\patri\\.tabvision\\data\\models\\guitar-kroma.pth",
+  "probe_mechanism": "TABVISION_HIGHRES_ELECTRIC_CKPT + checkpoint=guitar_electric"
+}
