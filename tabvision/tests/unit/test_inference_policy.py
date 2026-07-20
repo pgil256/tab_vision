@@ -45,7 +45,12 @@ def test_auto_uses_global_pair_for_supported_acoustic_styles(style: str) -> None
     [
         (GuitarConfig(capo=2), SessionConfig()),
         (GuitarConfig(tuning_midi=(38, 45, 50, 55, 59, 64)), SessionConfig()),
-        (GuitarConfig(), SessionConfig(instrument="classical")),
+        (GuitarConfig(capo=2), SessionConfig(instrument="classical")),
+        (
+            GuitarConfig(tuning_midi=(38, 45, 50, 55, 59, 64)),
+            SessionConfig(instrument="classical"),
+        ),
+        (GuitarConfig(), SessionConfig(instrument="classical", tone="distorted")),
         (GuitarConfig(), SessionConfig(instrument="electric")),
         (GuitarConfig(), SessionConfig(tone="distorted")),
     ],
@@ -57,6 +62,18 @@ def test_auto_is_neutral_outside_validated_domain(
     assert policy.resolved_position_prior == "none"
     assert policy.resolved_sequence_prior == "none"
     assert policy.resolved_assignment_decoder == "baseline"
+
+
+@pytest.mark.parametrize("style", ["fingerstyle", "strumming", "mixed"])
+def test_auto_uses_gaps_pair_for_clean_classical(style: str) -> None:
+    """2026-07-20 program: classical sessions resolve the GAPS-trained pair,
+    never the acoustic prior (the banked -13.8pp cross-domain regression)."""
+    policy = _resolve(session=SessionConfig(instrument="classical", style=style))
+    assert policy.resolved_position_prior == "gaps-v1"
+    assert policy.resolved_sequence_prior == "gaps-seq-v1"
+    assert policy.resolved_string_evidence == "none"
+    assert policy.resolved_assignment_decoder == "baseline"
+    assert {item.name for item in policy.artifacts} == {"gaps-v1", "gaps-seq-v1"}
 
 
 def test_explicit_registered_pair_is_reproducible_outside_auto_domain() -> None:

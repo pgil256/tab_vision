@@ -25,6 +25,7 @@ import logging
 import os
 import threading
 from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -107,6 +108,21 @@ def _install_sequence_prior(
     logger.info("installed fingering-sequence prior %s", resolved)
 
 
+@contextmanager
+def sequence_decode_context(sequence_prior: str | None) -> Iterator[None]:
+    """Serialize a decode that depends on the process-global sequence prior.
+
+    Any decode outside :func:`run_pipeline_with_artifacts` that must mirror
+    production costs (e.g. the assisted-review candidate ranking) has to see
+    the same installed transition prior without racing a concurrent pipeline
+    run. This acquires the same lock and installs ``sequence_prior`` (a
+    resolved policy name or ``"none"``) for the duration of the block.
+    """
+    with _SEQUENCE_DECODE_LOCK:
+        _install_sequence_prior(sequence_prior)
+        yield
+
+
 @dataclass(frozen=True)
 class _VideoStackResult:
     fingerings: list[FrameFingering]
@@ -120,6 +136,9 @@ class PipelineArtifacts:
     tab_events: tuple[TabEvent, ...]
     audio_events: tuple[AudioEvent, ...]
     policy: ResolvedInferencePolicy
+    # Additive (2026-07-20): the backend that actually ran after "auto"
+    # routing (e.g. "highres-ensemble"). Empty string on legacy constructors.
+    resolved_audio_backend: str = ""
 
 
 def run_pipeline_with_artifacts(
@@ -267,6 +286,7 @@ def run_pipeline_with_artifacts(
         tab_events=tab_events,
         audio_events=tuple(audio_events),
         policy=policy,
+        resolved_audio_backend=resolved_audio_backend_name,
     )
 
 
@@ -413,13 +433,18 @@ def audio_backend_for_session(session: SessionConfig) -> str:
     """Audio backend for a session's declared instrument — the user-facing toggle.
 
     Electric → the separately fine-tuned electric checkpoint (``highres-electric``);
-    acoustic / classical → the acoustic ``highres`` default. Separate checkpoints,
-    so the acoustic model is never disturbed (see
-    ``docs/plans/2026-06-02-electric-backbone-finetune-design.md``). Used when
-    ``run_pipeline`` is called with ``audio_backend_name="auto"``.
+    clean acoustic → the registered GAPS+FL ``highres-ensemble`` (Phase 3 gate
+    passed; promoted to the default by the 2026-07-20 personal-use decision —
+    player-05 aggregate +0.0213, onset/pitch improve, ~2× audio inference time);
+    classical / distorted-acoustic → the single-checkpoint ``highres``. The
+    ensemble backend itself deterministically rolls back to the single GAPS
+    checkpoint outside clean acoustic, so this routing is belt-and-suspenders.
+    Used when ``run_pipeline`` is called with ``audio_backend_name="auto"``.
     """
     if session.instrument == "electric":
         return "highres-electric"
+    if session.instrument == "acoustic" and session.tone == "clean":
+        return "highres-ensemble"
     return "highres"
 
 

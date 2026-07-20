@@ -64,6 +64,15 @@ def resolve_inference_policy(
                 position_manifest = load_artifact_manifest("guitarset-v1", expected_kind="position")
             except ConfigurationError as exc:
                 reasons.append(f"automatic position prior unavailable: {exc}")
+        elif _automatic_classical_domain(cfg, session):
+            # 2026-07-20 personal-posture program: classical sessions get the
+            # GAPS-trained pair instead of neutral. Unregistered/missing
+            # artifacts degrade to none, never to the acoustic prior (the
+            # banked -13.8pp cross-domain regression).
+            try:
+                position_manifest = load_artifact_manifest("gaps-v1", expected_kind="position")
+            except ConfigurationError as exc:
+                reasons.append(f"automatic classical position prior unavailable: {exc}")
         else:
             reasons.append("session is outside the validated acoustic prior domain")
     elif requested_position != "none":
@@ -138,6 +147,16 @@ def _choice(value: str | None, *, default: str) -> str:
 def _automatic_acoustic_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
     return (
         session.instrument == "acoustic"
+        and session.tone == "clean"
+        and cfg.tuning_midi == DEFAULT_TUNING_MIDI
+        and cfg.capo == 0
+    )
+
+
+def _automatic_classical_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
+    """Clean classical, standard tuning, capo 0 — the gaps-v1 validated domain."""
+    return (
+        session.instrument == "classical"
         and session.tone == "clean"
         and cfg.tuning_midi == DEFAULT_TUNING_MIDI
         and cfg.capo == 0

@@ -82,8 +82,11 @@ def process_job_modal(job_id: str) -> None:
     os.environ.setdefault("HF_HOME", REMOTE_HF_HOME)
     os.environ.setdefault("TORCH_HOME", REMOTE_TORCH_HOME)
     os.environ.setdefault("TABVISION_PIPELINE", "v1")
-    os.environ.setdefault("TABVISION_AUDIO_BACKEND", "highres")
-    os.environ.setdefault("TABVISION_FALLBACK_AUDIO_BACKEND", "none")
+    # "auto" = tone toggle: clean acoustic → highres-ensemble (promoted
+    # 2026-07-20), electric → highres-electric, else highres. Fallback keeps
+    # jobs alive if the second (FL) checkpoint can't load in a container.
+    os.environ.setdefault("TABVISION_AUDIO_BACKEND", "auto")
+    os.environ.setdefault("TABVISION_FALLBACK_AUDIO_BACKEND", "highres")
     os.environ.setdefault("TABVISION_POSITION_PRIOR", "auto")
     os.environ.setdefault("TABVISION_SEQUENCE_PRIOR", "auto")
     os.environ.setdefault("TABVISION_STRING_EVIDENCE", "auto")

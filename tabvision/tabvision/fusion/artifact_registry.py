@@ -22,6 +22,8 @@ _ARTIFACT_DIR = Path(__file__).with_name("priors")
 _MANIFEST_FILES: dict[str, str] = {
     "guitarset-v1": "guitarset_v1.manifest.json",
     "guitarset-seq-v1": "guitarset_seq_v1.manifest.json",
+    "gaps-v1": "gaps_v1.manifest.json",
+    "gaps-seq-v1": "gaps_seq_v1.manifest.json",
     "guitarset-solo-v1": "guitarset_solo_v1.manifest.json",
     "guitarset-solo-seq-v1": "guitarset_solo_seq_v1.manifest.json",
     "guitarset-comp-v1": "guitarset_comp_v1.manifest.json",

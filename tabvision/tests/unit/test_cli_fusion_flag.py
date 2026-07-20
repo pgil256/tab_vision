@@ -120,9 +120,10 @@ def test_video_stride_validated_on_diagnose():
 
 
 def test_audio_backend_default_is_auto():
-    """The accepted v1 config is the default: 'auto' resolves to 'highres'
-    for the default acoustic instrument (``audio_backend_for_session``) and
-    keeps the electric tone-toggle routing live without a flag."""
+    """The accepted config is the default: 'auto' resolves via
+    ``audio_backend_for_session`` — clean acoustic → 'highres-ensemble'
+    (promoted 2026-07-20), electric → 'highres-electric', else 'highres' —
+    without a flag."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
     assert args.audio_backend == "auto"

@@ -14,7 +14,7 @@ from tabvision.fusion.artifact_registry import load_artifact_manifest
 from tabvision.fusion.evidence import combine_candidate_evidence
 from tabvision.types import AudioEvent, GuitarConfig, TabEvent
 
-_NAMED_PRIORS = {"guitarset-v1"}
+_NAMED_PRIORS = {"guitarset-v1", "gaps-v1"}
 
 
 @dataclass(frozen=True)

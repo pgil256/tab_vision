@@ -23,8 +23,8 @@ def test_registered_global_artifacts_are_hash_verified() -> None:
 
 
 def test_registered_names_exclude_failed_candidates() -> None:
-    assert registered_artifact_names("position") == ("guitarset-v1",)
-    assert registered_artifact_names("sequence") == ("guitarset-seq-v1",)
+    assert registered_artifact_names("position") == ("gaps-v1", "guitarset-v1")
+    assert registered_artifact_names("sequence") == ("gaps-seq-v1", "guitarset-seq-v1")
     assert registered_artifact_names("assignment_context") == ()
 
 

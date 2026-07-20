@@ -202,9 +202,12 @@ def test_concurrent_jobs_do_not_share_resolved_sequence_prior(monkeypatch):
     with ThreadPoolExecutor(max_workers=2) as executor:
         list(executor.map(run, ("acoustic", "classical")))
 
+    # 2026-07-20: classical resolves its own GAPS pair, so this now checks the
+    # stronger property — two concurrent jobs each decode under their own
+    # resolved sequence prior with no cross-leak through the process global.
     assert sorted(observed) == [
         ("acoustic", "guitarset-seq-v1"),
-        ("classical", None),
+        ("classical", "gaps-seq-v1"),
     ]
 
 
