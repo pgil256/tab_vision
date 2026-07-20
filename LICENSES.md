@@ -1,21 +1,29 @@
 # LICENSES — TabVision Dependency & Asset Map
 
-**Last updated:** 2026-07-16 (Phase 7 integrated verification)
-**Spec reference:** SPEC.md §1.5 (portfolio-friendly licensing) and §6 (resource acquisition)
+**Last updated:** 2026-07-20 (personal non-commercial posture amendment)
+**Spec reference:** SPEC.md §1.5 (personal non-commercial licensing) and §6 (resource acquisition)
 
 ## Posture
 
-TabVision is a **portfolio project** (SPEC §1.5). The **shipping default**
-end-to-end pipeline must use only weights, models, and dependencies with
-licenses that permit demonstration in a portfolio context (public repo,
-public README, blog post, recorded demo). Default preference is permissive
-(Apache-2.0, MIT, BSD, CC-BY); **AGPL-3.0 is accepted by deliberate
-deviation for the YOLO guitar detector** because no permissively-licensed
-pretrained guitar detector exists and the user explicitly authorized this
-trade-off (see DECISIONS.md 2026-05-05 entry "Phase 3 detector path").
+**Amended 2026-07-20 (user-approved; DECISIONS.md same date).** TabVision is a
+**personal, non-commercial application**. The **shipping default** end-to-end
+pipeline must use only weights, models, and dependencies whose licenses permit
+personal non-commercial use with public source display (public repo, README,
+demo). Default preference remains permissive (Apache-2.0, MIT, BSD, CC-BY);
+**AGPL-3.0 is accepted by deliberate deviation for the YOLO guitar detector**
+(DECISIONS.md 2026-05-05 "Phase 3 detector path").
 
-Non-commercial-only research weights remain banned from the default pipeline
-(per SPEC §1.5).
+**Non-commercial licenses (CC-BY-NC, CC-BY-NC-SA) are now acceptable in the
+default pipeline and as training substrate for shipped derived artifacts**,
+under three standing conditions: (1) use stays non-commercial; (2) attribution
+and ShareAlike obligations are honored per artifact below; (3) every NC-derived
+artifact is labeled **NC** in this file so a future commercialization knows
+exactly what to replace. The pre-2026-07-20 permissive-only rows below are kept
+with their history; rows re-opened by this amendment say so explicitly.
+
+**Private/user recordings remain banned** from all training/eval/label roles —
+the 2026-06-11 cleanup stands and was explicitly retained by the user on
+2026-07-20.
 
 **Effect of AGPL acceptance:** the entire TabVision pipeline becomes a
 "work based on" ultralytics under AGPL §1, so distribution requires we
@@ -61,9 +69,9 @@ Phase 0 (this document) produces the initial map; Phase 9 verifies.
 | Guitar-TECHS | Phase 0 (eval) / 1.5 / 7 | CC-BY-4.0 (Zenodo record 14963133) | ✅ eval-only | arXiv:2501.03720 — 3 electric guitarists, 5h12m multi-mic + DI; per-string 6-track MIDI. **Acquirer landed** (`scripts.acquire.datasets guitar-techs`, Zenodo API). **Scanner landed** (`manifest_builder.scan_guitar_techs` → `clean_electric` tier) — layout *inferred*, verify against first real download. Not redistributed here; required attribution must appear in the public README. |
 | IDMT-SMT-Guitar | 1.5 / 7 | research-use, registration | ⚠️ | Training-only; not redistributed in our repo. Verified 2026-05-13 research pass; superseded by Guitar-TECHS for v1 acceptance — kept for potential future training augmentation. |
 | EGDB | 1.5 / 7 / Phase 0 (eval) | **author-granted use (2026-06-01)** | ✅ eval-only | https://ss12f32v.github.io/Guitar-Transcription/ — 240 tracks, ~12h with multi-amp electric variants, GuitarPro tabs + aligned MIDI. **Access is open** — the audio is a public Google Drive folder linked from the project page; the *license* was the only gate (the repo has no LICENSE file → default all-rights-reserved). Author (`f08946011@ntu.edu.tw`) granted portfolio use 2026-06-01. **ACTION REQUIRED: save the grant email under `docs/` (e.g. `docs/licenses/egdb-grant-2026-06-01.eml`) and log it in `docs/DECISIONS.md` — the written grant is the only evidence the gate cleared (SPEC §1.4 hard rule).** Treated like GuitarSet: held-out distorted-electric eval source, **not redistributed** here and **not a shipped-weight substrate** unless the grant explicitly permits portfolio distribution. If the grant is research-only, it remains an eval gate only. |
-| GAPS | v1.1 optional real-video/audio research eval | CC-BY-NC-SA-4.0 | ⚠️ eval-only | Zenodo 10.5281/zenodo.13962272. 14h of real classical guitar audio-score aligned pairs with high-resolution MIDI alignments and performance-video links. Do not commit or redistribute media; use only for offline research metrics with attribution, and keep NC data out of shipped weights/default artifacts. |
+| GAPS | v1.1 eval + **classical-domain training substrate (re-opened 2026-07-20)** | CC-BY-NC-SA-4.0 | ✅ **NC** (personal posture) | Zenodo 10.5281/zenodo.13962272. 14h of real classical guitar audio-score aligned pairs with high-resolution MIDI alignments and performance-video links. Do not commit or redistribute media. **2026-07-20 posture amendment:** the train split may now feed shipped derived artifacts (e.g. `gaps-v1` / `gaps-seq-v1` count-statistics priors). Conditions: attribution here + README; derived artifacts are labeled **NC-SA** (they inherit CC-BY-NC-SA-4.0 and must be replaced before any commercial use); the eval test split (test-22 / clean-12) never enters training manifests. |
 | ~~GOAT~~ | DROPPED from default pipeline; candidate only if access/license changes | request-only, license pending | ❌ | arXiv:2509.22655 / GOAT-Dataset. The paper describes DI electric guitar audio plus amp-rendered variants annotated with string/fret tablatures, but dataset access is by request and must be rechecked before any use. Not portfolio-compatible until explicit access and dataset license terms are saved. |
-| ~~SynthTab~~ | DROPPED from default pipeline | dataset CC-BY-NC-4.0 (code CC-BY-4.0) | ❌ | github.com/yongyizang/SynthTab. Dataset NC clause taints derived weights (SynthTab paper treats trained models as derivative work). Not portfolio-compatible per SPEC §1.5; removed from the planned pretrain pipeline 2026-05-13. The repo code (Apache/CC-BY) remains MIT-style usable for our own renderers if needed. |
+| SynthTab | **re-opened 2026-07-20** as candidate training substrate (not yet used) | dataset CC-BY-NC-4.0 (code CC-BY-4.0) | ⚠️ **NC** (personal posture) | github.com/yongyizang/SynthTab. Was DROPPED 2026-05-13 because the NC clause taints derived weights under the old portfolio rule. **2026-07-20 posture amendment:** NC-derived weights are now acceptable (labeled NC). No SynthTab data has been downloaded or used yet; any future weight trained on it must be recorded here as **NC**. The repo code (Apache/CC-BY) remains usable for our own renderers. |
 | DadaGP | research/dev only — **not in default pipeline** | access-by-email; underlying GP tabs derive from copyrighted songs | ⚠️ | https://github.com/dada-bots/dadaGP. Per 2026-05-13 design plan §4.2, acceptable as internal training augmentation only. Synthetic-source clips are blocked from non-train manifest splits by `tabvision.eval.manifest.validate_manifest` (the `SYNTHETIC_IN_EVAL_SPLIT` guard). |
 | ~~User clips (the private eval + training corpus)~~ | BANNED | self-owned | ⛔ | Banned from all roles per 2026-06-11 cleanup: not as accuracy gate, dev set, label source, or historical benchmark source. The tracked tabs and stale result artifacts were removed; replace with GuitarSet / Kaggle UT-Austin / GAPS-style offline public corpora depending on the eval tier. |
 | PDMX (`no_license_conflict` subset, 222,856 songs) | v1.1 A15 (sequence-prior corpus; committed artifacts `pdmx-seq-v1`, `guitarset-pdmx-seq-v1`) | **CC-BY (dataset) over PD-Mark/CC0 scores** | ✅ cleared 2026-07-02; conditions honoured 2026-07-05 | Long et al., "PDMX: A Large-Scale Public Domain MusicXML Dataset for Symbolic Music Processing", ICASSP 2025; arXiv 2409.10831 / Zenodo 10.5281/zenodo.15571083 / github.com/pnlong/PDMX. **License review 2026-07-02 (read-only, no downloads): CLEAR-WITH-CONDITIONS** for a shipped derived n-gram prior — same artifact class as the GuitarSet-derived `guitarset-v1`/`guitarset-seq-v1` priors. Conditions honoured 2026-07-05: attribution here + `tabvision/README.md` ("Dataset attribution"); `no_license_conflict` subset only (CSV filter in `scripts/acquire/pdmx_extract_transitions.py`); count tables only — no score content committed (archive + CSV stay in the local data root). Yield resolved: 3,435 guitar songs → 734 TAB-bearing → 554 standard-tuning used → 71,527 singleton transitions. MXL files targeted (MuseScore 3.6.2 exports preserve `<technical><string>/<fret>`), NOT MusicRender JSON. |
@@ -80,6 +88,26 @@ official paper/project material: no dataset download or dataset-license grant
 suitable for shipped derived weights was found; the arXiv paper license is not
 a dataset license. GOAT, SynthTab, GAPS, EGDB, and private data were excluded
 from training. See the frozen Phase 5A design and Phase 5 evaluation report.
+
+### Personal-posture amendment addendum (2026-07-20)
+
+User directive (chat, 2026-07-20): TabVision is a personal, non-commercial
+application; NC licenses are accepted per the amended Posture above, and two
+previously governance-blocked items are promoted:
+
+1. **`highres-ensemble` becomes the clean-acoustic `auto` audio backend.** Both
+   checkpoints it loads (`guitar-gaps.pth`, `guitar-fl.pth`) ship in the MIT
+   `hf-midi-transcription` package — the earlier `guitar-fl.pth` block in the
+   default-artifact CI was a *scope* rule ("not the accepted acoustic default"),
+   not a license finding, and is lifted now that the ensemble is the accepted
+   default. The 1,111-byte calibration artifact `ensemble_v1.json` is original
+   TabVision work (repo license).
+2. **GAPS train split may produce shipped derived priors** (`gaps-v1`,
+   `gaps-seq-v1`) for the classical route. These derived count tables inherit
+   **CC-BY-NC-SA-4.0** and are labeled NC-SA in this file; media is never
+   committed; the GAPS eval splits stay out of training manifests.
+
+Private/user recordings remain banned from all roles (unchanged).
 
 ### Phase 7 integrated audit addendum (2026-07-16)
 

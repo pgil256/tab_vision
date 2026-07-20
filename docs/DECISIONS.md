@@ -2570,3 +2570,57 @@ controls remain `TABVISION_ASSIGNMENT_DECODER=baseline`,
 JSON. The program is closed; any electric, new-video, score-informed,
 calibration, hardware-assisted, or newly collected-data work requires a new
 explicitly approved program rather than extension of this bounded search.
+
+---
+
+## 2026-07-20 — personal non-commercial posture; ensemble + assisted promotion; GAPS training program
+
+**Phase:** New user-approved program (post-sequential-closure)
+**Decision tree:** SPEC §1.5 licensing posture + Phase 7 rollout disposition +
+Phase 6 terminal rule
+**Branch taken:** The user reviewed the full accuracy audit and directed (chat,
+2026-07-20): "Let's do Tier 0 and 2 (Just omit my own recordings for tier 2)."
+This is the explicit new-program approval the 2026-07-16 closure entry
+requires, and it makes four governance changes:
+
+1. **SPEC §1.5 amended** from portfolio-permissive-only to personal
+   non-commercial: CC-BY-NC / CC-BY-NC-SA datasets and weights are acceptable
+   in the shipping default and as training substrate for shipped derived
+   artifacts, with attribution/ShareAlike honored and every NC-derived
+   artifact labeled NC in LICENSES.md. Hardware capture, commissioned/paid
+   data+training, and the video program stay out of scope (user: "Forget
+   Tier 1 and 3"; video/Tier 4 not authorized).
+2. **`highres-ensemble` is promoted to the clean-acoustic `auto` audio
+   backend.** It passed its own Phase 3 ensemble gate (dev +0.0436, player-05
+   aggregate +0.0213 [+0.0104, +0.0342] → 0.6339, onset 0.9491, pitch 0.9403)
+   and was held explicit-only solely by the broader cumulative guardrail
+   (solo +0.0085 < +0.03), which the user has now waived for this promotion.
+   The `guitar-fl.pth` default-artifact block (a scope rule, not a license
+   finding — the checkpoint is MIT) is lifted. Electric and classical routes
+   are unchanged; non-clean-acoustic sessions keep the single-checkpoint
+   deterministic rollback inside the ensemble backend itself.
+3. **The Phase 6 assisted path's "terminal" rule is superseded**: the user
+   accepts shipping the review queue + pitch-preserving correction UI at the
+   measured level (OOF detector AUC 0.7127; 38.76% residual wrong-position
+   reduction at a 60 s budget; dev Tab F1 0.5581 → 0.6873) rather than the
+   unmet 50% gate. Assisted results remain reported separately from automatic
+   Tab F1 per SPEC §1.4.1 mode separation.
+4. **GAPS train split becomes classical-route training substrate**: build
+   `gaps-v1` position + `gaps-seq-v1` sequence priors (count statistics, same
+   artifact class as `guitarset-v1`), register them, and extend domain routing
+   so classical sessions resolve to them instead of `none`. Gate: GAPS test-22
+   improvement over the 0.6969 post-A6 baseline with the eval splits provably
+   absent from training manifests. Derived artifacts are labeled CC-BY-NC-SA.
+
+**Retained exclusions:** private/user recordings stay banned from all
+training/eval/label roles (2026-06-11 cleanup) — explicitly re-confirmed by
+the user in the same directive.
+**Evidence:** SPEC.md §1.5 (amended), LICENSES.md posture + 2026-07-20
+addendum, this entry. Implementation and eval reports follow in the same
+change series.
+**Reasoning:** The app is not commercial; the portfolio-permissive rule and
+the cumulative promotion guardrails were governance choices calibrated for a
+public-portfolio artifact, not accuracy physics. With the user explicitly
+accepting NC terms and the measured trade-offs, the highest-EV shelved wins
+(ensemble +0.021 aggregate; assisted −38.76% residual wrong-position errors)
+ship, and the classical route gets its first in-domain prior.
