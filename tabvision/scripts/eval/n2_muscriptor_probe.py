@@ -102,7 +102,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-home", type=Path, default=None)
     parser.add_argument("--clips", type=int, default=10)
-    parser.add_argument("--model", default="large")
+    parser.add_argument("--model", default="medium")
+    parser.add_argument("--device", default="cpu")
     parser.add_argument("--muscriptor-exe", type=Path, default=None)
     parser.add_argument("--workdir", type=Path, default=None)
     parser.add_argument("--output", type=Path, required=True)
@@ -146,6 +147,7 @@ def main() -> int:
             if not midi_path.is_file():
                 started = time.perf_counter()
                 command = [str(exe), "transcribe", "--model", args.model]
+                command += ["--device", args.device]
                 command += [str(wav_path), "-o", str(midi_path)]
                 result = subprocess.run(command, capture_output=True, text=True)
                 ms_seconds = time.perf_counter() - started

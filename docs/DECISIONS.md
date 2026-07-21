@@ -2785,3 +2785,37 @@ GuitarSet-finetuned contextual model — not raw counts — could in principle
 absorb). S1b entry remains a user decision; its prior probability is
 lowered by this result and should be weighed against the held MuScriptor
 probe and the untouched 6C side-information modes.
+
+---
+
+## 2026-07-21 — Program N2: MuScriptor complementarity gate PASSED
+
+**Phase:** NC second-opinion program, Phase N2 (MuScriptor probe — the
+N-branch candidate activated after S1a's negative settled its hold)
+**Decision tree:** plan N-branch gate — full dev eval only if
+P(candidate right | registered ensemble wrong) ≥ 0.10 on the dev probe
+**Branch taken:** PASS — **complementarity 0.3818** (63/165 ensemble-missed
+gold notes recovered; pitch-exact 50 ms one-to-one matching) on 10 GuitarSet
+dev clips (players 00–04; comp-mode slice — solo coverage is a required part
+of the next phase). MuScriptor-medium is weaker in absolute terms (pitch
+recall 0.8346 vs the ensemble's 0.8890) but differently wrong, with rescues
+concentrated in the hardest Jazz2 comp material; all output was GM-24
+guitar. Runtime ~3–4× real time on laptop CPU → offline/explicit-mode only.
+Deviations recorded: medium instead of large (large's fp32 load exceeds
+this machine's commit limit — pagefile disabled; OS error 1455), and a
+one-line availability-guard patch to the isolated probe venv's
+`muscriptor/accelerator.py` (upstream bug: `torch.accelerator.synchronize()`
+raises on CPU-only builds). Weights are gated per-size on HF; user accepted
+large+medium licenses (account `pgil256`) and authenticated the machine.
+**Next (on explicit proceed):** full development complementarity + merge
+evaluation — MuScriptor over the 300-clip dev set (~5–8 CPU-hours,
+background, $0), then the predeclared Phase-3-style merge variants
+(confidence winner / logistic) against the registered ensemble, with the
+§2.4 metric battery and solo/comp coverage. No artifact, routing, or
+runtime change in this phase.
+**Evidence:** `docs/EVAL_REPORTS/n2_muscriptor_probe_2026-07-21.md`
+(+ `.json`); `scripts/eval/n2_muscriptor_probe.py`.
+**Reasoning:** the probe was designed to be cheap and falsifiable; 0.38 is
+nearly four times the continue gate, and the rescue mass sits exactly where
+the accuracy program's residual errors concentrate (dense comp voicings),
+so the expensive full evaluation is now justified.
