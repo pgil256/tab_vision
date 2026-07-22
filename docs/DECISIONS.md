@@ -2905,3 +2905,28 @@ labels while a small boundary slack prevents floor-boundary jitter from
 triggering `Shifting...`. The public replay establishes temporal/geometry
 sanity only; GAPS has no visual position truth, so live A2 remains the accuracy
 gate and F4/L1 cannot claim it early.
+
+---
+
+## 2026-07-22 - FretCam F4 live HUD meets the headless A4 budget
+
+**Phase:** FretCam side quest, F4 HUD + guidance
+**Decision tree:** Wire F2b and F3 through the localhost WebSocket, render the
+required browser HUD, derive only signal-grounded framing guidance, and measure
+the complete warm path before handing A1/A4 to Pat.
+**Branch taken:** PASS F4 and open L1. The default app is now HUD mode; F1 echo
+is retained only as an explicit benchmark harness. Prewarm the single personal
+session processor before `/health` reports ready, reset its temporal state for
+each connection, and keep browser capture at one frame in flight.
+**Evidence:** Twenty-five tests plus Ruff and JavaScript syntax checks passed.
+A real Uvicorn/WebSocket replay of public cached `031_vpswc` at 640 px reached
+**21.512 FPS**, with end-to-end latency **39.450 ms median / 120.752 ms p95 /
+140.359 ms max**; all 30 measured frames retained neck lock. An isolated browser
+smoke check found meaningful content, every key HUD/control element, no error
+overlay, and no console warning/error. Report:
+`docs/EVAL_REPORTS/fretcam_f4_hud_guidance_2026-07-22.md`.
+**Reasoning:** Prewarming makes A1 measure camera acquisition rather than a
+one-time model load. The edge, lock-confidence, hand-presence, and estimator
+signals justify the emitted guidance without inventing scene diagnoses. Public
+replay can establish transport/inference budget but not live tick alignment or
+perceived lag, so L1 remains mandatory and no A1/A2 claim is made here.

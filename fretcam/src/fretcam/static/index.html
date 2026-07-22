@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">TabVision side quest</p>
           <h1>FretCam</h1>
-          <p class="subtitle">Live webcam transport · echo mode</p>
+          <p class="subtitle">Live fretboard and playing-position HUD</p>
         </div>
         <span id="connection" class="pill" data-state="idle">idle</span>
       </header>
@@ -27,8 +27,9 @@
       </section>
 
       <section class="metrics" aria-live="polite">
-        <div><span>Round-trip FPS</span><strong id="fps">—</strong></div>
-        <div><span>WebSocket RTT</span><strong id="latency">—</strong></div>
+        <div><span>HUD FPS</span><strong id="fps">—</strong></div>
+        <div><span>End-to-end</span><strong id="latency">—</strong></div>
+        <div><span>Server</span><strong id="server-latency">—</strong></div>
         <div><span>Frame size</span><strong id="frame-size">—</strong></div>
       </section>
 

@@ -75,7 +75,7 @@ def run_loopback_benchmark(*, rounds: int = 100, warmup: int = 10) -> LoopbackMe
 
     port = _free_port()
     config = uvicorn.Config(
-        create_app(),
+        create_app(echo_mode=True),
         host="127.0.0.1",
         port=port,
         log_level="error",

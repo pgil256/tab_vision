@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f3-position-estimator
+current_branch: fretcam/f4-hud-guidance
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -12,17 +12,18 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F2 | detection chain (OBB→homography→hand→anchor) | closed-negative | 2/3 clips; `027_Zpswc` 0/56 plausible anchors; detector/hand median 123.733/51.324 ms | preserve evidence; do not tune past gate | gate required ≥3 clips |
 | F2b | calibrated fret-axis geometry fix + original F2 rerun | passed | 3/3 clips; centers 12.000/2.756/9.381; total median 122.504 ms | — | — |
 | F3 | position estimator (smoothing/hysteresis) | passed | 19 tests; first lock 0.4 s; 52/60 GAPS frames locked; estimator median 0.0402 ms | — | — |
-| F4 | HUD + guidance + latency | open | ≥10 FPS, ≤150 ms | wire F2b+F3 into WS/browser HUD; measure A4 | — |
-| L1 | live test 1 (Pat: A1+A4) | blocked | — | — | F4 |
+| F4 | HUD + guidance + latency | passed | 25 tests; 21.512 FPS; E2E 39.450 ms median / 120.752 ms p95 | — | — |
+| L1 | live test 1 (Pat: A1+A4) | awaiting Pat | headless A4 pass; live A1/A4 pending | run checklist below and paste report | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | open (rerun required) | old x×24 result banked: 0.247; superseded by F2b geometry correction | rerun with calibrated/fret-12 mapping | — |
 | F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 pass + corrected F7 |
 
-**Build path is active.** F3 passes its synthetic and public-replay checks; F4
-is next. F7 must later be rerun because it used the corrected bug's old
-`canonical_x × 24` conversion.
+**Live checkpoint.** F4 passes tests, browser smoke verification, and the public
+cache A4 budget. L1 is now Pat-only and must run before F5. While L1 awaits Pat,
+a later loop iteration may rerun independent F7; F7's old result used the
+corrected bug's `canonical_x × 24` conversion.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -33,12 +34,17 @@ is next. F7 must later be rerun because it used the corrected bug's old
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- None.
+- Please run L1 with the checklist below and paste the filled report.
 
 ## Live-test log (newest first)
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F4 passed — the default WebSocket now runs a prewarmed F2b+F3
+  processor and the browser renders neck/fret/hand/position/confidence/guidance
+  overlays. Twenty-five tests, Ruff, JavaScript syntax, and browser smoke passed.
+  A real public-cache localhost run reached 21.512 FPS with 39.450 ms median and
+  120.752 ms p95 end-to-end latency; all 30 measured frames retained neck lock.
 - 2026-07-22 — F3 passed — five-frame EMA/hysteresis estimator, Roman position,
   open-safe window, transition/dropout states, and temporal confidence shipped.
   Nineteen tests passed. Public `031_vpswc` replay locked after 0.4 s, stayed
@@ -61,3 +67,17 @@ is next. F7 must later be rerun because it used the corrected bug's old
 - 2026-07-22 — F1 passed — FastAPI/WebSocket echo scaffold and browser FPS/RTT
   page shipped; synthetic JPEG test passed; loopback median/p95 0.536/0.903 ms.
 - 2026-07-22 — loop created (prompt + this state file). No code yet.
+
+## LIVE TEST 1 checklist (Pat; A1 + A4, ≤3 min)
+
+1. Run `cd fretcam; .venv\Scripts\fretcam --port 8766`, wait for startup to
+   finish, then open `http://127.0.0.1:8766` and select **Start camera**.
+2. In normal light, frame the full neck and time green-quad/fret-tick lock
+   (target ≤3 s); play normally for 20 s and note tick drift or hand dropouts.
+3. Repeat the framing/20 s check in a second, dimmer or differently angled
+   light; follow the guidance line once if it asks for a framing correction.
+4. Record HUD FPS and End-to-end for the final 10 s (targets ≥10 FPS and
+   ≤150 ms), perceived lag, CPU fan, and the three biggest visual annoyances.
+5. Paste: `A1 lock: PASS/FAIL — <times, drift, two-light notes>`; `A4 feel:
+   <fps>, <E2E ms>, <ok/laggy>, fan <ok/loud>`; `first impressions: 1)… 2)…
+   3)…`; `verdict: proceed / fix first: …`.

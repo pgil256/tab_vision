@@ -72,7 +72,7 @@ canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin: 12px 0;
 }
@@ -102,10 +102,12 @@ button {
 }
 button:hover { background: #ecffed; }
 #status { color: #8c918b; font-size: 0.86rem; text-align: right; }
+#status[data-level="good"] { color: #9bdbaa; }
+#status[data-level="warning"] { color: #e6b76a; }
 
 @media (max-width: 640px) {
   main { width: min(100% - 20px, 940px); padding-top: 20px; }
-  .metrics { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
   .controls { align-items: center; }
   #status { max-width: 55%; }
 }

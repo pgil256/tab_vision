@@ -1,10 +1,10 @@
 # FretCam
 
 FretCam is a quarantined local prototype for TabVision's live fretboard and
-playing-position HUD. F1 is intentionally an echo-only transport scaffold:
-the browser captures JPEG frames, sends one frame at a time over a localhost
-WebSocket, and displays the echoed frame with measured FPS and round-trip
-latency.
+playing-position HUD. The browser captures one in-memory JPEG at a time over a
+localhost WebSocket. The local server returns neck/fret geometry, hand points,
+a stable Roman-numeral position, confidence, and grounded framing guidance for
+the browser to draw over the camera preview.
 
 Nothing is recorded or persisted by the server.
 
@@ -33,10 +33,13 @@ one.
 .venv\Scripts\python -m fretcam.benchmark --rounds 100
 .venv\Scripts\python -m fretcam.replay_gaps
 .venv\Scripts\python -m fretcam.replay_position
+.venv\Scripts\python -m fretcam.benchmark_hud
 ```
 
-The benchmark starts a temporary loopback server and round-trips an in-memory
-synthetic JPEG. It does not access a camera or write image data to disk.
+The original benchmark retains F1's echo-only transport harness and round-trips
+an in-memory synthetic JPEG. It does not access a camera or write image data to
+disk. The HUD benchmark sends public cached GAPS frames through the complete
+localhost WebSocket path and reports warm end-to-end throughput and latency.
 
 The GAPS replay samples three public cached MP4s at 640 px, runs the F2 chain,
 and prints a JSON gate report with neck/anchor outcomes and per-stage latency.

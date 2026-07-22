@@ -1,26 +1,49 @@
-"""FastAPI application for the FretCam loopback scaffold."""
+"""FastAPI application for the local FretCam live HUD."""
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
 from importlib.resources import files
+from typing import AsyncIterator
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from fretcam.processing import FrameProcessorFactory, HudFrameProcessor
+
 DEFAULT_MAX_FRAME_BYTES = 2 * 1024 * 1024
 STATIC_DIR = files("fretcam").joinpath("static")
 
 
-def create_app(*, max_frame_bytes: int = DEFAULT_MAX_FRAME_BYTES) -> FastAPI:
-    """Create the echo-mode FretCam application.
+def create_app(
+    *,
+    max_frame_bytes: int = DEFAULT_MAX_FRAME_BYTES,
+    echo_mode: bool = False,
+    processor_factory: FrameProcessorFactory | None = None,
+) -> FastAPI:
+    """Create the HUD app, or the retained F1 echo harness for its benchmark."""
 
-    F1 accepts one binary JPEG payload at a time and echoes the exact bytes.
-    Later phases replace the echo with frame processing while preserving the
-    browser transport. Frames are held only for the duration of a request.
-    """
+    if max_frame_bytes < 1:
+        raise ValueError("max_frame_bytes must be positive")
+    factory = processor_factory or HudFrameProcessor
 
-    app = FastAPI(title="FretCam", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+        if echo_mode:
+            yield
+            return
+        processor = await asyncio.to_thread(factory)
+        try:
+            await asyncio.to_thread(processor.warmup)
+            application.state.frame_processor = processor
+            yield
+        finally:
+            await asyncio.to_thread(processor.close)
+
+    app = FastAPI(title="FretCam", version="0.1.0", lifespan=lifespan)
+    session_lock = asyncio.Lock()
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/", include_in_schema=False)
@@ -29,18 +52,37 @@ def create_app(*, max_frame_bytes: int = DEFAULT_MAX_FRAME_BYTES) -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "mode": "echo"}
+        return {"status": "ok", "mode": "echo" if echo_mode else "hud"}
 
     @app.websocket("/ws")
-    async def echo_frames(websocket: WebSocket) -> None:
+    async def live_frames(websocket: WebSocket) -> None:
         await websocket.accept()
         try:
-            while True:
-                frame = await websocket.receive_bytes()
-                if len(frame) > max_frame_bytes:
-                    await websocket.close(code=1009, reason="frame too large")
-                    return
-                await websocket.send_bytes(frame)
+            if echo_mode:
+                while True:
+                    frame = await websocket.receive_bytes()
+                    if len(frame) > max_frame_bytes:
+                        await websocket.close(code=1009, reason="frame too large")
+                        return
+                    await websocket.send_bytes(frame)
+            async with session_lock:
+                processor = app.state.frame_processor
+                await asyncio.to_thread(processor.reset)
+                while True:
+                    frame = await websocket.receive_bytes()
+                    if len(frame) > max_frame_bytes:
+                        await websocket.close(code=1009, reason="frame too large")
+                        return
+                    try:
+                        response = await asyncio.to_thread(
+                            processor.process_jpeg, frame
+                        )
+                    except ValueError as exc:
+                        await websocket.send_json(
+                            {"type": "error", "message": str(exc)}
+                        )
+                        continue
+                    await websocket.send_json(response)
         except WebSocketDisconnect:
             return
 
