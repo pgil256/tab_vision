@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-self-calibration
+current_branch: accuracy/q6-ritual-calibration
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,7 +10,7 @@ current_branch: accuracy/q6-self-calibration
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **integrated, but NOT yet portable** | +0.0525 needs a reference table; **self-calibration fails** (self-blind +0.0000, self-pooled -0.0029); log-B0 bootstrap bias +0.2975 | derive reference table from string physics, not GuitarSet | generalization |
+| Q6 | Inharmonicity study | **PORTABLE — physics table matches fitted** | `physics` **+0.0502** [+0.0198, +0.0853] vs `lopo` +0.0525 — no dataset needed; +offset **+0.0581** | formal gates: full-dev OOF, GAPS no-reg, player-05 | user decision |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -289,6 +289,39 @@ solved.
 **Untested and material:** whether the GuitarSet-fitted table transfers to a
 different acoustic guitar at all. No second acoustic dataset exists in-repo.
 
+## Q6 portability SOLVED — specification-derived table (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q6_physics_table_2026-07-22.md`.
+Module: `tabvision/tabvision/fusion/string_physics.py`.
+
+`B = pi^3*E*d_core^4 / (256*mu*L^4*f^2)` — every term published or
+measurable, nothing fitted.
+
+| arm | ΔTab F1 [lo-95, hi-95] | requires |
+|---|---|---|
+| `lopo` | +0.0525 [+0.0208, +0.0888] | labelled reference guitars |
+| **`physics`** | **+0.0502** [+0.0198, +0.0853] | **published specs only** |
+| **`physics+offset`** | **+0.0581** [+0.0203, +0.1052] | specs + one scalar |
+
+**Statistically indistinguishable from the fitted table.** GuitarSet is now a
+*test* of the table, not its source — the dataset dependence is gone.
+
+- The **fret law is derived, not assumed**: `B_n = B0*2^(n/6)` falls out of
+  `L_n = L*2^(-n/12)`, `f_n = f*2^(n/12)`.
+- Physics table is low by 0.566 log (0.57x) with 0.249 (1.28x) residual
+  spread. **Level error is harmless** — a shared factor shifts every
+  candidate for a note equally. Only *shape* can flip a decision, and 1.28x
+  sits inside the 1.59-1.78x separation.
+- Residual splits by construction: wound -0.53/-0.81/-0.60/-0.71, plain
+  -0.15/-0.20. Plain strings' `d_core` is the gauge exactly; wound cores are
+  manufacturer-specific and `B ∝ d_core^4`. Fixable once per string set.
+- **Calibration take implemented** (`calibrate_from_ritual`): 18 notes, three
+  frets x six strings, so the **fret exponent is measured not assumed**.
+  Labels certain (the app asks), so no bootstrap bias. **Not validated end to
+  end** — GuitarSet has only 1-3 usable isolated open notes per player, so it
+  cannot contain the ritual; validating on a real recording would make it an
+  eval artifact under the private-recordings ban.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -330,19 +363,17 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**DECISION NEEDED (Q6 portability):** the +0.0525 lift is real but depends
-on a stiffness table fitted from GuitarSet's guitars, and self-calibration
-from unlabelled audio has now been shown not to recover it. The channel is
-therefore not yet portable to an arbitrary acoustic guitar. **Options:
-(a) derive the reference table from string-manufacturer physics — the
-highest-value route, makes the table instrument-general and turns GuitarSet
-into validation; (b) add the six-open-string calibration ritual — trivially
-reliable, ~10 s of user effort, and it sidesteps the bootstrap problem
-entirely; (c) anchor on unambiguous notes (automatic version of (a)+(b));
-(d) accept the GuitarSet-fitted table as a shipped default and proceed to the
-formal gates (full-dev OOF, GAPS no-reg, player-05), documenting the
-instrument assumption.** Recommend (b) then (a): the ritual makes it work
-today, the physics table makes it work without asking.
+**DECISION NEEDED (Q6 gates):** portability is solved — the physics table
+needs no dataset and matches the fitted one. What remains is the standard
+ladder, none of which has run: **(1)** full-dev OOF (not 20 clips) with
+weight/threshold fixed *before* the run; **(2)** GAPS clean-12 strict
+no-regression, since this touches `fuse()`; **(3)** player-05 confirmation;
+then registration and the `auto`-routing decision. Separately, **(4)** the
+calibration take needs real-recording validation, which needs public audio or
+a deliberate exception to the private-recordings ban. **Options: (a) work
+down (1)-(3); (b) do (4) first; (c) bank Q6 and move to Q7.** Recommend (a) —
+the channel is shippable-shaped now and the gates are what stand between it
+and `auto`.
 
 Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
 Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
@@ -355,6 +386,11 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **portability SOLVED**: specification-derived table gives
+  **+0.0502** [+0.0198, +0.0853] with no dataset, matching the fitted
+  +0.0525; +offset **+0.0581**. Fret law derived not assumed. Calibration
+  take (18 notes) implemented, not yet validated on real audio.
+  `q6_physics_table_2026-07-22.md`.
 - 2026-07-22 — Q6 — generalization: **self-calibration FAILS** (self-blind
   +0.0000, self-pooled -0.0029 vs lopo +0.0525). Causes: data volume + a
   +0.2975 log-B0 bootstrap bias. Found and fixed a hard-veto bug that had

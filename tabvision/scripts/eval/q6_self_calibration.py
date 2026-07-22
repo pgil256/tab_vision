@@ -60,6 +60,7 @@ from tabvision.fusion.inharmonicity import (
     calibrate_from_session,
     measure_events,
 )
+from tabvision.fusion.string_physics import reference_stiffness_model
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig, TabEvent
 
 DEV_PLAYERS = ("00", "01", "02", "03", "04")
@@ -116,7 +117,15 @@ def run(
     cfg = GuitarConfig()
     session = SessionConfig()
     priors = build_oof_priors(data_home, cfg)
-    arms = ("baseline", "lopo", "self-seeded", "self-blind", "self-pooled")
+    arms = (
+        "baseline",
+        "lopo",
+        "self-seeded",
+        "self-blind",
+        "self-pooled",
+        "physics",
+        "physics+offset",
+    )
 
     scores: dict[str, list[dict[str, float]]] = {name: [] for name in arms}
     decomps: dict[str, list[ErrorDecomposition]] = {name: [] for name in arms}
@@ -141,6 +150,20 @@ def run(
         observations = session_observations(events, decoded, wav, int(sr), cfg)
         pooled[player].extend(observations)
         cached[track_id] = (events, gold, wav, int(sr), observations)
+    # Specification-derived table, plus the same table shifted by one
+    # scalar: level error and shape error have very different fixes.
+    physics_raw = reference_stiffness_model()
+    all_seed = {
+        s: float(np.median([seeds[p].log_b0[s] for p in seeds if s in seeds[p].log_b0]))
+        for s in range(6)
+    }
+    shift = float(np.median([physics_raw.log_b0[s] - all_seed[s] for s in all_seed]))
+    physics_models = {
+        "raw": physics_raw,
+        "offset": StringStiffnessModel(
+            log_b0={s: v - shift for s, v in physics_raw.log_b0.items()}
+        ),
+    }
     pooled_models = {
         player: calibrate_from_session(items, seed=None, min_r2=MIN_R2)
         for player, items in pooled.items()
@@ -177,6 +200,8 @@ def run(
             "self-seeded": calibrate_from_session(observations, seed=seed, min_r2=MIN_R2),
             "self-blind": calibrate_from_session(observations, seed=None, min_r2=MIN_R2),
             "self-pooled": pooled_models.get(player),
+            "physics": physics_models["raw"],
+            "physics+offset": physics_models["offset"],
         }
         blind = models["self-blind"]
         if blind is not None:
@@ -188,7 +213,14 @@ def run(
             if shared:
                 calibration_shift.append(float(np.median(shared)))
 
-        for name in ("lopo", "self-seeded", "self-blind", "self-pooled"):
+        for name in (
+            "lopo",
+            "self-seeded",
+            "self-blind",
+            "self-pooled",
+            "physics",
+            "physics+offset",
+        ):
             model = models[name]
             if model is None:
                 scores[name].append(base_metrics)

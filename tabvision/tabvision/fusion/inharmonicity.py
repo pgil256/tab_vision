@@ -93,18 +93,21 @@ class InharmonicityFit:
 class StringStiffnessModel:
     """Per-string open-string ``log B0``, from which ``B(s, n)`` follows.
 
-    Calibrated from tab-labelled notes (see
-    ``scripts/eval/q6_gate_a.py``); a per-session bootstrap is the intended
-    production path and is not implemented here.
+    ``fret_exponent`` is the ``k`` in ``B(s, n) = B0_s * 2^(k*n/6)``. Ideal
+    fretting gives ``k = 1`` — stiff-string theory derives it, see
+    :mod:`tabvision.fusion.string_physics` — but a real fret and fingertip
+    terminate the string differently from the nut, so a calibration ritual
+    that measures several frets per string can fit ``k`` rather than trust it.
     """
 
     log_b0: Mapping[int, float]
+    fret_exponent: float = 1.0
 
     def predicted_log_b(self, string_idx: int, fret: int) -> float | None:
         base = self.log_b0.get(int(string_idx))
         if base is None:
             return None
-        return base + (fret / 6.0) * LOG2
+        return base + self.fret_exponent * (fret / 6.0) * LOG2
 
 
 @dataclass(frozen=True)
@@ -173,6 +176,56 @@ def calibrate_from_session(
     if not table:
         return seed
     return StringStiffnessModel(log_b0=table)
+
+
+def calibrate_from_ritual(
+    observations: Sequence[StiffnessObservation],
+    *,
+    min_r2: float = DEFAULT_MIN_R2,
+    min_strings_for_exponent: int = 3,
+    min_frets_per_string: int = 2,
+) -> StringStiffnessModel | None:
+    """Fit an instrument from a guided calibration take.
+
+    Unlike :func:`calibrate_from_session` the labels here are *certain*: the
+    application asked the player for a specific string and fret, so there is
+    no decoder in the loop and none of the +0.30 bootstrap bias that sank
+    self-calibration.
+
+    With several frets per string the fret exponent becomes measurable rather
+    than assumed. Each string contributes a least-squares slope of ``log B``
+    against fret; the shared exponent is the median of those slopes, and each
+    string's ``log B0`` is then its intercept under that shared exponent.
+    Strings with a single fret still contribute ``B0`` — they just cannot vote
+    on the exponent.
+    """
+    usable = [item for item in observations if item.r2 >= min_r2]
+    if not usable:
+        return None
+
+    by_string: dict[int, list[tuple[int, float]]] = {}
+    for item in usable:
+        by_string.setdefault(item.string_idx, []).append((item.fret, item.log_b))
+
+    slopes: list[float] = []
+    for points in by_string.values():
+        frets = sorted({fret for fret, _ in points})
+        if len(frets) < min_frets_per_string:
+            continue
+        x = np.asarray([float(fret) for fret, _ in points])
+        y = np.asarray([value for _, value in points])
+        slope = float(np.polyfit(x, y, 1)[0])
+        slopes.append(slope * 6.0 / LOG2)
+
+    exponent = float(np.median(slopes)) if len(slopes) >= min_strings_for_exponent else 1.0
+
+    table: dict[int, float] = {}
+    for string, points in by_string.items():
+        intercepts = [value - exponent * (fret / 6.0) * LOG2 for fret, value in points]
+        table[string] = float(np.median(intercepts))
+    if not table:
+        return None
+    return StringStiffnessModel(log_b0=table, fret_exponent=exponent)
 
 
 def measure_events(
@@ -439,6 +492,7 @@ __all__ = [
     "InharmonicityFit",
     "StiffnessObservation",
     "StringStiffnessModel",
+    "calibrate_from_ritual",
     "calibrate_from_session",
     "measure_events",
     "attach_inharmonicity_evidence",

@@ -3362,3 +3362,58 @@ registered, player-05 never read.
 portable result, and saying so is more useful than shipping a number that
 depends on an unstated instrument assumption. The bug fix is worth the
 iteration on its own.
+
+---
+
+## 2026-07-22 — Q6 portability solved: physics-derived table matches the fitted one
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), portability
+**Decision tree:** user instruction after self-calibration failed — derive the
+stiffness table from published string physics, and add a guided calibration
+take that measures three frets per string rather than six open strings.
+**Branch taken:** **the physics route resolves portability outright.**
+`B = pi^3*E*d_core^4 / (256*mu*L^4*f^2)` from stiff-string theory plus ideal
+tension, with every term published or measurable and nothing fitted. On the
+20-clip bank: **`physics` +0.0502 [+0.0198, +0.0853]** versus the
+GuitarSet-fitted **`lopo` +0.0525 [+0.0208, +0.0888]** — statistically
+indistinguishable — and **`physics+offset` +0.0581 [+0.0203, +0.1052]**,
+slightly better. **GuitarSet is now a test of the table rather than its
+source.**
+**The fret law is derived, not assumed:** `L_n = L*2^(-n/12)` and
+`f_n = f*2^(n/12)` give `B_n = B0*2^(n/6)`, which is exactly what the model
+already used.
+**Why the level error is harmless and shape is what matters:** the physics
+table is low by **0.566 log units** (0.57x) with residual spread **0.249
+(1.28x)** after removing that shared offset. A common factor shifts every
+candidate *for the same note* equally and cannot flip a decision; only
+relative spacing can, and 1.28x sits inside the 1.59-1.78x separation the
+candidates have. The residual splits by construction — wound strings
+-0.53/-0.81/-0.60/-0.71, plain strings -0.15/-0.20 — because a plain string's
+`d_core` is its gauge exactly while a wound core is manufacturer-specific and
+often unpublished, and `B ∝ d_core^4` turns a 10% core error into 46% in `B`.
+That is a specification-data gap fixable once per string set, not per
+instrument.
+**Calibration take implemented** (`calibrate_from_ritual`): the guided
+18-note form — three frets on each of six strings — was chosen over six open
+strings so the **fret exponent is measured rather than assumed**. Labels are
+certain because the application asked for them, so none of the +0.2975
+bootstrap bias applies. `StringStiffnessModel` gained `fret_exponent`.
+**Not validated end to end:** GuitarSet cannot validate the take — usable
+isolated open-string notes are 1-3 per player across all six strings, so the
+dataset essentially never contains the ritual. Validation needs a real
+recording, and using one in that role would make it an eval artifact under
+the SPEC private-recordings ban, so it needs public audio or a deliberate
+exception. Unit tests cover the fit's mathematics (exact `B0` and exponent
+recovery, including a non-ideal 1.35 exponent), not real plucks.
+**Evidence:** `docs/EVAL_REPORTS/q6_physics_table_2026-07-22.md` (+ `.json`,
+`q6_physics_arms_2026-07-22.json`);
+`tabvision/tabvision/fusion/string_physics.py`;
+`calibrate_from_ritual` in `fusion/inharmonicity.py`;
+`tabvision/tests/unit/test_string_physics.py` (11 tests).
+912 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the safe reading is raw `physics` at +0.0502, which requires no
+dataset, no labels and no user interaction — the dataset dependence that made
+the pilot un-shippable is gone. The remaining gates (full-dev OOF, GAPS
+no-regression, player-05) are unchanged, and the calibration take stays an
+unvalidated option for instruments that deviate from standard specs.
