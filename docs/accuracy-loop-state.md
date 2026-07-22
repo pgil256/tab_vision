@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q2-s1b-probe
+current_branch: accuracy/q4-second-opinions
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -8,13 +8,13 @@ current_branch: accuracy/q2-s1b-probe
 | Q1 | N2 MuScriptor merge | **closed-negative** | best variant ΔTab F1 **-0.0167** [-0.0480, +0.0090]; Δonset **-0.0195** [-0.0325, -0.0079] (CI-sig regression); added-note precision **0.181** vs 0.6855 stream precision | none — closed | — |
 | Q2 | S1b-v2 offline probe | **closed-negative** | full recipe: top-1 **0.7015**, Δ **+0.0467** [+0.0291, +0.0640] vs target 0.7048 — short by 0.0033; comp +0.0661 vs solo +0.0112 | none — closed | — |
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
-| Q4 | Second-opinion probes | open | **two-leg gate now** (see below) | Basic Pitch probe on cached eval audio | — |
+| Q4 | Second-opinion probes | **blocked (user call)** | leg-2 gate now **derived = 0.528** (was a guessed 0.5), 5/5 sign agreement | Basic Pitch won't install (py3.12 only); user decides: install Python 3.11, try YourMT3+, or drop | needs Python 3.11 |
 | Q5 | Onset snapping | open | — | prototype (must re-run full onset/pitch gates) | — |
 | Q6 | Inharmonicity study | open | gates 0.85 hex / 0.70 mono | hex B-estimator | — |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Topmost open unblocked item = Q4 (second-opinion probes: Basic Pitch, then YourMT3+).**
+**Q4 is blocked on a user call (see Questions). Topmost open unblocked item otherwise = Q5 (onset snapping).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -108,14 +108,40 @@ player-05 stays sealed until config freeze + explicit proceed. The lattice
 CSV (70 MB) is **git-ignored** and exists only in the main working tree, so
 pass `--lattice` explicitly when running from a git worktree.
 
+## Q4 — iteration 4: bench built, Basic Pitch blocked, leg-2 derived
+
+Report: `docs/EVAL_REPORTS/q4_second_opinion_bench_2026-07-22.md`
+(+ `q4_breakeven_precision_2026-07-22.json`). DECISIONS.md 2026-07-22.
+
+- **Basic Pitch BLOCKED — environment, not evidence.** Declared extra,
+  Apache-2.0, already licensed — but this machine has only Python 3.12 and
+  every release falls back to building numpy from source, whose `setup.py`
+  uses `pkgutil.ImpImporter` (removed in 3.12). `[onnx]` fails the same way.
+  Probe venv exists at `~/.tabvision/probe-envs/basicpitch` but is unusable.
+- **Recommendation: drop rather than install Python 3.11.** Basic Pitch's
+  published GuitarSet zero-shot note F1 is 66.1 vs our ensemble's 0.9491/
+  0.9403; MuScriptor is far stronger, passed leg 1 by 3.8x, and still failed
+  leg 2 at 0.181 vs a 0.528 break-even. Deep-dive prices the row at
+  +0.00-+0.02.
+- **Leg 2 is now derived, not guessed:**
+  `p > (F1/2) / (α·(1 − F1/2) + F1/2)`. Volume cancels — **how many notes a
+  rule admits never changes the sign, only the magnitude** (which is why all
+  six N2 variants were negative and the cautious ones merely lost less).
+  On the banked pilot (F1 0.6773, measured α 0.4581) break-even =
+  **0.5278**, predicting the sign of all five admitting variants (**5/5**).
+  Recompute per candidate: as the ensemble improves, the bar rises.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
 offline replay:
 
 1. P(candidate right | ensemble wrong) ≥ 0.10 — is there anything to gain;
-2. **added-note precision ≥ 0.5** under the candidate's best admission
-   rule — can the gain be separated from the noise it arrives with.
+2. **added-note precision ≥ break-even** under the candidate's best
+   admission rule — can the gain be separated from the noise it arrives
+   with. The break-even is computed, not fixed:
+   `p > (F1/2) / (α·(1 − F1/2) + F1/2)` = **0.528** against today's
+   ensemble (`q4_breakeven_precision.py`).
 
 N2 passed leg 1 by 3.8× and failed leg 2 at 0.18. Leg 2 is free once events
 are banked.
@@ -146,8 +172,12 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-None blocking. Q2 closed negative after the full recipe; Q4 is next and is
-$0 / local CPU on already-cached eval audio.
+**BLOCKING (Q4):** Basic Pitch cannot install — this machine has only
+Python 3.12 and basic-pitch's dependency graph needs ≤3.11. **Options:
+(a) install Python 3.11 for probe venvs; (b) try YourMT3+ instead (torch, so
+3.12 is likely fine, but its weights license needs checking before any
+shipping use); (c) drop Q4 — recommended, see the reasoning above.** If
+dropped, Q5 (onset snapping) is next.
 
 Note: iterations 1-3 ran on branches `accuracy/q1-n2-merge` and
 `accuracy/q2-s1b-probe`, stacked in that order (the state file is a running
@@ -157,6 +187,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q4 — bench built; Basic Pitch **blocked** (py3.12 vs its
+  ≤3.11 dep graph); **leg-2 threshold derived** = 0.528 at measured α=0.4581,
+  5/5 sign agreement on the banked N2 variants.
+  `q4_second_opinion_bench_2026-07-22.md`.
 - 2026-07-22 — Q2 — **CLOSED negative** after stage 2 (LOPO fine-tune):
   top-1 0.7015, Δ +0.0467 [+0.0291, +0.0640] vs 0.7048 — short by 0.0033.
   comp +0.0661 vs solo +0.0112 → context helps chords, not single lines.

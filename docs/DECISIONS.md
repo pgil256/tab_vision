@@ -3028,3 +3028,51 @@ selection of λ. The remaining levers are either already measured as small
 rule "banked negatives are wins; do not iterate past a failed gate" applies,
 and the tier asymmetry makes the negative genuinely informative for whatever
 attacks single-line assignment next.
+
+---
+
+## 2026-07-22 — Q4: Basic Pitch blocked on Python 3.12; leg-2 gate derived
+
+**Phase:** Accuracy-loop item Q4 (ROI deep-dive §3.3) — standing
+second-opinion bench
+**Decision tree:** run the two-leg gate on Basic Pitch, then YourMT3+;
+close cheaply on failure.
+**Branch taken (a):** **Basic Pitch is BLOCKED — environment, not evidence.**
+`basic-pitch>=0.3.0` is a declared optional extra (`audio-baseline`),
+Apache-2.0, already in LICENSES.md, so not a new dependency in the
+stop-and-ask sense — but it will not install: this machine has only Python
+3.12, every release 0.3.0-0.4.0 falls back to building numpy from source, and
+that numpy's `setup.py` calls `pkgutil.ImpImporter`, removed in 3.12. The
+`[onnx]` extra fails identically. `pyproject.toml` already warned that the
+verified path is Python 3.11. Installing a second runtime is a system-level
+dependency and stops for the user.
+**Recommendation recorded:** drop Basic Pitch rather than install 3.11. Its
+published GuitarSet zero-shot note F1 is 66.1 against our ensemble's 0.9491
+onset / 0.9403 pitch; MuScriptor is far stronger, cleared leg 1 by 3.8x, and
+still failed leg 2 at 0.181 against a break-even of 0.528. The deep-dive
+prices the whole row at +0.00-+0.02.
+**Branch taken (b) — the substantive result:** the leg-2 threshold invented
+in Q1 ("added-note precision >= 0.5", a judgement call) is now **derived**.
+For a merge admitting `a` notes with real-note fraction `p`, where `alpha` is
+P(rescued note also gets the right string):
+**p > (F1/2) / (alpha·(1 − F1/2) + F1/2)**. The volume `a` cancels — **how
+many notes a rule admits never changes the sign, only the magnitude**, which
+explains why all six N2 variants were negative and the conservative ones
+merely lost less. The bar also rises with the stream's own F1.
+**Calibration:** on the banked N2 pilot (baseline Tab F1 0.6773, measured
+alpha **0.4581** from added-real-notes vs the `correct`-bucket gain), the
+break-even is **0.5278**, and it predicts the sign of all five admitting
+variants — **5/5 agreement**. The guessed 0.5 sits just under it, so no Q1
+verdict changes, but leg 2 is now a computed quantity rather than a round
+number and should be recomputed per candidate as the ensemble improves.
+**Evidence:** `docs/EVAL_REPORTS/q4_second_opinion_bench_2026-07-22.md`
+(+ `q4_breakeven_precision_2026-07-22.json`);
+`tabvision/scripts/eval/q4_second_opinion_probe.py` (the bench, candidate runs
+in its own probe venv so TensorFlow never enters the shared eval venv),
+`q4_breakeven_precision.py`;
+`tabvision/tests/unit/test_q4_breakeven_precision.py` (5 tests).
+Nothing registered, `auto` untouched, SPEC and §8 unchanged.
+**Reasoning:** the blocked probe is worth recording precisely so a future
+session does not re-attempt the install; and the calibration converts the
+bench's decisive leg from intuition into algebra that reproduces every banked
+observation, which is worth more than the Basic Pitch number would have been.
