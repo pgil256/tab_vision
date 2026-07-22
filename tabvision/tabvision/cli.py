@@ -7,9 +7,11 @@ Phase 3 will add ``tabvision check input.mov`` for preflight only.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 from tabvision.errors import InvalidInputError, TabVisionError
@@ -124,6 +126,15 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["ascii", "gp5", "musicxml", "midi"],
         default="ascii",
         help="render format (default: ascii)",
+    )
+    t.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help=(
+            "write a machine-readable result envelope to stdout; requires "
+            "--output so stdout is reserved for JSON"
+        ),
     )
     t.add_argument(
         "--audio-backend",
@@ -359,14 +370,22 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     from tabvision.render import render
     from tabvision.types import GuitarConfig, SessionConfig
 
+    if args.json_output and args.output is None:
+        raise InvalidInputError("--json requires --output so stdout remains valid JSON")
+
+    total_started = time.perf_counter()
+    preflight_s = 0.0
     cfg = GuitarConfig(capo=args.capo)
     session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
 
     if not args.no_preflight:
+        preflight_started = time.perf_counter()
         rc = _run_preflight_gate(args)
+        preflight_s = time.perf_counter() - preflight_started
         if rc != 0:
             return rc
 
+    pipeline_started = time.perf_counter()
     tab_events = run_pipeline(
         args.input,
         audio_backend_name=args.audio_backend,
@@ -380,8 +399,10 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         cfg=cfg,
         session=session,
     )
+    pipeline_s = time.perf_counter() - pipeline_started
     logger.info("pipeline produced %d tab events", len(tab_events))
 
+    render_started = time.perf_counter()
     output = render(tab_events, args.format, cfg)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -396,6 +417,33 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
             sys.stdout.write(output.decode("utf-8"))
     else:
         sys.stdout.buffer.write(output)
+    render_s = time.perf_counter() - render_started
+
+    if args.json_output:
+        from tabvision.render.ascii import LOW_CONFIDENCE_THRESHOLD
+
+        low_confidence_flags = [
+            {
+                "type": "low_confidence_note",
+                "event_index": index,
+                "onset_s": round(float(event.onset_s), 6),
+                "confidence": round(float(event.confidence), 6),
+            }
+            for index, event in enumerate(tab_events)
+            if event.confidence < LOW_CONFIDENCE_THRESHOLD
+        ]
+        envelope = {
+            "status": "ok",
+            "output_path": str(args.output.resolve()),
+            "low_confidence_flags": low_confidence_flags,
+            "timings": {
+                "preflight_s": round(preflight_s, 6),
+                "pipeline_s": round(pipeline_s, 6),
+                "render_s": round(render_s, 6),
+                "total_s": round(time.perf_counter() - total_started, 6),
+            },
+        }
+        sys.stdout.write(json.dumps(envelope, separators=(",", ":"), sort_keys=True) + "\n")
 
     return 0
 

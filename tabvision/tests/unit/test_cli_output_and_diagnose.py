@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,106 @@ def test_transcribe_format_accepts_phase6_formats() -> None:
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "input.mov", "--format", "midi"])
     assert args.format == "midi"
+
+
+def test_transcribe_json_is_additive_and_disabled_by_default() -> None:
+    parser = _build_parser()
+
+    default_args = parser.parse_args(["transcribe", "input.mov"])
+    json_args = parser.parse_args(["transcribe", "input.mov", "--json"])
+
+    assert default_args.json_output is False
+    assert json_args.json_output is True
+
+
+def test_transcribe_json_envelope_reports_output_flags_and_timings(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from tabvision.types import TabEvent
+
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "result.tab"
+    events = [
+        TabEvent(
+            onset_s=0.125,
+            duration_s=0.25,
+            string_idx=0,
+            fret=3,
+            pitch_midi=43,
+            confidence=0.32,
+        ),
+        TabEvent(
+            onset_s=0.5,
+            duration_s=0.25,
+            string_idx=5,
+            fret=0,
+            pitch_midi=64,
+            confidence=0.95,
+        ),
+    ]
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", lambda *a, **k: events)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--json",
+            "--no-video",
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    envelope = json.loads(captured.out)
+    assert rc == 0
+    assert output_path.exists()
+    assert envelope["status"] == "ok"
+    assert envelope["output_path"] == str(output_path.resolve())
+    assert envelope["low_confidence_flags"] == [
+        {
+            "type": "low_confidence_note",
+            "event_index": 0,
+            "onset_s": 0.125,
+            "confidence": 0.32,
+        }
+    ]
+    assert set(envelope["timings"]) == {
+        "preflight_s",
+        "pipeline_s",
+        "render_s",
+        "total_s",
+    }
+    assert all(value >= 0.0 for value in envelope["timings"].values())
+
+
+def test_transcribe_json_requires_output_file(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline must not run")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("run_pipeline must not run without --output in JSON mode")
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", fail_if_called)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--json",
+            "--no-video",
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 2
+    assert captured.out == ""
+    assert captured.err == "error: --json requires --output so stdout remains valid JSON\n"
 
 
 def test_transcribe_creates_missing_output_directory(
