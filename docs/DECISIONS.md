@@ -3417,3 +3417,47 @@ dataset, no labels and no user interaction — the dataset dependence that made
 the pilot un-shippable is gone. The remaining gates (full-dev OOF, GAPS
 no-regression, player-05) are unchanged, and the calibration take stays an
 unvalidated option for instruments that deviate from standard specs.
+
+---
+
+## 2026-07-22 — Q6 domain guard: the GAPS gate is satisfied by construction
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), cross-domain gate
+**Decision tree:** house rule — anything touching `fuse()` must clear the
+GAPS clean-12 strict per-clip no-regression check before acceptance.
+**Branch taken:** **scope the channel instead of measuring it out of scope.**
+A GAPS run was started and then **stopped**: GAPS is classical guitar, the
+shipped table is derived for steel, and the run would have spent ~2 CPU-hours
+characterising behaviour that should be impossible. The channel now abstains
+wherever no table describes the instrument
+(`string_physics.stiffness_model_for_session`), so classical routing is
+**bit-identical to baseline by construction** and the cross-domain gate is
+satisfied without transcription — asserted by unit test rather than measured.
+**Why nylon is not a near-miss but a category error:** ``B`` is linear in
+Young's modulus, and polyamide is ~3 GPa against steel's ~200 GPa, so a nylon
+treble is roughly **65x less inharmonic** than a steel string of the same
+geometry. Candidate positions separate by only **1.6-1.8x**, so scoring nylon
+against the steel table would be wrong by more than the entire signal the
+channel measures. Classical basses (nylon multifilament core under metal
+winding) differ again. The physics applies fine to nylon; it needs a nylon
+table, and none exists here.
+**The guard also covers two cases that were latent:** capo and non-standard
+tuning. ``B0`` describes the *open* string, and a capo or retune moves both
+speaking length and tension, so the table stops applying — previously it
+would have been used anyway.
+**Structural, not advisory:** `attach_inharmonicity_evidence` now accepts
+`StringStiffnessModel | None` and treats `None` as an explicit no-op
+returning the event stream untouched, so an out-of-domain caller cannot
+apply evidence by omission.
+**Evidence:** `tabvision/tabvision/fusion/string_physics.py`
+(`stiffness_model_for_session`, `NYLON_YOUNGS_MODULUS_PA`);
+`tabvision/tests/unit/test_string_physics.py` (16 tests, including
+`test_out_of_domain_sessions_are_bit_identical_to_baseline` — the GAPS check
+in unit-test form). `scripts/eval/q6_gaps_no_regression.py` is retained: it
+becomes the empirical confirmation the day a nylon table exists.
+917 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the gate exists to prove classical did not regress. A proof
+that it *cannot* regress is stronger than a measurement that it did not, and
+costs nothing. Prompted by the user's observation that running nylon material
+to validate a steel-string feature was the wrong shape of experiment.

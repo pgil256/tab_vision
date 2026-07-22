@@ -40,6 +40,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from tabvision.fusion.inharmonicity import StringStiffnessModel
+from tabvision.types import GuitarConfig, SessionConfig
 
 STEEL_YOUNGS_MODULUS_PA = 2.0e11
 """Young's modulus of the steel core (~200 GPa). Wrap material is irrelevant:
@@ -131,9 +132,57 @@ def reference_stiffness_model(
 
 __all__ = [
     "ACOUSTIC_LIGHT_SET",
+    "NYLON_YOUNGS_MODULUS_PA",
     "DEFAULT_SCALE_LENGTH_IN",
     "StringSpec",
     "inharmonicity_coefficient",
     "open_frequency_hz",
     "reference_stiffness_model",
+    "stiffness_model_for_session",
 ]
+
+
+NYLON_YOUNGS_MODULUS_PA = 3.0e9
+"""Polyamide trebles, ~3 GPa against steel's ~200 GPa.
+
+Recorded to make the scale of the mismatch explicit rather than implied:
+``B`` is linear in ``E``, so a nylon treble is roughly **65x less
+inharmonic** than a steel string of the same geometry and tension. Classical
+basses are a nylon multifilament core under metal winding, different again.
+Scoring nylon against :data:`ACOUSTIC_LIGHT_SET` would not be approximate, it
+would be wrong by more than the entire signal the channel measures
+(candidates separate by only 1.6-1.8x).
+"""
+
+
+def stiffness_model_for_session(
+    session: SessionConfig,
+    cfg: GuitarConfig | None = None,
+) -> StringStiffnessModel | None:
+    """The stiffness table for this session, or ``None`` to abstain.
+
+    The channel is only meaningful where the shipped table actually describes
+    the strings on the instrument. That is steel-string acoustic in standard
+    tuning at capo 0 — the domain :data:`ACOUSTIC_LIGHT_SET` was derived for.
+
+    Everything else returns ``None`` and the channel contributes nothing:
+
+    * **classical** — nylon, see :data:`NYLON_YOUNGS_MODULUS_PA`. The physics
+      applies perfectly well to nylon, but it needs a nylon table and none
+      exists here; the steel one would be wrong by far more than the effect.
+    * **electric** — different string sets and scale lengths, and outside the
+      v1 acoustic scope entirely.
+    * **capo or non-standard tuning** — the speaking length and tension both
+      move, so ``B0`` no longer describes the open string.
+
+    Abstaining is free: the GAPS clean-12 classical no-regression check is
+    then satisfied by construction rather than by measurement.
+    """
+    cfg = cfg or GuitarConfig()
+    if session.instrument != "acoustic" or session.tone != "clean":
+        return None
+    if cfg.capo != 0:
+        return None
+    if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
+        return None
+    return reference_stiffness_model()

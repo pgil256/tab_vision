@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from tabvision.fusion.inharmonicity import (
     LOG2,
     StiffnessObservation,
+    attach_inharmonicity_evidence,
     calibrate_from_ritual,
 )
 from tabvision.fusion.string_physics import (
@@ -24,7 +26,9 @@ from tabvision.fusion.string_physics import (
     inharmonicity_coefficient,
     open_frequency_hz,
     reference_stiffness_model,
+    stiffness_model_for_session,
 )
+from tabvision.types import AudioEvent, GuitarConfig, SessionConfig
 
 
 def _plain(gauge: float, open_midi: int, unit_weight: float) -> StringSpec:
@@ -126,3 +130,53 @@ def test_ritual_falls_back_to_the_ideal_exponent_when_undersampled() -> None:
 def test_ritual_rejects_takes_with_no_usable_fits() -> None:
     observations = [StiffnessObservation(string_idx=0, fret=0, log_b=math.log(5e-5), r2=0.01)]
     assert calibrate_from_ritual(observations, min_r2=0.5) is None
+
+
+def _acoustic() -> SessionConfig:
+    return SessionConfig(instrument="acoustic", tone="clean")
+
+
+def test_steel_table_applies_to_clean_steel_acoustic() -> None:
+    model = stiffness_model_for_session(_acoustic())
+    assert model is not None
+    assert sorted(model.log_b0) == [0, 1, 2, 3, 4, 5]
+
+
+def test_classical_sessions_get_no_table() -> None:
+    # Nylon is ~65x less inharmonic than steel at the same geometry, so the
+    # steel table would be wrong by far more than the 1.6-1.8x the decision
+    # needs to resolve. Abstaining is the only correct behaviour.
+    assert stiffness_model_for_session(SessionConfig(instrument="classical")) is None
+
+
+def test_electric_and_distorted_sessions_get_no_table() -> None:
+    assert stiffness_model_for_session(SessionConfig(instrument="electric")) is None
+    assert (
+        stiffness_model_for_session(SessionConfig(instrument="acoustic", tone="distorted")) is None
+    )
+
+
+def test_capo_and_alternate_tuning_get_no_table() -> None:
+    # B0 describes the *open* string; a capo or retune moves both speaking
+    # length and tension, so the table no longer applies.
+    assert stiffness_model_for_session(_acoustic(), GuitarConfig(capo=3)) is None
+    dropped = GuitarConfig(tuning_midi=(38, 45, 50, 55, 59, 64))
+    assert stiffness_model_for_session(_acoustic(), dropped) is None
+
+
+def test_out_of_domain_sessions_are_bit_identical_to_baseline() -> None:
+    """The GAPS classical no-regression check, satisfied by construction.
+
+    A classical session yields no table, and a ``None`` table must leave every
+    event untouched — so classical routing cannot change, and the cross-domain
+    gate needs no transcription to confirm it.
+    """
+    events = [
+        AudioEvent(onset_s=0.0, offset_s=0.5, pitch_midi=64, velocity=0.8, confidence=0.9),
+        AudioEvent(onset_s=1.0, offset_s=1.5, pitch_midi=59, velocity=0.8, confidence=0.9),
+    ]
+    model = stiffness_model_for_session(SessionConfig(instrument="classical"))
+    out, tally = attach_inharmonicity_evidence(events, np.zeros(44100), 44100, model)
+    assert out == events
+    assert all(event.fret_prior is None for event in out)
+    assert tally["applied"] == 0

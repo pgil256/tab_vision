@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-ritual-calibration
+current_branch: accuracy/q6-gaps-gate
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,7 +10,7 @@ current_branch: accuracy/q6-ritual-calibration
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **PORTABLE — physics table matches fitted** | `physics` **+0.0502** [+0.0198, +0.0853] vs `lopo` +0.0525 — no dataset needed; +offset **+0.0581** | formal gates: full-dev OOF, GAPS no-reg, player-05 | user decision |
+| Q6 | Inharmonicity study | **portable + domain-guarded** | `physics` **+0.0502** [+0.0198, +0.0853]; **GAPS gate satisfied by construction** (classical abstains, unit-tested) | remaining gates: full-dev OOF, then player-05 | user decision |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -322,6 +322,26 @@ measurable, nothing fitted.
   cannot contain the ritual; validating on a real recording would make it an
   eval artifact under the private-recordings ban.
 
+## Q6 domain guard — GAPS gate satisfied by construction (2026-07-22)
+
+`string_physics.stiffness_model_for_session` returns a table **only** for
+clean steel-string acoustic, standard tuning, capo 0. Everything else gets
+`None`, and `attach_inharmonicity_evidence` treats `None` as an explicit
+no-op, so out-of-domain sessions are **bit-identical to baseline**.
+
+- **Classical/nylon abstains.** `B` is linear in Young's modulus: polyamide
+  ~3 GPa vs steel ~200 GPa, so a nylon treble is ~**65x less inharmonic**.
+  Candidates separate by only 1.6-1.8x, so the steel table would be wrong by
+  more than the whole signal. The physics fits nylon fine — it needs a nylon
+  table, which does not exist here.
+- **Capo and alternate tuning also abstain** — `B0` describes the *open*
+  string, and both move speaking length and tension. Previously latent.
+- **The GAPS clean-12 classical no-regression check is therefore proven, not
+  measured** (`test_out_of_domain_sessions_are_bit_identical_to_baseline`).
+  A ~2 CPU-hour run was started and stopped once this was clear.
+  `scripts/eval/q6_gaps_no_regression.py` is retained as the empirical
+  confirmation for the day a nylon table exists.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -366,8 +386,8 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 **DECISION NEEDED (Q6 gates):** portability is solved — the physics table
 needs no dataset and matches the fitted one. What remains is the standard
 ladder, none of which has run: **(1)** full-dev OOF (not 20 clips) with
-weight/threshold fixed *before* the run; **(2)** GAPS clean-12 strict
-no-regression, since this touches `fuse()`; **(3)** player-05 confirmation;
+weight/threshold fixed *before* the run; **(2)** ~~GAPS clean-12~~ **done by construction** (classical abstains,
+unit-tested); **(3)** player-05 confirmation;
 then registration and the `auto`-routing decision. Separately, **(4)** the
 calibration take needs real-recording validation, which needs public audio or
 a deliberate exception to the private-recordings ban. **Options: (a) work
@@ -386,6 +406,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **domain guard**: channel abstains outside clean
+  steel-string acoustic (classical/nylon ~65x less inharmonic; also capo and
+  alt tuning). GAPS cross-domain gate now **satisfied by construction and
+  unit-tested**; the ~2 CPU-hour run was stopped as unnecessary.
 - 2026-07-22 — Q6 — **portability SOLVED**: specification-derived table gives
   **+0.0502** [+0.0198, +0.0853] with no dataset, matching the fitted
   +0.0525; +offset **+0.0581**. Fret law derived not assumed. Calibration

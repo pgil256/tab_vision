@@ -423,7 +423,7 @@ def attach_inharmonicity_evidence(
     events: Sequence[AudioEvent],
     wav: np.ndarray,
     sr: int,
-    model: StringStiffnessModel,
+    model: StringStiffnessModel | None,
     cfg: GuitarConfig | None = None,
     *,
     weight: float = DEFAULT_WEIGHT,
@@ -439,6 +439,11 @@ def attach_inharmonicity_evidence(
     cfg = cfg or GuitarConfig()
     if weight < 0.0:
         raise ValueError("weight must be non-negative")
+    if model is None:
+        # No table describes this instrument's strings — see
+        # ``string_physics.stiffness_model_for_session``. Returning the stream
+        # untouched keeps out-of-domain sessions bit-identical to baseline.
+        return list(events), {"events": len(events), "isolated": 0, "fitted": 0, "applied": 0}
 
     audio = np.asarray(wav, dtype=np.float64)
     if audio.ndim > 1:
