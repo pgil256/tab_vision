@@ -18,6 +18,17 @@ from tabvision.errors import InvalidInputError, TabVisionError
 
 logger = logging.getLogger(__name__)
 
+_TRANSCRIBE_PROGRESS_PCT = {
+    "preflight": 0,
+    "demux": 10,
+    "model_load": 20,
+    "audio_inference": 35,
+    "video_analysis": 60,
+    "decode": 80,
+    "render": 90,
+    "complete": 100,
+}
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
@@ -135,6 +146,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "write a machine-readable result envelope to stdout; requires "
             "--output so stdout is reserved for JSON"
         ),
+    )
+    t.add_argument(
+        "--progress",
+        action="store_true",
+        help="write machine-readable 'PROGRESS <stage> <pct>' lines to stderr",
     )
     t.add_argument(
         "--audio-backend",
@@ -378,7 +394,13 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
     cfg = GuitarConfig(capo=args.capo)
     session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
 
+    def report_progress(stage: str) -> None:
+        if args.progress:
+            pct = _TRANSCRIBE_PROGRESS_PCT[stage]
+            print(f"PROGRESS {stage} {pct}", file=sys.stderr, flush=True)
+
     if not args.no_preflight:
+        report_progress("preflight")
         preflight_started = time.perf_counter()
         rc = _run_preflight_gate(args)
         preflight_s = time.perf_counter() - preflight_started
@@ -398,10 +420,12 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,
         session=session,
+        progress_callback=report_progress if args.progress else None,
     )
     pipeline_s = time.perf_counter() - pipeline_started
     logger.info("pipeline produced %d tab events", len(tab_events))
 
+    report_progress("render")
     render_started = time.perf_counter()
     output = render(tab_events, args.format, cfg)
     if args.output:
@@ -445,6 +469,7 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
         }
         sys.stdout.write(json.dumps(envelope, separators=(",", ":"), sort_keys=True) + "\n")
 
+    report_progress("complete")
     return 0
 
 

@@ -30,6 +30,92 @@ def test_transcribe_json_is_additive_and_disabled_by_default() -> None:
     assert json_args.json_output is True
 
 
+def test_transcribe_progress_is_additive_and_disabled_by_default() -> None:
+    parser = _build_parser()
+
+    default_args = parser.parse_args(["transcribe", "input.mov"])
+    progress_args = parser.parse_args(["transcribe", "input.mov", "--progress"])
+
+    assert default_args.progress is False
+    assert progress_args.progress is True
+
+
+def test_transcribe_progress_reports_stages_on_stderr(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "result.tab"
+
+    def fake_run_pipeline(*_args, **kwargs):
+        callback = kwargs["progress_callback"]
+        assert callback is not None
+        for stage in (
+            "demux",
+            "model_load",
+            "audio_inference",
+            "video_analysis",
+            "decode",
+        ):
+            callback(stage)
+        return []
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", fake_run_pipeline)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--progress",
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "PROGRESS demux 10",
+        "PROGRESS model_load 20",
+        "PROGRESS audio_inference 35",
+        "PROGRESS video_analysis 60",
+        "PROGRESS decode 80",
+        "PROGRESS render 90",
+        "PROGRESS complete 100",
+    ]
+
+
+def test_transcribe_default_has_no_progress_output(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "result.tab"
+
+    def fake_run_pipeline(*_args, **kwargs):
+        assert kwargs["progress_callback"] is None
+        return []
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", fake_run_pipeline)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out == ""
+    assert captured.err == ""
+
+
 def test_transcribe_json_envelope_reports_output_flags_and_timings(
     tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

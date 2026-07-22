@@ -10,8 +10,9 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Add additive `tabvision transcribe --json` success envelope with
   `{status, output_path, low_confidence_flags, timings}` and unit tests. Result:
   JSON mode reserves stdout by requiring `--output`; default behavior is unchanged.
-- [ ] Add additive `tabvision transcribe --progress` stage lines on stderr and
-  unit tests without changing default CLI output.
+- [x] Add additive `tabvision transcribe --progress` stage lines on stderr and
+  unit tests without changing default CLI output. Result: opt-in lines cover
+  preflight, pipeline stages, render, and completion at 0-100%; default stays silent.
 - [ ] Create `bootstrap/requirements.lock` with the pipeline commit and the
   planned audio-highres, vision, and render extras pinned.
 - [ ] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
@@ -61,3 +62,6 @@ in Python. D2 is out of scope until the web editor stabilizes.
 
 - 2026-07-22: Checklist initialized and D0.1 completed. Verification: focused
   CLI suite 11 passed; full suite 858 passed / 12 skipped; Ruff and mypy passed.
+- 2026-07-22: D0.2 completed. `--progress` emits stable stage percentages on
+  stderr only; focused suite 47 passed; full suite 861 passed / 12 skipped;
+  Ruff and mypy passed.
