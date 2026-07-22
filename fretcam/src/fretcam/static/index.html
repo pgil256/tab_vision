@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FretCam</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">TabVision side quest</p>
+          <h1>FretCam</h1>
+          <p class="subtitle">Live webcam transport · echo mode</p>
+        </div>
+        <span id="connection" class="pill" data-state="idle">idle</span>
+      </header>
+
+      <section class="viewer" aria-label="Camera preview">
+        <video id="camera" autoplay muted playsinline hidden></video>
+        <canvas id="preview" width="640" height="480"></canvas>
+        <div id="empty-state">
+          <strong>Camera is off</strong>
+          <span>Frames stay on this computer and are never saved.</span>
+        </div>
+      </section>
+
+      <section class="metrics" aria-live="polite">
+        <div><span>Round-trip FPS</span><strong id="fps">—</strong></div>
+        <div><span>WebSocket RTT</span><strong id="latency">—</strong></div>
+        <div><span>Frame size</span><strong id="frame-size">—</strong></div>
+      </section>
+
+      <section class="controls">
+        <button id="toggle" type="button">Start camera</button>
+        <p id="status">Ready. Use a rear/environment camera when available.</p>
+      </section>
+    </main>
+    <script type="module" src="/static/client.js"></script>
+  </body>
+</html>
