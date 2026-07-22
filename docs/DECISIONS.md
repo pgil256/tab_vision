@@ -2873,3 +2873,51 @@ F1 — so more clips would sharpen a number whose sign is not in doubt. House
 rule "banked negatives are wins; do not iterate past a failed gate" applies.
 The banked replay artifacts (20 clips of ensemble events + MuScriptor MIDI)
 stay on disk, so any future admission rule can be tested at zero compute.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2: entry gate re-based off the sealed player-05 slice
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2) — symbolically
+pretrained contextual string assigner, entry-substrate iteration
+**Decision tree:** the deep-dive's stated entry gate is "ambiguous top-1
+≥ +0.05 over 0.6770" against Phase 0's banked lattice.
+**Branch taken:** **the gate is evaluated on the dev-OOF slice, not the
+stated 0.6770.** Reproducing Phase 0 from the banked CSV shows 0.6770 is the
+`held_out_05` number — **player-05**, which the loop opens only after config
+freeze and an explicit user proceed. Tuning a model against it would burn the
+confirmation set. The same +0.05 bar is carried to
+`production_equivalent`/`development_oof`: **ambiguous top-1 ≥ 0.7048**
+(from **0.6548**, n = 35,959). This is also the stronger development target —
+5.0× the notes of the player-05 slice (7,121). Player-05 stays sealed.
+**Substrate verified:** the banked lattice reproduces both Phase 0 headlines
+exactly from disk (held-out 0.6770 top-1 / 0.9986 top-3), with no audio,
+backend, or pipeline — so the probe is pure CSV replay, seconds per sweep.
+It also carries `candidate_path` as `string:fret:cost_delta_from_best`, so
+the probe can score the **real integration shape** (blend model log-prob with
+the decoder's cost, sweep the mixing weight offline) rather than a proxy.
+**What the gate asks for, concretely:** gold is present in the lattice for
+99.72% of ambiguous notes; **84% of misses are gold-at-rank-2** (10,428 of
+12,412), so +0.05 means flipping **1,798 notes — 17% of the rank-2 pile**.
+Solo 0.5908 vs comp 0.6896: the headroom is concentrated in single-line
+material, where audio evidence is information-limited and context is the only
+remaining lever.
+**Corpus:** `scripts/eval/s1b_extract_symbolic.py` extracts per-track note
+*sequences* (34,621 tracks / **34,063,065 notes** / 46.3 MB npz / 279 s),
+delegating the parse to S1a's `_track_events` so the substrate is identical
+to the audited one — and the totals reproduce the S1a audit exactly. 88.7% of
+notes are pitch-ambiguous and 47% of clusters are polyphonic, so the corpus
+is dense in the target decision and carries real voicing grammar. The
+difference from S1a is representation, not scale: S1a marginalized order
+away into per-pitch counts and closed CI-negative; the Phase 0 segment gate
+values the discarded quantity at +0.1446.
+**Evidence:** `docs/EVAL_REPORTS/s1b_entry_substrate_2026-07-22.md`
+(+ `s1b_symbolic_corpus_2026-07-22.json`);
+`tabvision/scripts/eval/s1b_extract_symbolic.py`;
+`tabvision/tests/unit/test_s1b_extract_symbolic.py` (4 tests).
+No artifact registered, no routing or `auto` change, SPEC untouched.
+NC-derived corpus labeled in LICENSES.md.
+**Reasoning:** the deviation is a slice correction, not a weakening — the
++0.05 magnitude is unchanged and the substituted slice is both larger and the
+one house discipline already reserves for development. Catching it before
+training is spent is the point of running the substrate check first.
