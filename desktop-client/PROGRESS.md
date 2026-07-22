@@ -52,7 +52,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   default), and the `--no-video` toggle. Result: the dependency-free WPF panel
   mirrors the pinned CLI choices (including capo 0-7) and initializes every
   control from a tested default options record.
-- [ ] Run one sidecar process per transcription job and show stage progress.
+- [x] Run one sidecar process per transcription job and show stage progress.
+  Result: each Transcribe click creates a unique job output, launches one
+  `tabvision` process with the selected pinned CLI options, and streams parsed
+  stderr stages into a progress bar while retaining full stderr capture.
 - [ ] Show completed ASCII output in a monospace tab viewer.
 - [ ] Export ASCII, GP5, MusicXML, and MIDI through the CLI `--format` option.
 - [ ] Surface `TabVisionError` stderr text verbatim for exit code 2.
@@ -125,3 +128,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
   audio-only controls backed by exact pinned-CLI choice lists and defaults. No
   dependency or process wiring was added. `dotnet build`: 0 warnings/errors;
   `dotnet test`: 15 passed.
+- 2026-07-22: D1.3 completed. Wired the Transcribe button to one isolated
+  sidecar process per unique local-app-data job and mapped live `PROGRESS`
+  stderr lines to the UI without losing captured error text. Added exact command
+  and streaming-capture tests. `dotnet build`: 0 warnings/errors; `dotnet test`:
+  18 passed.

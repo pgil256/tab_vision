@@ -51,4 +51,35 @@ public sealed class SidecarProcessRunnerTests
         Assert.Equal(expectedValue, result.StandardOutput);
         Assert.Empty(result.StandardError);
     }
+
+    [Fact]
+    public async Task RunAsyncReportsStderrLinesWhilePreservingCapturedText()
+    {
+        var runner = new SidecarProcessRunner();
+        var lines = new List<string>();
+
+        var result = await runner.RunAsync(
+            "powershell.exe",
+            [
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "[Console]::Error.WriteLine('PROGRESS demux 10'); "
+                    + "[Console]::Error.Write('PROGRESS render 90')",
+            ],
+            standardErrorLineProgress: new CallbackProgress<string>(lines.Add)
+        );
+
+        Assert.Equal(["PROGRESS demux 10", "PROGRESS render 90"], lines);
+        Assert.Equal(
+            $"PROGRESS demux 10{Environment.NewLine}PROGRESS render 90",
+            result.StandardError
+        );
+    }
+
+    private sealed class CallbackProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
+    }
 }

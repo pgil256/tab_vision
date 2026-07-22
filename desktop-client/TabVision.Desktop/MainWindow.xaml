@@ -3,12 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TabVision"
         Width="760"
-        Height="650"
+        Height="750"
         MinWidth="620"
-        MinHeight="560"
+        MinHeight="660"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="28">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -140,6 +141,43 @@
                           AutomationProperties.Name="Audio only, skip video analysis"
                           Content="Audio only (--no-video)" />
             </StackPanel>
+        </Border>
+
+        <Border Grid.Row="4"
+                Margin="0,18,0,0"
+                Padding="20"
+                BorderBrush="#D6D6D6"
+                BorderThickness="1"
+                CornerRadius="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Margin="0,0,20,0"
+                            VerticalAlignment="Center">
+                    <ProgressBar x:Name="JobProgressBar"
+                                 Height="8"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 AutomationProperties.Name="Transcription progress" />
+                    <TextBlock x:Name="JobStatusText"
+                               Margin="0,8,0,0"
+                               Foreground="#666666"
+                               Text="Choose an input to begin."
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+                <Button x:Name="TranscribeButton"
+                        Grid.Column="1"
+                        MinWidth="118"
+                        Padding="14,9"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Transcribe selected video"
+                        Click="Transcribe_Click"
+                        Content="Transcribe"
+                        IsEnabled="False" />
+            </Grid>
         </Border>
     </Grid>
 </Window>
