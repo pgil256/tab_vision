@@ -70,8 +70,15 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Surface every low-confidence flag from the JSON envelope. Result: the
   completed viewer lists every flag in envelope order with all required fields
   and retained future JSON details; an empty flag array hides the warning panel.
-- [ ] **D1 correctness gate:** output is byte-identical to direct CLI output
-  on three fixture clips; record clip names and hashes here.
+- [x] **D1 correctness gate:** output is byte-identical to direct CLI output
+  on three fixture clips. Result: PASS; every direct/desktop pair was 144 bytes
+  with output SHA-256 `57229c70081f22a230185373a2455dcbe2de7b09c927fec50f74cbd98f4234e0`.
+  Fixture input SHA-256 values: `027_Zpswc.mp4`
+  `b952fd2c455dce7bfd55ad9fd9137e8ffd6813c1ec04122291fe9912479d3b5c`;
+  `031_vpswc.mp4`
+  `949e8de8096f2ead64dae3247aa3e6a57e51e9cba935934b95f72210703b27e9`;
+  `043_bc1wc.mp4`
+  `c1c48027831f262e650dcd1658fc143f0db84c6de4a5553d2caaef2c5dd4eea1`.
 - [ ] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
   record both wall-clock measurements and the ratio here.
 
@@ -160,3 +167,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   including unknown extension data. Successful transcription and export
   envelopes refresh it; new jobs clear it. `dotnet build`: 0 warnings/errors;
   `dotnet test`: 31 passed.
+- 2026-07-22: D1 correctness gate passed on public cached GAPS fixtures
+  `027_Zpswc`, `031_vpswc`, and `043_bc1wc`. The deterministic fixture pipeline
+  ran each clip through direct CLI mode and desktop machine mode; both used
+  `--no-preflight` to isolate output transport after `027_Zpswc` correctly
+  failed the guitar-presence preflight. All three raw byte/hash comparisons
+  matched. The pinned CLI remains unchanged from `a26d61c`. `dotnet build`: 0
+  warnings/errors; `dotnet test`: 31 passed.
