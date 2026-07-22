@@ -87,8 +87,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
 
 ## D1.5 - Bootstrapper and installer
 
-- [ ] Bundle the self-contained WPF publish, CPython 3.11 embeddable package,
-  `pip.pyz`, requirements lock, and weights manifest with Inno Setup.
+- [x] Bundle the self-contained WPF publish, CPython 3.11 embeddable package,
+  `pip.pyz`, requirements lock, and weights manifest with Inno Setup. Result:
+  pinned/hash-verified inputs produced a 63,911,774-byte installer (SHA-256
+  `363c38dce94687f4e2a1a635dc0ad9ea60efab80e11fd5fa77182e42e527c4d9`);
+  a silent-install audit verified the self-contained runtime and all payloads.
 - [ ] Create the app-local Python environment and install the locked pipeline
   dependencies with visible, resumable progress.
 - [ ] Download every manifest artifact with resume support, verify SHA-256,
@@ -211,3 +214,13 @@ in Python. D2 is out of scope until the web editor stabilizes.
   D1 overhead gate at 356.821334 s direct / 305.082714 s desktop = 0.855001;
   both outputs were byte-identical. The timing harness was removed after use,
   and D1.5 remains the next phase.
+- 2026-07-22: D1.5 installer bundle completed. Added a reproducible build that
+  pins CPython 3.11.9 embed, immutable pip 26.1.2 zipapp, and signed Inno Setup
+  7.0.2 with URL/size/SHA-256 verification; publishes WPF self-contained for
+  `win-x64`; and packages those inputs with the existing requirements lock and
+  weights manifest. The unsigned personal-use installer was 63,911,774 bytes
+  with SHA-256 `363c38dc...c4d9`. A fresh silent install yielded 472 files;
+  `hostfxr.dll`/`coreclr.dll` proved the app-local .NET runtime was present,
+  and every bootstrap input matched its source hash. The generated uninstaller
+  removed the smoke installation. Clean verification: build 0 warnings/errors,
+  31 tests passed. No runtime or NuGet dependency was added.

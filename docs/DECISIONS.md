@@ -3088,3 +3088,26 @@ desktop (0.855001 ratio), with byte-identical output.
 backend and future dependencies without embedding backend knowledge in the CLI
 or C#. Redirecting only in explicit machine mode preserves the public default
 behavior while enforcing the documented single-document stdout contract.
+
+---
+
+## 2026-07-22 - D1.5 installer inputs are immutable and cache-backed
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Choose reproducible Windows installer payloads without
+adding a runtime package dependency or committing generated binaries.
+**Branch taken:** Pin CPython 3.11.9 (the final 3.11 Windows embeddable binary),
+immutable pip 26.1.2 zipapp, and the official Inno Setup 7.0.2 x64 compiler by
+URL, byte size, and SHA-256. Verify Inno's Authenticode signature before its
+first app-local cache install. Publish WPF self-contained for `win-x64`, keep
+generated artifacts ignored, and ship a bundle manifest with the installer.
+**Evidence:** The build produced a 63,911,774-byte installer with SHA-256
+`363c38dce94687f4e2a1a635dc0ad9ea60efab80e11fd5fa77182e42e527c4d9`.
+A fresh silent install contained 472 files, included `hostfxr.dll` and
+`coreclr.dll`, and matched the pinned hashes for CPython, `pip.pyz`,
+`requirements.lock`, and `weights.manifest.json`. The clean WPF build had 0
+warnings/errors and all 31 tests passed.
+**Reasoning:** Immutable, cached inputs make the disposable shell cheap to
+rebuild without putting 64 MB of generated installer output in Git. Keeping
+environment creation out of this item also preserves the loop's one-increment
+boundary; the next item owns installation of the locked Python environment.

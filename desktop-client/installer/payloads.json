@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "payloads": [
+    {
+      "id": "cpython_embed",
+      "role": "bundle",
+      "version": "3.11.9",
+      "url": "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip",
+      "sha256": "009d6bf7e3b2ddca3d784fa09f90fe54336d5b60f0e0f305c37f400bf83cfd3b",
+      "size_bytes": 11249023,
+      "cache_filename": "python-3.11.9-embed-amd64.zip",
+      "bundle_path": "bootstrap/python-embed.zip"
+    },
+    {
+      "id": "pip_zipapp",
+      "role": "bundle",
+      "version": "26.1.2",
+      "url": "https://bootstrap.pypa.io/pip/zipapp/pip-26.1.2.pyz",
+      "sha256": "6ddc3444b803a48d83ccf1c4ad846717b42c8ffc9d74713a53ae829a97201365",
+      "size_bytes": 1756180,
+      "cache_filename": "pip-26.1.2.pyz",
+      "bundle_path": "bootstrap/pip.pyz"
+    },
+    {
+      "id": "inno_setup",
+      "role": "build_tool",
+      "version": "7.0.2",
+      "url": "https://github.com/jrsoftware/issrc/releases/download/is-7_0_2/innosetup-7.0.2-x64.exe",
+      "sha256": "5ad54ca3def786f8f4212552e54cc6d8d61329e2d24a1cfee0571d42c2684ff1",
+      "size_bytes": 17020192,
+      "cache_filename": "innosetup-7.0.2-x64.exe"
+    }
+  ]
+}

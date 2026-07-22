@@ -29,3 +29,18 @@ With the .NET 8 SDK installed:
 dotnet build TabVision.Desktop.sln
 dotnet test TabVision.Desktop.sln --no-build
 ```
+
+## Build the installer
+
+The installer build pins and verifies the CPython 3.11 embeddable package,
+`pip.pyz`, and the Inno Setup compiler before producing a self-contained
+`win-x64` bundle. Run from this directory:
+
+```powershell
+.\scripts\Build-Installer.ps1
+```
+
+Generated staging files and the unsigned personal-use installer are written to
+the ignored `artifacts/` directory. Upstream payload URLs, sizes, and SHA-256
+values are recorded in `installer/payloads.json`; the build cache lives under
+`%LOCALAPPDATA%\TabVision\bootstrap-cache\desktop-installer`.
