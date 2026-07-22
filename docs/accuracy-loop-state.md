@@ -6,7 +6,7 @@ current_branch: accuracy/q2-s1b-probe
 | id | item | status | key numbers | next action | blockers |
 |----|------|--------|-------------|-------------|----------|
 | Q1 | N2 MuScriptor merge | **closed-negative** | best variant ΔTab F1 **-0.0167** [-0.0480, +0.0090]; Δonset **-0.0195** [-0.0325, -0.0079] (CI-sig regression); added-note precision **0.181** vs 0.6855 stream precision | none — closed | — |
-| Q2 | S1b-v2 offline probe | **in-progress** | gate re-based: amb-top1 ≥ **0.7048** (from 0.6548 dev-OOF, n=35,959); corpus 34,621 tracks / 34.06M notes | train masked-string model, rescore lattice | — |
+| Q2 | S1b-v2 offline probe | **paused — gate FAILED, user call needed** | best λ=4: top-1 **0.6850**, Δ **+0.0302** [+0.0163, +0.0446] vs target 0.7048 (CI excludes the bar) | user decides: run recipe stage 2 (GuitarSet fine-tune, +4.0pp in MIDI-to-Tab) or bank the negative | user call |
 | Q3 | S1b-v2 integration | blocked | — | — | Q2 |
 | Q4 | Second-opinion probes | open | **two-leg gate now** (see below) | Basic Pitch probe on cached eval audio | — |
 | Q5 | Onset snapping | open | — | prototype (must re-run full onset/pitch gates) | — |
@@ -14,7 +14,7 @@ current_branch: accuracy/q2-s1b-probe
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | blocked | beat 38.76% @60s | — | Q3 |
 
-**Topmost open unblocked item = Q2 (in progress, iteration 3 continues it).**
+**Q2 is paused on a user call (see Questions). Topmost open unblocked item otherwise = Q4.**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -63,6 +63,31 @@ track, then rescore the dev-OOF lattice and report ambiguous top-1 vs 0.7048
 with the solo/comp split and rank-2 flip rate. Fail → banked negative, close
 Q2. Pass → Q3, still stopping before player-05.
 
+## Q2 — iteration 3: gate FAILED at +0.0302, context proven real
+
+Report: `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md` (+ 3 JSON).
+DECISIONS.md 2026-07-22 (second entry).
+
+- 413,958-param transformer, 3.84M notes, pitch+gap inputs only (never sees
+  a string, cannot copy the answer). In-domain val ambiguous acc **0.7679**.
+- Rescoring the banked lattice as an emission term
+  (`cost_delta + λ·(−log p)`): peak λ=4 → top-1 **0.6850**,
+  **Δ +0.0302 [+0.0163, +0.0446]** (paired bootstrap over tracks,
+  N=10,000, seed 42). Target 0.7048 → **FAIL, CI excludes the bar**.
+- **`marginal` control (same corpus, counts only) is negative at every λ** and
+  collapses to 0.5419 at λ=∞. So context is the active ingredient, not the
+  corpus — and it independently replicates S1a via a different mechanism.
+  First CI-significant positive from a SynthTab-derived artifact in this repo.
+- λ sweep is smooth/unimodal; model-only (0.6496) is *worse* than the decoder,
+  i.e. complementary evidence, exactly the §3.2 emission shape → a tuned λ
+  ports directly to Q3. Comp peaks at λ=4 (+0.0355), solo at λ=8 (+0.0287).
+- **Recipe stage 2 was not run**: fine-tune on GuitarSet players 00-04
+  symbolic, measured at +4.0 pp alone by MIDI-to-Tab. That is the open
+  question below.
+
+Harness note: `s1b_rescore_lattice.py` refuses `--split held_out_05` —
+player-05 stays sealed until config freeze + explicit proceed.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -100,12 +125,29 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 ```
 
 ## Questions for the user
-- None blocking. Q2 (S1b-v2 offline probe) is next and is $0 / local-CPU;
-  it needs no new dependency or dataset — the SynthTab JAMS are already on
-  disk. If training moves to free Colab that stays inside the pre-approved
-  set; anything paid stops for approval.
+
+**BLOCKING (Q2):** the pretrain-only gate failed at +0.0302 [+0.0163,
++0.0446] against a +0.05 bar, but with a CI-significant positive and a
+control proving context (not corpus) is doing the work. The deep-dive's
+recipe has an unexecuted stage 2 — fine-tune on GuitarSet players 00-04
+symbolic — that MIDI-to-Tab prices at +4.0 pp alone, which would clear the
+bar. House rule says do not iterate past a failed gate; but this is a
+predeclared, cheap ($0, ~1h local CPU), never-run step rather than open-ended
+tuning. **Options: (a) run stage 2 and re-gate; (b) bank the negative, close
+Q2, move to Q4.** Player-05 stays sealed either way.
+
+Note: iterations 1-3 ran on branches `accuracy/q1-n2-merge` and
+`accuracy/q2-s1b-probe`, stacked in that order (the state file is a running
+document, so Q2 builds on Q1). They are unpushed and must be merged in
+order. A parallel session moved the shared working tree onto
+`fretcam/f2-detection-chain`; iteration 3 was committed via a temporary git
+worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q2 — iteration 3: **gate FAILED** at top-1 0.6850,
+  Δ +0.0302 [+0.0163, +0.0446] vs target 0.7048. Marginal control negative
+  at every λ → context is the active ingredient. Paused on a user call
+  (run recipe stage 2, or bank). `s1b_context_probe_2026-07-22.md`.
 - 2026-07-22 — Q2 — entry substrate verified + corpus built. Gate re-based
   off the sealed player-05 slice to dev-OOF (0.6548 → target 0.7048);
   84% of misses are rank-2. Corpus 34,621 tracks / 34.06M notes matches the

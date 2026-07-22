@@ -1,0 +1,46 @@
+{
+  "history": [
+    {
+      "val_accuracy": 0.7656042220744681,
+      "val_ambiguous_accuracy": 0.7339329421131786,
+      "epoch": 0,
+      "train_loss": 0.6707437844473214,
+      "seconds": 342.9
+    },
+    {
+      "val_accuracy": 0.779800739694149,
+      "val_ambiguous_accuracy": 0.7500221167172894,
+      "epoch": 1,
+      "train_loss": 0.5221707220160513,
+      "seconds": 800.0
+    },
+    {
+      "val_accuracy": 0.7955400182845744,
+      "val_ambiguous_accuracy": 0.7678688331219958,
+      "epoch": 2,
+      "train_loss": 0.47852622895412134,
+      "seconds": 1416.2
+    },
+    {
+      "val_accuracy": 0.7917999916888298,
+      "val_ambiguous_accuracy": 0.7636165256111587,
+      "epoch": 3,
+      "train_loss": 0.4571083810245782,
+      "seconds": 1503.5
+    }
+  ],
+  "train_windows": 56992,
+  "val_windows": 3008,
+  "val_tracks": 189,
+  "stopped_early": true,
+  "corpus": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\synthtab_all.npz",
+  "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2.pt",
+  "window": 64,
+  "config": {
+    "d_model": 128,
+    "layers": 3,
+    "heads": 4
+  },
+  "parameters": 413958,
+  "seed": 42
+}

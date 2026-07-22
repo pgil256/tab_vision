@@ -2921,3 +2921,58 @@ NC-derived corpus labeled in LICENSES.md.
 +0.05 magnitude is unchanged and the substituted slice is both larger and the
 one house discipline already reserves for development. Catching it before
 training is spent is the point of running the substrate check first.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2: pretrain-only gate FAILS at +0.0302; context proven real
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2) — symbolically
+pretrained contextual string assigner, offline lattice gate
+**Decision tree:** entry gate = ambiguous top-1 ≥ +0.05 over the dev-OOF
+baseline 0.6548 (i.e. ≥ 0.7048) before any pipeline integration.
+**Branch taken:** **FAIL, decisively — and the failure is informative.** A
+413,958-parameter transformer trained on 3.84M notes of the SynthTab
+symbolic corpus, rescoring the banked lattice as an emission term
+(`combined = cost_delta_from_best + λ·(−log p)`), peaks at λ = 4 with
+ambiguous top-1 **0.6850, Δ +0.0302 [+0.0163, +0.0446]** (paired bootstrap
+over tracks, N = 10,000, seed 42). The entire 95% interval lies below the
++0.05 bar, so this is not a sample-size question: at this model scale the
+effect is real and too small.
+**The positive is nonetheless the finding.** The `marginal` control —
+P(string | pitch) counts from the *same* corpus — is negative at every
+λ > 0 and collapses to 0.5419 at λ = ∞, never beating λ = 0. Same corpus,
+same lattice, same blend, same code path: counts hurt, sequence context helps
+CI-significantly. This independently replicates S1a's negative through a
+different mechanism (rescoring, not prior substitution), rules out "the
+corpus is simply informative" as the explanation, and is the **first
+CI-significant positive from a SynthTab-derived artifact** in this repo.
+**Shape of the signal:** the λ sweep is smooth and unimodal; model-only
+(λ = ∞, 0.6496) is *worse* than the decoder, so the model is complementary
+evidence rather than a replacement — exactly the §3.2 emission-term
+integration, meaning a tuned λ ports directly to Q3. Tiers want different λ
+(comp peaks at 4, solo at 8; solo +0.0287, comp +0.0355).
+**Diagnosis of the shortfall:** in-domain val ambiguous accuracy is 0.7679 on
+held-out SynthTab tracks, so the model learned position grammar; most of it
+does not survive transfer to GuitarSet. **Recipe stage 2 was not run** —
+fine-tuning on GuitarSet players 00–04 symbolic, which MIDI-to-Tab measures
+at +4.0 pp alone, would on its face close the gap. The domain story matches
+the repo's own A15/PDMX and S1a lesson: notation-derived transcriptions
+choose positions for readability, players choose for comfort, and that
+disagreement *is* the measured quantity.
+**Evidence:** `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md`
+(+ `s1b_rescore_context_2026-07-22.json`,
+`s1b_rescore_marginal_2026-07-22.json`,
+`s1b_context_training_2026-07-22.json`);
+`tabvision/scripts/eval/{s1b_train_context,s1b_rescore_lattice}.py`;
+`tabvision/tests/unit/{test_s1b_rescore_lattice,test_s1b_context_scorer}.py`.
+Nothing registered, `auto` untouched, SPEC and §8 unchanged; NC inherited
+from SynthTab and labeled in LICENSES.md. Player-05 remains sealed — the
+harness refuses `--split held_out_05` outright.
+**Reasoning:** the house rule is "banked negatives are wins; do not iterate
+past a failed gate hoping it improves." That rule is aimed at open-ended
+tuning, and this gate did fail. But the recipe's second stage is predeclared,
+cheap, and simply unexecuted, and the probe returned a CI-significant
+positive with a control that isolates context as its cause — so whether to
+spend the fine-tune or bank the negative and move to Q4/Q5 is a
+user-authority call, not one to make silently inside the loop. Q2 is
+therefore **paused pending that call**, not closed.
