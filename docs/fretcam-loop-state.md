@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f2-detection-chain
+current_branch: fretcam/f7-gaps-anchor-probe
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -16,11 +16,11 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
-| F7 | GAPS anchor probe (cache-only, fill-in) | open (fill-in; awaiting Pat) | compare vs 0.285 anti-enrichment / 0.778 audio prior | window scorer over cached fingerings + banked lattice | Pat direction after F2 negative |
-| F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 + F7 |
+| F7 | GAPS anchor probe (cache-only, fill-in) | closed-negative | P(gold fret in window \| audio wrong)=387/1566=0.247 (95% CI 0.226–0.269); audio prior 0.782 | preserve banked report; do not tune | — |
+| F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 pass; build paused at F2 |
 
-**Build path paused at F2 closed-negative.** F7 remains technically independent,
-but the loop stops for Pat's direction before selecting another item.
+**Build path remains paused at F2 closed-negative.** F7 is now banked as an
+independent GAPS-only negative; no queue item is open and unblocked.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -31,13 +31,18 @@ but the loop stops for Pat's direction before selecting another item.
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- Should the next iteration run the independent cache-only F7 probe while the
-  FretCam build path remains paused at the failed F2 gate?
+- With F2 and F7 both closed-negative, should the loop retire FretCam or should
+  a separately designed controlled-live experiment be added to the queue?
 
 ## Live-test log (newest first)
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F7 closed-negative — on 1,566 audio-wrong ambiguous notes with
+  cached anchors, the gold fret fell in the fixed FretCam window 387 times
+  (0.247; Wilson 95% CI 0.226–0.269), below A14's 0.285 comparator and the
+  0.382 anchor marginal. Audio prior parity was 0.782 vs 0.778; no inference,
+  downloads, training, or TabVision package edits.
 - 2026-07-22 — F2 closed-negative — 2/3 GAPS clips passed; `027_Zpswc`
   produced 0 plausible anchors in 56 samples at 2 Hz. Detector/hand/total
   median latency 123.733/51.324/174.607 ms (p95 total 252.166 ms; cold max
