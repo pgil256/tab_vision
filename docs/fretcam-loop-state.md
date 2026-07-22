@@ -17,7 +17,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4c | reject off-neck hands + clipped geometry before lock | passed | 38 tests; 5 distinct sources; 2/2 false-lock clips now emit no position | preserve evidence; L1 still pending | — |
 | F4d | wire-cell + barre contact semantics | passed | 44 tests; `031` contact I with tip-x 1.83; verified `104` II→VI preserved | preserve evidence; L1 still pending | — |
 | F4e-A | frozen public position benchmark | passed | 16 sequences/12 sources; F4d baseline precision 55/69, stable coverage 60/276, false locks 10/276 | review report; F4e-B needs separate approval | — |
-| L1 | live test 1 (Pat: A1+A4) | preliminary positive | Pat: "It seems like it works ok"; lock/FPS/E2E details pending | provide the three details below | — |
+| L1 | live test 1 (Pat: A1+A4) | preliminary positive | Pat: works ok; "Time seemed reasonably low"; numeric/display details pending | provide the remaining details below | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
@@ -36,7 +36,8 @@ desired before L1, requires a separate explicit approval; F8 remains blocked
 on an L2 pass and separate integration sign-off.
 
 Pat's preliminary live observation is positive: "It seems like it works ok."
-L1 is not yet marked passed because lock time, drift/dropouts, and HUD
+The follow-up was: "Time seemed reasonably low." L1 is not yet marked passed
+because the timing type/value, drift/dropouts, second-light result, and HUD
 FPS/end-to-end latency were not reported.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
@@ -48,12 +49,16 @@ FPS/end-to-end latency were not reported.
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- To close L1, please add: approximate lock time; whether you saw drift or hand
-  dropouts; and the displayed FPS/end-to-end latency. A rough answer is enough.
+- To close L1, please add: whether you saw drift or hand dropouts; whether the
+  second lighting condition also worked; and the displayed FPS/end-to-end
+  latency if visible. Rough answers are enough.
 - F4e-B still requires separate approval if you want the bounded multi-finger
   pose solver next.
 
 ## Live-test log (newest first)
+- 2026-07-22 — L1 follow-up, verbatim: "Time seemed reasonably low." This is
+  recorded as a positive timing impression, not a numeric lock or latency
+  result.
 - 2026-07-22 — L1 preliminary, verbatim: "It seems like it works ok." No lock
   time, drift/dropout observation, FPS, end-to-end latency, or two-light result
   was supplied, so the formal L1 status remains open.
