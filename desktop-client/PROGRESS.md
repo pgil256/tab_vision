@@ -29,7 +29,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: each call starts an isolated process with shell-free argument passing,
   concurrently captures both streams and exit code, and kills the process tree
   on cancellation; 2 runner tests pass.
-- [ ] Implement JSON-envelope and progress-line parsers in C#.
+- [x] Implement JSON-envelope and progress-line parsers in C#. Result: the
+  typed envelope parser preserves unknown flag details, while the stderr parser
+  extracts valid 0-100 progress lines and rejects malformed machine lines; 7
+  parser test cases pass.
 - [ ] Add `desktop-client/README.md` linking the plan and stating the rebuild
   caveat and frozen-directory rule.
 - [ ] **D0 gate:** a C# integration test runs the fixture sidecar and parses
@@ -92,3 +95,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   stdout/stderr and exit-code capture, optional per-job environment/working
   directory, and cancellation cleanup. `dotnet build`: 0 warnings/errors;
   `dotnet test`: 3 passed.
+- 2026-07-22: D0.7 completed. Added typed JSON result-envelope and progress
+  parsers using the .NET runtime only; unknown low-confidence flag details are
+  retained for cheap wire-format evolution. `dotnet build`: 0 warnings/errors;
+  `dotnet test`: 10 passed.
