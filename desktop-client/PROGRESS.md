@@ -13,8 +13,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Add additive `tabvision transcribe --progress` stage lines on stderr and
   unit tests without changing default CLI output. Result: opt-in lines cover
   preflight, pipeline stages, render, and completion at 0-100%; default stays silent.
-- [ ] Create `bootstrap/requirements.lock` with the pipeline commit and the
-  planned audio-highres, vision, and render extras pinned.
+- [x] Create `bootstrap/requirements.lock` with the pipeline commit and the
+  planned audio-highres, vision, and render extras pinned. Result: CPython 3.11
+  lock has 93 exact registry pins plus 3 full-SHA VCS pins, including TabVision
+  `a26d61c` with both sidecar flags.
 - [ ] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
   app-local destination for every external model/prior artifact in the plan.
 - [ ] Create the .NET 8 WPF solution and test project under `desktop-client/`.
@@ -65,3 +67,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - 2026-07-22: D0.2 completed. `--progress` emits stable stage percentages on
   stderr only; focused suite 47 passed; full suite 861 passed / 12 skipped;
   Ruff and mypy passed.
+- 2026-07-22: D0.3 completed. Python 3.11 `pip-compile` resolved the highres,
+  vision, and render extras; all pins validated and the pinned TabVision wheel
+  built. The architecture draft's combined Basic Pitch extra is excluded from
+  this lock because its `resampy<0.4.3` conflicts with highres's `>=0.4.3`.
+  Full suite: 861 passed / 12 skipped; Ruff and mypy passed.
