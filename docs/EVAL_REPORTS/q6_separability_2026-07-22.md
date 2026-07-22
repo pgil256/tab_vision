@@ -277,3 +277,104 @@ cd tabvision && python scripts/eval/q6_gate_a.py \
   --data-home ~/.tabvision/data/guitarset --source mono \
   --json ../docs/EVAL_REPORTS/q6_gate_b_2026-07-22.json
 ```
+
+---
+
+# Detected-notes probe — the physics survives detection; coverage is the constraint
+
+Gates A/B scored **gold** notes: true onsets, true pitches, isolation known
+from the reference. This scores the ensemble's **detected** stream on the
+20-clip bank — the input an integration would actually see. Onsets can be up
+to 50 ms off, pitches are sometimes wrong, and isolation is decidable only
+from other detections, so an undetected neighbour can silently ring through
+the analysis window. Calibration remains leave-one-player-out from *gold*
+measurements of the other four players.
+
+This is the step the A14 video lever skipped.
+
+## Result
+
+2,105 detected events across 10 comp + 10 solo clips.
+
+| min r² | scored | share of detections | accuracy | count-prior control |
+|---:|---:|---:|---:|---:|
+| 0.00 | 308 | 14.6% | 0.8214 | 0.6623 |
+| 0.50 | 211 | 10.0% | **0.9242** | 0.6540 |
+| 0.70 | 172 | 8.2% | 0.9651 | 0.6512 |
+| 0.90 | 102 | 4.8% | 0.9804 | 0.6176 |
+
+**Accuracy transfers essentially intact.** 0.9242 on detected notes at
+r² ≥ 0.50 versus 0.9200 on gold notes at the same threshold. Detected onsets
+and pitches do **not** degrade the physics — a 50 ms onset error moves the
+analysis window but the partial structure it measures is unchanged, and a
+wrong pitch mostly fails the fit rather than producing a confident wrong
+answer.
+
+The control lands at 0.654, matching the production decoder's own 0.6548 on
+the full ambiguous lattice. That is a useful consistency check: the notes
+this channel covers are not an easy subset by decoder standards.
+
+## Coverage is the whole constraint, and it is solo-only
+
+| stage | notes | share |
+|---|---:|---:|
+| detected events | 2,105 | 100% |
+| isolated **and** pitch-ambiguous | 346 | 16.4% |
+| fit succeeds (r² ≥ 0.50) | 213 | 10.1% |
+| scored against gold | 211 | 10.0% |
+
+And the split is stark: **solo n = 208, comp n = 3.** Strummed material
+essentially never presents an isolated note, so the channel contributes
+nothing there. This is a single-line instrument in the strictest sense —
+not a general string detector that happens to work better on solo.
+
+## What that is worth, with the arithmetic stated
+
+Assuming the channel's choice replaces the decoder's on the notes it covers
+(an upper bound — §4.1 specifies *bounded soft* evidence, which captures
+less):
+
+- Ambiguous notes are ~70% of detections (35,959 of 51,130 on the dev
+  lattice), so 10.0% of detections ≈ **14.3% of ambiguous notes**.
+- Those notes go from ~0.654 to 0.924, i.e. **+0.270**.
+- Pooled ambiguous top-1 lift ≈ 0.143 × 0.270 ≈ **+0.039**.
+
+But pooled understates it, because the coverage is entirely solo:
+
+- Solo ambiguous top-1 is **0.5908** today (versus comp's 0.6896).
+- Within solo material coverage is roughly double the pooled figure, since
+  comp contributes ~0.
+- Solo ambiguous lift ≈ 0.29 × (0.924 − 0.591) ≈ **+0.10**.
+
+For comparison, Q2's contextual model — the full symbolic pretrain plus
+in-domain fine-tune — moved solo by **+0.0112**. This channel plausibly moves
+the same tier by an order of magnitude more, because it is measuring a
+physical property of the string rather than inferring a convention.
+
+Treat these as order-of-magnitude estimates: they assume hard replacement,
+ignore that the Viterbi and sequence prior already agree with the channel on
+some notes, and ignore the interaction with playability barriers. The real
+number requires the integration.
+
+## Honest limits
+
+- **20 clips, 211 scored notes** at the useful operating point. Directional,
+  not a ship gate.
+- **Upper bound, not a prediction.** Bounded soft evidence will capture less
+  than replacement, and the ~8% of covered notes the channel gets wrong are
+  notes the decoder sometimes had right.
+- Comp is untouched, so aggregate Tab F1 moves much less than the solo tier
+  does. SPEC §1.4.1's aggregate target would barely notice; the single-line
+  target is where this lands.
+- Same-instrument-set calibration: all GuitarSet players use similar
+  acoustics. A personal user's guitar needs its own B0, which §4.1's EM
+  bootstrap sketches and this study does not test.
+
+## Reproduce
+
+```
+cd tabvision && python scripts/eval/q6_detected_probe.py \
+  --data-home ~/.tabvision/data/guitarset \
+  --workdir $TABVISION_DATA_ROOT/models/muscriptor_probe \
+  --json ../docs/EVAL_REPORTS/q6_detected_probe_2026-07-22.json
+```

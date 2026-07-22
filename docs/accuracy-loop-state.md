@@ -10,7 +10,7 @@ current_branch: accuracy/q6-inharmonicity
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **BOTH GATES PASS** | Gate A (hex) **0.8950** @71.9% cover; Gate B (mono-mic) **0.9200** @66.6%; count-prior control flat ~0.65 → **+0.26-0.31** | user call: wire bounded emission evidence into fuse() (first item to touch fusion) | user decision |
+| Q6 | Inharmonicity study | **GATES PASS + transfers to detected notes** | detected-stream acc **0.9242** (vs 0.9200 gold) but coverage **10% of detections, solo-only** (solo n=208 / comp n=3); est. solo ambiguous lift **~+0.10** | user call: integrate bounded soft evidence behind a flag | user decision |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -203,10 +203,16 @@ run on dev players 00-04, LOPO, **isolated notes only**.
 - **Scope:** "isolated" = ~34% of solo notes, ~1.3% of comp. A single-line
   instrument, as §4.1 scoped — which is the point, since Q2 left solo at
   +0.0112 and single-line carries 77.5% of wrong-position loss.
-- **Not yet Tab F1:** classifies strings on gold notes with known onsets.
-  Wiring bounded emission evidence into fuse() over *detected* notes is the
-  next, larger step (A14/WS4 precedent: per-note evidence can still fail to
-  lift the decoder).
+- **Detected-notes probe (2026-07-22): the physics transfers.** On the
+  20-clip ensemble bank, scoring the *detected* stream gives **0.9242 at
+  r²>=0.50 vs 0.9200 on gold** — 50 ms onset error and wrong pitches do not
+  degrade the estimate. Control 0.654 matches the decoder's own 0.6548.
+- **Coverage is the binding constraint and it is solo-only:** of 2,105
+  detections, 346 (16.4%) isolated+ambiguous, 213 (10.1%) survive the fit —
+  **solo n=208 vs comp n=3**. Estimated pooled ambiguous top-1 lift
+  **~+0.039**; solo-tier lift **~+0.10** (vs Q2's +0.0112 on solo). Upper
+  bounds: they assume hard replacement, not the bounded soft evidence §4.1
+  specifies.
 
 `scripts/eval/q6_gate_a.py` is complete and **self-validated on synthetic
 stiff strings** (recovers B at 5e-5/1e-4/5e-4 within 25%, f0 within 1%,
@@ -266,10 +272,10 @@ single-line segments, confidence-weighted by r-squared, zero-weighted below a
 fit threshold. That is pipeline code plus the usual OOF -> GAPS
 no-regression -> player-05 discipline. **Options: (a) proceed to integration
 behind an explicit TABVISION_STRING_EVIDENCE flag with auto unchanged;
-(b) first run a cheaper intermediate — score the physics channel on
-*detected* notes from the banked ensemble events rather than gold, to see
-whether it survives real onsets and pitches before any pipeline work
-(recommended); (c) bank the passing gates and move to Q7.**
+(b) ~~detected-notes probe~~ **DONE 2026-07-22 — it transfers (0.9242)**;
+(c) bank Q6 and move to Q7.** The remaining unknown is not whether the
+physics works but whether a *bounded soft* term converts a solo-only, ~10%
+coverage channel into Tab F1 — which needs the integration to answer.
 
 Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
 Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
@@ -282,6 +288,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — detected-notes probe: **physics transfers** (0.9242 on
+  detected vs 0.9200 gold), coverage **10% of detections and solo-only**
+  (solo 208 / comp 3). Est. solo ambiguous lift ~+0.10.
+  `q6_separability_2026-07-22.md` (detected section).
 - 2026-07-22 — Q6 — **BOTH GATES PASS**. Hex acquired over VPN. Gate A 0.8950
   @71.9% cover, Gate B 0.9200 @66.6%, count-prior control flat ~0.65
   (+0.26-0.31). Mic beats pickup -> channel can run on mono-mic.

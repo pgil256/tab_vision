@@ -3209,3 +3209,50 @@ No pipeline code, nothing registered, `auto` untouched, player-05 never read.
 **Reasoning:** this is the program's first passing gate, and it lands on the
 single tier every other lever has failed to move. Integration is a user
 decision because it is the first item here that would touch `fuse()`.
+
+---
+
+## 2026-07-22 — Q6 detected-notes probe: physics transfers, coverage is solo-only
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), post-gate de-risking
+**Decision tree:** not in the plan — added because Gates A/B scored *gold*
+notes, and the A14 precedent is that per-note evidence which looks strong in
+isolation can still fail the decoder. Offline replay on banked artifacts, so
+inside the loop's remit; no pipeline code.
+**Branch taken:** **the physics transfers; coverage is the binding
+constraint.** On the 20-clip ensemble bank (2,105 detected events), scoring
+the ensemble's *detected* stream with leave-one-player-out B0 calibration
+from other players' gold notes: accuracy **0.9242 at r² >= 0.50** versus
+**0.9200 on gold notes at the same threshold**. Detected onsets (up to 50 ms
+off) and wrong pitches do not degrade the estimate — a shifted window still
+measures the same partial structure, and a wrong pitch mostly fails the fit
+rather than yielding a confident wrong answer. The count-prior control lands
+at 0.654, matching the decoder's own 0.6548 on the ambiguous lattice, so the
+covered notes are not an easy subset.
+**Coverage, the real finding:** of 2,105 detections, 346 (16.4%) are isolated
+*and* pitch-ambiguous, 213 (10.1%) survive the r² >= 0.50 fit. The split is
+**solo n = 208 vs comp n = 3** — strummed material essentially never presents
+an isolated note. This is a single-line instrument in the strictest sense.
+**Estimated worth, assumptions stated:** ambiguous notes are ~70% of
+detections, so 10% of detections is ~14.3% of ambiguous notes; lifting those
+from ~0.654 to 0.924 gives a pooled ambiguous top-1 lift of ~**+0.039**.
+Because coverage is entirely solo, the solo-tier lift is ~**+0.10**
+(solo ambiguous baseline 0.5908, coverage roughly double the pooled share).
+For scale, Q2's full symbolic pretrain + in-domain fine-tune moved solo by
+**+0.0112**. These are upper bounds: they assume hard replacement, whereas
+§4.1 specifies bounded soft evidence, and they ignore cases where the Viterbi
+already agrees.
+**Limits:** 211 scored notes at the useful operating point — directional, not
+a ship gate; comp untouched so aggregate Tab F1 moves far less than the solo
+tier; same-instrument-set calibration untested against a foreign guitar.
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md`
+(detected-notes section) + `q6_detected_probe_2026-07-22.json`;
+`tabvision/scripts/eval/q6_detected_probe.py`.
+No pipeline code, nothing registered, `auto` untouched, player-05 never read.
+**Reasoning:** this was the cheap question standing between a passing offline
+gate and a fusion change, and it answers the one that would have sunk the
+integration silently — whether real detections destroy the estimate. They do
+not. What remains is a coverage-shaped expectation: this cannot move
+aggregate Tab F1 much, and should be judged on the single-line tier, which is
+where SPEC §1.4.1 is weakest and where every other lever in this program has
+failed.
