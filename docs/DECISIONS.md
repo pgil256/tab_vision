@@ -3113,3 +3113,46 @@ Pure pre-fuse event surgery — no pipeline, registry, routing or §8 change.
 identifies the mechanism rather than just the sign, and it retires a whole
 class of "refine the onsets" ideas: any such method must first beat the
 backend's own timing, which is a higher bar than beating the metric.
+
+---
+
+## 2026-07-22 — Q6: hex download stops for the user; separability precursor PASSES
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1) — inharmonicity as
+per-note string evidence
+**Decision tree:** Gate A = B-estimator string accuracy >= 0.85 on GuitarSet
+hex isolated notes; Gate B = >= 0.70 on mono-mic single-line segments.
+**Branch taken:** **BLOCKED on a dataset download — stop and ask.** Gate A
+needs GuitarSet's hexaphonic partition, which is not on disk: the acquirer
+takes `annotations` + `audio_mic` only and explicitly skips the multi-GB
+hex-pickup + mix partitions. Mono-mic alone is 1.6 GB. Per the loop's stop
+rule, a dataset download is a user decision.
+**Delivered instead — the precursor that decides whether the download is
+worth it.** Using `B(s,n) = B0_s * 2^(n/6)` (stiff string, `B ∝ 1/L²`,
+fretting shortens L by `2^(-n/12)`), the *assumption-free* part of the
+separation between two candidates for one pitch is the fret-difference term.
+On the banked dev-OOF ambiguous notes (n = 35,959): **every** rank-1/rank-2
+pair differs by **>= 4 frets** (99.4% by 4 or 5), i.e. a **1.59-1.78x B ratio
+from length alone**, before any plain-vs-wound B0 difference — which is
+ignored here, making the figures a lower bound. Modelling the decision as
+Gaussian mean separation, lower-bound string accuracy is 0.9956 at 10%
+B-estimation error, 0.9116 at 20%, 0.8175 at 30%: **Gate A is clearable if B
+is estimable to better than roughly 25% relative error.**
+**What it does not establish:** whether B *is* estimable to 25% on real
+audio. That is the whole risk and exactly what the two gates were pointed at.
+Hjerrild & Christensen (ICASSP 2019) report 1.5% string+fret error on
+isolated notes with per-instrument calibration; nothing published survives
+dense polyphony, hence §4.1's single-line scope.
+**Why it matters more after Q2:** Q2 closed with context worth +0.0661 on
+comp but only +0.0112 on solo, while single-line carries 77.5% of
+wrong-position loss. Sequence context is exhausted as a single-line lever;
+inharmonicity is per-note and physical, so it is the remaining evidence
+channel aimed at the tier that still needs one.
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q6_separability_precursor.py`;
+`tabvision/tests/unit/test_q6_separability.py` (5 tests).
+No pipeline code, no download spent, no contract change.
+**Reasoning:** the deep-dive rated this route "high risk"; the precursor
+retires one specific failure mode (candidate degeneracy) cheaply and leaves
+the real one (estimator robustness) squarely where the gates already look, so
+the user can decide on the download with a number rather than a hunch.

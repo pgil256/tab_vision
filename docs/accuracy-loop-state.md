@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q5-onset-snapping
+current_branch: accuracy/q6-inharmonicity
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,11 +10,11 @@ current_branch: accuracy/q5-onset-snapping
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | open | gates 0.85 hex / 0.70 mono | hex B-estimator | — |
+| Q6 | Inharmonicity study | **blocked (user call)** | precursor PASSES: every ambiguous pair ≥4 frets apart = **1.59-1.78× B ratio**; lower-bound accuracy 0.9116 at 20% B error, 0.8175 at 30% | user decides: download GuitarSet hex partition (multi-GB) or defer | hex audio not on disk |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Topmost open unblocked item = Q6 (inharmonicity offline study).**
+**Q6 is blocked on a download decision (see Questions). Topmost open unblocked item otherwise = Q7 (capo/tuning preflight).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -152,6 +152,28 @@ DECISIONS.md 2026-07-22.
   the whole "refine the onsets" class: any such method must first beat the
   backend's own timing.
 
+## Q6 — blocked on the hex download; precursor PASSES
+
+Report: `docs/EVAL_REPORTS/q6_separability_2026-07-22.md` (+ `.json`).
+DECISIONS.md 2026-07-22.
+
+- Gate A needs GuitarSet's **hexaphonic partition**, not on disk — the
+  acquirer takes `annotations` + `audio_mic` only and explicitly skips the
+  multi-GB hex-pickup/mix partitions. Mono-mic alone is 1.6 GB.
+- **Precursor (no download spent) passes.** With `B(s,n) = B0_s · 2^(n/6)`,
+  the assumption-free separation between two candidates for one pitch is the
+  fret-difference term. On 35,959 dev-OOF ambiguous notes **every**
+  rank-1/rank-2 pair is **≥4 frets apart** (99.4% at 4-5) = **1.59-1.78×
+  B ratio from length alone**, before plain-vs-wound B0 differences (ignored,
+  so these are lower bounds).
+- Lower-bound string accuracy vs B-estimator relative error: 0.9956 @10%,
+  0.9116 @20%, 0.8175 @30% → **Gate A clearable if B is estimable to better
+  than ~25%**.
+- **Does not** establish that B *is* estimable to 25% on real audio — that is
+  the actual risk, and exactly what Gates A/B were pointed at. Literature is
+  encouraging on isolated notes (Hjerrild & Christensen 1.5% string+fret),
+  nothing survives dense polyphony → §4.1's single-line scope stands.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -193,13 +215,18 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-None blocking. Q1, Q2, Q5 closed negative; Q4 dropped by the user; Q3
-dropped with Q2; Q8 orphaned. **Q6 (inharmonicity offline study) is next** —
-$0 local CPU, gates 0.85 on GuitarSet hex isolated notes then 0.70 on
-mono-mic single-line segments. It is the last untried *physics* route past
-the single-line information limit, and Q2's finding sharpens its case: solo
-is exactly where context failed to help (+0.0112 vs comp's +0.0661), so a
-per-note physical signal is the remaining lever there.
+**BLOCKING (Q6):** Gate A needs the GuitarSet **hexaphonic partition**
+(multi-GB, CC-BY-4.0, already-approved dataset; the acquirer deliberately
+skips it). The separability precursor passed without spending it, so the
+route is not degenerate — but whether B is *estimable* on real audio is
+untested and is the actual risk. **Options: (a) download the hex partition
+and run Gate A; (b) skip hex and attempt Gate B directly on the mono-mic
+audio already on disk — cheaper but conflates estimator quality with bleed,
+which is precisely what the two-gate split exists to separate;
+(c) defer Q6 and take Q7 (capo/tuning preflight) instead.**
+
+Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
+Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
 
 Note: iterations 1-3 ran on branches `accuracy/q1-n2-merge` and
 `accuracy/q2-s1b-probe`, stacked in that order (the state file is a running
@@ -209,6 +236,9 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **blocked** on the hex download; separability precursor
+  **PASSES** (every ambiguous pair ≥4 frets = 1.59-1.78× B ratio; 0.9116
+  lower-bound accuracy at 20% B error). `q6_separability_2026-07-22.md`.
 - 2026-07-22 — Q5 — **CLOSED negative**. snap-10ms +0.0002 [-0.0009, +0.0016],
   wider windows lose on Tab and onset; `timing_only` rises 15→41 while
   `correct` falls 1411→1384 — the backend's onsets already beat flux peaks.
