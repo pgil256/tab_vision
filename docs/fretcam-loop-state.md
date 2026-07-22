@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f4-hud-guidance
+current_branch: fretcam/f7-calibrated-anchor-probe
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -17,13 +17,13 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
-| F7 | GAPS anchor probe (cache-only, fill-in) | open (rerun required) | old x×24 result banked: 0.247; superseded by F2b geometry correction | rerun with calibrated/fret-12 mapping | — |
-| F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 pass + corrected F7 |
+| F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
+| F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
 **Live checkpoint.** F4 passes tests, browser smoke verification, and the public
-cache A4 budget. L1 is now Pat-only and must run before F5. While L1 awaits Pat,
-a later loop iteration may rerun independent F7; F7's old result used the
-corrected bug's `canonical_x × 24` conversion.
+cache A4 budget. L1 is now Pat-only and must run before F5. Corrected F7 is
+complete and positive; F8 remains blocked on an L2 pass and still requires a
+separate user sign-off before any integration code.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -40,6 +40,12 @@ corrected bug's `canonical_x × 24` conversion.
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — corrected F7 completed-positive — with the exact clean-12,
+  cached frames, A14 audio decoder, window, and timestamp protocol preserved,
+  replacing `canonical_x × 24` with F2b calibration/fret-12 mapping changed the
+  primary from 0.247 to 1195/1566 = 0.763 (95% CI 0.741–0.783). This is +0.478
+  versus 0.285 and +0.048 versus the corrected 0.715 marginal; gold-only rescue
+  was 0.408 versus 0.163 wrong-choice-only. Twenty-eight tests and Ruff passed.
 - 2026-07-22 — F4 passed — the default WebSocket now runs a prewarmed F2b+F3
   processor and the browser renders neck/fret/hand/position/confidence/guidance
   overlays. Twenty-five tests, Ruff, JavaScript syntax, and browser smoke passed.

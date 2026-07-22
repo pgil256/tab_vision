@@ -1,5 +1,11 @@
 # F7: cache-only GAPS hand-centroid anchor probe
 
+> **Superseded geometry result.** This report used the pre-F2b
+> `canonical_x × 24` conversion. Preserve its 0.247 result as historical
+> evidence, but use
+> `fretcam_gaps_anchor_probe_calibrated_2026-07-22.md` for F7/F8 decisions.
+> The reproduction command below now runs the corrected mapping.
+
 **Date:** 2026-07-22
 **Status:** **CLOSED-NEGATIVE for the GAPS bridge probe.** This does not close
 FretCam because GAPS uses the explicitly different uncontrolled-footage capture

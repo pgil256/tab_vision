@@ -12,23 +12,31 @@ import argparse
 import bisect
 import math
 import pickle
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
 import cv2
+import numpy as np
 
+from fretcam.detection import compute_position_anchor
 from scripts.acquire.gaps_video import CLEAN_12
 from scripts.eval.a14_video_complementarity_probe import decode_with_margins
 from tabvision.eval.parsers.gaps_musicxml_tab import parse as parse_gaps
 from tabvision.fusion.candidates import candidate_positions
-from tabvision.types import AudioEvent, GuitarConfig, TabEvent
-from tabvision.video.hand.neck_anchor import compute_neck_anchor
+from tabvision.types import AudioEvent, GuitarConfig, Homography, TabEvent
+from tabvision.video.fretboard.calibrate import calibrate_board
+from tabvision.video.guitar.yolo_backend import OBBPredictions
+from tabvision.video.hand.neck_anchor import HandNeckAnchor
 
 TARGET_LEAD_S = 0.030
 CACHE_TOLERANCE_S = 0.060
 A14_ANTI_ENRICHMENT = 0.285
 AUDIO_PRIOR_REFERENCE = 0.778
+CacheCalibrator = Callable[
+    [OBBPredictions, GuitarConfig], tuple[Homography, np.ndarray | None]
+]
 
 
 @dataclass(frozen=True)
@@ -51,6 +59,9 @@ class WindowCounts:
     both_out: int = 0
     center_at_nut_boundary: int = 0
     center_at_bridge_boundary: int = 0
+    calibrated_fret_map_anchors: int = 0
+    fret12_fallback_anchors: int = 0
+    board_calibration_missing: int = 0
 
     def __add__(self, other: WindowCounts) -> WindowCounts:
         values = {
@@ -125,6 +136,16 @@ def wilson_interval(successes: int, total: int, z: float = 1.959963984540054) ->
     return center - radius, center + radius
 
 
+def classify_probe(successes: int, total: int) -> str:
+    """Classify the fixed comparator without tuning against the observed rate."""
+    lower, upper = wilson_interval(successes, total)
+    if lower > A14_ANTI_ENRICHMENT:
+        return "positive"
+    if upper < A14_ANTI_ENRICHMENT:
+        return "negative"
+    return "inconclusive"
+
+
 def _events_from_gold(gold: list[TabEvent]) -> list[AudioEvent]:
     return [
         AudioEvent(
@@ -154,6 +175,17 @@ def _video_fps(path: Path) -> float:
     if not math.isfinite(fps) or fps <= 0.0:
         raise RuntimeError(f"invalid FPS for cached video: {path}")
     return fps
+
+
+def corrected_cached_anchor(
+    record: Any,
+    cfg: GuitarConfig,
+    *,
+    calibrator: CacheCalibrator = calibrate_board,
+) -> HandNeckAnchor:
+    """Rebuild F2b geometry from one inference-free rich-cache record."""
+    homography, fret_centers = calibrator(record.preds, cfg)
+    return compute_position_anchor(record.hand, homography, cfg, fret_centers)
 
 
 def probe_clip(
@@ -197,8 +229,9 @@ def probe_clip(
         if frame_index is None or raw[frame_index] is None:
             continue
         record = raw[frame_index]
-        anchor = compute_neck_anchor(record.hand, record.homography, cfg)
+        anchor = corrected_cached_anchor(record, cfg)
         if anchor.confidence <= 0.0 or not math.isfinite(anchor.center_fret):
+            values["board_calibration_missing"] += 1
             continue
 
         lags.append(frame_index / fps - target_s)
@@ -207,6 +240,10 @@ def probe_clip(
             values["center_at_nut_boundary"] += 1
         if anchor.center_fret >= cfg.max_fret - 1e-3:
             values["center_at_bridge_boundary"] += 1
+        if anchor.method == "mediapipe_calibrated_fret_map":
+            values["calibrated_fret_map_anchors"] += 1
+        else:
+            values["fret12_fallback_anchors"] += 1
 
         gold_in = fret_in_position_window(event.fret, anchor.center_fret)
         audio_in = fret_in_position_window(candidate.fret, anchor.center_fret)
@@ -257,20 +294,50 @@ def format_report(results: Sequence[ClipResult]) -> str:
     coverage = _ratio(total.anchor_covered_audio_wrong, total.audio_wrong)
     all_lags = [lag for result in results for lag in result.target_lags_s]
     boundary = total.center_at_nut_boundary + total.center_at_bridge_boundary
+    classification = classify_probe(
+        total.gold_in_window_audio_wrong,
+        total.anchor_covered_audio_wrong,
+    )
+    status = {
+        "positive": "**POSITIVE EVIDENCE for the later M4 bridge verdict.**",
+        "negative": "**CLOSED-NEGATIVE for the GAPS bridge probe.**",
+        "inconclusive": "**INCONCLUSIVE against the frozen A14 comparator.**",
+    }[classification]
+    marginal_delta = primary - marginal
+    conclusion = {
+        "positive": (
+            "The corrected conditional is statistically above the frozen 0.285 "
+            f"comparator and {marginal_delta:+.3f} versus the anchor marginal. "
+            "This is cache-only evidence for taking the controlled-live signal "
+            "to F8 after L2; it is not authorization to write integration code."
+        ),
+        "negative": (
+            "The corrected conditional remains statistically below the frozen "
+            "0.285 comparator. Bank this as negative bridge evidence without "
+            "changing FretCam's separate controlled-live acceptance path."
+        ),
+        "inconclusive": (
+            "The corrected interval overlaps the frozen 0.285 comparator. Bank "
+            "this as inconclusive bridge evidence without tuning the window or "
+            "confidence gate."
+        ),
+    }[classification]
 
     lines = [
-        "# F7: cache-only GAPS hand-centroid anchor probe",
+        "# F7 corrected: cache-only calibrated GAPS hand-centroid anchor probe",
         "",
         "**Date:** 2026-07-22  ",
-        "**Status:** **CLOSED-NEGATIVE for the GAPS bridge probe.** This does not close ",
-        "FretCam because GAPS uses the explicitly different uncontrolled-footage capture contract.",
+        f"**Status:** {status} The cache-only result does not bypass FretCam's ",
+        "controlled-live acceptance contract or authorize integration.",
         "",
         "## Fixed protocol",
         "",
         "- Corpus: public GAPS clean-12; gold-pitch ambiguous-note lattice decoded with A14's ",
         "  frozen mirrored cluster Viterbi (the comparator's banked audio mechanism).",
         "- Video: rich cache only (`rawcv.c0.25.pkl`); no inference, download, or training.",
-        "- Anchor: cached `HandSample` + cached homography through `compute_neck_anchor`; ",
+        "- Anchor: cached predictions + `HandSample` through F2b's `calibrate_board` and ",
+        "  `compute_position_anchor`; use the orientation-aware nonlinear fret map when ",
+        "  available and the rule-of-18 fret-12 body-joint fallback otherwise; ",
         "  `N=max(1,floor(center_fret))`; window `[N-1,N+4] union {0}`.",
         f"- Timestamp: nearest cached frame within +/-{CACHE_TOLERANCE_S * 1000:.0f} ms of ",
         f"  `onset-{TARGET_LEAD_S * 1000:.0f} ms` (the cache contains onset-near frames, not a ",
@@ -282,17 +349,19 @@ def format_report(results: Sequence[ClipResult]) -> str:
         f"{total.gold_in_window_audio_wrong}/{total.anchor_covered_audio_wrong} = "
         f"{primary:.3f}** (Wilson 95% CI {lower:.3f}-{upper:.3f}).",
         f"- This is **{primary - A14_ANTI_ENRICHMENT:+.3f}** versus A14's 0.285 ",
-        f"  anti-enrichment reference and below the anchor marginal **{marginal:.3f}**.",
+        f"  anti-enrichment reference and **{marginal_delta:+.3f}** versus the anchor ",
+        f"  marginal **{marginal:.3f}**.",
         f"- Current audio prior = **{total.audio_right}/{total.ambiguous} = {audio_prior:.3f}** ",
         f"  versus the requested 0.778 reference ({audio_prior - AUDIO_PRIOR_REFERENCE:+.3f}).",
+        f"- The primary corrected conditional is **{primary - AUDIO_PRIOR_REFERENCE:+.3f}** ",
+        "  versus that 0.778 audio-prior reference (different conditional, included as the ",
+        "  design's scale comparator rather than a parity claim).",
         f"- Audio-wrong anchor coverage = **{total.anchor_covered_audio_wrong}/"
         f"{total.audio_wrong} = {coverage:.3f}**; all-ambiguous coverage = "
         f"**{total.anchor_covered}/{total.ambiguous} = "
         f"{_ratio(total.anchor_covered, total.ambiguous):.3f}**.",
         "",
-        "The conditional is lower than both the 0.285 comparator and the anchor's own ",
-        "marginal. The cached centroid signal is therefore anti-enriched where audio fails; ",
-        "it is not evidence for wiring this GAPS signal into fusion.",
+        conclusion,
         "",
         "## Wrong-audio discrimination diagnostic",
         "",
@@ -317,6 +386,9 @@ def format_report(results: Sequence[ClipResult]) -> str:
         f"- Centroids clipped to a neck boundary: **{boundary}/{total.anchor_covered} = "
         f"{_ratio(boundary, total.anchor_covered):.3f}** (nut {total.center_at_nut_boundary}; "
         f"bridge {total.center_at_bridge_boundary}).",
+        f"- Anchor geometry path: calibrated fret map **{total.calibrated_fret_map_anchors}**, "
+        f"fret-12 fallback **{total.fret12_fallback_anchors}**, board calibration missing "
+        f"**{total.board_calibration_missing}**.",
         "- The current parser/decoder yields 10,182 ambiguous decoded notes rather than A14's ",
         "  banked 10,072, while reproducing its audio prior within 0.4 pp. Counts in this report ",
         "  are from the current checkout and the same local public cache; the comparator remains ",
@@ -340,10 +412,10 @@ def format_report(results: Sequence[ClipResult]) -> str:
             "",
             "## Verdict",
             "",
-            "Bank this as a **negative for uncontrolled GAPS footage**. Do not tune the window, ",
-            "orientation, clip set, or confidence threshold against this result. The only valid ",
-            "FretCam reopen path remains a new controlled-live capture contract; the build path ",
-            "itself is still paused at F2's independent 2/3-clip failed gate.",
+            f"Bank this as **{classification} cache-only evidence**. Do not tune the window, ",
+            "orientation, clip set, or confidence threshold against this result. L1/L2 remain ",
+            "the controlled-live gate; F8 remains blocked on L2 and must stop for user sign-off ",
+            "before any TabVision integration code.",
             "",
         ]
     )

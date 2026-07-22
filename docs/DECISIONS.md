@@ -2930,3 +2930,29 @@ one-time model load. The edge, lock-confidence, hand-presence, and estimator
 signals justify the emitted guidance without inventing scene diagnoses. Public
 replay can establish transport/inference budget but not live tick alignment or
 perceived lag, so L1 remains mandatory and no A1/A2 claim is made here.
+
+---
+
+## 2026-07-22 - Corrected FretCam F7 probe is positive bridge evidence
+
+**Phase:** FretCam side quest, corrected cache-only F7 probe
+**Decision tree:** Preserve F7's clean-12 corpus, rich cache, A14 decoder,
+pre-onset timestamp, fixed position window, and comparators; replace only the
+superseded `canonical_x * 24` geometry with the approved F2b live path, then
+bank the result without tuning.
+**Branch taken:** Mark corrected F7 completed-positive. Preserve the original
+0.247 report as superseded evidence. Do not start F8 or integration: L1/L2 are
+still mandatory, and F8 requires an L2 pass plus explicit user sign-off.
+**Evidence:** The corrected primary is **1195/1566 = 0.763** (Wilson 95% CI
+**0.741–0.783**), **+0.478** versus A14's 0.285 anti-enrichment comparator and
+**+0.048** versus the corrected 0.715 anchor marginal. Gold-only window support
+on wrong-audio notes is 639/1566 = 0.408 versus wrong-choice-only 255/1566 =
+0.163. The primary is −0.015 versus the 0.778 audio-prior scale comparator;
+current decoder parity remains 0.782. Boundary clipping falls from 0.213 to
+0.084. Twenty-eight tests and Ruff passed. Report:
+`docs/EVAL_REPORTS/fretcam_gaps_anchor_probe_calibrated_2026-07-22.md`.
+**Reasoning:** The exact one-variable rerun flips the primary by +0.516, and its
+interval is wholly above the frozen comparator; this is strong evidence that
+the old negative was a coordinate-system artifact. It supports proceeding to
+the controlled-live assisted-review A/B design only after FretCam passes L2.
+It is not an automatic Tab F1 claim and does not authorize package changes.
