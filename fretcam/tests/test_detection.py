@@ -6,8 +6,11 @@ import numpy as np
 
 from fretcam.detection import (
     DetectionChain,
+    HandObservation,
+    _fret_cell_from_canonical_x,
     _fret_wire_xs,
     compute_index_fret,
+    compute_index_fret_raw,
     compute_position_anchor,
     process_frame,
 )
@@ -27,12 +30,12 @@ class FakeDetector:
 
 
 class FakeHandExtractor:
-    def __init__(self, hand: HandSample | None) -> None:
+    def __init__(self, hand: HandObservation | HandSample | None) -> None:
         self.hand = hand
         self.calls = 0
         self.closed = False
 
-    def extract(self, _frame: np.ndarray) -> HandSample | None:
+    def extract(self, _frame: np.ndarray) -> HandObservation | HandSample | None:
         self.calls += 1
         return self.hand
 
@@ -70,6 +73,10 @@ def _hand_at(x: float, y: float) -> HandSample:
         confidence=0.9,
         fingers=fingers,
     )
+
+
+def _image_point(canonical_x: float, canonical_y: float = 0.5) -> tuple[float, float]:
+    return (100.0 * canonical_x, 50.0 * canonical_y)
 
 
 def _calibrator(
@@ -114,7 +121,8 @@ class DetectionChainTest(unittest.TestCase):
         self.assertAlmostEqual(first.anchor.center_fret, 5.869500639052957)
         self.assertEqual(first.anchor.method, "mediapipe_calibrated_fret_map")
         self.assertIsNotNone(first.index_fret)
-        self.assertAlmostEqual(first.index_fret or 0.0, 5.932, places=3)
+        self.assertEqual(first.index_fret, 6.0)
+        self.assertAlmostEqual(first.index_fret_raw or 0.0, 5.932, places=3)
 
     def test_missing_hand_returns_zero_confidence_anchor(self) -> None:
         chain = DetectionChain(
@@ -212,6 +220,51 @@ class FretWireProjectionTest(unittest.TestCase):
 
         np.testing.assert_allclose(wires, expected, atol=1e-10)
 
+    def test_just_past_wire_deadband_favors_fret_behind_the_wire(self) -> None:
+        cfg = GuitarConfig()
+        _, centers = _calibrator(OBBPredictions(), cfg)
+        wires = _fret_wire_xs(centers)
+        next_cell_width = wires[2] - wires[1]
+
+        just_past = _fret_cell_from_canonical_x(
+            float(wires[1] + 0.10 * next_cell_width), cfg, centers
+        )
+        clearly_inside_next = _fret_cell_from_canonical_x(
+            float(wires[1] + 0.45 * next_cell_width), cfg, centers
+        )
+
+        self.assertEqual(just_past and just_past[0], 1)
+        self.assertEqual(clearly_inside_next and clearly_inside_next[0], 2)
+
+    def test_wire_deadband_scales_with_local_high_fret_width(self) -> None:
+        cfg = GuitarConfig()
+        _, centers = _calibrator(OBBPredictions(), cfg)
+        wires = _fret_wire_xs(centers)
+        next_cell_width = wires[10] - wires[9]
+
+        just_past = _fret_cell_from_canonical_x(
+            float(wires[9] + 0.10 * next_cell_width), cfg, centers
+        )
+        clearly_inside_next = _fret_cell_from_canonical_x(
+            float(wires[9] + 0.45 * next_cell_width), cfg, centers
+        )
+
+        self.assertEqual(just_past and just_past[0], 9)
+        self.assertEqual(clearly_inside_next and clearly_inside_next[0], 10)
+
+    def test_descending_wire_axis_preserves_behind_wire_semantics(self) -> None:
+        cfg = GuitarConfig()
+        _, centers = _calibrator(OBBPredictions(), cfg)
+        centers = centers[::-1]
+        wires = _fret_wire_xs(centers)
+        next_cell_width = wires[2] - wires[1]
+
+        just_past = _fret_cell_from_canonical_x(
+            float(wires[1] + 0.10 * next_cell_width), cfg, centers
+        )
+
+        self.assertEqual(just_past and just_past[0], 1)
+
 
 class PositionAnchorGeometryTest(unittest.TestCase):
     def test_index_fret_uses_one_based_physical_cell_number(self) -> None:
@@ -233,6 +286,98 @@ class PositionAnchorGeometryTest(unittest.TestCase):
         index_fret = compute_index_fret(hand, homography, cfg, centers)
 
         self.assertAlmostEqual(index_fret or 0.0, 1.0)
+
+    def test_extended_index_axis_corrects_barre_tip_in_next_cell(self) -> None:
+        cfg = GuitarConfig()
+        homography, centers = _calibrator(OBBPredictions(), cfg)
+        wires = _fret_wire_xs(centers)
+        second_width = wires[2] - wires[1]
+        barre_x = float(wires[1] - 0.05 * (wires[1] - wires[0]))
+        tip_x = float(wires[1] + 0.50 * second_width)
+        hand = HandSample(
+            wrist_xy=_image_point(barre_x),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={
+                "index": FingerSample("index", _image_point(tip_x, 0.9), 0.0, 0.95)
+            },
+        )
+        index_axis = (
+            _image_point(barre_x, -0.2),
+            _image_point(barre_x, 0.1),
+            _image_point(barre_x, 0.5),
+            _image_point(tip_x, 0.9),
+        )
+
+        contact_fret = compute_index_fret(
+            hand,
+            homography,
+            cfg,
+            centers,
+            index_axis_xy=index_axis,
+        )
+        tip_coordinate = compute_index_fret_raw(hand, homography, cfg, centers)
+
+        self.assertEqual(contact_fret, 1.0)
+        self.assertGreater(tip_coordinate or 0.0, 1.5)
+
+    def test_extended_index_not_across_neck_continues_to_use_tip(self) -> None:
+        cfg = GuitarConfig()
+        homography, centers = _calibrator(OBBPredictions(), cfg)
+        wires = _fret_wire_xs(centers)
+        second_width = wires[2] - wires[1]
+        barre_x = float(wires[1] - 0.05 * (wires[1] - wires[0]))
+        tip_x = float(wires[1] + 0.50 * second_width)
+        hand = HandSample(
+            wrist_xy=_image_point(barre_x),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={"index": FingerSample("index", _image_point(tip_x), 0.0, 0.95)},
+        )
+
+        contact_fret = compute_index_fret(
+            hand,
+            homography,
+            cfg,
+            centers,
+            index_axis_xy=(_image_point(barre_x),) * 3 + (_image_point(tip_x),),
+        )
+
+        self.assertEqual(contact_fret, 2.0)
+
+    def test_curled_index_continues_to_use_its_tip_contact(self) -> None:
+        cfg = GuitarConfig()
+        homography, centers = _calibrator(OBBPredictions(), cfg)
+        wires = _fret_wire_xs(centers)
+        second_width = wires[2] - wires[1]
+        barre_x = float(wires[1] - 0.05 * (wires[1] - wires[0]))
+        tip_x = float(wires[1] + 0.10 * second_width)
+        hand = HandSample(
+            wrist_xy=_image_point(barre_x),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={
+                "index": FingerSample("index", _image_point(tip_x, 0.9), 0.0, 0.7)
+            },
+        )
+
+        contact_fret = compute_index_fret(
+            hand,
+            homography,
+            cfg,
+            centers,
+            index_axis_xy=(
+                _image_point(barre_x, -0.2),
+                _image_point(barre_x, 0.1),
+                _image_point(barre_x, 0.5),
+                _image_point(tip_x, 0.9),
+            ),
+        )
+
+        self.assertEqual(contact_fret, 2.0)
 
     def test_descending_fret_map_preserves_fret_identity(self) -> None:
         hand = HandSample(

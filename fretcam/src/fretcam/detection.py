@@ -10,6 +10,7 @@ from typing import Protocol
 
 import numpy as np
 
+from tabvision.errors import BackendError
 from tabvision.types import GuitarConfig, Homography
 from tabvision.video.fretboard.calibrate import (
     RULE_OF_18_RATIO,
@@ -19,7 +20,11 @@ from tabvision.video.fretboard.calibrate import (
 from tabvision.video.fretboard.tracker import smooth_homography_track
 from tabvision.video.guitar.yolo_backend import OBBPredictions, YoloOBBBackend
 from tabvision.video.hand.fingertip_to_fret import FRETTING_FINGERS, HandSample
-from tabvision.video.hand.mediapipe_backend import MediaPipeHandBackend
+from tabvision.video.hand.mediapipe_backend import (
+    MediaPipeHandBackend,
+    _build_hand_sample,
+    _select_fretting_hand,
+)
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
 
 Point = tuple[float, float]
@@ -40,32 +45,76 @@ FALLBACK_BODY_JOINT_FRET = 12
 CANONICAL_NECK_MIN = 0.0
 CANONICAL_NECK_MAX = 1.0
 MIN_ON_NECK_FINGERTIPS = 3
+FRET_WIRE_DEADBAND_FRACTION = 0.35
+BARRE_INDEX_MIN_EXTENSION = 0.85
+BARRE_MIN_CROSS_NECK_SPAN = 0.70
+BARRE_MIN_CROSS_TO_ALONG_RATIO = 3.0
+INDEX_AXIS_LANDMARKS = (5, 6, 7, 8)
 
 
 class Detector(Protocol):
     def predict_all(self, frame: np.ndarray) -> OBBPredictions: ...
 
 
+@dataclass(frozen=True)
+class HandObservation:
+    """FretCam-only hand sample plus the index-finger joint axis."""
+
+    hand: HandSample
+    index_axis_xy: tuple[Point, ...] = ()
+
+
 class HandExtractor(Protocol):
-    def extract(self, frame: np.ndarray) -> HandSample | None: ...
+    def extract(self, frame: np.ndarray) -> HandObservation | HandSample | None: ...
 
     def close(self) -> None: ...
 
 
 class MediaPipeHandExtractor:
-    """Small adapter that retains landmarks for both HUD and anchor output.
+    """Retain the shared hand sample plus a FretCam-only index joint axis.
 
     TabVision's public ``detect_anchor`` intentionally returns only the coarse
-    anchor. FretCam also needs the hand marker for its future HUD, so this
-    quarantined adapter calls the backend's existing landmark extractor and
-    then routes that exact ``HandSample`` through ``compute_neck_anchor``.
+    anchor. FretCam needs the hand marker and the index MCP/PIP/DIP/tip line so
+    an extended barre finger is not represented by its tip alone. This adapter
+    reuses the backend's loaded MediaPipe model and sample-building helpers; the
+    richer observation remains quarantined here and does not change §8.
     """
 
     def __init__(self, backend: MediaPipeHandBackend | None = None) -> None:
         self.backend = backend or MediaPipeHandBackend()
 
-    def extract(self, frame: np.ndarray) -> HandSample | None:
-        return self.backend._extract_fretting_hand(frame)
+    def extract(self, frame: np.ndarray) -> HandObservation | None:
+        try:
+            import cv2
+            import mediapipe as mp
+        except ImportError as exc:
+            raise BackendError(
+                "opencv-python and mediapipe are required. Install with: "
+                "pip install '.[vision]'."
+            ) from exc
+
+        landmarker = self.backend._load()
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        result = landmarker.detect(mp_image)
+        if not result.hand_landmarks or not result.handedness:
+            return None
+
+        selected = _select_fretting_hand(result.hand_landmarks, result.handedness)
+        landmarks = result.hand_landmarks[selected]
+        handedness = result.handedness[selected]
+        height, width = frame.shape[:2]
+        hand = _build_hand_sample(
+            landmarks,
+            handedness,
+            frame_width=width,
+            frame_height=height,
+        )
+        index_axis = tuple(
+            (float(landmarks[index].x) * width, float(landmarks[index].y) * height)
+            for index in INDEX_AXIS_LANDMARKS
+        )
+        return HandObservation(hand=hand, index_axis_xy=index_axis)
 
     def close(self) -> None:
         self.backend.close()
@@ -108,6 +157,7 @@ class FrameDetection:
     index_fret: float | None
     anchor: HandNeckAnchor
     stage_latency: StageLatency
+    index_fret_raw: float | None = None
 
     def as_dict(self) -> dict[str, object]:
         """JSON-ready representation for replay now and the WebSocket later."""
@@ -226,7 +276,7 @@ def _fret_positions_from_canonical_x(
         if valid:
             frets = np.arange(cfg.max_fret + 1, dtype=np.float64)
             # The map contains one extra cell centre so callers can interpolate
-            # through the body-side half of the last configured fret.  Bound the
+            # through the body-side half of the last configured fret. Bound the
             # valid span at the outer edge of fret 1 and fret ``max_fret`` before
             # interpolation; np.interp otherwise silently clamps arbitrary
             # off-board coordinates to 0/max and fabricates fret 1/24 readings.
@@ -251,6 +301,72 @@ def _fret_positions_from_canonical_x(
         RULE_OF_18_RATIO
     )
     return positions, "rule18_fret12_fallback"
+
+
+def _fret_wire_axis(
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+) -> tuple[np.ndarray, str]:
+    """Return physical fret-wire coordinates from nut through ``max_fret``."""
+    if fret_centers is not None:
+        centers = np.asarray(fret_centers, dtype=np.float64)
+        valid = (
+            centers.shape == (cfg.max_fret + 1,)
+            and np.all(np.isfinite(centers))
+            and (np.all(np.diff(centers) > 0.0) or np.all(np.diff(centers) < 0.0))
+        )
+        if valid:
+            wires = _fret_wire_xs(centers)
+            if wires.size >= cfg.max_fret + 1:
+                return wires[: cfg.max_fret + 1], "calibrated_fret_map"
+
+    frets = np.arange(cfg.max_fret + 1, dtype=np.float64)
+    body_fraction = 1.0 - RULE_OF_18_RATIO**FALLBACK_BODY_JOINT_FRET
+    wires = (1.0 - np.power(RULE_OF_18_RATIO, frets)) / body_fraction
+    return wires, "rule18_fret12_fallback"
+
+
+def _fret_cell_from_canonical_x(
+    canonical_x: float,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+    *,
+    deadband_fraction: float = FRET_WIRE_DEADBAND_FRACTION,
+) -> tuple[int, str] | None:
+    """Classify a contact by fret-wire interval, favoring just-behind-wire play.
+
+    Cell ``f`` is bounded by wires ``f-1`` and ``f``. A contact that projects
+    just past wire ``f`` receives a local-width deadband and remains fret ``f``;
+    this models normal placement immediately behind a wire without applying a
+    fixed fret-number bias that would be wrong higher on the neck.
+    """
+    if not 0.0 <= deadband_fraction < 0.5:
+        raise ValueError("deadband_fraction must be in [0, 0.5)")
+    x = float(canonical_x)
+    if not math.isfinite(x) or not CANONICAL_NECK_MIN <= x <= CANONICAL_NECK_MAX:
+        return None
+
+    wires, method = _fret_wire_axis(cfg, fret_centers)
+    direction = float(np.sign(wires[-1] - wires[0]))
+    if direction == 0.0:
+        return None
+    oriented_wires = wires * direction
+    if not np.all(np.diff(oriented_wires) > 0.0):
+        return None
+    oriented_x = x * direction
+    if oriented_x < oriented_wires[0] or oriented_x > oriented_wires[-1]:
+        return None
+
+    cell = max(1, int(np.searchsorted(oriented_wires, oriented_x, side="left")))
+    if cell > cfg.max_fret:
+        return None
+    if cell > 1:
+        nut_wire = oriented_wires[cell - 1]
+        cell_width = oriented_wires[cell] - nut_wire
+        distance_past_wire = oriented_x - nut_wire
+        if 0.0 < distance_past_wire <= deadband_fraction * cell_width:
+            cell -= 1
+    return cell, method
 
 
 def _on_canonical_neck(canonical_points: np.ndarray) -> np.ndarray:
@@ -349,15 +465,76 @@ def compute_index_fret(
     cfg: GuitarConfig,
     fret_centers: np.ndarray | None,
     *,
+    index_axis_xy: tuple[Point, ...] = (),
     fallback: float | None = None,
 ) -> float | None:
-    """Project the index fingertip to a physical, cell-centred fret number.
+    """Return the technique-aware physical fret cell used for position lock.
 
-    The calibrated map stores the first physical fret cell at array index 0,
-    while the rule-of-18 fallback returns a continuous wire coordinate (the
-    nut is 0).  Normalize both conventions so the centre of the first physical
-    cell reads as fret 1 before the temporal estimator assigns a position.
+    A fretted note is defined by the wire interval containing its contact, not
+    by the nearest cell centre. Extended, across-neck index fingers additionally
+    use the median PIP/DIP/tip axis coordinate so an angled barre is not
+    represented by its fingertip alone. The exact continuous tip coordinate
+    remains available separately through :func:`compute_index_fret_raw`.
     """
+    if hand is None or homography.confidence <= 0.0:
+        return None
+    index = hand.fingers.get("index")
+    if index is None:
+        return None if fallback is None else float(max(1, round(fallback)))
+    try:
+        canonical_point = project_to_canonical(
+            homography, np.asarray([index.tip_xy], dtype=np.float64)
+        )
+    except np.linalg.LinAlgError:
+        return fallback
+    if not _on_canonical_neck(canonical_point)[0]:
+        return None
+
+    contact_x = float(canonical_point[0, 0])
+    barre_oriented = False
+    if index.curl_ratio >= BARRE_INDEX_MIN_EXTENSION and len(index_axis_xy) >= 3:
+        try:
+            canonical_axis = project_to_canonical(
+                homography, np.asarray(index_axis_xy[-3:], dtype=np.float64)
+            )
+        except np.linalg.LinAlgError:
+            canonical_axis = np.empty((0, 2), dtype=np.float64)
+        usable = (
+            np.all(np.isfinite(canonical_axis), axis=1)
+            & (canonical_axis[:, 0] >= CANONICAL_NECK_MIN)
+            & (canonical_axis[:, 0] <= CANONICAL_NECK_MAX)
+        )
+        if np.count_nonzero(usable) >= 2:
+            usable_axis = canonical_axis[usable]
+            along_span = float(np.ptp(usable_axis[:, 0]))
+            cross_span = float(np.ptp(usable_axis[:, 1]))
+            barre_oriented = (
+                cross_span >= BARRE_MIN_CROSS_NECK_SPAN
+                and cross_span >= BARRE_MIN_CROSS_TO_ALONG_RATIO * max(along_span, 1e-6)
+            )
+            if barre_oriented:
+                axis_x = float(np.median(usable_axis[:, 0]))
+                if _fret_cell_from_canonical_x(axis_x, cfg, fret_centers) is not None:
+                    contact_x = axis_x
+
+    classified = _fret_cell_from_canonical_x(
+        contact_x,
+        cfg,
+        fret_centers,
+        deadband_fraction=(FRET_WIRE_DEADBAND_FRACTION if barre_oriented else 0.0),
+    )
+    return None if classified is None else float(classified[0])
+
+
+def compute_index_fret_raw(
+    hand: HandSample | None,
+    homography: Homography,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+    *,
+    fallback: float | None = None,
+) -> float | None:
+    """Return the old continuous fingertip coordinate for diagnostics only."""
     if hand is None or homography.confidence <= 0.0:
         return None
     index = hand.fingers.get("index")
@@ -457,8 +634,14 @@ class DetectionChain:
             self._last_detection_s = now_s
 
         hand_started = time.perf_counter()
-        hand = self.hand_extractor.extract(frame)
+        extracted_hand = self.hand_extractor.extract(frame)
         hand_ms = (time.perf_counter() - hand_started) * 1000.0
+        if isinstance(extracted_hand, HandObservation):
+            hand = extracted_hand.hand
+            index_axis_xy = extracted_hand.index_axis_xy
+        else:
+            hand = extracted_hand
+            index_axis_xy = ()
 
         anchor_started = time.perf_counter()
         if not _hand_overlaps_neck(hand, self._homography):
@@ -474,15 +657,24 @@ class DetectionChain:
             self._homography,
             self.guitar_config,
             self._fret_centers,
+            index_axis_xy=index_axis_xy,
             fallback=anchor.center_fret if anchor.confidence > 0.0 else None,
         )
-        if index_fret is None or anchor.confidence <= 0.0:
+        index_fret_raw = compute_index_fret_raw(
+            hand,
+            self._homography,
+            self.guitar_config,
+            self._fret_centers,
+            fallback=anchor.center_fret if anchor.confidence > 0.0 else None,
+        )
+        if index_fret is None or index_fret_raw is None or anchor.confidence <= 0.0:
             # An off-neck/boundary-clipped hand is a dropout, not a low or high
             # fret.  Suppress its marker and confidence so it cannot enter the
             # temporal position lock through either the index or anchor path.
             hand = None
             anchor = _empty_anchor()
             index_fret = None
+            index_fret_raw = None
         anchor_ms = (time.perf_counter() - anchor_started) * 1000.0
 
         latency = StageLatency(
@@ -508,6 +700,7 @@ class DetectionChain:
             index_fret=index_fret,
             anchor=anchor,
             stage_latency=latency,
+            index_fret_raw=index_fret_raw,
         )
 
     def _should_detect(self, timestamp_s: float) -> bool:
@@ -549,10 +742,12 @@ __all__ = [
     "FALLBACK_BODY_JOINT_FRET",
     "FrameDetection",
     "FretTick",
+    "HandObservation",
     "HandPoint",
     "MediaPipeHandExtractor",
     "StageLatency",
     "compute_index_fret",
+    "compute_index_fret_raw",
     "compute_position_anchor",
     "process_frame",
 ]

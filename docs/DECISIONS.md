@@ -3010,3 +3010,30 @@ does not establish that the selected hand is the fretting hand. A three-of-four
 fingertip overlap allows one occluded/hovering finger while rejecting the
 reproduced picking-hand case. Conservative dropout is preferable to a false
 position; live A2 remains the accuracy gate.
+
+---
+
+## 2026-07-22 - FretCam F4d models behind-wire and barre contact semantics
+
+**Phase:** FretCam side quest, explicitly approved F4d technique correction
+**Decision tree:** Replace nearest-centre fingertip locking with physical fret
+contact semantics without turning every extended finger into a one-fret-down
+heuristic or regressing the user-verified Position II→VI move.
+**Branch taken:** PASS F4d. Lock from calibrated fret-wire intervals. Only an
+extended index spanning at least 70% across the canonical neck and at least 3×
+farther across than along it is treated as a barre; use its median PIP/DIP/tip
+coordinate and a 35%-of-local-cell behind-wire deadband. Other poses use exact
+wire containment with no deadband. Preserve the old continuous tip coordinate
+as `index_fret_raw`; expose the discrete contact cell as `index_fret`.
+**Evidence:** Forty-four FretCam tests and Ruff passed. On `031_vpswc`, contact
+I locks while the tip remains at 1.656–1.977 (the first diagnostic still shows
+contact 1 / tip-x 1.83). `104_xf1wc` retains the exact F4c II/VI output counts
+of 27/17. Across seven distinct public clips, `077_vV1wc` and `105_Qf1wc`
+continue to emit no position. Report:
+`docs/EVAL_REPORTS/fretcam_f4d_fret_contact_semantics_2026-07-22.md`.
+**Reasoning:** Fret width is nonlinear, so a global fret subtraction is invalid.
+Wire-cell containment supplies the physical coordinate, while the tightly
+gated barre axis represents the contact surface the fingertip alone misses.
+A global deadband and a nut-most-axis variant were both rejected because they
+changed the verified VI arrival to V/no lock. Live multi-position barre holds
+remain part of A2 and no general accuracy claim is made.

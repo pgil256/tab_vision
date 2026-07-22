@@ -59,7 +59,12 @@ def _diagnostic_overlay(
         "lost": (70, 70, 230),
     }[estimate.state]
     label = estimate.label.replace("…", "...")
-    raw = "--" if estimate.raw_index_fret is None else f"{estimate.raw_index_fret:.2f}"
+    contact = (
+        "--" if estimate.raw_index_fret is None else f"{estimate.raw_index_fret:.0f}"
+    )
+    tip = (
+        "--" if detection.index_fret_raw is None else f"{detection.index_fret_raw:.2f}"
+    )
     smooth = (
         "--"
         if estimate.smoothed_index_fret is None
@@ -68,7 +73,7 @@ def _diagnostic_overlay(
     window = ",".join(str(fret) for fret in estimate.window_frets)
     lines = (
         f"{label}  [{estimate.state}]",
-        f"index fret {raw}   EMA {smooth}",
+        f"contact {contact}   tip-x {tip}   EMA {smooth}",
         f"window {{{window}}}   conf {estimate.confidence:.2f}",
     )
     for index, text in enumerate(lines):

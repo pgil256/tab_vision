@@ -14,9 +14,7 @@ class FakeChain:
         self.closed = False
         self.frame_shape: tuple[int, ...] | None = None
 
-    def process_frame(
-        self, frame: np.ndarray, *, timestamp_s: float
-    ) -> FrameDetection:
+    def process_frame(self, frame: np.ndarray, *, timestamp_s: float) -> FrameDetection:
         self.frame_shape = frame.shape
         return FrameDetection(
             timestamp_s=timestamp_s,
@@ -33,9 +31,10 @@ class FakeChain:
             ),
             fret_ticks=(FretTick(5, (50.0, 10.0), (50.0, 40.0)),),
             hand_points=(HandPoint("index", 50.0, 25.0),),
-            index_fret=5.2,
+            index_fret=5.0,
             anchor=HandNeckAnchor(5.2, 4.0, 8.0, 0.72, "fixture"),
             stage_latency=StageLatency(1.0, 1.0, 1.0, 1.0, 4.0),
+            index_fret_raw=5.2,
         )
 
     def close(self) -> None:
@@ -61,6 +60,8 @@ def test_processor_emits_complete_json_hud_contract_and_closes() -> None:
     assert result["type"] == "hud"
     assert result["frame"] == {"width": 100, "height": 50}
     assert result["detection"]["neck_locked"] is True  # type: ignore[index]
+    assert result["detection"]["index_fret"] == 5.0  # type: ignore[index]
+    assert result["detection"]["index_fret_raw"] == 5.2  # type: ignore[index]
     assert result["position"]["label"] == "Position V"  # type: ignore[index]
     assert result["guidance"]["code"] == "locked"  # type: ignore[index]
     assert result["server_ms"] > 0

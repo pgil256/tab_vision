@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f4c-neck-validity-gate
+current_branch: fretcam/f4d-fret-contact-semantics
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -15,6 +15,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4 | HUD + guidance + latency | passed | 25 tests; 21.512 FPS; E2E 39.450 ms median / 120.752 ms p95 | — | — |
 | F4b | physical fret numbering + spike-safe position lock | passed | 33 tests; public II→VI lock in 0.4 s; only II/VI locked | preserve evidence; L1 still pending | — |
 | F4c | reject off-neck hands + clipped geometry before lock | passed | 38 tests; 5 distinct sources; 2/2 false-lock clips now emit no position | preserve evidence; L1 still pending | — |
+| F4d | wire-cell + barre contact semantics | passed | 44 tests; `031` contact I with tip-x 1.83; verified `104` II→VI preserved | preserve evidence; L1 still pending | — |
 | L1 | live test 1 (Pat: A1+A4) | awaiting Pat | headless A4 pass; live A1/A4 pending | run checklist below and paste report | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
@@ -23,12 +24,13 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
 **Live checkpoint.** F4b corrects the reproduced public Position II→VI HUD
-failure, and F4c now turns off-neck/wrong-hand or calibrated-boundary geometry
-into a dropout before temporal locking. Three known-valid distinct public
-sources retain position output; two previously false-locking wide shots now
-emit none. L1 is still Pat-only and must run before F5. Corrected F7 is complete
-and positive; F8 remains blocked on an L2 pass and still requires separate user
-sign-off before any integration code.
+failure, F4c turns invalid hand/geometry observations into dropouts, and F4d
+now locks from calibrated wire cells plus an across-neck barre contact line
+instead of nearest fingertip centre. `031` demonstrates contact I with tip-x
+1.83, while the verified `104` II→VI output is unchanged. L1 is still Pat-only
+and must run before F5. Corrected F7 is complete and positive; F8 remains
+blocked on an L2 pass and still requires separate user sign-off before any
+integration code.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -45,6 +47,13 @@ sign-off before any integration code.
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F4d passed — position locking now uses calibrated wire-cell
+  containment; a confirmed extended index spanning ≥70% across the neck uses
+  its PIP/DIP/tip contact axis and a local-width behind-wire deadband. The raw
+  fingertip coordinate remains diagnostic-only. Forty-four tests and Ruff
+  passed. Seven-source replay reclassified `031` from the tip-biased II to
+  predominantly I, preserved `104` II→VI exactly, and retained zero positions
+  on both F4c wrong-hand clips.
 - 2026-07-22 — F4c passed — a hand must place at least three fingertips plus
   its index observation on the canonical neck, calibrated coordinates must lie
   inside the outer fret-cell boundaries, and every failure becomes a dropout
