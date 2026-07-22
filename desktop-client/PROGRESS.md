@@ -56,7 +56,9 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: each Transcribe click creates a unique job output, launches one
   `tabvision` process with the selected pinned CLI options, and streams parsed
   stderr stages into a progress bar while retaining full stderr capture.
-- [ ] Show completed ASCII output in a monospace tab viewer.
+- [x] Show completed ASCII output in a monospace tab viewer. Result: successful
+  jobs load the envelope's UTF-8 output path without newline normalization and
+  reveal a read-only, no-wrap Consolas viewer with both scrollbars.
 - [ ] Export ASCII, GP5, MusicXML, and MIDI through the CLI `--format` option.
 - [ ] Surface `TabVisionError` stderr text verbatim for exit code 2.
 - [ ] Surface every low-confidence flag from the JSON envelope.
@@ -133,3 +135,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   stderr lines to the UI without losing captured error text. Added exact command
   and streaming-capture tests. `dotnet build`: 0 warnings/errors; `dotnet test`:
   18 passed.
+- 2026-07-22: D1.4 completed. Added a completed-result pane that strictly
+  decodes the CLI's UTF-8 ASCII file, preserves fixed-width content and line
+  endings, and hides stale output when a new job starts. `dotnet build`: 0
+  warnings/errors; `dotnet test`: 20 passed.

@@ -74,6 +74,8 @@ public partial class MainWindow : Window
         SetJobRunning(isRunning: true);
         JobProgressBar.Value = 0;
         JobStatusText.Text = "Starting TabVision...";
+        TabViewerTextBox.Clear();
+        TabViewerPanel.Visibility = Visibility.Collapsed;
 
         try
         {
@@ -100,6 +102,11 @@ public partial class MainWindow : Window
             }
 
             var envelope = SidecarResultEnvelopeParser.Parse(result.StandardOutput);
+            var document = AsciiTabDocument.FromPath(envelope.OutputPath);
+            TabViewerTextBox.Text = document.Content;
+            TabViewerTextBox.CaretIndex = 0;
+            TabViewerTextBox.ScrollToHome();
+            TabViewerPanel.Visibility = Visibility.Visible;
             JobProgressBar.Value = 100;
             JobStatusText.Text = $"Completed: {Path.GetFileName(envelope.OutputPath)}";
         }

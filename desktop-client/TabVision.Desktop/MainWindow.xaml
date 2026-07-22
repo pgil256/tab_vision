@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TabVision"
         Width="760"
-        Height="750"
+        Height="900"
         MinWidth="620"
-        MinHeight="660"
+        MinHeight="820"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="28">
         <Grid.RowDefinitions>
@@ -14,6 +14,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <TextBlock FontSize="28"
@@ -177,6 +178,42 @@
                         Click="Transcribe_Click"
                         Content="Transcribe"
                         IsEnabled="False" />
+            </Grid>
+        </Border>
+
+        <Border x:Name="TabViewerPanel"
+                Grid.Row="5"
+                MinHeight="220"
+                Margin="0,18,0,0"
+                Padding="20"
+                BorderBrush="#D6D6D6"
+                BorderThickness="1"
+                CornerRadius="6"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock FontSize="16"
+                           FontWeight="SemiBold"
+                           Text="ASCII tab" />
+                <TextBox x:Name="TabViewerTextBox"
+                         Grid.Row="1"
+                         Margin="0,12,0,0"
+                         Padding="12"
+                         Background="#FAFAFA"
+                         BorderBrush="#E0E0E0"
+                         FontFamily="Consolas"
+                         FontSize="13"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         AutomationProperties.Name="Completed ASCII tab"
+                         HorizontalScrollBarVisibility="Auto"
+                         IsReadOnly="True"
+                         TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" />
             </Grid>
         </Border>
     </Grid>
