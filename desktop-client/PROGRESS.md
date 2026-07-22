@@ -37,8 +37,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   caveat and frozen-directory rule. Result: the README links the plan and
   progress, documents the thin/disposable shell boundary, and names all three
   frozen v0 directories.
-- [ ] **D0 gate:** a C# integration test runs the fixture sidecar and parses
-  both its result envelope and progress lines.
+- [x] **D0 gate:** a C# integration test runs the fixture sidecar and parses
+  both its result envelope and progress lines. Result: the C# runner launched
+  the real Python CLI with a deterministic fixture pipeline, parsed `status=ok`
+  plus one low-confidence flag and all 7 progress stages, and verified the
+  rendered ASCII output.
 
 ## D1 - Viewer MVP
 
@@ -105,3 +108,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
   warning, Python/C# responsibility boundary, deferred D2 scope, and frozen v0
   directories. Verification: both Markdown links resolve and all required
   boundary statements are present.
+- 2026-07-22: D0 gate passed. The cross-process C# test ran the actual Python
+  CLI against `test_a440.mp4` with deterministic inference injected, then
+  parsed stdout/stderr and verified the rendered file. `dotnet build`: 0
+  warnings/errors; `dotnet test`: 11 passed. Python: 861 passed / 12 skipped;
+  Ruff (package + fixture) and mypy passed.
