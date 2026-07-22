@@ -1,0 +1,163 @@
+{
+  "measurements": 6917,
+  "ambiguous_share": 0.97180858753795,
+  "median_partials": 10.0,
+  "median_r2": 0.7645751444418251,
+  "sweeps": [
+    {
+      "min_r2": 0.0,
+      "notes_scored": 6917,
+      "coverage": 1.0,
+      "count_prior_baseline": 0.6592453375740928,
+      "accuracy_all": 0.828393812346393,
+      "ambiguous_notes": 6722,
+      "accuracy_ambiguous": 0.8234156501041356,
+      "per_mode": {
+        "solo": {
+          "n": 6436,
+          "accuracy": 0.8328154133001865
+        },
+        "comp": {
+          "n": 481,
+          "accuracy": 0.7692307692307693
+        }
+      }
+    },
+    {
+      "min_r2": 0.5,
+      "notes_scored": 4973,
+      "coverage": 0.7189533034552552,
+      "count_prior_baseline": 0.6472953951337221,
+      "accuracy_all": 0.8978483812587975,
+      "ambiguous_notes": 4837,
+      "accuracy_ambiguous": 0.8949762249328096,
+      "per_mode": {
+        "solo": {
+          "n": 4714,
+          "accuracy": 0.900296987696224
+        },
+        "comp": {
+          "n": 259,
+          "accuracy": 0.8532818532818532
+        }
+      }
+    },
+    {
+      "min_r2": 0.7,
+      "notes_scored": 3901,
+      "coverage": 0.5639728205869596,
+      "count_prior_baseline": 0.6482953088951551,
+      "accuracy_all": 0.9259164316841836,
+      "ambiguous_notes": 3823,
+      "accuracy_ambiguous": 0.9244049176039759,
+      "per_mode": {
+        "solo": {
+          "n": 3733,
+          "accuracy": 0.9260648272167158
+        },
+        "comp": {
+          "n": 168,
+          "accuracy": 0.9226190476190477
+        }
+      }
+    },
+    {
+      "min_r2": 0.8,
+      "notes_scored": 3184,
+      "coverage": 0.4603151655341911,
+      "count_prior_baseline": 0.6319095477386935,
+      "accuracy_all": 0.9440954773869347,
+      "ambiguous_notes": 3135,
+      "accuracy_ambiguous": 0.9432216905901116,
+      "per_mode": {
+        "solo": {
+          "n": 3073,
+          "accuracy": 0.9450048812235601
+        },
+        "comp": {
+          "n": 111,
+          "accuracy": 0.918918918918919
+        }
+      }
+    },
+    {
+      "min_r2": 0.9,
+      "notes_scored": 1911,
+      "coverage": 0.2762758421280902,
+      "count_prior_baseline": 0.6671899529042387,
+      "accuracy_all": 0.967032967032967,
+      "ambiguous_notes": 1903,
+      "accuracy_ambiguous": 0.9668943772990016,
+      "per_mode": {
+        "solo": {
+          "n": 1858,
+          "accuracy": 0.9682454251883746
+        },
+        "comp": {
+          "n": 53,
+          "accuracy": 0.9245283018867925
+        }
+      }
+    },
+    {
+      "min_r2": 0.95,
+      "notes_scored": 799,
+      "coverage": 0.11551250542142548,
+      "count_prior_baseline": 0.6933667083854819,
+      "accuracy_all": 0.9849812265331664,
+      "ambiguous_notes": 799,
+      "accuracy_ambiguous": 0.9849812265331664,
+      "per_mode": {
+        "solo": {
+          "n": 786,
+          "accuracy": 0.9847328244274809
+        },
+        "comp": {
+          "n": 13,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.99,
+      "notes_scored": 94,
+      "coverage": 0.013734277866126934,
+      "count_prior_baseline": 0.7659574468085106,
+      "accuracy_all": 0.9787234042553191,
+      "ambiguous_notes": 94,
+      "accuracy_ambiguous": 0.9787234042553191,
+      "per_mode": {
+        "solo": {
+          "n": 94,
+          "accuracy": 0.9787234042553191
+        },
+        "comp": {
+          "n": 0,
+          "accuracy": NaN
+        }
+      }
+    }
+  ],
+  "best": {
+    "min_r2": 0.95,
+    "notes_scored": 799,
+    "coverage": 0.11551250542142548,
+    "count_prior_baseline": 0.6933667083854819,
+    "accuracy_all": 0.9849812265331664,
+    "ambiguous_notes": 799,
+    "accuracy_ambiguous": 0.9849812265331664,
+    "per_mode": {
+      "solo": {
+        "n": 786,
+        "accuracy": 0.9847328244274809
+      },
+      "comp": {
+        "n": 13,
+        "accuracy": 1.0
+      }
+    }
+  },
+  "source": "hex",
+  "gate": 0.85,
+  "gate_pass": true
+}

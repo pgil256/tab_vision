@@ -31,7 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -54,6 +54,8 @@ MAX_PARTIALS = 10
 REL_TOLERANCE = 2 ** (60.0 / 1200.0) - 1.0  # +/- 60 cents, capped at 0.4*f0
 MIN_PARTIALS = 4
 GATE_A = 0.85
+GATE_B = 0.70
+MIN_COVERAGE = 0.10
 
 
 def _parabolic_peak(spectrum: np.ndarray, index: int) -> float:
@@ -169,33 +171,63 @@ def candidates_for_pitch(pitch: int) -> list[tuple[int, int]]:
     ]
 
 
-def collect_measurements(data_home: Path, players: tuple[str, ...]) -> list[dict[str, Any]]:
-    """Measure B for every usable gold note from its own hex channel."""
+def collect_measurements(
+    data_home: Path, players: tuple[str, ...], max_tracks: int = 0, source: str = "hex"
+) -> list[dict[str, Any]]:
+    """Measure B for every usable isolated gold note.
+
+    ``source='hex'`` reads the note's own debleeded pickup channel — Gate A,
+    where string identity is known and only estimator quality varies.
+    ``source='mono'`` reads the room mic, so the same notes now carry
+    reverb, body resonance and neighbouring-string sympathetic ringing:
+    Gate B asks whether the estimator survives that.
+    """
     cfg = GuitarConfig()
     hex_dir = data_home / "audio_hex-pickup_debleeded"
     rows: list[dict[str, Any]] = []
     channel_energy_check: list[tuple[int, int]] = []
 
+    tracks_done = 0
     for jams_path in sorted((data_home / "annotation").glob("*.jams")):
         track_id = jams_path.stem
         if track_id[:2] not in players:
             continue
-        wav_path = hex_dir / f"{track_id}_hex_cln.wav"
+        if max_tracks and tracks_done >= max_tracks:
+            break
+        if source == "hex":
+            wav_path = hex_dir / f"{track_id}_hex_cln.wav"
+        else:
+            wav_path = data_home / "audio_mono-mic" / f"{track_id}_mic.wav"
         if not wav_path.is_file():
             continue
         audio, sr = sf.read(wav_path, dtype="float32", always_2d=True)
-        if audio.shape[1] < 6:
+        if source == "hex" and audio.shape[1] < 6:
             continue
-        gold = parse_guitarset_jams(jams_path, cfg)
+        gold = sorted(parse_guitarset_jams(jams_path, cfg), key=lambda e: e.onset_s)
 
         for event in gold:
             if event.duration_s < MIN_WINDOW_S + SKIP_ATTACK_S:
+                continue
+            # Gate A is the *isolated-note* regime. Restricting to notes with
+            # no other string sounding in the analysis window is not just
+            # scope discipline: with a chord ringing, the hex channel's
+            # residual crosstalk carries partials from louder neighbours and
+            # the fit is measuring the wrong string.
+            window_start = event.onset_s + SKIP_ATTACK_S
+            window_end = window_start + min(MAX_WINDOW_S, event.duration_s - SKIP_ATTACK_S)
+            if any(
+                other is not event
+                and other.onset_s < window_end
+                and (other.onset_s + other.duration_s) > window_start
+                for other in gold
+            ):
                 continue
             start = int((event.onset_s + SKIP_ATTACK_S) * sr)
             stop = start + int(min(MAX_WINDOW_S, event.duration_s - SKIP_ATTACK_S) * sr)
             if stop > audio.shape[0]:
                 continue
-            segment = audio[start:stop, event.string_idx]
+            channel = event.string_idx if source == "hex" else 0
+            segment = audio[start:stop, channel]
             if not np.any(segment):
                 continue
             nominal = 440.0 * 2 ** ((event.pitch_midi - 69) / 12.0)
@@ -206,9 +238,10 @@ def collect_measurements(data_home: Path, players: tuple[str, ...]) -> list[dict
             if b_value <= 0.0:
                 continue
 
-            # Sanity: the annotated string's channel should carry the note.
-            energies = np.sum(audio[start:stop, :6].astype(np.float64) ** 2, axis=0)
-            channel_energy_check.append((int(np.argmax(energies)), event.string_idx))
+            if source == "hex":
+                # Sanity: the annotated string's channel should carry the note.
+                energies = np.sum(audio[start:stop, :6].astype(np.float64) ** 2, axis=0)
+                channel_energy_check.append((int(np.argmax(energies)), event.string_idx))
 
             rows.append(
                 {
@@ -224,13 +257,18 @@ def collect_measurements(data_home: Path, players: tuple[str, ...]) -> list[dict
                     "ambiguous": len(candidates_for_pitch(event.pitch_midi)) > 1,
                 }
             )
+        tracks_done += 1
         print(f"  {track_id}: {len(rows)} cumulative measurements", flush=True)
 
     agree = sum(1 for got, want in channel_energy_check if got == want)
     if channel_energy_check:
         share = agree / len(channel_energy_check)
         print(f"channel<->string mapping check: {share:.4f} agreement", flush=True)
-        if share < 0.5:
+        # On isolated notes the annotated string's channel should dominate
+        # almost always (measured 0.98 on a 00_* solo sample). A reversed
+        # channel order scores ~0.01 here, so this cleanly separates the two
+        # conventions rather than merely nudging past chance.
+        if share < 0.85:
             raise SystemExit(
                 f"hex channel order does not match string_idx ({share:.3f}); "
                 "the loader's convention needs revisiting before trusting Gate A"
@@ -245,6 +283,7 @@ def classify_leave_one_player_out(rows: list[dict[str, Any]], min_r2: float) -> 
         by_player[row["player"]].append(row)
 
     total = correct = amb_total = amb_correct = 0
+    baseline_correct = 0
     per_mode: dict[str, list[int]] = {"solo": [0, 0], "comp": [0, 0]}
 
     for held_out in sorted(by_player):
@@ -259,6 +298,14 @@ def classify_leave_one_player_out(rows: list[dict[str, Any]], min_r2: float) -> 
             ]
             if values:
                 b0[string] = float(np.median(values))
+        # Control: the context-free count prior on the *same* notes. Without
+        # it, a high B accuracy could just mean these isolated notes are easy.
+        popular: dict[int, int] = {}
+        counts: dict[int, Counter] = defaultdict(Counter)
+        for row in train:
+            counts[row["pitch"]][row["string"]] += 1
+        for pitch, counter in counts.items():
+            popular[pitch] = counter.most_common(1)[0][0]
         for row in by_player[held_out]:
             options = candidates_for_pitch(row["pitch"])
             scored = [
@@ -270,6 +317,7 @@ def classify_leave_one_player_out(rows: list[dict[str, Any]], min_r2: float) -> 
             hit = int(predicted == row["string"])
             total += 1
             correct += hit
+            baseline_correct += int(popular.get(row["pitch"], -1) == row["string"])
             bucket = per_mode[row["mode"]]
             bucket[0] += hit
             bucket[1] += 1
@@ -280,6 +328,8 @@ def classify_leave_one_player_out(rows: list[dict[str, Any]], min_r2: float) -> 
     return {
         "min_r2": min_r2,
         "notes_scored": total,
+        "coverage": len(usable) / len(rows) if rows else 0.0,
+        "count_prior_baseline": baseline_correct / total if total else float("nan"),
         "accuracy_all": correct / total if total else float("nan"),
         "ambiguous_notes": amb_total,
         "accuracy_ambiguous": amb_correct / amb_total if amb_total else float("nan"),
@@ -295,14 +345,19 @@ def main() -> int:
     parser.add_argument("--data-home", type=Path, required=True)
     parser.add_argument("--json", dest="json_path", type=Path, default=None)
     parser.add_argument("--max-tracks", type=int, default=0)
+    parser.add_argument("--source", choices=("hex", "mono"), default="hex")
     args = parser.parse_args()
 
-    rows = collect_measurements(args.data_home, DEV_PLAYERS)
+    rows = collect_measurements(args.data_home, DEV_PLAYERS, args.max_tracks, args.source)
     if not rows:
         raise SystemExit("no usable measurements — is the hex partition present?")
 
-    results = [classify_leave_one_player_out(rows, min_r2) for min_r2 in (0.0, 0.90, 0.99)]
-    best = max(results, key=lambda item: item["accuracy_ambiguous"])
+    thresholds = (0.0, 0.50, 0.70, 0.80, 0.90, 0.95, 0.99)
+    results = [classify_leave_one_player_out(rows, min_r2) for min_r2 in thresholds]
+    # Require real coverage: an arm that keeps 1% of notes can post a
+    # flattering number while abstaining on everything hard.
+    eligible = [item for item in results if item["coverage"] >= MIN_COVERAGE]
+    best = max(eligible or results, key=lambda item: item["accuracy_ambiguous"])
     summary = {
         "measurements": len(rows),
         "ambiguous_share": sum(1 for row in rows if row["ambiguous"]) / len(rows),
@@ -310,8 +365,11 @@ def main() -> int:
         "median_r2": float(np.median([row["r2"] for row in rows])),
         "sweeps": results,
         "best": best,
-        "gate_a": GATE_A,
-        "gate_a_pass": bool(best["accuracy_ambiguous"] >= GATE_A),
+        "source": args.source,
+        "gate": GATE_A if args.source == "hex" else GATE_B,
+        "gate_pass": bool(
+            best["accuracy_ambiguous"] >= (GATE_A if args.source == "hex" else GATE_B)
+        ),
     }
     if args.json_path is not None:
         args.json_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
@@ -323,14 +381,16 @@ def main() -> int:
     for result in results:
         print(
             f"  min_r2={result['min_r2']:.2f}: n={result['notes_scored']:6d} "
-            f"all={result['accuracy_all']:.4f} "
+            f"cover={result['coverage']:6.1%} "
             f"ambiguous={result['accuracy_ambiguous']:.4f} "
-            f"(solo {result['per_mode']['solo']['accuracy']:.4f} / "
-            f"comp {result['per_mode']['comp']['accuracy']:.4f})"
+            f"(count-prior control {result['count_prior_baseline']:.4f}) "
+            f"solo={result['per_mode']['solo']['accuracy']:.4f}"
         )
+    label = "Gate A (hex)" if args.source == "hex" else "Gate B (mono-mic)"
     print(
-        f"\nGate A: ambiguous accuracy {best['accuracy_ambiguous']:.4f} vs {GATE_A} -> "
-        f"{'PASS' if summary['gate_a_pass'] else 'FAIL'}"
+        f"\n{label}: ambiguous accuracy {best['accuracy_ambiguous']:.4f} "
+        f"at {best['coverage']:.1%} coverage vs {summary['gate']} -> "
+        f"{'PASS' if summary['gate_pass'] else 'FAIL'}"
     )
     return 0
 

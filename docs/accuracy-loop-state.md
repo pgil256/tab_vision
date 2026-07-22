@@ -10,11 +10,11 @@ current_branch: accuracy/q6-inharmonicity
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **blocked (network)** | precursor PASSES (≥4-fret gaps = 1.59-1.78× B ratio); estimator built + self-validated (recovers B within 25%, separates 1.78×) | fetch hex zip out-of-band, then Gate A runs immediately | zenodo.org TCP:443 unreachable |
+| Q6 | Inharmonicity study | **BOTH GATES PASS** | Gate A (hex) **0.8950** @71.9% cover; Gate B (mono-mic) **0.9200** @66.6%; count-prior control flat ~0.65 → **+0.26-0.31** | user call: wire bounded emission evidence into fuse() (first item to touch fusion) | user decision |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q6 is blocked on an unreachable host (see Questions). Topmost open unblocked item = Q7 (capo/tuning preflight).**
+**Q6 PASSED — integration is a user call (see Questions). Topmost open unblocked item otherwise = Q7 (capo/tuning preflight).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -174,17 +174,39 @@ DECISIONS.md 2026-07-22.
   encouraging on isolated notes (Hjerrild & Christensen 1.5% string+fret),
   nothing survives dense polyphony → §4.1's single-line scope stands.
 
-## Q6 Gate A — blocked on network, estimator ready
+## Q6 — BOTH GATES PASS (2026-07-22)
 
 User approved the download 2026-07-22; it failed. **zenodo.org resolves
 (188.184.98.114) but TCP :443 times out**, while huggingface.co and pypi.org
 connect fine, and the same timeout occurs with the sandbox disabled — a
 routing/firewall block specific to Zenodo, not a repo or sandbox issue.
 
-**To resume** (Gate A then runs immediately, nothing else missing): fetch
-out-of-band into `$TABVISION_DATA_ROOT/guitarset/audio_hex-pickup_debleeded/`
-- `https://zenodo.org/record/3371780/files/audio_hex-pickup_debleeded.zip?download=1`
-- MD5 `c31d97279464c9a67e640cb9061fb0c6` (mirdata index — verify)
+Hex partition acquired over VPN (3.36 GB -> 8.8 GB, 361 tracks). Both gates
+run on dev players 00-04, LOPO, **isolated notes only**.
+
+| gate | source | notes | acc @~70% coverage | unfiltered | count-prior control |
+|---|---|---:|---:|---:|---:|
+| A (>=0.85) | hex pickup | 6,917 | **0.8950** | 0.8234 | ~0.65 |
+| B (>=0.70) | mono mic | 6,771 | **0.9200** | 0.8095 | ~0.65 |
+
+- **The control carries the claim:** count-prior is flat ~0.65 in every arm
+  (matching the decoder's own 0.6548 on the ambiguous lattice), so
+  inharmonicity beats it by **+0.26-0.31**. Not "isolated notes are easy".
+- r-squared is a label-free confidence signal (fit residual only); accuracy
+  rises monotonically 0.81 -> 0.99 as coverage falls 100% -> 29%. A
+  legitimate abstention channel.
+- **The mic beats the pickup** (0.9200 vs 0.8950 at matched coverage) —
+  GuitarSet's hex is a bridge-mounted Roland GK-style divided pickup,
+  band-limited, and B lives in the high partials. **So hex was needed to
+  validate the estimator, not to carry the signal: the channel can run on
+  the mono mic the pipeline already has.**
+- **Scope:** "isolated" = ~34% of solo notes, ~1.3% of comp. A single-line
+  instrument, as §4.1 scoped — which is the point, since Q2 left solo at
+  +0.0112 and single-line carries 77.5% of wrong-position loss.
+- **Not yet Tab F1:** classifies strings on gold notes with known onsets.
+  Wiring bounded emission evidence into fuse() over *detected* notes is the
+  next, larger step (A14/WS4 precedent: per-note evidence can still fail to
+  lift the decoder).
 
 `scripts/eval/q6_gate_a.py` is complete and **self-validated on synthetic
 stiff strings** (recovers B at 5e-5/1e-4/5e-4 within 25%, f0 within 1%,
@@ -237,14 +259,17 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**BLOCKING (Q6):** the approved hex download failed — **zenodo.org is
-unreachable from this network** (DNS fine, TCP :443 times out; other hosts
-connect; unchanged with the sandbox disabled). The estimator is built and
-self-validated, so Gate A runs the moment the zip is in place. **Options:
-(a) fetch the zip out-of-band (URL + MD5 above) and I re-run Gate A;
-(b) attempt Gate B on the mono-mic audio already on disk — cheaper but
-conflates estimator quality with bleed, which is exactly what the two-gate
-split exists to separate; (c) park Q6 and take Q7.**
+**DECISION NEEDED (Q6):** both gates passed, so §4.1's offline study is
+complete and the route is live. The next step is the **first item in this
+loop that would touch fuse()** — a bounded emission-evidence term on
+single-line segments, confidence-weighted by r-squared, zero-weighted below a
+fit threshold. That is pipeline code plus the usual OOF -> GAPS
+no-regression -> player-05 discipline. **Options: (a) proceed to integration
+behind an explicit TABVISION_STRING_EVIDENCE flag with auto unchanged;
+(b) first run a cheaper intermediate — score the physics channel on
+*detected* notes from the banked ensemble events rather than gold, to see
+whether it survives real onsets and pitches before any pipeline work
+(recommended); (c) bank the passing gates and move to Q7.**
 
 Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
 Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
@@ -257,6 +282,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **BOTH GATES PASS**. Hex acquired over VPN. Gate A 0.8950
+  @71.9% cover, Gate B 0.9200 @66.6%, count-prior control flat ~0.65
+  (+0.26-0.31). Mic beats pickup -> channel can run on mono-mic.
+  `q6_separability_2026-07-22.md`.
 - 2026-07-22 — Q6 — Gate A **blocked on network** (zenodo.org TCP:443
   unreachable). Estimator built + self-validated on synthetic stiff strings;
   synthetic test caught a `k^1.5` search-window bug that biased f0 by +1.2%.

@@ -3156,3 +3156,56 @@ No pipeline code, no download spent, no contract change.
 retires one specific failure mode (candidate degeneracy) cheaply and leaves
 the real one (estimator robustness) squarely where the gates already look, so
 the user can decide on the download with a number rather than a hunch.
+
+---
+
+## 2026-07-22 — Q6 Gates A and B BOTH PASS: inharmonicity is real evidence
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1)
+**Decision tree:** Gate A >= 0.85 string accuracy on GuitarSet hex isolated
+notes; Gate B >= 0.70 on mono-mic single-line. Fail either → banked negative
+like WS4.
+**Branch taken:** **BOTH PASS.** Hex partition acquired over VPN after the
+earlier network block. Dev players 00-04, leave-one-player-out, isolated
+notes only (no other gold note sounding in the analysis window).
+Gate A (hex, 6,917 notes): **0.8950 at 71.9% coverage** (0.8234 unfiltered,
+0.9669 at 27.6%). Gate B (mono mic, 6,771 notes): **0.9200 at 66.6%
+coverage** (0.8095 unfiltered, 0.9898 at 29.1%).
+**The control carries the claim.** The count-prior baseline — most-frequent
+string for that pitch from the same training players — is **flat at ~0.65 in
+every arm**, matching the 0.6548 the production decoder scores on the full
+ambiguous lattice. Inharmonicity beats it by **+0.26 to +0.31 absolute**. So
+this is not "isolated notes are easy". r-squared is a label-free confidence
+signal (fit residual only) and accuracy rises monotonically with it, so the
+estimator can legitimately abstain on notes it cannot fit.
+**Unexpected: the mic beats the pickup.** Gate B was meant to be the hard
+one; at matched thresholds mono-mic equals or exceeds hex (0.9200 vs 0.8950
+at ~70% coverage). Likely instrumentation rather than physics — GuitarSet's
+hexaphonic track is a Roland GK-style divided pickup near the bridge, which
+is band-limited, while B estimation lives entirely in the high partials. A
+full-bandwidth condenser is simply a better instrument for this measurement.
+**Consequence: the hex partition was needed to validate the estimator against
+known string identity, but not for the signal itself — the evidence channel
+can run on the mono mic the pipeline already has.**
+**Scope caveat governing everything:** "isolated" is ~34% of solo notes and
+~1.3% of comp notes. This is a single-line instrument, exactly as §4.1
+scoped it — and that is why it matters, since Q2 closed with context worth
++0.0661 on comp but only +0.0112 on solo while single-line carries 77.5% of
+wrong-position loss.
+**Not yet a Tab F1 number:** this classifies strings on gold notes with known
+onsets. Wiring bounded emission evidence into `fuse()` over *detected* notes
+is a larger step, and the A14/WS4 precedent is that promising per-note
+evidence can still fail to lift the decoder.
+**Estimator validation:** `q6_gate_a.py` is self-tested on synthetic stiff
+strings; that test caught a k^1.5 search-window bug that biased recovered
+f0 by +1.2% and would have been invisible on real audio. The hex
+channel-to-string mapping is asserted empirically (0.9868 on isolated notes;
+a reversed convention scores ~0.01).
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md` (Gates A/B
+section) + `q6_gate_a_2026-07-22.json`, `q6_gate_b_2026-07-22.json`;
+`tabvision/scripts/eval/q6_gate_a.py`;
+`tabvision/tests/unit/test_q6_gate_a.py` (7 tests).
+No pipeline code, nothing registered, `auto` untouched, player-05 never read.
+**Reasoning:** this is the program's first passing gate, and it lands on the
+single tier every other lever has failed to move. Integration is a user
+decision because it is the first item here that would touch `fuse()`.

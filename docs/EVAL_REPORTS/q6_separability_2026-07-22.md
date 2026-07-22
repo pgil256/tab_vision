@@ -171,3 +171,109 @@ string's channel is not dominant in >50% of notes. GuitarSet's `data_source`
 is documented as low-E→high-E `0..5`, matching v1 `string_idx`, but a silent
 channel-order mismatch would produce a plausible-looking Gate A failure, so
 it is asserted rather than assumed.
+
+---
+
+# Gates A and B — BOTH PASS
+
+Hex partition acquired over VPN (3.36 GB → 8.8 GB extracted, 361 tracks).
+Both gates run on dev players 00–04, leave-one-player-out, **isolated notes
+only** — notes with no other gold note sounding during the analysis window,
+which is Gate A's stated "isolated-note regime".
+
+## Results
+
+**Gate A — hex pickup** (6,917 notes; channel↔string check 0.9868):
+
+| min r² | coverage | ambiguous acc | count-prior control |
+|---:|---:|---:|---:|
+| 0.00 | 100% | 0.8234 | 0.6592 |
+| 0.50 | 71.9% | **0.8950** | 0.6473 |
+| 0.70 | 56.4% | 0.9244 | 0.6483 |
+| 0.90 | 27.6% | 0.9669 | 0.6672 |
+| 0.95 | 11.6% | 0.9850 | 0.6934 |
+
+**Gate B — mono mic** (6,771 notes):
+
+| min r² | coverage | ambiguous acc | count-prior control |
+|---:|---:|---:|---:|
+| 0.00 | 100% | 0.8095 | 0.6612 |
+| 0.50 | 66.6% | **0.9200** | 0.6512 |
+| 0.70 | 50.2% | 0.9580 | 0.6646 |
+| 0.90 | 29.1% | 0.9898 | 0.7318 |
+| 0.95 | 18.2% | 0.9984 | 0.7470 |
+
+**Gate A: PASS** (0.85 → 0.8950 at 71.9% coverage).
+**Gate B: PASS** (0.70 → 0.9200 at 66.6% coverage, and 0.8095 even with no
+quality filter at all).
+
+## The control is the point
+
+The count-prior column — the most-frequent string for that pitch, learned
+from the same training players — sits **flat at ~0.65 across every arm**.
+Inharmonicity beats it by **+0.26 to +0.31 absolute** on exactly the decision
+the decoder gets wrong. This is not "isolated notes are easy": the same notes
+scored by a context-free prior land at 0.65, which is precisely the 0.6548
+the production decoder achieves on the full ambiguous lattice.
+
+`r²` is a genuine confidence signal — accuracy rises monotonically with it,
+from 0.81 at full coverage to 0.99 at 29%. It is computed from fit residuals
+alone and never touches the label, so it is a legitimate abstention channel:
+the estimator can decline the notes it cannot fit.
+
+## The surprise: the mic beats the pickup
+
+Gate B was expected to be the *hard* one — mono-mic adds room, body
+resonance and sympathetic ringing, and the two-gate split exists to isolate
+that penalty. It does not appear. At matched thresholds the mic **equals or
+beats** the hex pickup (0.9200 vs 0.8950 at ~70% coverage; 0.9580 vs 0.9244
+at ~50%).
+
+The likely reason is instrumentation, not physics: GuitarSet's hexaphonic
+track is a Roland GK-style divided pickup mounted near the bridge —
+band-limited, and bridge-proximate pickups capture a weaker, more sharply
+rolled-off partial series. B estimation depends entirely on resolving high
+partials (the `k²` term), so a full-bandwidth condenser mic is simply a
+better instrument for this measurement than a divided pickup.
+
+**Consequence:** the hex partition was necessary to *establish* the mapping
+and validate the estimator against known string identity, but it is not
+needed for the actual signal. The evidence channel can run on the mono mic
+the pipeline already has.
+
+## The scope caveat that governs everything
+
+"Isolated" means no other string sounding in the 120–400 ms window. That is
+**34% of solo notes and ~1.3% of comp notes** (measured on a 00_* sample).
+This is not a general-purpose string detector — it is a single-line
+instrument, exactly as §4.1 scoped it.
+
+That is also why it matters. Q2 closed with context worth +0.0661 on comp but
+only **+0.0112 on solo**, while single-line carries **77.5% of
+wrong-position loss**. Inharmonicity is per-note and physical, and it lands
+on the tier that context could not reach.
+
+## Honest limits
+
+- **Not yet a Tab F1 number.** This measures string classification on gold
+  notes with known onsets. Wiring it into `fuse()` as bounded emission
+  evidence, on *detected* notes with detected pitches, is a different and
+  larger step — and the A14/WS4 precedent is that promising per-note evidence
+  can still fail to lift the decoder.
+- **Per-player B0 calibration is leave-one-player-out but same-instrument-set.**
+  All GuitarSet players use similar acoustic guitars; a personal user's
+  instrument would need its own calibration, which §4.1's EM bootstrap
+  sketch addresses but this study does not test.
+- The estimator abstains on ~30–50% of notes at the useful operating points.
+  Coverage is a first-class number for any integration.
+
+## Reproduce
+
+```
+cd tabvision && python scripts/eval/q6_gate_a.py \
+  --data-home ~/.tabvision/data/guitarset --source hex \
+  --json ../docs/EVAL_REPORTS/q6_gate_a_2026-07-22.json
+cd tabvision && python scripts/eval/q6_gate_a.py \
+  --data-home ~/.tabvision/data/guitarset --source mono \
+  --json ../docs/EVAL_REPORTS/q6_gate_b_2026-07-22.json
+```
