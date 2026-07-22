@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f4d-fret-contact-semantics
+current_branch: fretcam/f4e-a-position-benchmark
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -16,6 +16,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4b | physical fret numbering + spike-safe position lock | passed | 33 tests; public II→VI lock in 0.4 s; only II/VI locked | preserve evidence; L1 still pending | — |
 | F4c | reject off-neck hands + clipped geometry before lock | passed | 38 tests; 5 distinct sources; 2/2 false-lock clips now emit no position | preserve evidence; L1 still pending | — |
 | F4d | wire-cell + barre contact semantics | passed | 44 tests; `031` contact I with tip-x 1.83; verified `104` II→VI preserved | preserve evidence; L1 still pending | — |
+| F4e-A | frozen public position benchmark | passed | 16 sequences/12 sources; F4d baseline precision 55/69, stable coverage 60/276, false locks 10/276 | review report; F4e-B needs separate approval | — |
 | L1 | live test 1 (Pat: A1+A4) | awaiting Pat | headless A4 pass; live A1/A4 pending | run checklist below and paste report | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
@@ -23,14 +24,16 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
-**Live checkpoint.** F4b corrects the reproduced public Position II→VI HUD
-failure, F4c turns invalid hand/geometry observations into dropouts, and F4d
-now locks from calibrated wire cells plus an across-neck barre contact line
-instead of nearest fingertip centre. `031` demonstrates contact I with tip-x
-1.83, while the verified `104` II→VI output is unchanged. L1 is still Pat-only
-and must run before F5. Corrected F7 is complete and positive; F8 remains
-blocked on an L2 pass and still requires separate user sign-off before any
-integration code.
+**Live checkpoint.** F4e-A freezes the first source-disjoint public position
+benchmark without changing F4d inference. Across 450 samples from 16 sequences
+and 12 sources, overall displayed precision is 55/69 (0.797), stable coverage
+is 60/276 (0.217), and stable false locks are 10/276 (0.036). Held-out stable
+false locks are 0/115, but coverage is only 8/115 and four displays occur on
+an invalid crossfade. No shift origin was freshly locked and neither dropout
+produced a measured recovery, so coverage/observation support is the dominant
+baseline limitation. L1 is still Pat-only and must run before F5. F4e-B, if
+desired before L1, requires a separate explicit approval; F8 remains blocked
+on an L2 pass and separate integration sign-off.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -41,12 +44,22 @@ integration code.
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- Please run L1 with the checklist below and paste the filled report.
+- Review the F4e-A report. Approve F4e-B separately if you want the bounded
+  multi-finger pose solver before L1; otherwise run L1 with the checklist below
+  and paste the filled report.
 
 ## Live-test log (newest first)
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F4e-A passed — froze 16 public-only labeled sequences from 12
+  source-disjoint GAPS videos and baselined unchanged F4d inference over 450
+  samples. Overall displayed precision is 55/69, stable coverage 60/276, and
+  stable false locks 10/276; held-out coverage is 8/115 with 0/115 stable false
+  locks, while four invalid-scene displays reduce held-out precision to 8/12.
+  All three shifts lacked a fresh origin lock; one dropout origin did not lock
+  and one recovery was censored. The benchmark defaults to dev-only, and the
+  test split is frozen after this single baseline opening.
 - 2026-07-22 — F4d passed — position locking now uses calibrated wire-cell
   containment; a confirmed extended index spanning ≥70% across the neck uses
   its PIP/DIP/tip contact axis and a local-width behind-wire deadband. The raw

@@ -3040,6 +3040,33 @@ remain part of A2 and no general accuracy claim is made.
 
 ---
 
+## 2026-07-22 - Freeze FretCam F4e-A before further position changes
+
+**Phase:** FretCam side quest, explicitly approved F4e-A measurement iteration
+**Decision tree:** Build a public-only labeled position benchmark before
+changing thresholds or inference, freeze source-disjoint development and test
+splits, and use the baseline error breakdown to choose any later accuracy work.
+**Branch taken:** PASS F4e-A as measurement infrastructure. Freeze 16 sequences
+from 12 public GAPS sources at 10 FPS, default the runner to dev-only, and treat
+the test baseline as opened once. Do not tune F4d from the held-out result and
+do not start F4e-B without separate approval. L1/L2 remain live gates.
+**Evidence:** Unchanged F4d inference produced overall displayed precision
+**55/69 = 0.797**, stable coverage **60/276 = 0.217**, and stable false locks
+**10/276 = 0.036**. The held-out split produced precision **8/12 = 0.667**,
+coverage **8/115 = 0.070**, and stable false locks **0/115**; four outputs on an
+invalid crossfade account for its precision errors. No shift origin was freshly
+locked; one dropout origin was not locked and the other recovery was censored.
+The saved prediction rescore matched exactly. Report:
+`docs/EVAL_REPORTS/fretcam_f4e_a_position_benchmark_2026-07-22.md`.
+**Reasoning:** The frozen evidence identifies observation support and coverage,
+not merely wrong locked labels, as the dominant limitation. Reporting excluded
+and censored transition events is more honest than turning cold acquisition or
+stale held output into a latency number. Deterministic public-frame occlusions
+provide explicit dropout/return boundaries without private data, downloads,
+training, dependencies, or product inference changes.
+
+---
+
 ## 2026-07-22 - WPF machine-mode stdout is reserved at CLI dispatch
 
 **Phase:** Desktop shell D1 overhead gate (out-of-SPEC client tooling; pipeline

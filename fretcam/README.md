@@ -34,6 +34,7 @@ one.
 .venv\Scripts\python -m fretcam.replay_gaps
 .venv\Scripts\python -m fretcam.replay_position
 .venv\Scripts\python -m fretcam.benchmark_hud
+.venv\Scripts\python -m fretcam.position_benchmark --split dev
 ```
 
 The original benchmark retains F1's echo-only transport harness and round-trips
@@ -49,3 +50,11 @@ The position replay samples six seconds of public `031_vpswc`, runs F2b + F3,
 and writes a machine-local diagnostic MP4 and still under
 `~/.tabvision/cache/fretcam_artifacts/`. These reproducible artifacts are not
 committed and are not position-accuracy evidence.
+
+The F4e-A position benchmark reads the frozen public-only annotations in
+`data/position_benchmark_v1.json`. It reports displayed-position precision,
+coverage, false locks, shift latency, dropout recovery, negative-control
+display rate, and category breakdowns. Use only the `dev` split while choosing
+rules or thresholds; the source-disjoint `test` split is reserved for the
+final comparison. The benchmark reads cached GAPS media but never commits or
+redistributes it.
