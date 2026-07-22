@@ -58,6 +58,20 @@ def _hand() -> HandSample:
     )
 
 
+def _hand_at(x: float, y: float) -> HandSample:
+    fingers = {
+        name: FingerSample(name, (x, y), 0.0, 0.8)
+        for name in ("index", "middle", "ring", "pinky")
+    }
+    return HandSample(
+        wrist_xy=(x, y),
+        wrist_z=0.0,
+        is_left_hand=True,
+        confidence=0.9,
+        fingers=fingers,
+    )
+
+
 def _calibrator(
     _predictions: OBBPredictions, cfg: GuitarConfig
 ) -> tuple[Homography, np.ndarray]:
@@ -115,6 +129,48 @@ class DetectionChainTest(unittest.TestCase):
         self.assertTrue(result.neck_locked)
         self.assertEqual(result.anchor.confidence, 0.0)
         self.assertIsNone(result.index_fret)
+        self.assertEqual(result.hand_points, ())
+
+    def test_off_neck_hand_is_suppressed_before_position_lock(self) -> None:
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(_hand_at(50.0, 55.0)),
+            calibrator=_calibrator,
+        )
+
+        result = chain.process_frame(
+            np.zeros((50, 100, 3), dtype=np.uint8), timestamp_s=0
+        )
+
+        self.assertTrue(result.neck_locked)
+        self.assertIsNone(result.index_fret)
+        self.assertEqual(result.anchor.confidence, 0.0)
+        self.assertEqual(result.hand_points, ())
+
+    def test_lone_index_overlap_does_not_admit_a_picking_hand(self) -> None:
+        outside = _hand_at(50.0, 55.0)
+        picking_hand = HandSample(
+            wrist_xy=outside.wrist_xy,
+            wrist_z=outside.wrist_z,
+            is_left_hand=outside.is_left_hand,
+            confidence=outside.confidence,
+            fingers={
+                **outside.fingers,
+                "index": FingerSample("index", (50.0, 25.0), 0.0, 0.8),
+            },
+        )
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(picking_hand),
+            calibrator=_calibrator,
+        )
+
+        result = chain.process_frame(
+            np.zeros((50, 100, 3), dtype=np.uint8), timestamp_s=0
+        )
+
+        self.assertIsNone(result.index_fret)
+        self.assertEqual(result.anchor.confidence, 0.0)
         self.assertEqual(result.hand_points, ())
 
     def test_reset_forces_reacquisition(self) -> None:
@@ -203,12 +259,12 @@ class PositionAnchorGeometryTest(unittest.TestCase):
 
     def test_fallback_maps_body_joint_to_fret_twelve_not_twenty_four(self) -> None:
         hand = HandSample(
-            wrist_xy=(105.0, 25.0),
+            wrist_xy=(100.0, 25.0),
             wrist_z=0.0,
             is_left_hand=True,
             confidence=1.0,
             fingers={
-                name: FingerSample(name, (105.0, 25.0), 0.0, 0.8)
+                name: FingerSample(name, (100.0, 25.0), 0.0, 0.8)
                 for name in ("index", "middle", "ring", "pinky")
             },
         )
@@ -222,6 +278,65 @@ class PositionAnchorGeometryTest(unittest.TestCase):
 
         self.assertAlmostEqual(anchor.center_fret, 12.0)
         self.assertEqual(anchor.method, "mediapipe_rule18_fret12_fallback")
+
+    def test_index_outside_neck_cross_axis_is_rejected(self) -> None:
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+
+        index_fret = compute_index_fret(
+            _hand_at(50.0, 55.0), homography, GuitarConfig(), None
+        )
+
+        self.assertIsNone(index_fret)
+
+    def test_calibrated_coordinates_beyond_fret_cell_boundaries_are_rejected(
+        self,
+    ) -> None:
+        cfg = GuitarConfig()
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+        centers = np.linspace(0.1, 0.9, cfg.max_fret + 1)
+
+        before_nut = compute_index_fret(_hand_at(5.0, 25.0), homography, cfg, centers)
+        beyond_last_fret = compute_index_fret(
+            _hand_at(95.0, 25.0), homography, cfg, centers
+        )
+
+        self.assertIsNone(before_nut)
+        self.assertIsNone(beyond_last_fret)
+
+    def test_anchor_uses_only_landmarks_that_are_on_the_neck(self) -> None:
+        cfg = GuitarConfig()
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+        hand = _hand_at(50.0, 55.0)
+        hand = HandSample(
+            wrist_xy=hand.wrist_xy,
+            wrist_z=hand.wrist_z,
+            is_left_hand=hand.is_left_hand,
+            confidence=hand.confidence,
+            fingers={
+                **hand.fingers,
+                "index": FingerSample("index", (50.0, 25.0), 0.0, 0.8),
+            },
+        )
+
+        anchor = compute_position_anchor(hand, homography, cfg, None)
+
+        expected = np.log1p(-0.5 * (1.0 - RULE_OF_18_RATIO**12)) / np.log(
+            RULE_OF_18_RATIO
+        )
+        self.assertAlmostEqual(anchor.center_fret, expected)
+        self.assertGreater(anchor.confidence, 0.0)
 
 
 if __name__ == "__main__":

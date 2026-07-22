@@ -2985,3 +2985,28 @@ one-position bias exactly matches the cell-index convention, and the false
 transitions match isolated landmark projections. Correcting those downstream
 semantics is smaller, testable, and preserves the quarantined architecture;
 live A2 still decides general position accuracy.
+
+---
+
+## 2026-07-22 - FretCam F4c rejects invalid hand/board geometry before lock
+
+**Phase:** FretCam side quest, explicitly approved F4c geometry-validity fix
+**Decision tree:** Prevent off-neck or boundary-clipped hand projections from
+becoming stable classical-position labels while preserving the verified public
+Position II→VI sequence.
+**Branch taken:** PASS F4c. Require at least three fretting fingertips plus the
+index observation inside the canonical neck, bound calibrated interpolation to
+the physical first/last-fret cell edges, and convert every failure into a
+zero-confidence dropout before the temporal estimator. Keep the existing
+MediaPipe/board models and all `tabvision/` code unchanged.
+**Evidence:** Thirty-eight FretCam tests and Ruff passed. Five distinct cached
+public sources retained fret-map lock throughout. Known-valid `023_Ypswc`,
+`031_vpswc`, and `104_xf1wc` retained position output, including only II/VI on
+the verified 104 move. Previously false-locking `077_vV1wc` and `105_Qf1wc`
+rejected 55/60 and 58/60 frames and emitted no position. Report:
+`docs/EVAL_REPORTS/fretcam_f4c_neck_validity_gate_2026-07-22.md`.
+**Reasoning:** Endpoint clamps are not observations, and an index-only overlap
+does not establish that the selected hand is the fretting hand. A three-of-four
+fingertip overlap allows one occluded/hovering finger while rejecting the
+reproduced picking-hand case. Conservative dropout is preferable to a false
+position; live A2 remains the accuracy gate.

@@ -33,6 +33,14 @@ BoardCalibrator = Callable[
 # wires to establish a per-frame nonlinear coordinate.
 FALLBACK_BODY_JOINT_FRET = 12
 
+# A position observation is only eligible for temporal locking when its source
+# landmark lies on the detected canonical neck.  Keep this strict: tolerance at
+# the image boundary would turn a picking hand beside the soundhole back into a
+# plausible fret observation.
+CANONICAL_NECK_MIN = 0.0
+CANONICAL_NECK_MAX = 1.0
+MIN_ON_NECK_FINGERTIPS = 3
+
 
 class Detector(Protocol):
     def predict_all(self, frame: np.ndarray) -> OBBPredictions: ...
@@ -217,15 +225,71 @@ def _fret_positions_from_canonical_x(
         )
         if valid:
             frets = np.arange(cfg.max_fret + 1, dtype=np.float64)
+            # The map contains one extra cell centre so callers can interpolate
+            # through the body-side half of the last configured fret.  Bound the
+            # valid span at the outer edge of fret 1 and fret ``max_fret`` before
+            # interpolation; np.interp otherwise silently clamps arbitrary
+            # off-board coordinates to 0/max and fabricates fret 1/24 readings.
+            nut_boundary = centers[0] - 0.5 * (centers[1] - centers[0])
+            body_boundary = centers[-2] + 0.5 * (centers[-1] - centers[-2])
+            support_min = min(float(nut_boundary), float(body_boundary))
+            support_max = max(float(nut_boundary), float(body_boundary))
+            supported = np.isfinite(xs) & (xs >= support_min) & (xs <= support_max)
             if centers[0] > centers[-1]:
                 centers = centers[::-1]
                 frets = frets[::-1]
-            return np.interp(xs, centers, frets), "calibrated_fret_map"
+            positions = np.full(xs.shape, np.nan, dtype=np.float64)
+            positions[supported] = np.interp(xs[supported], centers, frets)
+            return positions, "calibrated_fret_map"
 
-    clipped = np.clip(xs, 0.0, 1.0)
+    supported = (
+        np.isfinite(xs) & (xs >= CANONICAL_NECK_MIN) & (xs <= CANONICAL_NECK_MAX)
+    )
+    positions = np.full(xs.shape, np.nan, dtype=np.float64)
     body_fraction = 1.0 - RULE_OF_18_RATIO**FALLBACK_BODY_JOINT_FRET
-    positions = np.log1p(-clipped * body_fraction) / math.log(RULE_OF_18_RATIO)
+    positions[supported] = np.log1p(-xs[supported] * body_fraction) / math.log(
+        RULE_OF_18_RATIO
+    )
     return positions, "rule18_fret12_fallback"
+
+
+def _on_canonical_neck(canonical_points: np.ndarray) -> np.ndarray:
+    """Return a mask for finite image landmarks projected inside the neck."""
+    points = np.asarray(canonical_points, dtype=np.float64)
+    return (
+        np.all(np.isfinite(points), axis=1)
+        & (points[:, 0] >= CANONICAL_NECK_MIN)
+        & (points[:, 0] <= CANONICAL_NECK_MAX)
+        & (points[:, 1] >= CANONICAL_NECK_MIN)
+        & (points[:, 1] <= CANONICAL_NECK_MAX)
+    )
+
+
+def _hand_overlaps_neck(hand: HandSample | None, homography: Homography) -> bool:
+    """Require most fretting fingertips to overlap the canonical neck.
+
+    A picking index can briefly cross the soundhole end of the board even while
+    the rest of that hand is outside it.  Three of the four fingertips provides
+    a hand-level geometry check while allowing one occluded or hovering finger.
+    The wrist is intentionally excluded because a real fretting wrist normally
+    sits beyond the cross-string edge of the neck.
+    """
+    if hand is None or homography.confidence <= 0.0:
+        return False
+    fingertips = [
+        hand.fingers[name].tip_xy for name in FRETTING_FINGERS if name in hand.fingers
+    ]
+    if len(fingertips) < MIN_ON_NECK_FINGERTIPS:
+        return False
+    try:
+        canonical_points = project_to_canonical(
+            homography, np.asarray(fingertips, dtype=np.float64)
+        )
+    except np.linalg.LinAlgError:
+        return False
+    return int(np.count_nonzero(_on_canonical_neck(canonical_points))) >= (
+        MIN_ON_NECK_FINGERTIPS
+    )
 
 
 def compute_position_anchor(
@@ -245,16 +309,22 @@ def compute_position_anchor(
     if not points:
         return _empty_anchor()
     try:
-        canonical_x = project_to_canonical(
+        canonical_points = project_to_canonical(
             homography, np.asarray(points, dtype=np.float64)
-        )[:, 0]
+        )
     except np.linalg.LinAlgError:
         return _empty_anchor()
 
+    on_neck = _on_canonical_neck(canonical_points)
+    if not np.any(on_neck):
+        return _empty_anchor()
+
     fret_positions, method = _fret_positions_from_canonical_x(
-        canonical_x, cfg, fret_centers
+        canonical_points[on_neck, 0], cfg, fret_centers
     )
-    fret_positions = np.clip(fret_positions, 0.0, float(cfg.max_fret))
+    fret_positions = fret_positions[np.isfinite(fret_positions)]
+    if fret_positions.size == 0:
+        return _empty_anchor()
     raw_min = float(fret_positions.min())
     raw_max = float(fret_positions.max())
     center = float(np.median(fret_positions))
@@ -294,17 +364,23 @@ def compute_index_fret(
     if index is None:
         return fallback
     try:
-        canonical_x = project_to_canonical(
+        canonical_point = project_to_canonical(
             homography, np.asarray([index.tip_xy], dtype=np.float64)
-        )[:, 0]
+        )
     except np.linalg.LinAlgError:
         return fallback
-    positions, method = _fret_positions_from_canonical_x(canonical_x, cfg, fret_centers)
+    if not _on_canonical_neck(canonical_point)[0]:
+        return None
+    positions, method = _fret_positions_from_canonical_x(
+        canonical_point[:, 0], cfg, fret_centers
+    )
     if not np.all(np.isfinite(positions)):
-        return fallback
+        return None
     cell_center_offset = 1.0 if method == "calibrated_fret_map" else 0.5
     physical_fret = positions[0] + cell_center_offset
-    return float(np.clip(physical_fret, 1.0, float(cfg.max_fret)))
+    if not 0.5 <= physical_fret <= float(cfg.max_fret) + 0.5:
+        return None
+    return float(physical_fret)
 
 
 class DetectionChain:
@@ -385,6 +461,8 @@ class DetectionChain:
         hand_ms = (time.perf_counter() - hand_started) * 1000.0
 
         anchor_started = time.perf_counter()
+        if not _hand_overlaps_neck(hand, self._homography):
+            hand = None
         anchor = compute_position_anchor(
             hand,
             self._homography,
@@ -398,6 +476,13 @@ class DetectionChain:
             self._fret_centers,
             fallback=anchor.center_fret if anchor.confidence > 0.0 else None,
         )
+        if index_fret is None or anchor.confidence <= 0.0:
+            # An off-neck/boundary-clipped hand is a dropout, not a low or high
+            # fret.  Suppress its marker and confidence so it cannot enter the
+            # temporal position lock through either the index or anchor path.
+            hand = None
+            anchor = _empty_anchor()
+            index_fret = None
         anchor_ms = (time.perf_counter() - anchor_started) * 1000.0
 
         latency = StageLatency(
