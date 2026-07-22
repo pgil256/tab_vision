@@ -49,4 +49,45 @@ public sealed class SidecarCommandBuilderTests
         Assert.Equal("--no-video", arguments[^1]);
         Assert.Single(arguments, argument => argument == "--no-video");
     }
+
+    [Theory]
+    [InlineData("ascii")]
+    [InlineData("gp5")]
+    [InlineData("musicxml")]
+    [InlineData("midi")]
+    public void ExportJobPassesEveryPinnedFormatToTheCli(string format)
+    {
+        var arguments = SidecarCommandBuilder.BuildArguments(
+            "input.mp4",
+            "output.file",
+            format,
+            TranscriptionOptions.Default
+        );
+
+        var formatIndex = -1;
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            if (arguments[index] == "--format")
+            {
+                formatIndex = index;
+                break;
+            }
+        }
+
+        Assert.True(formatIndex >= 0);
+        Assert.Equal(format, arguments[formatIndex + 1]);
+    }
+
+    [Fact]
+    public void ExportJobRejectsUnknownFormat()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            SidecarCommandBuilder.BuildArguments(
+                "input.mp4",
+                "output.file",
+                "pdf",
+                TranscriptionOptions.Default
+            )
+        );
+    }
 }

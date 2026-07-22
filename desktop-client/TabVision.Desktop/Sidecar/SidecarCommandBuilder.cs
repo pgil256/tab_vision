@@ -10,9 +10,24 @@ public static class SidecarCommandBuilder
         TranscriptionOptions options
     )
     {
+        return BuildArguments(inputPath, outputPath, TranscriptionOutputFormat.Default.CliValue, options);
+    }
+
+    public static IReadOnlyList<string> BuildArguments(
+        string inputPath,
+        string outputPath,
+        string format,
+        TranscriptionOptions options
+    )
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
         ArgumentNullException.ThrowIfNull(options);
+        if (!TranscriptionOutputFormat.IsSupported(format))
+        {
+            throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported output format.");
+        }
 
         var arguments = new List<string>
         {
@@ -21,7 +36,7 @@ public static class SidecarCommandBuilder
             "--output",
             outputPath,
             "--format",
-            "ascii",
+            format,
             "--json",
             "--progress",
             "--instrument",

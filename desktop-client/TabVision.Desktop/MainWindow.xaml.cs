@@ -9,11 +9,13 @@ namespace TabVision.Desktop;
 public partial class MainWindow : Window
 {
     private SelectedInputSummary? _selectedInput;
+    private TranscriptionOptions? _completedOptions;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeTranscriptionOptions();
+        InitializeExportFormats();
     }
 
     private void ChooseVideo_Click(object sender, RoutedEventArgs e)
@@ -38,11 +40,15 @@ public partial class MainWindow : Window
     private void ShowSelectedInput(SelectedInputSummary selectedInput)
     {
         _selectedInput = selectedInput;
+        _completedOptions = null;
         SelectedFileNameText.Text = selectedInput.FileName;
         SelectedFileDetailsText.Text = selectedInput.Details;
         SelectedFilePathText.Text = selectedInput.FullPath;
         NoInputText.Visibility = Visibility.Collapsed;
         SelectedInputPanel.Visibility = Visibility.Visible;
+        TabViewerTextBox.Clear();
+        TabViewerPanel.Visibility = Visibility.Collapsed;
+        ExportButton.IsEnabled = false;
         TranscribeButton.IsEnabled = true;
         JobStatusText.Text = "Ready to transcribe.";
     }
@@ -64,6 +70,12 @@ public partial class MainWindow : Window
         NoVideoCheckBox.IsChecked = defaults.NoVideo;
     }
 
+    private void InitializeExportFormats()
+    {
+        ExportFormatComboBox.ItemsSource = TranscriptionOutputFormat.All;
+        ExportFormatComboBox.SelectedItem = TranscriptionOutputFormat.Default;
+    }
+
     private async void Transcribe_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedInput is null)
@@ -71,6 +83,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        _completedOptions = null;
         SetJobRunning(isRunning: true);
         JobProgressBar.Value = 0;
         JobStatusText.Text = "Starting TabVision...";
@@ -79,20 +92,13 @@ public partial class MainWindow : Window
 
         try
         {
-            var sidecarExecutable = SidecarExecutableLocator.Resolve();
             var outputPath = CreateJobOutputPath();
-            var arguments = SidecarCommandBuilder.BuildAsciiArguments(
+            var options = ReadTranscriptionOptions();
+            var result = await RunSidecarAsync(
                 _selectedInput.FullPath,
                 outputPath,
-                ReadTranscriptionOptions()
-            );
-            var lineProgress = new Progress<string>(ShowProgressLine);
-            var runner = new SidecarProcessRunner();
-            var result = await runner.RunAsync(
-                sidecarExecutable,
-                arguments,
-                workingDirectory: Path.GetDirectoryName(sidecarExecutable),
-                standardErrorLineProgress: lineProgress
+                TranscriptionOutputFormat.Default.CliValue,
+                options
             );
 
             if (result.ExitCode != 0)
@@ -107,6 +113,7 @@ public partial class MainWindow : Window
             TabViewerTextBox.CaretIndex = 0;
             TabViewerTextBox.ScrollToHome();
             TabViewerPanel.Visibility = Visibility.Visible;
+            _completedOptions = options;
             JobProgressBar.Value = 100;
             JobStatusText.Text = $"Completed: {Path.GetFileName(envelope.OutputPath)}";
         }
@@ -118,6 +125,92 @@ public partial class MainWindow : Window
         {
             SetJobRunning(isRunning: false);
         }
+    }
+
+    private async void Export_Click(object sender, RoutedEventArgs e)
+    {
+        if (
+            _selectedInput is null
+            || _completedOptions is null
+            || ExportFormatComboBox.SelectedItem is not TranscriptionOutputFormat format
+        )
+        {
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = $"Export {format.DisplayName}",
+            FileName = Path.GetFileNameWithoutExtension(_selectedInput.FileName),
+            DefaultExt = format.FileExtension,
+            Filter = format.DialogFilter,
+            AddExtension = true,
+            OverwritePrompt = true,
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        SetJobRunning(isRunning: true);
+        JobProgressBar.Value = 0;
+        JobStatusText.Text = $"Exporting {format.DisplayName}...";
+
+        try
+        {
+            var result = await RunSidecarAsync(
+                _selectedInput.FullPath,
+                dialog.FileName,
+                format.CliValue,
+                _completedOptions
+            );
+            if (result.ExitCode != 0)
+            {
+                JobStatusText.Text = $"Export failed (exit {result.ExitCode}).";
+                return;
+            }
+
+            var envelope = SidecarResultEnvelopeParser.Parse(result.StandardOutput);
+            if (!File.Exists(envelope.OutputPath))
+            {
+                throw new FileNotFoundException("The exported output was not created.", envelope.OutputPath);
+            }
+
+            JobProgressBar.Value = 100;
+            JobStatusText.Text = $"Exported {format.DisplayName}: {Path.GetFileName(envelope.OutputPath)}";
+        }
+        catch (Exception exception)
+        {
+            JobStatusText.Text = exception.Message;
+        }
+        finally
+        {
+            SetJobRunning(isRunning: false);
+        }
+    }
+
+    private async Task<SidecarProcessResult> RunSidecarAsync(
+        string inputPath,
+        string outputPath,
+        string format,
+        TranscriptionOptions options
+    )
+    {
+        var sidecarExecutable = SidecarExecutableLocator.Resolve();
+        var arguments = SidecarCommandBuilder.BuildArguments(
+            inputPath,
+            outputPath,
+            format,
+            options
+        );
+        var lineProgress = new Progress<string>(ShowProgressLine);
+        var runner = new SidecarProcessRunner();
+        return await runner.RunAsync(
+            sidecarExecutable,
+            arguments,
+            workingDirectory: Path.GetDirectoryName(sidecarExecutable),
+            standardErrorLineProgress: lineProgress
+        );
     }
 
     private TranscriptionOptions ReadTranscriptionOptions()
@@ -147,7 +240,9 @@ public partial class MainWindow : Window
     private void SetJobRunning(bool isRunning)
     {
         ChooseVideoButton.IsEnabled = !isRunning;
+        OptionsPanel.IsEnabled = !isRunning;
         TranscribeButton.IsEnabled = !isRunning && _selectedInput is not null;
+        ExportButton.IsEnabled = !isRunning && _completedOptions is not null;
     }
 
     private static string CreateJobOutputPath()

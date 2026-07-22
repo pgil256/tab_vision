@@ -59,7 +59,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Show completed ASCII output in a monospace tab viewer. Result: successful
   jobs load the envelope's UTF-8 output path without newline normalization and
   reveal a read-only, no-wrap Consolas viewer with both scrollbars.
-- [ ] Export ASCII, GP5, MusicXML, and MIDI through the CLI `--format` option.
+- [x] Export ASCII, GP5, MusicXML, and MIDI through the CLI `--format` option.
+  Result: the completed viewer offers four save formats and reruns one sidecar
+  with the displayed result's input/options snapshot, chosen destination, and
+  exact pinned CLI format; C# performs no format conversion.
 - [ ] Surface `TabVisionError` stderr text verbatim for exit code 2.
 - [ ] Surface every low-confidence flag from the JSON envelope.
 - [ ] **D1 correctness gate:** output is byte-identical to direct CLI output
@@ -139,3 +142,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   decodes the CLI's UTF-8 ASCII file, preserves fixed-width content and line
   endings, and hides stale output when a new job starts. `dotnet build`: 0
   warnings/errors; `dotnet test`: 20 passed.
+- 2026-07-22: D1.5 completed. Added post-result export for `.tab`, `.gp5`,
+  `.musicxml`, and `.mid`; each export goes through a fresh CLI process with
+  `--format ascii|gp5|musicxml|midi` and verifies the reported output exists.
+  `dotnet build`: 0 warnings/errors; `dotnet test`: 26 passed.
