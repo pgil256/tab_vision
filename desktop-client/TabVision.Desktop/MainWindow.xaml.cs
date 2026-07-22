@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         SelectedInputPanel.Visibility = Visibility.Visible;
         TabViewerTextBox.Clear();
         TabViewerPanel.Visibility = Visibility.Collapsed;
+        ClearSidecarError();
         ExportButton.IsEnabled = false;
         TranscribeButton.IsEnabled = true;
         JobStatusText.Text = "Ready to transcribe.";
@@ -89,6 +90,7 @@ public partial class MainWindow : Window
         JobStatusText.Text = "Starting TabVision...";
         TabViewerTextBox.Clear();
         TabViewerPanel.Visibility = Visibility.Collapsed;
+        ClearSidecarError();
 
         try
         {
@@ -103,7 +105,7 @@ public partial class MainWindow : Window
 
             if (result.ExitCode != 0)
             {
-                JobStatusText.Text = $"Transcription failed (exit {result.ExitCode}).";
+                ShowSidecarFailure(result, "Transcription");
                 return;
             }
 
@@ -155,6 +157,7 @@ public partial class MainWindow : Window
         SetJobRunning(isRunning: true);
         JobProgressBar.Value = 0;
         JobStatusText.Text = $"Exporting {format.DisplayName}...";
+        ClearSidecarError();
 
         try
         {
@@ -166,7 +169,7 @@ public partial class MainWindow : Window
             );
             if (result.ExitCode != 0)
             {
-                JobStatusText.Text = $"Export failed (exit {result.ExitCode}).";
+                ShowSidecarFailure(result, "Export");
                 return;
             }
 
@@ -235,6 +238,30 @@ public partial class MainWindow : Window
 
         JobProgressBar.Value = progress!.Percentage;
         JobStatusText.Text = $"{progress.Stage.Replace('_', ' ')} ({progress.Percentage}%)";
+    }
+
+    private void ShowSidecarFailure(SidecarProcessResult result, string operation)
+    {
+        if (SidecarErrorText.TryGetTabVisionError(result, out var errorText))
+        {
+            SidecarErrorTextBox.Text = errorText;
+            TabViewerPanel.Visibility = Visibility.Collapsed;
+            SidecarErrorPanel.Visibility = Visibility.Visible;
+            JobStatusText.Text = $"{operation} stopped with a TabVision error.";
+            return;
+        }
+
+        JobStatusText.Text = $"{operation} failed (exit {result.ExitCode}).";
+    }
+
+    private void ClearSidecarError()
+    {
+        SidecarErrorTextBox.Clear();
+        SidecarErrorPanel.Visibility = Visibility.Collapsed;
+        if (_completedOptions is not null)
+        {
+            TabViewerPanel.Visibility = Visibility.Visible;
+        }
     }
 
     private void SetJobRunning(bool isRunning)

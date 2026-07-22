@@ -245,5 +245,42 @@
                          VerticalScrollBarVisibility="Auto" />
             </Grid>
         </Border>
+
+        <Border x:Name="SidecarErrorPanel"
+                Grid.Row="5"
+                MinHeight="180"
+                Margin="0,18,0,0"
+                Padding="20"
+                Background="#FFF8F8"
+                BorderBrush="#D9A0A0"
+                BorderThickness="1"
+                CornerRadius="6"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#8A2020"
+                           Text="TabVision error" />
+                <TextBox x:Name="SidecarErrorTextBox"
+                         Grid.Row="1"
+                         Margin="0,12,0,0"
+                         Padding="12"
+                         Background="White"
+                         BorderBrush="#E8CACA"
+                         FontFamily="Consolas"
+                         FontSize="13"
+                         AcceptsReturn="True"
+                         AutomationProperties.Name="TabVision error text"
+                         HorizontalScrollBarVisibility="Auto"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>

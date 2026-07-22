@@ -63,7 +63,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: the completed viewer offers four save formats and reruns one sidecar
   with the displayed result's input/options snapshot, chosen destination, and
   exact pinned CLI format; C# performs no format conversion.
-- [ ] Surface `TabVisionError` stderr text verbatim for exit code 2.
+- [x] Surface `TabVisionError` stderr text verbatim for exit code 2. Result:
+  transcription and export share an exit-2 handler that assigns the runner's
+  complete stderr string directly to a read-only error pane without trimming,
+  prefixing, filtering, or newline changes.
 - [ ] Surface every low-confidence flag from the JSON envelope.
 - [ ] **D1 correctness gate:** output is byte-identical to direct CLI output
   on three fixture clips; record clip names and hashes here.
@@ -146,3 +149,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `.musicxml`, and `.mid`; each export goes through a fresh CLI process with
   `--format ascii|gp5|musicxml|midi` and verifies the reported output exists.
   `dotnet build`: 0 warnings/errors; `dotnet test`: 26 passed.
+- 2026-07-22: D1.6 completed. Added a dedicated exit-2 error pane and direct
+  stderr pass-through for both transcription and export. An actual fixture CLI
+  invocation produced the expected `TabVisionError`, including its final
+  newline, unchanged. `dotnet build`: 0 warnings/errors; `dotnet test`: 29 passed.

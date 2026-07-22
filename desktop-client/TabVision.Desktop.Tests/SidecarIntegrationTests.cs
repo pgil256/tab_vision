@@ -99,6 +99,53 @@ public sealed class SidecarIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task FixtureCliExitTwoSurfacesTabVisionErrorVerbatim()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var pythonProject = Path.Combine(repositoryRoot, "tabvision");
+        var pythonExecutable = FindPythonExecutable(repositoryRoot);
+        var fixtureSidecar = Path.Combine(
+            repositoryRoot,
+            "desktop-client",
+            "TabVision.Desktop.Tests",
+            "Fixtures",
+            "fixture_sidecar.py"
+        );
+        var inputPath = Path.Combine(
+            pythonProject,
+            "data",
+            "fixtures",
+            "test_a440.mp4"
+        );
+        var runner = new SidecarProcessRunner();
+
+        var result = await runner.RunAsync(
+            pythonExecutable,
+            [
+                fixtureSidecar,
+                "transcribe",
+                inputPath,
+                "--json",
+                "--no-preflight",
+                "--no-video",
+            ],
+            workingDirectory: pythonProject,
+            environment: new Dictionary<string, string?>
+            {
+                ["PYTHONPATH"] = pythonProject,
+            }
+        );
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.True(SidecarErrorText.TryGetTabVisionError(result, out var errorText));
+        Assert.Equal(result.StandardError, errorText);
+        Assert.Equal(
+            $"error: --json requires --output so stdout remains valid JSON{Environment.NewLine}",
+            errorText
+        );
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
