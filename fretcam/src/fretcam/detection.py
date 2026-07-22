@@ -11,17 +11,27 @@ from typing import Protocol
 import numpy as np
 
 from tabvision.types import GuitarConfig, Homography
-from tabvision.video.fretboard.calibrate import RULE_OF_18_RATIO, calibrate_board
+from tabvision.video.fretboard.calibrate import (
+    RULE_OF_18_RATIO,
+    calibrate_board,
+    project_to_canonical,
+)
 from tabvision.video.fretboard.tracker import smooth_homography_track
 from tabvision.video.guitar.yolo_backend import OBBPredictions, YoloOBBBackend
 from tabvision.video.hand.fingertip_to_fret import FRETTING_FINGERS, HandSample
 from tabvision.video.hand.mediapipe_backend import MediaPipeHandBackend
-from tabvision.video.hand.neck_anchor import HandNeckAnchor, compute_neck_anchor
+from tabvision.video.hand.neck_anchor import HandNeckAnchor
 
 Point = tuple[float, float]
 BoardCalibrator = Callable[
     [OBBPredictions, GuitarConfig], tuple[Homography, np.ndarray | None]
 ]
+
+# The keypoint homography's unit neck runs from the nut to the body joint. The
+# existing overlay and Phase-3 eval convention define that endpoint as fret 12.
+# A fitted fret map supersedes this fallback whenever the detector sees enough
+# wires to establish a per-frame nonlinear coordinate.
+FALLBACK_BODY_JOINT_FRET = 12
 
 
 class Detector(Protocol):
@@ -171,6 +181,97 @@ def _hand_points(hand: HandSample | None) -> tuple[HandPoint, ...]:
     return tuple(points)
 
 
+def _empty_anchor() -> HandNeckAnchor:
+    return HandNeckAnchor(
+        center_fret=0.0,
+        min_fret=0.0,
+        max_fret=0.0,
+        confidence=0.0,
+        method="missing",
+    )
+
+
+def _fret_positions_from_canonical_x(
+    canonical_x: np.ndarray,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+) -> tuple[np.ndarray, str]:
+    """Convert canonical neck x to fret numbers using the calibrated axis.
+
+    ``calibrate_board`` returns one canonical-x cell centre per fret. The map
+    may be increasing or decreasing depending on the detected nut direction,
+    so interpolation must preserve its orientation. When there are not enough
+    detected wires for a map, use the repository's established unit-neck
+    convention: canonical x=0 is the nut and x=1 is fret 12, with rule-of-18
+    spacing between them. This replaces the incorrect ``x * cfg.max_fret``
+    conversion that treated the body joint as fret 24.
+    """
+    xs = np.asarray(canonical_x, dtype=np.float64)
+    if fret_centers is not None:
+        centers = np.asarray(fret_centers, dtype=np.float64)
+        valid = (
+            centers.shape == (cfg.max_fret + 1,)
+            and np.all(np.isfinite(centers))
+            and (np.all(np.diff(centers) > 0.0) or np.all(np.diff(centers) < 0.0))
+        )
+        if valid:
+            frets = np.arange(cfg.max_fret + 1, dtype=np.float64)
+            if centers[0] > centers[-1]:
+                centers = centers[::-1]
+                frets = frets[::-1]
+            return np.interp(xs, centers, frets), "calibrated_fret_map"
+
+    clipped = np.clip(xs, 0.0, 1.0)
+    body_fraction = 1.0 - RULE_OF_18_RATIO**FALLBACK_BODY_JOINT_FRET
+    positions = np.log1p(-clipped * body_fraction) / math.log(RULE_OF_18_RATIO)
+    return positions, "rule18_fret12_fallback"
+
+
+def compute_position_anchor(
+    hand: HandSample | None,
+    homography: Homography,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+) -> HandNeckAnchor:
+    """Project a coarse hand centroid through the calibrated fret coordinate."""
+    if hand is None or homography.confidence <= 0.0:
+        return _empty_anchor()
+
+    points = [hand.wrist_xy]
+    points.extend(
+        hand.fingers[name].tip_xy for name in FRETTING_FINGERS if name in hand.fingers
+    )
+    if not points:
+        return _empty_anchor()
+    try:
+        canonical_x = project_to_canonical(
+            homography, np.asarray(points, dtype=np.float64)
+        )[:, 0]
+    except np.linalg.LinAlgError:
+        return _empty_anchor()
+
+    fret_positions, method = _fret_positions_from_canonical_x(
+        canonical_x, cfg, fret_centers
+    )
+    fret_positions = np.clip(fret_positions, 0.0, float(cfg.max_fret))
+    raw_min = float(fret_positions.min())
+    raw_max = float(fret_positions.max())
+    center = float(np.median(fret_positions))
+    spread = max(0.0, raw_max - raw_min)
+    span_penalty = min(0.5, spread / max(float(cfg.max_fret), 1.0))
+    confidence = min(
+        1.0,
+        float(hand.confidence) * float(homography.confidence) * (1.0 - span_penalty),
+    )
+    return HandNeckAnchor(
+        center_fret=center,
+        min_fret=max(0.0, raw_min - 1.0),
+        max_fret=min(float(cfg.max_fret), raw_max + 1.0),
+        confidence=max(0.0, confidence),
+        method=f"mediapipe_{method}",
+    )
+
+
 class DetectionChain:
     """Stateful 2 Hz board detector plus per-frame hand/anchor inference."""
 
@@ -249,7 +350,12 @@ class DetectionChain:
         hand_ms = (time.perf_counter() - hand_started) * 1000.0
 
         anchor_started = time.perf_counter()
-        anchor = compute_neck_anchor(hand, self._homography, self.guitar_config)
+        anchor = compute_position_anchor(
+            hand,
+            self._homography,
+            self.guitar_config,
+            self._fret_centers,
+        )
         anchor_ms = (time.perf_counter() - anchor_started) * 1000.0
 
         latency = StageLatency(
@@ -312,10 +418,12 @@ def process_frame(
 
 __all__ = [
     "DetectionChain",
+    "FALLBACK_BODY_JOINT_FRET",
     "FrameDetection",
     "FretTick",
     "HandPoint",
     "MediaPipeHandExtractor",
     "StageLatency",
+    "compute_position_anchor",
     "process_frame",
 ]

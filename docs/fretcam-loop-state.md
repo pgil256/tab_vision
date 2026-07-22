@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f7-gaps-anchor-probe
+current_branch: fretcam/f2b-geometry-fix
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -10,17 +10,20 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 |----|------|--------|-------------|-------------|----------|
 | F1 | scaffold (`fretcam/` FastAPI+WS+page) | passed | WS test 1/1; 517 B ×100: median 0.536 ms, p95 0.903 ms | — | — |
 | F2 | detection chain (OBB→homography→hand→anchor) | closed-negative | 2/3 clips; `027_Zpswc` 0/56 plausible anchors; detector/hand median 123.733/51.324 ms | preserve evidence; do not tune past gate | gate required ≥3 clips |
-| F3 | position estimator (smoothing/hysteresis) | blocked | — | — | F2 closed-negative |
+| F2b | calibrated fret-axis geometry fix + original F2 rerun | passed | 3/3 clips; centers 12.000/2.756/9.381; total median 122.504 ms | — | — |
+| F3 | position estimator (smoothing/hysteresis) | open | — | implement estimator against corrected anchors | — |
 | F4 | HUD + guidance + latency | blocked | ≥10 FPS, ≤150 ms | — | F3 |
 | L1 | live test 1 (Pat: A1+A4) | blocked | — | — | F4 |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
-| F7 | GAPS anchor probe (cache-only, fill-in) | closed-negative | P(gold fret in window \| audio wrong)=387/1566=0.247 (95% CI 0.226–0.269); audio prior 0.782 | preserve banked report; do not tune | — |
-| F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 pass; build paused at F2 |
+| F7 | GAPS anchor probe (cache-only, fill-in) | open (rerun required) | old x×24 result banked: 0.247; superseded by F2b geometry correction | rerun with calibrated/fret-12 mapping | — |
+| F8 | M4 bridge verdict | blocked | target > 38.76% @60 s (assisted) | — | L2 pass + corrected F7 |
 
-**Build path remains paused at F2 closed-negative.** F7 is now banked as an
-independent GAPS-only negative; no queue item is open and unblocked.
+**Build path resumed through the explicitly approved F2b correction.** The
+original F2 negative remains banked; F2b passes its unchanged 3/3 gate. F3 is
+the next build item. F7 must later be rerun because it used the corrected bug's
+old `canonical_x × 24` conversion.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -31,13 +34,17 @@ independent GAPS-only negative; no queue item is open and unblocked.
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- With F2 and F7 both closed-negative, should the loop retire FretCam or should
-  a separately designed controlled-live experiment be added to the queue?
+- None.
 
 ## Live-test log (newest first)
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F2b passed — root cause was the adapter ignoring the calibrated
+  fret map and mapping the unit-neck body joint to fret 24. Orientation-aware
+  fret-map interpolation plus the existing rule-of-18 fret-12 fallback changed
+  original-gate centers to 12.000/2.756/9.381 and passed 3/3 without changing
+  clips or thresholds. Twelve tests passed; total warm-path median 122.504 ms.
 - 2026-07-22 — F7 closed-negative — on 1,566 audio-wrong ambiguous notes with
   cached anchors, the gold fret fell in the fixed FretCam window 387 times
   (0.247; Wilson 95% CI 0.226–0.269), below A14's 0.285 comparator and the

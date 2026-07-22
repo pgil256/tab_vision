@@ -2851,3 +2851,31 @@ can lock, but F2's explicit cross-clip gate did not pass. Continuing to F3
 would convert a failed coarse anchor into a polished unstable label, precisely
 what the bounded-negative rule forbids. F7 remains an independent cache-only
 probe, pending user direction; it cannot retroactively promote F2.
+
+---
+
+## 2026-07-22 - FretCam F2b calibrated fret-axis fix passes the unchanged F2 gate
+
+**Phase:** FretCam side quest, explicitly approved F2b geometry correction
+**Decision tree:** Diagnose `027_Zpswc`'s fret-24 boundary clipping, make the
+smallest FretCam-only geometry correction, then rerun the original F2 clips and
+gate without substitutions or relaxed thresholds.
+**Branch taken:** PASS F2b and reopen F3. Preserve the original F2 2/3 negative
+as historical evidence; the new mechanism passes 3/3. F7's old 0.247 result is
+also preserved but marked superseded because it used the same incorrect
+`canonical_x * 24` conversion and must be rerun before F8.
+**Evidence:** The adapter ignored `calibrate_board`'s nonlinear fret centers and
+fed a default `max_fret=24` into a uniform canonical-x conversion. Direct
+diagnostics showed `027` fingertip x=1.04-1.09 clipping to fret 24 and a
+descending detected map on `031` being read backward/high. FretCam now
+interpolates either map direction; with no fitted map it uses the repository's
+existing rule-of-18 unit-neck convention (`x=1` is fret 12). The unchanged
+replay passed `027/031/043` with centers **12.000 / 2.756 / 9.381**, retained
+next-frame tracking lock, and measured 122.504 ms median total warm latency.
+Twelve tests plus Ruff passed. Report:
+`docs/EVAL_REPORTS/fretcam_f2b_geometry_fix_2026-07-22.md`.
+**Reasoning:** This is a coordinate-system defect, not threshold tuning: the
+detector already produced the calibrated axis, and FretCam discarded it. The
+fallback is an existing physical/project convention independently documented
+before this gate. Passing the plausibility gate resumes implementation, but it
+does not establish position accuracy; live A2 remains mandatory.

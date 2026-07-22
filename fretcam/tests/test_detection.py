@@ -4,7 +4,12 @@ import unittest
 
 import numpy as np
 
-from fretcam.detection import DetectionChain, _fret_wire_xs, process_frame
+from fretcam.detection import (
+    DetectionChain,
+    _fret_wire_xs,
+    compute_position_anchor,
+    process_frame,
+)
 from tabvision.types import GuitarConfig, Homography
 from tabvision.video.fretboard.calibrate import RULE_OF_18_RATIO
 from tabvision.video.guitar.yolo_backend import OBBPredictions
@@ -91,7 +96,8 @@ class DetectionChainTest(unittest.TestCase):
         self.assertEqual(len(first.neck_quad), 4)
         self.assertEqual(len(first.hand_points), 5)
         self.assertEqual(len(first.fret_ticks), 26)
-        self.assertAlmostEqual(first.anchor.center_fret, 9.6)
+        self.assertAlmostEqual(first.anchor.center_fret, 5.869500639052957)
+        self.assertEqual(first.anchor.method, "mediapipe_calibrated_fret_map")
 
     def test_missing_hand_returns_zero_confidence_anchor(self) -> None:
         chain = DetectionChain(
@@ -145,6 +151,53 @@ class FretWireProjectionTest(unittest.TestCase):
         )
 
         np.testing.assert_allclose(wires, expected, atol=1e-10)
+
+
+class PositionAnchorGeometryTest(unittest.TestCase):
+    def test_descending_fret_map_preserves_fret_identity(self) -> None:
+        hand = HandSample(
+            wrist_xy=(50.0, 25.0),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={
+                name: FingerSample(name, (50.0, 25.0), 0.0, 0.8)
+                for name in ("index", "middle", "ring", "pinky")
+            },
+        )
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+        centers = np.linspace(0.9, 0.1, 25)
+
+        anchor = compute_position_anchor(hand, homography, GuitarConfig(), centers)
+
+        self.assertAlmostEqual(anchor.center_fret, 12.0)
+        self.assertEqual(anchor.method, "mediapipe_calibrated_fret_map")
+
+    def test_fallback_maps_body_joint_to_fret_twelve_not_twenty_four(self) -> None:
+        hand = HandSample(
+            wrist_xy=(105.0, 25.0),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={
+                name: FingerSample(name, (105.0, 25.0), 0.0, 0.8)
+                for name in ("index", "middle", "ring", "pinky")
+            },
+        )
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+
+        anchor = compute_position_anchor(hand, homography, GuitarConfig(), None)
+
+        self.assertAlmostEqual(anchor.center_fret, 12.0)
+        self.assertEqual(anchor.method, "mediapipe_rule18_fret12_fallback")
 
 
 if __name__ == "__main__":
