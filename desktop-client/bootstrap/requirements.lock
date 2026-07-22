@@ -4,9 +4,11 @@
 #
 #    pip-compile --resolver=backtracking --strip-extras --extra audio-highres --extra vision --extra render tabvision/pyproject.toml
 #
-# TabVision is added after compilation because the matching desktop-sidecar
-# commit is local until its branch is pushed. Keep the full SHA: changing this
-# pin is a desktop-shell rebuild trigger.
+# Install this complete, exact-pinned closure with --no-deps. The two upstream
+# source distributions retain VCS dependency URLs in their package metadata;
+# resolving those transitive declarations would reintroduce a Git requirement.
+# Their runtime dependencies are enumerated below. Changing any direct URL or
+# hash remains a desktop-shell rebuild trigger.
 absl-py==2.5.0
     # via mediapipe
 annotated-doc==0.0.4
@@ -66,7 +68,7 @@ fsspec==2026.6.0
     #   torch
 h11==0.16.0
     # via httpcore
-hf-midi-transcription @ git+https://github.com/xavriley/hf_midi_transcription.git@96f6797881e9497cbfc8f8e5deccea9c1f2f7adc
+hf-midi-transcription @ https://codeload.github.com/xavriley/hf_midi_transcription/tar.gz/96f6797881e9497cbfc8f8e5deccea9c1f2f7adc#sha256=aecb418507f90da1dc3759358cae026668c124786a5569ccb4b58040111fda89
     # via tabvision (tabvision/pyproject.toml)
 hf-xet==1.5.2
     # via huggingface-hub
@@ -187,7 +189,7 @@ packaging==26.2
     #   pooch
 pi-heif==1.4.0
     # via roboflow
-piano-transcription-inference @ git+https://github.com/xavriley/piano_transcription_inference.git@7568dc7f78b625e40cf9776e2806d164006610e3
+piano-transcription-inference @ https://codeload.github.com/xavriley/piano_transcription_inference/tar.gz/7568dc7f78b625e40cf9776e2806d164006610e3#sha256=f6ac16e27d0d9c59c16e22d49446fb2f017a165aca66e99307d0ab670aef1aaf
     # via hf-midi-transcription
 pillow==12.3.0
     # via
@@ -271,8 +273,8 @@ soxr==1.1.0
     # via librosa
 sympy==1.14.0
     # via torch
-tabvision[audio-highres,render,vision] @ git+https://github.com/pgil256/tab_vision.git@a26d61cfd3d1f2e389e4682ec990a844e306b633#subdirectory=tabvision
-    # desktop sidecar source; exact commit contains --json and --progress
+tabvision @ https://github.com/pgil256/tab_vision/releases/download/desktop-shell-assets-v0/tabvision-1.0.0-py3-none-any.whl#sha256=fe250480e4b530d5cd93b7a45e06a1aef1de1eb653c4019c39fa4727d9f46918
+    # desktop sidecar wheel built from fixed commit b2368c114bad9472f1ebcd782a805620d6215fd9
 threadpoolctl==3.6.0
     # via scikit-learn
 torch==2.13.0

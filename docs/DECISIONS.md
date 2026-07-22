@@ -3111,3 +3111,29 @@ warnings/errors and all 31 tests passed.
 rebuild without putting 64 MB of generated installer output in Git. Keeping
 environment creation out of this item also preserves the loop's one-increment
 boundary; the next item owns installation of the locked Python environment.
+
+---
+
+## 2026-07-22 - D1.5 dependency lock is Git-free and closure-installed
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Resolve the explicitly approved pipeline pin drift without
+adding Git to the clean Windows installer or adapting the shell to stale code.
+**Branch taken:** Publish a `tabvision` 1.0.0 wheel built from fixed commit
+`b2368c1`; replace the two external VCS requirements with upstream codeload
+archives pinned by full commit and SHA-256. Install the complete pip-compiled
+closure with `--no-deps` because the immutable upstream package metadata still
+contains Git dependency URLs; all runtime dependencies remain explicit pins.
+**Evidence:** GitHub and a fresh release download agree on the 627,782-byte
+wheel SHA-256 `fe250480e4b530d5cd93b7a45e06a1aef1de1eb653c4019c39fa4727d9f46918`.
+The high-resolution archives independently built at SHA-256
+`aecb418507f90da1dc3759358cae026668c124786a5569ccb4b58040111fda89` and
+`f6ac16e27d0d9c59c16e22d49446fb2f017a165aca66e99307d0ab670aef1aaf`.
+A normal resolver probe attempted a Git clone and rejected the duplicate piano
+source; with Git absent from `PATH`, `pip --no-deps` installed the release wheel
+and both archives successfully. The clean desktop build had 0 warnings/errors
+and all 31 tests passed.
+**Reasoning:** Hash-pinned archives preserve upstream source provenance while
+`--no-deps` makes the compiled lock, rather than stale transitive URLs, the sole
+dependency authority. This keeps first run reproducible and removes the need to
+ship a general-purpose Git client.

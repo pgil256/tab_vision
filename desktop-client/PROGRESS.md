@@ -15,8 +15,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
   preflight, pipeline stages, render, and completion at 0-100%; default stays silent.
 - [x] Create `bootstrap/requirements.lock` with the pipeline commit and the
   planned audio-highres, vision, and render extras pinned. Result: CPython 3.11
-  lock has 93 exact registry pins plus 3 full-SHA VCS pins, including TabVision
-  `a26d61c` with both sidecar flags.
+  lock has 93 exact registry pins, two hash-verified upstream commit archives,
+  and the published fixed-commit TabVision wheel; no Git client is required.
 - [x] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
   app-local destination for every external model/prior artifact in the plan.
   Result: 9 public/bundled assets are revision-pinned and hash-verified; the
@@ -93,12 +93,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `363c38dce94687f4e2a1a635dc0ad9ea60efab80e11fd5fa77182e42e527c4d9`);
   a silent-install audit verified the self-contained runtime and all payloads.
 - [ ] Create the app-local Python environment and install the locked pipeline
-  dependencies with visible, resumable progress. BLOCKED 2026-07-22: the lock
-  installs TabVision `a26d61c`, which has `--json`/`--progress` but lacks the
-  required stdout-reservation fix in `b2368c1`; the fixed commit is not present
-  on any remote ref. The lock also has three `git+https` sources, which would
-  require Git on the clean Windows target. Per the rebuild-trigger rule, do not
-  silently repin or add/bundle Git.
+  dependencies with visible, resumable progress. UNBLOCKED 2026-07-22 after
+  explicit approval: fixed commit `b2368c1` is a hash-pinned release wheel and
+  both external VCS pins are hash-pinned upstream commit archives. Because the
+  upstream metadata still declares Git URLs, install the complete lock closure
+  with `--no-deps`; environment creation and progress UI remain to be built.
 - [ ] Download every manifest artifact with resume support, verify SHA-256,
   and keep `HF_HOME` inside the app data directory.
 - [ ] Run the bundled 5 s fixture smoke transcription and compare its output
@@ -239,3 +238,14 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Preferred resolution: publish immutable wheels/source archives for the three
   VCS pins (including the fixed TabVision commit), record their hashes, and
   repin the lock without adding Git to the installer.
+- 2026-07-22: After explicit user approval, published the 627,782-byte
+  `tabvision-1.0.0-py3-none-any.whl` built from fixed commit `b2368c1` to the
+  existing desktop asset prerelease; GitHub and a fresh download both matched
+  SHA-256 `fe250480...46918`. Replaced both external VCS requirements with
+  full-commit codeload archives pinned to SHA-256 `aecb4185...fda89` and
+  `f6ac16e2...f1aaf`; each archive built successfully. A resolver probe proved
+  upstream metadata otherwise reclones Git and conflicts with the archive pin,
+  so the complete exact-pinned lock is explicitly installed with `--no-deps`.
+  An isolated install with Git absent from `PATH` succeeded for all three direct
+  artifacts. Clean desktop build: 0 warnings/errors; all 31 tests passed.
+  Environment/bootstrap UI work remains in the unchecked item.
