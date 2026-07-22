@@ -2819,3 +2819,57 @@ runtime change in this phase.
 nearly four times the continue gate, and the rescue mass sits exactly where
 the accuracy program's residual errors concentrate (dense comp voicings),
 so the expensive full evaluation is now justified.
+
+---
+
+## 2026-07-21 — Program N2: MuScriptor merge CLOSED — bounded negative
+
+**Phase:** Accuracy-loop item Q1 (ROI deep-dive §3.1), NC second-opinion
+program N-branch — the merge phase that the 2026-07-21 entry gate unlocked
+**Decision tree:** merge-variant filter → full dev eval → player-05.
+Continue only if a variant is non-negative under the shipped decode.
+**Branch taken:** **CLOSE — no admissible merge variant exists.** On 20
+GuitarSet dev clips (10 comp = the entry probe's exact slice, 10 new solo),
+replayed offline through the shipped clean-acoustic decode with a
+leave-one-player-out position prior, all six predeclared variants lose:
+`union` **-0.0541 Tab F1 [-0.0989, -0.0160]** (CI-significant negative);
+best-case `cluster`/`cluster-dur60` **-0.0167 [-0.0480, +0.0090]** with a
+**CI-significant onset F1 regression -0.0195 [-0.0325, -0.0079]** — the
+metric the merge existed to improve. The ordering is monotone in notes
+admitted; the best merge is the empty one. The full 300-clip dev run
+(~6-8 CPU-h) was deliberately **not** spent.
+**Root cause (the number the entry gate cannot see):** complementarity
+counts rescues and charges nothing for false additions. Measured
+**added-note precision is 0.104-0.181** (union → cluster) against a stream
+that decodes at **0.6855 Tab precision**; each correct tab event gained
+costs ≈ 7 (cluster) to ≈ 18 (union) new false detections. `cluster` does not
+even move its predicted bucket (missed_onset 196 → 198) while
+extra_detection goes 102 → 227.
+**Solo coverage (the entry probe's open caveat):** comp reproduces exactly
+at 0.3818 (63/165) via an independent code path; **solo is 0.1481** (12/81),
+2.6× weaker and barely over the 0.10 gate. Pooled 0.3049 (75/246). The
+headline was a comp-mode artifact.
+**No confidence-floor variant is possible:** MuScriptor MIDI carries constant
+velocity 100 and its supported API yields note events with no score field; it
+is an autoregressive token decoder, so per-note confidence would require
+patching a third-party generation loop for uncalibrated token log-probs.
+The §3.1 design prescription "cluster-scoped adds **plus** a per-note
+confidence floor" was therefore only half-implementable, and the half that
+existed fails.
+**Carry-forward (binding on Q4's Basic Pitch / YourMT3+ probes):** the ≥0.10
+complementarity gate is **necessary but not sufficient** — N2 passed it by
+3.8× and still yielded nothing. Second-opinion candidates now gate on both
+legs: (1) P(right | ensemble wrong) ≥ 0.10 and (2) **added-note precision
+≥ 0.5** under the candidate's best admission rule. Leg 2 is free once events
+are banked.
+**Evidence:** `docs/EVAL_REPORTS/n2_muscriptor_merge_pilot_2026-07-21.md`
+(+ `.json`); `tabvision/scripts/eval/n2_muscriptor_merge.py`;
+`tabvision/tests/unit/test_n2_muscriptor_merge.py` (11 tests).
+LICENSES.md MuScriptor row updated to acquired/offline-only; no artifact
+registered, no routing or `auto` change, SPEC untouched.
+**Reasoning:** the mechanism is structural rather than statistical — it holds
+across both playing modes, all six admission rules, and both Tab and onset
+F1 — so more clips would sharpen a number whose sign is not in doubt. House
+rule "banked negatives are wins; do not iterate past a failed gate" applies.
+The banked replay artifacts (20 clips of ensemble events + MuScriptor MIDI)
+stay on disk, so any future admission rule can be tested at zero compute.

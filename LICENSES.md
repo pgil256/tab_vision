@@ -119,7 +119,7 @@ Recorded at N0/S0 (DECISIONS.md same date; plan
 | SynthTab symbolic annotations (`all_jams_midi_V2_60000_tracks.zip`) | Program S training substrate (S1 priors + reranker pretraining) | **CC-BY-NC-4.0** | ✅ NC accepted (personal posture) | DadaGP-derived JAMS + per-string MIDI, 60k tracks; official UR Box share, downloaded 2026-07-20; SHA-256 in the S0 audit report. Any derived artifact (e.g. `synthtab-v1`) inherits NC and must be labeled here before registration. Media/annotations never committed. |
 | SynthTab Dev set (`SynthTab_Dev.zip`) | S2 bring-up audio slice | CC-BY-NC-4.0 | ✅ NC accepted | Same share and terms. |
 | `guitar_kroma.safetensors` | Program N candidate — CLOSED | MIT | ➖ closed 2026-07-20 | Near-duplicate of `guitar-gaps.pth` (N1 report); local converted copy only, never registered. |
-| MuScriptor-large weights | Program N second-line candidate | CC-BY-NC-4.0 | ⏸ not acquired | On hold pending S1 results (user, 2026-07-20). |
+| MuScriptor weights (`large` + `medium`, HF gated per size) | Program N second-opinion candidate | **CC-BY-NC-4.0** | ✅ NC accepted (personal posture), acquired 2026-07-21 | Licenses accepted per size on HF account `pgil256`. `medium` is the size actually run (`large` fp32 load exceeds this machine's commit limit). Used offline only: cached MIDI + merge-variant replay (`n2_muscriptor_probe_2026-07-21.md`, `n2_muscriptor_merge_pilot_2026-07-21.md`); runtime ~3-4× real time keeps it out of `auto`. No derived artifact registered — any future merged backend inherits NC and must be labeled here before registration. Weights/MIDI never committed. |
 
 DadaGP itself (request-gated, research terms) is **not** acquired; SynthTab's
 CC-BY-NC redistribution of the derived annotations is the licensing basis for
