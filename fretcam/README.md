@@ -32,6 +32,7 @@ one.
 .venv\Scripts\python -m unittest discover -s tests -v
 .venv\Scripts\python -m fretcam.benchmark --rounds 100
 .venv\Scripts\python -m fretcam.replay_gaps
+.venv\Scripts\python -m fretcam.replay_position
 ```
 
 The benchmark starts a temporary loopback server and round-trips an in-memory
@@ -40,3 +41,8 @@ synthetic JPEG. It does not access a camera or write image data to disk.
 The GAPS replay samples three public cached MP4s at 640 px, runs the F2 chain,
 and prints a JSON gate report with neck/anchor outcomes and per-stage latency.
 It reads from `~/.tabvision/cache/gaps_video/` and writes nothing.
+
+The position replay samples six seconds of public `031_vpswc`, runs F2b + F3,
+and writes a machine-local diagnostic MP4 and still under
+`~/.tabvision/cache/fretcam_artifacts/`. These reproducible artifacts are not
+committed and are not position-accuracy evidence.

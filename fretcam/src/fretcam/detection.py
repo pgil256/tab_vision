@@ -97,6 +97,7 @@ class FrameDetection:
     neck_quad: tuple[Point, ...]
     fret_ticks: tuple[FretTick, ...]
     hand_points: tuple[HandPoint, ...]
+    index_fret: float | None
     anchor: HandNeckAnchor
     stage_latency: StageLatency
 
@@ -272,6 +273,34 @@ def compute_position_anchor(
     )
 
 
+def compute_index_fret(
+    hand: HandSample | None,
+    homography: Homography,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+    *,
+    fallback: float | None = None,
+) -> float | None:
+    """Project the index fingertip to fret space, falling back to a centroid."""
+    if hand is None or homography.confidence <= 0.0:
+        return None
+    index = hand.fingers.get("index")
+    if index is None:
+        return fallback
+    try:
+        canonical_x = project_to_canonical(
+            homography, np.asarray([index.tip_xy], dtype=np.float64)
+        )[:, 0]
+    except np.linalg.LinAlgError:
+        return fallback
+    positions, _method = _fret_positions_from_canonical_x(
+        canonical_x, cfg, fret_centers
+    )
+    if not np.all(np.isfinite(positions)):
+        return fallback
+    return float(np.clip(positions[0], 0.0, float(cfg.max_fret)))
+
+
 class DetectionChain:
     """Stateful 2 Hz board detector plus per-frame hand/anchor inference."""
 
@@ -356,6 +385,13 @@ class DetectionChain:
             self.guitar_config,
             self._fret_centers,
         )
+        index_fret = compute_index_fret(
+            hand,
+            self._homography,
+            self.guitar_config,
+            self._fret_centers,
+            fallback=anchor.center_fret if anchor.confidence > 0.0 else None,
+        )
         anchor_ms = (time.perf_counter() - anchor_started) * 1000.0
 
         latency = StageLatency(
@@ -378,6 +414,7 @@ class DetectionChain:
                 _fret_ticks(self._homography, self._fret_centers) if locked else ()
             ),
             hand_points=_hand_points(hand),
+            index_fret=index_fret,
             anchor=anchor,
             stage_latency=latency,
         )
@@ -424,6 +461,7 @@ __all__ = [
     "HandPoint",
     "MediaPipeHandExtractor",
     "StageLatency",
+    "compute_index_fret",
     "compute_position_anchor",
     "process_frame",
 ]

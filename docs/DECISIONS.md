@@ -2879,3 +2879,29 @@ detector already produced the calibrated axis, and FretCam discarded it. The
 fallback is an existing physical/project convention independently documented
 before this gate. Passing the plausibility gate resumes implementation, but it
 does not establish position accuracy; live A2 remains mandatory.
+
+---
+
+## 2026-07-22 - FretCam F3 temporal position estimator passes
+
+**Phase:** FretCam side quest, F3 position estimator
+**Decision tree:** Convert F2b's index-fret signal into a Roman position and
+open-safe fret window; apply EMA, about-five-frame hysteresis, shift/dropout
+states, and temporal confidence; verify on synthetic trajectories and a public
+GAPS overlay before starting the browser HUD.
+**Branch taken:** PASS F3 and open F4. Use five consecutive frames for both
+initial acquisition and position changes, a ten-frame agreement window, and a
+five-frame dropout hold. During acquisition/shift/loss, expose no fretted
+window (only fret 0) so stale position evidence cannot escape.
+**Evidence:** Nineteen tests passed across lock, I-to-IX shift, boundary jitter,
+dropout/loss/reacquisition, EMA, Roman labels, windows, and timestamps. A
+60-frame public `031_vpswc` replay locked Position I after 0.4 s, spent 52
+frames locked and four holding short dropouts, and added 0.0402 ms median
+estimator latency (0.0567 ms p95). The diagnostic still visually aligned its
+index marker with the fretting index finger. Report:
+`docs/EVAL_REPORTS/fretcam_f3_position_estimator_2026-07-22.md`.
+**Reasoning:** Consecutive-frame hysteresis prevents transient intermediate
+labels while a small boundary slack prevents floor-boundary jitter from
+triggering `Shifting...`. The public replay establishes temporal/geometry
+sanity only; GAPS has no visual position truth, so live A2 remains the accuracy
+gate and F4/L1 cannot claim it early.

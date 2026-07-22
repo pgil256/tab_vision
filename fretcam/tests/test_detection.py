@@ -98,6 +98,8 @@ class DetectionChainTest(unittest.TestCase):
         self.assertEqual(len(first.fret_ticks), 26)
         self.assertAlmostEqual(first.anchor.center_fret, 5.869500639052957)
         self.assertEqual(first.anchor.method, "mediapipe_calibrated_fret_map")
+        self.assertIsNotNone(first.index_fret)
+        self.assertAlmostEqual(first.index_fret or 0.0, 4.932, places=3)
 
     def test_missing_hand_returns_zero_confidence_anchor(self) -> None:
         chain = DetectionChain(
@@ -111,6 +113,7 @@ class DetectionChainTest(unittest.TestCase):
 
         self.assertTrue(result.neck_locked)
         self.assertEqual(result.anchor.confidence, 0.0)
+        self.assertIsNone(result.index_fret)
         self.assertEqual(result.hand_points, ())
 
     def test_reset_forces_reacquisition(self) -> None:
