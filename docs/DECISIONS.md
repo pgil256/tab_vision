@@ -2976,3 +2976,55 @@ positive with a control that isolates context as its cause — so whether to
 spend the fine-tune or bank the negative and move to Q4/Q5 is a
 user-authority call, not one to make silently inside the loop. Q2 is
 therefore **paused pending that call**, not closed.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2 CLOSED: full recipe ends at +0.0467 vs a +0.05 bar
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2), recipe stage 2
+**Decision tree:** stage-1 near-miss (+0.0302) left one predeclared,
+unexecuted step — fine-tune on GuitarSet players 00-04 symbolic, priced at
++4.0 pp by MIDI-to-Tab. User instructed running it before banking.
+**Branch taken:** **CLOSE — banked negative.** Under leave-one-player-out
+fine-tuning (each dev player scored only by the fold that never saw it, per
+`_oof_position_prior`), ambiguous top-1 reaches **0.7015, Δ +0.0467
+[+0.0291, +0.0640]** against the **0.7048** gate — short by **0.0033** on the
+point estimate and far short on the lower bound. The fine-tune contributed
+**+0.0165**, under half the published +4.0 pp for the same step. Two
+deductions push the true value lower still: **λ was selected on the reported
+slice** (best of nine values on the same dev-OOF lattice), and no correction
+was applied for that.
+**The finding worth keeping — context helps chords, not single lines:**
+comp **0.6896 → 0.7557 (+0.0661)** but solo **0.5908 → 0.6020 (+0.0112)**, a
+6× asymmetry. Wrong-position is 57.3% of all Tab F1 loss but **77.5% of
+single-line loss**, so the tier that most needs contextual disambiguation
+received almost none of it. The mechanism is legible: a chord voicing
+constrains its own members, which a model trained on millions of voicings
+learns; a single line has no simultaneous constraint and needs hand-position
+continuity across time — which `guitarset-seq-v1` already models, so the
+contextual model largely re-derives evidence the decoder has.
+**Full-program result:** the complete §3.2 recipe was executed — 34.06M-note
+symbolic pretrain, then in-domain fine-tune under proper OOF — and the
+counts control sat at exactly 0.0000 throughout, so context is demonstrably
+real evidence that simply does not concentrate where the loss is. Gold is in
+the lattice for 99.72% of ambiguous notes, so the ceiling was never the
+constraint.
+**Re-opening guidance:** target **single-line** disambiguation specifically
+rather than a general contextual model, and budget a λ-selection protocol
+that does not touch the reported slice. Masked-string conditioning on
+neighbouring strings and autoregressive decoding remain untried, but they are
+a different model, not a tweak — a new probe with its own entry gate.
+**Evidence:** `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md` (stage 2
+section) + `s1b_finetune_2026-07-22.json`,
+`s1b_rescore_context_oof_2026-07-22.json`;
+`tabvision/scripts/eval/s1b_finetune_guitarset.py`,
+`s1b_rescore_lattice.py` (`--scorer context-oof`).
+Nothing registered, `auto` untouched, SPEC and §8 unchanged, player-05 never
+read. NC fold checkpoints labeled in LICENSES.md.
+**Reasoning:** the gate was predeclared at +0.05 and is missed on both the
+point estimate and the lower bound, with a known optimistic bias in the
+selection of λ. The remaining levers are either already measured as small
+(per-tier λ — both tiers peak at λ=4) or constitute a different model. House
+rule "banked negatives are wins; do not iterate past a failed gate" applies,
+and the tier asymmetry makes the negative genuinely informative for whatever
+attacks single-line assignment next.

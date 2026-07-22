@@ -119,6 +119,35 @@ class MarginalScorer:
         return rows
 
 
+class OutOfFoldContextScorer:
+    """Routes each track to the fine-tune fold that never saw its player.
+
+    Stage 2 fine-tunes on GuitarSet players 00-04 — the same players the
+    lattice is drawn from — so scoring a track with a model that trained on
+    its player would be measuring memorization. This picks the fold keyed by
+    the track's own player, which is exactly the one held out.
+    """
+
+    name = "context-oof"
+
+    def __init__(self, checkpoint_dir: Path) -> None:
+        from scripts.eval.s1b_train_context import load_context_scorer
+
+        self.folds = {}
+        for path in sorted(Path(checkpoint_dir).glob("context_v2_oof_*.pt")):
+            player = path.stem.rsplit("_", 1)[1]
+            self.folds[player] = load_context_scorer(path)
+        if not self.folds:
+            raise SystemExit(f"no context_v2_oof_*.pt checkpoints under {checkpoint_dir}")
+
+    def log_probs(self, track: Track) -> np.ndarray:
+        player = track.track_id[:2]
+        fold = self.folds.get(player)
+        if fold is None:
+            raise SystemExit(f"no held-out fold for player {player!r} (track {track.track_id})")
+        return fold.log_probs(track)
+
+
 def load_lattice(
     csv_path: Path,
     *,
@@ -292,7 +321,11 @@ def bootstrap_delta(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lattice", type=Path, default=None)
-    parser.add_argument("--scorer", choices=("decoder", "marginal", "context"), default="decoder")
+    parser.add_argument(
+        "--scorer",
+        choices=("decoder", "marginal", "context", "context-oof"),
+        default="decoder",
+    )
     parser.add_argument("--corpus", type=Path, default=None)
     parser.add_argument("--checkpoint", type=Path, default=None)
     parser.add_argument("--split", choices=(DEV_SPLIT, HELD_OUT_SPLIT), default=DEV_SPLIT)
@@ -318,12 +351,15 @@ def main() -> int:
         scorer = UniformScorer()
     elif args.scorer == "marginal":
         scorer = MarginalScorer(corpus)
-    else:
+    elif args.scorer == "context":
         from scripts.eval.s1b_train_context import load_context_scorer
 
         if args.checkpoint is None:
             raise SystemExit("--checkpoint is required for --scorer context")
         scorer = load_context_scorer(args.checkpoint)
+    else:
+        checkpoint_dir = args.checkpoint or (data_root / "models" / "s1b_symbolic")
+        scorer = OutOfFoldContextScorer(checkpoint_dir)
 
     summary = rescore(tracks, scorer)
     summary["split"] = args.split

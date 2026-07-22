@@ -6,7 +6,11 @@ banked ambiguous lattice. Entry gate per
 `s1b_entry_substrate_2026-07-22.md` §2: ambiguous top-1 ≥ **0.7048**
 (baseline 0.6548, dev-OOF, n = 35,959).
 
-## Verdict — FAIL, with a CI-significant positive
+> **Final verdict (both stages): Q2 CLOSED — banked negative.** Stage 2 is
+> in §"Stage 2" below; it reached **0.7015 vs the 0.7048 bar**, missing by
+> 0.0033. The sections immediately below describe stage 1 (pretrain only).
+
+## Stage 1 verdict — FAIL, with a CI-significant positive
 
 | scorer | best λ | ambiguous top-1 | Δ vs decoder [lo-95, hi-95] | verdict |
 |---|---:|---:|---|---|
@@ -81,7 +85,7 @@ Note the gap between **0.7679 in-domain** (SynthTab held-out tracks) and the
 **+0.0302** it delivers on GuitarSet. The model has genuinely learned
 position grammar; most of that competence does not survive the transfer.
 
-## Why it falls short — and the one recipe step not run
+## Why stage 1 falls short — and the recipe step not yet run
 
 The deep-dive §3.2 recipe has two training stages. **Only the first was
 run.** Stage 2 — fine-tune on GuitarSet players 00–04 symbolic — is
@@ -121,3 +125,110 @@ config freeze plus an explicit user proceed.
 Checkpoint: `$TABVISION_DATA_ROOT/models/s1b_symbolic/context_v2.pt`
 (git-ignored, CC-BY-NC-4.0 inherited from SynthTab — LICENSES.md). Nothing
 registered; `auto` untouched; no SPEC or §8 change.
+
+
+---
+
+# Stage 2 — GuitarSet fine-tune (leave-one-player-out)
+
+Recipe stage 2 from §3.2, run after the stage-1 near-miss on explicit user
+instruction. **Q2 closes here.**
+
+## Protocol — leave-one-player-out is load-bearing
+
+The lattice is players 00-04, so a model fine-tuned on all of 00-04 would be
+scored on its own training data. Instead each dev player P gets its own fold
+fine-tuned on the *other four* (`context_v2_oof_<P>.pt`), and the harness
+scores P's tracks only with the fold that never saw P — the same protocol as
+`string_assignment_phase4.py::_oof_position_prior`. Player-05 is never read.
+
+Fine-tune: 8 epochs, lr 5e-5, from the stage-1 checkpoint. GuitarSet dev is
+small (121-147 windows per player), so all five folds together took 3m 16s.
+
+| held-out player | 00 | 01 | 02 | 03 | 04 | mean |
+|---|---:|---:|---:|---:|---:|---:|
+| ambiguous string accuracy | 0.7168 | 0.6754 | 0.7142 | 0.7546 | 0.7035 | **0.7129** |
+
+## Result — FAIL by 0.0033
+
+| stage | best λ | ambiguous top-1 | Δ vs decoder [lo-95, hi-95] |
+|---|---:|---:|---|
+| baseline (decoder) | — | 0.6548 | — |
+| stage 1 (pretrain only) | 4 | 0.6850 | +0.0302 [+0.0163, +0.0446] |
+| **stage 2 (+ fine-tune)** | 4 | **0.7015** | **+0.0467 [+0.0291, +0.0640]** |
+| gate | | 0.7048 | +0.05 |
+
+The fine-tune added **+0.0165** — real, but well under half the +4.0 pp
+MIDI-to-Tab reports for the same step. The point estimate lands **0.0033
+below the bar** and the lower bound (+0.0291) is far below it, so the gate
+fails on the house rule (acceptance = lo-95 ≥ target) and on the point
+estimate alike.
+
+**Two honest deductions, both pushing the true value down:**
+
+- **λ was selected on the evaluation set.** The sweep picks the best of nine
+  λ values on the same dev-OOF lattice it reports, so +0.0467 is optimistic
+  by an unmeasured amount. A nested or held-out λ selection would only lower
+  it.
+- The λ curve is flat near its peak (0.6996 at λ=2, 0.7015 at λ=4, 0.6970 at
+  λ=8), so the peak is not a knife-edge artifact — but neither is there a
+  better λ hiding between grid points.
+
+## The finding worth keeping: context helps chords, not single lines
+
+| tier | baseline | stage 2 | Δ |
+|---|---:|---:|---:|
+| comp (strummed) | 0.6896 | **0.7557** | **+0.0661** |
+| solo (single-line) | 0.5908 | 0.6020 | **+0.0112** |
+
+Comp gains **6× what solo does**. That asymmetry is the most useful thing
+this probe produced, and it is bad news for the lever:
+
+- Wrong-position is 57.3% of all Tab F1 loss but **77.5% of single-line
+  loss** (deep-dive §2). The tier that needs contextual disambiguation most
+  is the one that got almost none of it.
+- The mechanism is legible. In a chord, the voicing constrains its own
+  members — pick one note's string and the rest follow, and a model that has
+  seen millions of voicings learns that grammar. A single line has no such
+  simultaneous constraint; resolving it needs hand-position continuity across
+  *time*, which is exactly what the existing `guitarset-seq-v1` transition
+  prior already models, so the contextual model is largely re-deriving
+  evidence the decoder has.
+- This also explains the shortfall arithmetic: solo is 35% of the ambiguous
+  notes, and it contributed +0.004 of the +0.0467.
+
+## Verdict — Q2 CLOSED, banked negative
+
+The full §3.2 recipe was executed: pretrain at scale on 34M symbolic notes,
+then fine-tune on in-domain performance data under proper OOF. It ends
++0.0467 [+0.0291, +0.0640] against a +0.05 bar, with a λ chosen on the eval
+set. The gate is not met and the remaining levers are either
+already-measured-small (per-tier λ: both tiers peak at λ=4) or a different
+model rather than a tweak (masked-string conditioning on neighbouring
+strings, autoregressive decoding). Per house rule, the negative is banked
+rather than iterated past.
+
+**What a future session should know before re-opening:** the ceiling is not
+the problem — gold is in the lattice for 99.72% of ambiguous notes — and
+context is demonstrably real evidence (+0.0467 CI-significant, with the
+counts control at exactly 0.0000). What failed is that the available context
+signal concentrates in polyphony, where the decoder was already strongest.
+Any re-opening should target **single-line** disambiguation specifically
+rather than repeating a general contextual model, and should budget for a
+λ-selection protocol that does not touch the reported slice.
+
+## Reproduce
+
+```
+cd tabvision && TABVISION_DATA_ROOT=~/.tabvision/data python scripts/eval/s1b_finetune_guitarset.py   --json ../docs/EVAL_REPORTS/s1b_finetune_2026-07-22.json
+
+python scripts/eval/s1b_rescore_lattice.py --scorer context-oof   --json ../docs/EVAL_REPORTS/s1b_rescore_context_oof_2026-07-22.json
+```
+
+**Note:** the lattice CSV (`string_assignment_phase0_2026-07-15_notes.csv`,
+70 MB) is **git-ignored** — it exists only in the working tree, not in the
+repo. Pass `--lattice` explicitly when running from a git worktree.
+
+Fold checkpoints: `$TABVISION_DATA_ROOT/models/s1b_symbolic/context_v2_oof_*.pt`
+(git-ignored; NC inherited from the SynthTab-pretrained initialization —
+LICENSES.md). Nothing registered; `auto` untouched; player-05 sealed.

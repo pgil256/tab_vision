@@ -6,15 +6,15 @@ current_branch: accuracy/q2-s1b-probe
 | id | item | status | key numbers | next action | blockers |
 |----|------|--------|-------------|-------------|----------|
 | Q1 | N2 MuScriptor merge | **closed-negative** | best variant ΔTab F1 **-0.0167** [-0.0480, +0.0090]; Δonset **-0.0195** [-0.0325, -0.0079] (CI-sig regression); added-note precision **0.181** vs 0.6855 stream precision | none — closed | — |
-| Q2 | S1b-v2 offline probe | **paused — gate FAILED, user call needed** | best λ=4: top-1 **0.6850**, Δ **+0.0302** [+0.0163, +0.0446] vs target 0.7048 (CI excludes the bar) | user decides: run recipe stage 2 (GuitarSet fine-tune, +4.0pp in MIDI-to-Tab) or bank the negative | user call |
-| Q3 | S1b-v2 integration | blocked | — | — | Q2 |
+| Q2 | S1b-v2 offline probe | **closed-negative** | full recipe: top-1 **0.7015**, Δ **+0.0467** [+0.0291, +0.0640] vs target 0.7048 — short by 0.0033; comp +0.0661 vs solo +0.0112 | none — closed | — |
+| Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | open | **two-leg gate now** (see below) | Basic Pitch probe on cached eval audio | — |
 | Q5 | Onset snapping | open | — | prototype (must re-run full onset/pitch gates) | — |
 | Q6 | Inharmonicity study | open | gates 0.85 hex / 0.70 mono | hex B-estimator | — |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
-| Q8 | Review-ranker upgrade | blocked | beat 38.76% @60s | — | Q3 |
+| Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q2 is paused on a user call (see Questions). Topmost open unblocked item otherwise = Q4.**
+**Topmost open unblocked item = Q4 (second-opinion probes: Basic Pitch, then YourMT3+).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -63,7 +63,7 @@ track, then rescore the dev-OOF lattice and report ambiguous top-1 vs 0.7048
 with the solo/comp split and rank-2 flip rate. Fail → banked negative, close
 Q2. Pass → Q3, still stopping before player-05.
 
-## Q2 — iteration 3: gate FAILED at +0.0302, context proven real
+## Q2 — CLOSED 2026-07-22 (banked negative, full recipe run)
 
 Report: `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md` (+ 3 JSON).
 DECISIONS.md 2026-07-22 (second entry).
@@ -81,12 +81,32 @@ DECISIONS.md 2026-07-22 (second entry).
 - λ sweep is smooth/unimodal; model-only (0.6496) is *worse* than the decoder,
   i.e. complementary evidence, exactly the §3.2 emission shape → a tuned λ
   ports directly to Q3. Comp peaks at λ=4 (+0.0355), solo at λ=8 (+0.0287).
-- **Recipe stage 2 was not run**: fine-tune on GuitarSet players 00-04
-  symbolic, measured at +4.0 pp alone by MIDI-to-Tab. That is the open
-  question below.
+**Stage 2 (fine-tune) ran on user instruction and Q2 closes:**
 
-Harness note: `s1b_rescore_lattice.py` refuses `--split held_out_05` —
-player-05 stays sealed until config freeze + explicit proceed.
+- Leave-one-player-out fine-tune (each dev player scored only by the fold
+  that never saw it): ambiguous top-1 **0.7015**, Δ **+0.0467
+  [+0.0291, +0.0640]** vs the 0.7048 gate — **short by 0.0033** on the point
+  estimate, far short on the lower bound. Fine-tune contributed +0.0165,
+  under half the published +4.0 pp.
+- **λ was selected on the reported slice** (best of nine on the same dev-OOF
+  lattice), so +0.0467 is optimistic by an uncorrected amount.
+- **Key finding — context helps chords, not single lines:** comp
+  0.6896 → **0.7557 (+0.0661)**, solo 0.5908 → 0.6020 (**+0.0112**), a 6×
+  asymmetry. Wrong-position is 57.3% of all loss but 77.5% of *single-line*
+  loss, so the tier needing this most got almost none. A chord voicing
+  constrains its own members; a single line needs hand-position continuity
+  over time, which `guitarset-seq-v1` already models.
+- **Re-opening guidance:** target single-line disambiguation specifically,
+  not a general contextual model; budget a λ-selection protocol that does not
+  touch the reported slice. Masked-string / autoregressive variants are a
+  different model needing their own entry gate.
+- Q3 (integration) is **dropped** with Q2; Q8 depended on Q3's posteriors and
+  is now orphaned — re-scope or drop when it comes up.
+
+Harness notes: `s1b_rescore_lattice.py` refuses `--split held_out_05` —
+player-05 stays sealed until config freeze + explicit proceed. The lattice
+CSV (70 MB) is **git-ignored** and exists only in the main working tree, so
+pass `--lattice` explicitly when running from a git worktree.
 
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
@@ -126,15 +146,8 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**BLOCKING (Q2):** the pretrain-only gate failed at +0.0302 [+0.0163,
-+0.0446] against a +0.05 bar, but with a CI-significant positive and a
-control proving context (not corpus) is doing the work. The deep-dive's
-recipe has an unexecuted stage 2 — fine-tune on GuitarSet players 00-04
-symbolic — that MIDI-to-Tab prices at +4.0 pp alone, which would clear the
-bar. House rule says do not iterate past a failed gate; but this is a
-predeclared, cheap ($0, ~1h local CPU), never-run step rather than open-ended
-tuning. **Options: (a) run stage 2 and re-gate; (b) bank the negative, close
-Q2, move to Q4.** Player-05 stays sealed either way.
+None blocking. Q2 closed negative after the full recipe; Q4 is next and is
+$0 / local CPU on already-cached eval audio.
 
 Note: iterations 1-3 ran on branches `accuracy/q1-n2-merge` and
 `accuracy/q2-s1b-probe`, stacked in that order (the state file is a running
@@ -144,6 +157,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q2 — **CLOSED negative** after stage 2 (LOPO fine-tune):
+  top-1 0.7015, Δ +0.0467 [+0.0291, +0.0640] vs 0.7048 — short by 0.0033.
+  comp +0.0661 vs solo +0.0112 → context helps chords, not single lines.
+  `s1b_context_probe_2026-07-22.md` (stage 2 section).
 - 2026-07-22 — Q2 — iteration 3: **gate FAILED** at top-1 0.6850,
   Δ +0.0302 [+0.0163, +0.0446] vs target 0.7048. Marginal control negative
   at every λ → context is the active ingredient. Paused on a user call
