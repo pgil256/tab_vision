@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TabVision.Desktop", "TabVision.Desktop\TabVision.Desktop.csproj", "{BEAD3FED-DD67-4990-B995-3C240A448CA7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TabVision.Desktop.Tests", "TabVision.Desktop.Tests\TabVision.Desktop.Tests.csproj", "{82FEF490-C425-4112-BDA6-8F66B1B83DFA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BEAD3FED-DD67-4990-B995-3C240A448CA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEAD3FED-DD67-4990-B995-3C240A448CA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEAD3FED-DD67-4990-B995-3C240A448CA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEAD3FED-DD67-4990-B995-3C240A448CA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82FEF490-C425-4112-BDA6-8F66B1B83DFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82FEF490-C425-4112-BDA6-8F66B1B83DFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82FEF490-C425-4112-BDA6-8F66B1B83DFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82FEF490-C425-4112-BDA6-8F66B1B83DFA}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

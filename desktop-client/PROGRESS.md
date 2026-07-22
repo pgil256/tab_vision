@@ -21,7 +21,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   app-local destination for every external model/prior artifact in the plan.
   Result: 9 public/bundled assets are revision-pinned and hash-verified; the
   approved YOLO checkpoint ships from GitHub prerelease `desktop-shell-assets-v0`.
-- [ ] Create the .NET 8 WPF solution and test project under `desktop-client/`.
+- [x] Create the .NET 8 WPF solution and test project under `desktop-client/`.
+  Result: `net8.0-windows` app + xUnit test project build with 0 warnings/errors;
+  1 scaffold test passes. NuGet justification: Test SDK and xUnit packages are
+  test-only infrastructure required by `dotnet test`; no runtime package added.
 - [ ] Implement the per-job sidecar process runner with stdout/stderr capture.
 - [ ] Implement JSON-envelope and progress-line parsers in C#.
 - [ ] Add `desktop-client/README.md` linking the plan and stating the rebuild
@@ -79,3 +82,6 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `desktop-shell-assets-v0` hosts the 5,813,315-byte asset; a fresh download
   matched SHA-256 `c579b6af...`. All 9 manifest URLs, sizes, hashes, revisions,
   and app-local destinations validated.
+- 2026-07-22: D0.5 completed. Installed Microsoft .NET SDK 8.0.423, scaffolded
+  the WPF app and xUnit project, and linked the test project to the desktop
+  assembly. `dotnet build`: 0 warnings/errors; `dotnet test`: 1 passed.
