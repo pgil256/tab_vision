@@ -25,7 +25,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: `net8.0-windows` app + xUnit test project build with 0 warnings/errors;
   1 scaffold test passes. NuGet justification: Test SDK and xUnit packages are
   test-only infrastructure required by `dotnet test`; no runtime package added.
-- [ ] Implement the per-job sidecar process runner with stdout/stderr capture.
+- [x] Implement the per-job sidecar process runner with stdout/stderr capture.
+  Result: each call starts an isolated process with shell-free argument passing,
+  concurrently captures both streams and exit code, and kills the process tree
+  on cancellation; 2 runner tests pass.
 - [ ] Implement JSON-envelope and progress-line parsers in C#.
 - [ ] Add `desktop-client/README.md` linking the plan and stating the rebuild
   caveat and frozen-directory rule.
@@ -85,3 +88,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - 2026-07-22: D0.5 completed. Installed Microsoft .NET SDK 8.0.423, scaffolded
   the WPF app and xUnit project, and linked the test project to the desktop
   assembly. `dotnet build`: 0 warnings/errors; `dotnet test`: 1 passed.
+- 2026-07-22: D0.6 completed. Added the per-job sidecar process runner with
+  stdout/stderr and exit-code capture, optional per-job environment/working
+  directory, and cancellation cleanup. `dotnet build`: 0 warnings/errors;
+  `dotnet test`: 3 passed.
