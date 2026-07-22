@@ -17,6 +17,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4c | reject off-neck hands + clipped geometry before lock | passed | 38 tests; 5 distinct sources; 2/2 false-lock clips now emit no position | preserve evidence; L1 still pending | — |
 | F4d | wire-cell + barre contact semantics | passed | 44 tests; `031` contact I with tip-x 1.83; verified `104` II→VI preserved | preserve evidence; L1 still pending | — |
 | F4e-A | frozen public position benchmark | passed | 16 sequences/12 sources; F4d baseline precision 55/69, stable coverage 60/276, false locks 10/276 | review report; F4e-B needs separate approval | — |
+| F4f | explicit live browser fretboard + hand-position display | passed | glowing green neck border; dedicated live status cards; browser HUD live with 0 console errors; 56 tests | preserve; complete | — |
 | L1 | live test 1 (Pat: A1+A4) | accepted for now (informal) | Pat: "Im telling you its fine for now."; no formal numeric A4 claim | no further action unless Pat reopens it | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
@@ -69,6 +70,12 @@ unless Pat reopens the gate.
   was supplied, so the formal L1 status remains open.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F4f passed — the browser now gives the fretboard and hand
+  position their own persistent live readouts, and draws a thicker glowing
+  green border around the detected neck. Start/stop and acquiring/locked/held
+  states update live. Browser verification also found and fixed an empty-state
+  overlay that could remain above live video; the verified page reached HUD
+  LIVE with the overlay hidden and no console errors.
 - 2026-07-22 — F4e-A passed — froze 16 public-only labeled sequences from 12
   source-disjoint GAPS videos and baselined unchanged F4d inference over 450
   samples. Overall displayed precision is 55/69, stable coverage 60/276, and

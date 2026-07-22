@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>FretCam</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -23,6 +24,19 @@
         <div id="empty-state">
           <strong>Camera is off</strong>
           <span>Frames stay on this computer and are never saved.</span>
+        </div>
+      </section>
+
+      <section class="live-readouts" aria-label="Live tracking status" aria-live="polite">
+        <div id="fretboard-readout" class="live-readout" data-state="idle">
+          <span>Fretboard</span>
+          <strong id="fretboard-status">Waiting for camera</strong>
+          <small>The green border follows the detected fretboard.</small>
+        </div>
+        <div id="position-readout" class="live-readout" data-state="idle">
+          <span>Hand position</span>
+          <strong id="position-status">—</strong>
+          <small id="position-detail">Hold your fretting hand on the neck.</small>
         </div>
       </section>
 

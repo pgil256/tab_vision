@@ -68,7 +68,53 @@ canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
   color: #c7cac3;
 }
 
+#empty-state[hidden] { display: none; }
 #empty-state span { color: #747a73; font-size: 0.9rem; }
+
+.live-readouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.live-readout {
+  display: grid;
+  gap: 4px;
+  min-height: 108px;
+  padding: 16px 18px;
+  border: 1px solid #303631;
+  border-radius: 14px;
+  background: rgba(18, 22, 19, 0.92);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.live-readout span {
+  color: #8c938c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.live-readout strong {
+  color: #f5f4ed;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  line-height: 1.05;
+}
+
+.live-readout small { color: #7d837d; }
+.live-readout[data-state="locked"] {
+  border-color: #58dc7b;
+  background: rgba(22, 53, 29, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(105, 238, 142, 0.16);
+}
+.live-readout[data-state="locked"] strong { color: #a9f5b9; }
+.live-readout[data-state="active"] {
+  border-color: #806b35;
+  background: rgba(45, 38, 18, 0.92);
+}
+.live-readout[data-state="active"] strong { color: #ffd65a; }
 
 .metrics {
   display: grid;
@@ -107,6 +153,7 @@ button:hover { background: #ecffed; }
 
 @media (max-width: 640px) {
   main { width: min(100% - 20px, 940px); padding-top: 20px; }
+  .live-readouts { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .controls { align-items: center; }
   #status { max-width: 55%; }

@@ -45,6 +45,19 @@ class FakeProcessor:
 
 
 class HudWebSocketTest(unittest.TestCase):
+    def test_browser_exposes_live_fretboard_and_position_readouts(self) -> None:
+        with TestClient(create_app(echo_mode=True)) as client:
+            page = client.get("/")
+            script = client.get("/static/client.js")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('id="fretboard-status"', page.text)
+        self.assertIn('id="position-status"', page.text)
+        self.assertIn("The green border follows the detected fretboard", page.text)
+        self.assertIn('<link rel="icon" href="data:,"', page.text)
+        self.assertIn("updateLiveReadouts(detection, position)", script.text)
+        self.assertIn('context.strokeStyle = "#59ff88"', script.text)
+
     def test_binary_frame_returns_json_and_closes_session_processor(self) -> None:
         processor = FakeProcessor()
         with TestClient(create_app(processor_factory=lambda: processor)) as client:

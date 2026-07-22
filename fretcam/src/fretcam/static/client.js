@@ -9,6 +9,11 @@ const fpsLabel = document.querySelector("#fps");
 const latencyLabel = document.querySelector("#latency");
 const serverLatencyLabel = document.querySelector("#server-latency");
 const frameSizeLabel = document.querySelector("#frame-size");
+const fretboardReadout = document.querySelector("#fretboard-readout");
+const fretboardStatus = document.querySelector("#fretboard-status");
+const positionReadout = document.querySelector("#position-readout");
+const positionStatus = document.querySelector("#position-status");
+const positionDetail = document.querySelector("#position-detail");
 
 let stream = null;
 let socket = null;
@@ -64,6 +69,32 @@ function strokeLine(start, end, scaleX, scaleY, colour, width) {
   context.stroke();
 }
 
+function updateLiveReadouts(detection, position) {
+  const fretboardLocked = detection.neck_locked && detection.neck_quad.length === 4;
+  fretboardReadout.dataset.state = fretboardLocked ? "locked" : "active";
+  fretboardStatus.textContent = fretboardLocked ? "Locked" : "Searching…";
+
+  positionStatus.textContent = position.label.replace("…", "...");
+  if (position.state === "locked") {
+    positionReadout.dataset.state = "locked";
+    positionDetail.textContent = "Live position locked from your fretting hand.";
+  } else if (position.state === "holding") {
+    positionReadout.dataset.state = "active";
+    positionDetail.textContent = "Hand briefly hidden; holding the last position.";
+  } else {
+    positionReadout.dataset.state = "active";
+    positionDetail.textContent = "Keep the hand and full neck visible while it locks.";
+  }
+}
+
+function resetLiveReadouts() {
+  fretboardReadout.dataset.state = "idle";
+  fretboardStatus.textContent = "Waiting for camera";
+  positionReadout.dataset.state = "idle";
+  positionStatus.textContent = "—";
+  positionDetail.textContent = "Hold your fretting hand on the neck.";
+}
+
 function drawHud(payload) {
   const sourceWidth = payload.frame.width;
   const sourceHeight = payload.frame.height;
@@ -73,6 +104,7 @@ function drawHud(payload) {
   const position = payload.position;
 
   if (detection.neck_quad.length === 4) {
+    context.save();
     context.beginPath();
     detection.neck_quad.forEach((raw, index) => {
       const [x, y] = point(raw, scaleX, scaleY);
@@ -80,11 +112,15 @@ function drawHud(payload) {
       else context.lineTo(x, y);
     });
     context.closePath();
-    context.fillStyle = "rgba(87, 238, 132, 0.08)";
+    context.fillStyle = "rgba(87, 238, 132, 0.10)";
     context.fill();
-    context.strokeStyle = "#69ee8e";
-    context.lineWidth = 3;
+    context.strokeStyle = "#59ff88";
+    context.lineWidth = 5;
+    context.lineJoin = "round";
+    context.shadowColor = "rgba(36, 255, 105, 0.85)";
+    context.shadowBlur = 10;
     context.stroke();
+    context.restore();
   }
 
   detection.fret_ticks.forEach((tick) => {
@@ -128,6 +164,7 @@ function drawHud(payload) {
   context.fillText(guide.message, 24, guideY + 26, guideWidth - 24);
   statusLine.textContent = guide.message;
   statusLine.dataset.level = guide.level;
+  updateLiveReadouts(detection, position);
 }
 
 function renderHud(rawPayload) {
@@ -182,6 +219,11 @@ async function start() {
     emptyState.hidden = true;
     toggle.textContent = "Stop camera";
     statusLine.textContent = "Starting the local vision chain; the first frame may take a few seconds.";
+    fretboardReadout.dataset.state = "active";
+    fretboardStatus.textContent = "Searching…";
+    positionReadout.dataset.state = "active";
+    positionStatus.textContent = "Acquiring...";
+    positionDetail.textContent = "Keep the full neck and fretting hand visible.";
     connectSocket();
     nextFrame();
   } catch (error) {
@@ -206,6 +248,7 @@ function stop() {
   latencyLabel.textContent = "—";
   serverLatencyLabel.textContent = "—";
   frameSizeLabel.textContent = "—";
+  resetLiveReadouts();
   setConnection("idle", "idle");
 }
 
