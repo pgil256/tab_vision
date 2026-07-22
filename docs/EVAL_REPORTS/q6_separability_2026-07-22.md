@@ -97,3 +97,77 @@ cd tabvision && python scripts/eval/q6_separability_precursor.py \
 GuitarSet hexaphonic partition (multi-GB, CC-BY-4.0, already-approved
 dataset). Acquire with a `partial_download` of the hex-pickup partition via
 the existing mirdata path in `scripts/acquire/datasets.py`.
+
+---
+
+# Gate A attempt — estimator built and self-validated; data unreachable
+
+User approved the hex download (2026-07-22). It could not be fetched, and the
+failure is external to this repo.
+
+## The blocker: zenodo.org is unroutable from this machine
+
+```
+DNS   zenodo.org      -> 188.184.98.114   (CERN range, correct)
+TCP   zenodo.org:443  -> TimeoutError
+TCP   huggingface.co:443 -> OK
+TCP   pypi.org:443       -> OK (HTTP 200)
+```
+
+`mirdata` fails with `URLError: [WinError 10051] A socket operation was
+attempted to an unreachable network`. DNS resolves correctly and other hosts
+connect, and the same timeout occurs with the sandbox disabled — so this is
+neither a sandbox egress restriction, nor DNS, nor a stale URL. Zenodo is
+simply not reachable from this network right now.
+
+**To resume**, fetch out-of-band and unzip into
+`$TABVISION_DATA_ROOT/guitarset/audio_hex-pickup_debleeded/`:
+
+- URL: `https://zenodo.org/record/3371780/files/audio_hex-pickup_debleeded.zip?download=1`
+- MD5: `c31d97279464c9a67e640cb9061fb0c6` (from mirdata's index — verify it)
+
+Gate A then runs immediately; nothing else is missing.
+
+## What was built and proven
+
+`scripts/eval/q6_gate_a.py` is complete and **self-validated on synthetic
+stiff strings**, so when the audio lands a failure will be attributable to
+the signal rather than the code.
+
+The estimator linearises the stiff-string law — `(f_k/k)² = f0² + (f0²·B)·k²`
+— so B falls out of a straight-line fit as `slope/intercept`, with the
+residual doubling as a quality signal. It runs two passes: the first assumes
+a harmonic series, the second re-centres the partial search on the positions
+the fitted B predicts.
+
+**A real bug the synthetic test caught.** The first version scaled the
+partial search half-width by `k^0.5` on a *relative* tolerance, so the
+absolute window grew as `k^1.5`. By k≈10 it had swallowed the neighbouring
+partial, the fit locked onto the wrong peaks, and it returned a confidently
+wrong answer — f0 recovered as 111.3 Hz for a 110 Hz input, a bias that would
+have been invisible on real audio and would have made a Gate A failure
+uninterpretable. The window is now capped at `0.4·f0`.
+
+Validated behaviour (`tests/unit/test_q6_gate_a.py`, 7 tests):
+
+| property | result |
+|---|---|
+| recovers known B at 5e-5, 1e-4, 5e-4 | within 25% relative, f0 within 1% |
+| separates a 1.78× B ratio (the 5-fret case) | ≥1.3× measured separation |
+| rejects silence / too-short segments | returns `None` |
+| candidate enumeration respects tuning + 24-fret bound | passes |
+
+The 25% recovery tolerance is not arbitrary — it is the threshold the
+separability precursor identified as sufficient for Gate A (0.9116 predicted
+accuracy at 20% error). The estimator meets it on clean synthetic input,
+which is the necessary condition; whether it holds on real pickup audio is
+exactly what Gate A will measure.
+
+## Also built
+
+An empirical **channel↔string mapping check**: for each measured note it
+compares energy across the six hex channels and aborts if the annotated
+string's channel is not dominant in >50% of notes. GuitarSet's `data_source`
+is documented as low-E→high-E `0..5`, matching v1 `string_idx`, but a silent
+channel-order mismatch would produce a plausible-looking Gate A failure, so
+it is asserted rather than assumed.
