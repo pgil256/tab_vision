@@ -3256,3 +3256,52 @@ not. What remains is a coverage-shaped expectation: this cannot move
 aggregate Tab F1 much, and should be judged on the single-line tier, which is
 where SPEC §1.4.1 is weakest and where every other lever in this program has
 failed.
+
+---
+
+## 2026-07-22 — Q6 integration: inharmonicity evidence lifts Tab F1 (pilot)
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1) — fusion integration
+**Decision tree:** user instruction "build it in" after Gates A/B passed and
+the detected-notes probe showed transfer. Built as package code behind an
+explicit evidence channel; **`auto` untouched**, nothing registered.
+**Branch taken:** **it works, on a 20-clip pilot.** Folding the channel into
+`fuse()` as a bounded product-of-experts term beside the corpus prior:
+`w=1.0, r²>=0.50` gives **Tab F1 +0.0525 [+0.0208, +0.0888]** and **solo
++0.1050 [+0.0553, +0.1537]**; all four arms are CI-significantly positive.
+**Onset and pitch F1 are bit-identical across every arm** — the channel
+rewrites `fret_prior` only and cannot move a detection, asserted by unit test
+rather than left to luck.
+**The decomposition is a one-for-one conversion:** `correct` 1411 -> 1477
+(+66), `wrong_position_same_pitch` 443 -> 377 (-66), and `pitch_off`,
+`timing_only`, `missed_onset`, `extra_detection` **all exactly unchanged**.
+This is the cleanest bucket result in the program and satisfies §6.3's
+"a gain in the wrong bucket is a red flag" rule about as strictly as
+possible. 66 of 213 covered notes fixed (31%), consistent with the decoder
+already being right on two thirds of them.
+**Prediction check:** the detected-notes probe forecast "~+0.10 on the solo
+tier" from coverage and per-note accuracy alone, before this run. Measured
++0.1050. That is an out-of-sample check on the reasoning, not a fit.
+**Coverage:** 2,105 detections -> 449 isolated -> 213 fitted and applied
+(10.1%). The channel abstains on ~90% of notes and contributes essentially
+nothing on strummed material, by design.
+**What this is not:** 20 clips, so a dev pilot rather than a ship gate — full
+dev OOF, GAPS clean-12 strict no-regression and player-05 have **not** run.
+Weight and r² threshold were chosen on the reported set (four arms, mild
+selection), so +0.0525 is the optimistic end. Most importantly, **calibration
+is GuitarSet-specific**: the stiffness table is fitted from five players on
+similar acoustic guitars, and a user's own instrument needs its own `B0` via
+the per-session EM bootstrap §4.1 sketches and this work does not implement.
+That is the single biggest gap between "works on GuitarSet" and "works on
+your recording."
+**Evidence:** `docs/EVAL_REPORTS/q6_fusion_eval_2026-07-22.md` (+ `.json`);
+`tabvision/tabvision/fusion/inharmonicity.py`;
+`tabvision/scripts/eval/q6_fusion_eval.py`;
+`tabvision/tests/unit/test_inharmonicity_evidence.py` (10 tests).
+901 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** this is the first lever in the program to convert a passing
+offline gate into a CI-significant Tab F1 gain, and the bucket evidence rules
+out leakage as the explanation. Promotion still requires the standard gate
+ladder plus a decision about per-instrument calibration, so the channel stays
+unregistered and off by default until the user says otherwise.

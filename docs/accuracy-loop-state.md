@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-inharmonicity
+current_branch: accuracy/q6-fusion-integration
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,11 +10,11 @@ current_branch: accuracy/q6-inharmonicity
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **GATES PASS + transfers to detected notes** | detected-stream acc **0.9242** (vs 0.9200 gold) but coverage **10% of detections, solo-only** (solo n=208 / comp n=3); est. solo ambiguous lift **~+0.10** | user call: integrate bounded soft evidence behind a flag | user decision |
+| Q6 | Inharmonicity study | **INTEGRATED — Tab F1 lift measured** | pilot **ΔTab F1 +0.0525** [+0.0208, +0.0888], **solo +0.1050** [+0.0553, +0.1537]; decomposition +66 correct / -66 wrong_position, all other buckets 0 | user call: full-dev OOF + GAPS no-reg + player-05, and per-session calibration | user decision |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q6 PASSED — integration is a user call (see Questions). Topmost open unblocked item otherwise = Q7 (capo/tuning preflight).**
+**Q6 integrated and measured; promotion is a user call (see Questions). Topmost open unblocked item otherwise = Q7 (capo/tuning preflight).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -224,6 +224,34 @@ Gate A failure uninterpretable. Window now capped at `0.4·f0`.
 Also asserts the hex channel↔string mapping empirically rather than assuming
 `data_source` order.
 
+## Q6 fusion integration — Tab F1 lift measured (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q6_fusion_eval_2026-07-22.md` (+ `.json`).
+Module: `tabvision/tabvision/fusion/inharmonicity.py` (package code, 10 unit
+tests). **`auto` untouched, nothing registered.**
+
+| arm | Tab F1 | ΔTab F1 [lo-95, hi-95] | solo Δ | onset/pitch F1 |
+|---|---:|---|---|---|
+| baseline | 0.6773 | — | — | 0.9325 / 0.9131 |
+| **w=1.0, r²>=0.50** | **0.7298** | **+0.0525 [+0.0208, +0.0888]** | **+0.1050 [+0.0553, +0.1537]** | 0.9325 / 0.9131 |
+
+- All four arms CI-significantly positive. **Onset and pitch F1 bit-identical
+  across every arm** — the channel rewrites `fret_prior` only, asserted by
+  unit test.
+- **Decomposition is a one-for-one conversion:** correct 1411 -> 1477 (+66),
+  wrong_position 443 -> 377 (-66), all four other buckets **exactly 0**.
+  Cleanest bucket result in the program; §6.3 leakage check passes strictly.
+- The detected-notes probe predicted "~+0.10 solo" *before* this run from
+  coverage and per-note accuracy alone; measured +0.1050. Out-of-sample check
+  on the reasoning.
+- Coverage 10.1% of detections; abstains on ~90% and on strummed material.
+
+**Not a ship gate:** 20 clips; weight/r² chosen on the reported set so
++0.0525 is the optimistic end; and **calibration is GuitarSet-specific** —
+a user's own guitar needs its own B0 via the per-session EM bootstrap §4.1
+sketches and this work does not implement. That is the biggest gap between
+"works on GuitarSet" and "works on your recording."
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -265,17 +293,17 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**DECISION NEEDED (Q6):** both gates passed, so §4.1's offline study is
-complete and the route is live. The next step is the **first item in this
-loop that would touch fuse()** — a bounded emission-evidence term on
-single-line segments, confidence-weighted by r-squared, zero-weighted below a
-fit threshold. That is pipeline code plus the usual OOF -> GAPS
-no-regression -> player-05 discipline. **Options: (a) proceed to integration
-behind an explicit TABVISION_STRING_EVIDENCE flag with auto unchanged;
-(b) ~~detected-notes probe~~ **DONE 2026-07-22 — it transfers (0.9242)**;
-(c) bank Q6 and move to Q7.** The remaining unknown is not whether the
-physics works but whether a *bounded soft* term converts a solo-only, ~10%
-coverage channel into Tab F1 — which needs the integration to answer.
+**DECISION NEEDED (Q6 promotion):** the channel is built, measured and
+CI-positive on a 20-clip pilot. Remaining work before it could ship, in
+order: **(1)** full-dev OOF run (not 20 clips) with the weight/threshold
+fixed *before* the run rather than swept on it; **(2)** GAPS clean-12 strict
+no-regression, since this touches `fuse()` behaviour; **(3)** per-session
+B0 calibration — the current table is fitted from GuitarSet players and will
+not transfer to another guitar, so §4.1's EM bootstrap is a prerequisite for
+real use, not a nicety; **(4)** player-05 confirmation, then registration and
+an `auto`-routing decision. **Options: (a) work down that ladder;
+(b) do (3) first, since it is the difference between a GuitarSet result and
+a usable feature; (c) bank the pilot and move to Q7.** Recommend (b).
 
 Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
 Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
@@ -288,6 +316,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **INTEGRATED**: ΔTab F1 **+0.0525** [+0.0208, +0.0888],
+  solo **+0.1050**; decomposition +66 correct / -66 wrong_position, all other
+  buckets exactly 0; onset/pitch bit-identical.
+  `q6_fusion_eval_2026-07-22.md`.
 - 2026-07-22 — Q6 — detected-notes probe: **physics transfers** (0.9242 on
   detected vs 0.9200 gold), coverage **10% of detections and solo-only**
   (solo 208 / comp 3). Est. solo ambiguous lift ~+0.10.
