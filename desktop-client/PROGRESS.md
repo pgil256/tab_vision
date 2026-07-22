@@ -67,7 +67,9 @@ in Python. D2 is out of scope until the web editor stabilizes.
   transcription and export share an exit-2 handler that assigns the runner's
   complete stderr string directly to a read-only error pane without trimming,
   prefixing, filtering, or newline changes.
-- [ ] Surface every low-confidence flag from the JSON envelope.
+- [x] Surface every low-confidence flag from the JSON envelope. Result: the
+  completed viewer lists every flag in envelope order with all required fields
+  and retained future JSON details; an empty flag array hides the warning panel.
 - [ ] **D1 correctness gate:** output is byte-identical to direct CLI output
   on three fixture clips; record clip names and hashes here.
 - [ ] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
@@ -153,3 +155,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
   stderr pass-through for both transcription and export. An actual fixture CLI
   invocation produced the expected `TabVisionError`, including its final
   newline, unchanged. `dotnet build`: 0 warnings/errors; `dotnet test`: 29 passed.
+- 2026-07-22: D1.7 completed. Added a scrollable low-confidence panel to the
+  completed viewer and deterministic presentation of every flag field,
+  including unknown extension data. Successful transcription and export
+  envelopes refresh it; new jobs clear it. `dotnet build`: 0 warnings/errors;
+  `dotnet test`: 31 passed.

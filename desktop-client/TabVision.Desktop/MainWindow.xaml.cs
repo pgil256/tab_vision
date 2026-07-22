@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         SelectedInputPanel.Visibility = Visibility.Visible;
         TabViewerTextBox.Clear();
         TabViewerPanel.Visibility = Visibility.Collapsed;
+        ClearLowConfidenceFlags();
         ClearSidecarError();
         ExportButton.IsEnabled = false;
         TranscribeButton.IsEnabled = true;
@@ -90,6 +91,7 @@ public partial class MainWindow : Window
         JobStatusText.Text = "Starting TabVision...";
         TabViewerTextBox.Clear();
         TabViewerPanel.Visibility = Visibility.Collapsed;
+        ClearLowConfidenceFlags();
         ClearSidecarError();
 
         try
@@ -114,6 +116,7 @@ public partial class MainWindow : Window
             TabViewerTextBox.Text = document.Content;
             TabViewerTextBox.CaretIndex = 0;
             TabViewerTextBox.ScrollToHome();
+            ShowLowConfidenceFlags(envelope.LowConfidenceFlags);
             TabViewerPanel.Visibility = Visibility.Visible;
             _completedOptions = options;
             JobProgressBar.Value = 100;
@@ -179,6 +182,7 @@ public partial class MainWindow : Window
                 throw new FileNotFoundException("The exported output was not created.", envelope.OutputPath);
             }
 
+            ShowLowConfidenceFlags(envelope.LowConfidenceFlags);
             JobProgressBar.Value = 100;
             JobStatusText.Text = $"Exported {format.DisplayName}: {Path.GetFileName(envelope.OutputPath)}";
         }
@@ -262,6 +266,22 @@ public partial class MainWindow : Window
         {
             TabViewerPanel.Visibility = Visibility.Visible;
         }
+    }
+
+    private void ShowLowConfidenceFlags(IReadOnlyList<SidecarLowConfidenceFlag> flags)
+    {
+        var lines = SidecarLowConfidenceFlagFormatter.FormatAll(flags);
+        LowConfidenceFlagsList.ItemsSource = lines;
+        LowConfidenceCountText.Text =
+            $"{lines.Count} low-confidence flag{(lines.Count == 1 ? string.Empty : "s")}";
+        LowConfidencePanel.Visibility = lines.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void ClearLowConfidenceFlags()
+    {
+        LowConfidenceFlagsList.ItemsSource = null;
+        LowConfidenceCountText.Text = string.Empty;
+        LowConfidencePanel.Visibility = Visibility.Collapsed;
     }
 
     private void SetJobRunning(bool isRunning)
