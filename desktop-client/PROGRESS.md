@@ -17,8 +17,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   planned audio-highres, vision, and render extras pinned. Result: CPython 3.11
   lock has 93 exact registry pins plus 3 full-SHA VCS pins, including TabVision
   `a26d61c` with both sidecar flags.
-- [ ] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
+- [x] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
   app-local destination for every external model/prior artifact in the plan.
+  Result: 9 public/bundled assets are revision-pinned and hash-verified; the
+  approved YOLO checkpoint ships from GitHub prerelease `desktop-shell-assets-v0`.
 - [ ] Create the .NET 8 WPF solution and test project under `desktop-client/`.
 - [ ] Implement the per-job sidecar process runner with stdout/stderr capture.
 - [ ] Implement JSON-envelope and progress-line parsers in C#.
@@ -72,3 +74,8 @@ in Python. D2 is out of scope until the web editor stabilizes.
   built. The architecture draft's combined Basic Pitch extra is excluded from
   this lock because its `resampy<0.4.3` conflicts with highres's `>=0.4.3`.
   Full suite: 861 passed / 12 skipped; Ruff and mypy passed.
+- 2026-07-22: D0.4 completed after explicit user approval to publish the
+  AGPL/CC-BY-derived YOLO checkpoint. GitHub prerelease
+  `desktop-shell-assets-v0` hosts the 5,813,315-byte asset; a fresh download
+  matched SHA-256 `c579b6af...`. All 9 manifest URLs, sizes, hashes, revisions,
+  and app-local destinations validated.

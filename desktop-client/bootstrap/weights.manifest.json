@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "tabvision_commit": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+  "offline_after_bootstrap": true,
+  "path_tokens": {
+    "APP_DATA": "App-local root, normally %LOCALAPPDATA%/TabVision",
+    "HF_HOME": "App-local Hugging Face cache root",
+    "PYTHON_SITE_PACKAGES": "App-local Python 3.11 Lib/site-packages directory",
+    "TABVISION_DATA_ROOT": "App-local TabVision data root"
+  },
+  "artifacts": [
+    {
+      "id": "highres-guitar-gaps",
+      "kind": "huggingface_checkpoint",
+      "url": "https://huggingface.co/xavriley/midi-transcription-models/resolve/689e773723bcafd8c81015b10c03f12675ce16ec/guitar-gaps.pth",
+      "revision": "689e773723bcafd8c81015b10c03f12675ce16ec",
+      "repo_id": "xavriley/midi-transcription-models",
+      "filename": "guitar-gaps.pth",
+      "sha256": "65483e7c0e340a90415b15b520687587698c8c728f5fa470a205f13ee45c6513",
+      "size_bytes": 99178877,
+      "destination": "{HF_HOME}/hub/models--xavriley--midi-transcription-models/snapshots/689e773723bcafd8c81015b10c03f12675ce16ec/guitar-gaps.pth",
+      "install_mode": "huggingface_cache",
+      "license": "MIT",
+      "required_for": [
+        "highres",
+        "highres-ensemble",
+        "auto-classical"
+      ]
+    },
+    {
+      "id": "highres-guitar-fl",
+      "kind": "huggingface_checkpoint",
+      "url": "https://huggingface.co/xavriley/midi-transcription-models/resolve/689e773723bcafd8c81015b10c03f12675ce16ec/guitar-fl.pth",
+      "revision": "689e773723bcafd8c81015b10c03f12675ce16ec",
+      "repo_id": "xavriley/midi-transcription-models",
+      "filename": "guitar-fl.pth",
+      "sha256": "50d93dba89bdd3401849bc735614478e83d9f46d21fa3f71d8aca5acc0a52028",
+      "size_bytes": 98916957,
+      "destination": "{HF_HOME}/hub/models--xavriley--midi-transcription-models/snapshots/689e773723bcafd8c81015b10c03f12675ce16ec/guitar-fl.pth",
+      "install_mode": "huggingface_cache",
+      "license": "MIT",
+      "required_for": [
+        "highres-fl",
+        "highres-ensemble",
+        "auto-clean-acoustic"
+      ]
+    },
+    {
+      "id": "highres-ensemble-v1",
+      "kind": "bundled_artifact",
+      "url": "https://raw.githubusercontent.com/pgil256/tab_vision/a26d61cfd3d1f2e389e4682ec990a844e306b633/tabvision/tabvision/audio/ensemble_v1.json",
+      "revision": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "1caaa87676b0849922fac82c65472ad6a88f09be925b14514b4ed8a5faa6a0f2",
+      "size_bytes": 1111,
+      "destination": "{PYTHON_SITE_PACKAGES}/tabvision/audio/ensemble_v1.json",
+      "install_mode": "verify_or_repair",
+      "license": "MIT",
+      "required_for": [
+        "highres-ensemble"
+      ]
+    },
+    {
+      "id": "guitarset-v1",
+      "kind": "bundled_prior",
+      "url": "https://raw.githubusercontent.com/pgil256/tab_vision/a26d61cfd3d1f2e389e4682ec990a844e306b633/tabvision/tabvision/fusion/priors/guitarset_v1.json",
+      "revision": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "71f491cb7d377c163b5d08cbea69ebc7c47783059bf06eb727b9a66e8f7fd003",
+      "size_bytes": 5591,
+      "destination": "{PYTHON_SITE_PACKAGES}/tabvision/fusion/priors/guitarset_v1.json",
+      "install_mode": "verify_or_repair",
+      "license": "CC-BY-4.0 derived count statistics",
+      "required_for": [
+        "auto-clean-acoustic"
+      ]
+    },
+    {
+      "id": "guitarset-seq-v1",
+      "kind": "bundled_prior",
+      "url": "https://raw.githubusercontent.com/pgil256/tab_vision/a26d61cfd3d1f2e389e4682ec990a844e306b633/tabvision/tabvision/fusion/priors/guitarset_seq_v1.json",
+      "revision": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "3c657db2891f6e22f4fae4c6c9025551b197218c7165779fa8712ce9f40f5e8e",
+      "size_bytes": 36347,
+      "destination": "{PYTHON_SITE_PACKAGES}/tabvision/fusion/priors/guitarset_seq_v1.json",
+      "install_mode": "verify_or_repair",
+      "license": "CC-BY-4.0 derived count statistics",
+      "required_for": [
+        "auto-clean-acoustic"
+      ]
+    },
+    {
+      "id": "gaps-v1",
+      "kind": "bundled_prior",
+      "url": "https://raw.githubusercontent.com/pgil256/tab_vision/a26d61cfd3d1f2e389e4682ec990a844e306b633/tabvision/tabvision/fusion/priors/gaps_v1.json",
+      "revision": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "6cce3a688173efe877547c6df6d2b9c7aa517afca87e8a2c16052503f4d85d2b",
+      "size_bytes": 6067,
+      "destination": "{PYTHON_SITE_PACKAGES}/tabvision/fusion/priors/gaps_v1.json",
+      "install_mode": "verify_or_repair",
+      "license": "CC-BY-NC-SA-4.0 derived count statistics",
+      "required_for": [
+        "auto-classical"
+      ]
+    },
+    {
+      "id": "gaps-seq-v1",
+      "kind": "bundled_prior",
+      "url": "https://raw.githubusercontent.com/pgil256/tab_vision/a26d61cfd3d1f2e389e4682ec990a844e306b633/tabvision/tabvision/fusion/priors/gaps_seq_v1.json",
+      "revision": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "817298eab7014a847a1a859edb1e1ef1559ecdc1310a9c7805e6ac191c15ec1d",
+      "size_bytes": 76082,
+      "destination": "{PYTHON_SITE_PACKAGES}/tabvision/fusion/priors/gaps_seq_v1.json",
+      "install_mode": "verify_or_repair",
+      "license": "CC-BY-NC-SA-4.0 derived count statistics",
+      "required_for": [
+        "auto-classical"
+      ]
+    },
+    {
+      "id": "mediapipe-hand-landmarker-float16-v1",
+      "kind": "mediapipe_model",
+      "url": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      "revision": "float16/1",
+      "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
+      "size_bytes": 7819105,
+      "destination": "{APP_DATA}/models/mediapipe/hand_landmarker.task",
+      "install_mode": "direct",
+      "runtime_environment": {
+        "TABVISION_MEDIAPIPE_HAND_MODEL": "{APP_DATA}/models/mediapipe/hand_landmarker.task"
+      },
+      "license": "Apache-2.0",
+      "required_for": [
+        "vision"
+      ]
+    },
+    {
+      "id": "guitar-yolo-obb-finetuned-v0",
+      "kind": "yolo_checkpoint",
+      "url": "https://github.com/pgil256/tab_vision/releases/download/desktop-shell-assets-v0/guitar-yolo-obb-finetuned.pt",
+      "revision": "desktop-shell-assets-v0",
+      "source_commit": "a26d61cfd3d1f2e389e4682ec990a844e306b633",
+      "sha256": "c579b6af1cdcee1f70e11c6e5f842a2d0453f64ecce82d6548fb3fd3bc3d49b1",
+      "size_bytes": 5813315,
+      "destination": "{TABVISION_DATA_ROOT}/models/guitar-yolo-obb-finetuned.pt",
+      "install_mode": "direct",
+      "license": "AGPL-3.0; training data CC-BY-4.0",
+      "required_for": [
+        "vision"
+      ]
+    }
+  ]
+}
