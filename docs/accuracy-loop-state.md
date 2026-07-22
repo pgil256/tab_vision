@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q4-second-opinions
+current_branch: accuracy/q5-onset-snapping
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -8,13 +8,13 @@ current_branch: accuracy/q4-second-opinions
 | Q1 | N2 MuScriptor merge | **closed-negative** | best variant ΔTab F1 **-0.0167** [-0.0480, +0.0090]; Δonset **-0.0195** [-0.0325, -0.0079] (CI-sig regression); added-note precision **0.181** vs 0.6855 stream precision | none — closed | — |
 | Q2 | S1b-v2 offline probe | **closed-negative** | full recipe: top-1 **0.7015**, Δ **+0.0467** [+0.0291, +0.0640] vs target 0.7048 — short by 0.0033; comp +0.0661 vs solo +0.0112 | none — closed | — |
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
-| Q4 | Second-opinion probes | **blocked (user call)** | leg-2 gate now **derived = 0.528** (was a guessed 0.5), 5/5 sign agreement | Basic Pitch won't install (py3.12 only); user decides: install Python 3.11, try YourMT3+, or drop | needs Python 3.11 |
-| Q5 | Onset snapping | open | — | prototype (must re-run full onset/pitch gates) | — |
+| Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
+| Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
 | Q6 | Inharmonicity study | open | gates 0.85 hex / 0.70 mono | hex B-estimator | — |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q4 is blocked on a user call (see Questions). Topmost open unblocked item otherwise = Q5 (onset snapping).**
+**Topmost open unblocked item = Q6 (inharmonicity offline study).**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -131,6 +131,27 @@ Report: `docs/EVAL_REPORTS/q4_second_opinion_bench_2026-07-22.md`
   **0.5278**, predicting the sign of all five admitting variants (**5/5**).
   Recompute per candidate: as the ensemble improves, the bar rises.
 
+## Q5 — CLOSED 2026-07-22 (banked negative)
+
+Report: `docs/EVAL_REPORTS/q5_onset_snapping_2026-07-22.md` (+ `.json`).
+DECISIONS.md 2026-07-22.
+
+- `snap-10ms` is a wash (+0.0002 Tab F1 [-0.0009, +0.0016]); wider windows
+  lose monotonically on Tab **and** onset F1 (`snap-50ms`: -0.0047 / -0.0097).
+  Strum-cluster collapsing adds nothing.
+- **Mechanism is the inverse of the intent:** `timing_only` — the bucket
+  snapping exists to drain — rises **15 → 41** while `correct` falls
+  **1411 → 1384**; missed/extra barely move. Snapping pushes
+  already-inside-tolerance notes *out*.
+- **The ensemble's onsets are already better than STFT flux peaks** (mean
+  shift only 5.4 ms at a 10 ms window). "Snapping Matters" (piano) assumes a
+  detector whose timing is the weak link; at onset F1 0.9325 that is false
+  here. The deep-dive had already flagged that result as non-transferable.
+- **Re-open only** with a backend whose onset timing is worse than spectral
+  flux, or a materially better onset estimator than STFT flux. This retires
+  the whole "refine the onsets" class: any such method must first beat the
+  backend's own timing.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -172,12 +193,13 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**BLOCKING (Q4):** Basic Pitch cannot install — this machine has only
-Python 3.12 and basic-pitch's dependency graph needs ≤3.11. **Options:
-(a) install Python 3.11 for probe venvs; (b) try YourMT3+ instead (torch, so
-3.12 is likely fine, but its weights license needs checking before any
-shipping use); (c) drop Q4 — recommended, see the reasoning above.** If
-dropped, Q5 (onset snapping) is next.
+None blocking. Q1, Q2, Q5 closed negative; Q4 dropped by the user; Q3
+dropped with Q2; Q8 orphaned. **Q6 (inharmonicity offline study) is next** —
+$0 local CPU, gates 0.85 on GuitarSet hex isolated notes then 0.70 on
+mono-mic single-line segments. It is the last untried *physics* route past
+the single-line information limit, and Q2's finding sharpens its case: solo
+is exactly where context failed to help (+0.0112 vs comp's +0.0661), so a
+per-note physical signal is the remaining lever there.
 
 Note: iterations 1-3 ran on branches `accuracy/q1-n2-merge` and
 `accuracy/q2-s1b-probe`, stacked in that order (the state file is a running
@@ -187,7 +209,12 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
-- 2026-07-22 — Q4 — bench built; Basic Pitch **blocked** (py3.12 vs its
+- 2026-07-22 — Q5 — **CLOSED negative**. snap-10ms +0.0002 [-0.0009, +0.0016],
+  wider windows lose on Tab and onset; `timing_only` rises 15→41 while
+  `correct` falls 1411→1384 — the backend's onsets already beat flux peaks.
+  `q5_onset_snapping_2026-07-22.md`.
+- 2026-07-22 — Q4 — **dropped by user** (rather than install Python 3.11);
+  bench + derived leg-2 threshold retained. Basic Pitch **blocked** (py3.12 vs its
   ≤3.11 dep graph); **leg-2 threshold derived** = 0.528 at measured α=0.4581,
   5/5 sign agreement on the banked N2 variants.
   `q4_second_opinion_bench_2026-07-22.md`.

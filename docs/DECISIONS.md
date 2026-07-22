@@ -3076,3 +3076,40 @@ Nothing registered, `auto` untouched, SPEC and §8 unchanged.
 session does not re-attempt the install; and the calibration converts the
 bench's decisive leg from intuition into algebra that reproduces every banked
 observation, which is worth more than the Basic Pitch number would have been.
+
+---
+
+## 2026-07-22 — Q5 onset snapping CLOSED: the backend already beats the flux
+
+**Phase:** Accuracy-loop item Q5 (ROI deep-dive §4.2)
+**Decision tree:** prototype pre-fuse onset refinement; ship only on
+lo-95 > 0 Tab F1 **and** no CI-significant onset/pitch regression (this item
+intentionally changes onsets, so the full battery applies).
+**Branch taken:** **CLOSE — banked negative.** On the 20-clip bank with the
+OOF prior, `snap-10ms` is a wash (**+0.0002 Tab F1 [-0.0009, +0.0016]**) and
+every wider window loses monotonically on both Tab and onset F1
+(`snap-50ms`: -0.0047 Tab, -0.0097 onset). The strum-cluster variant adds
+nothing — `strum-20ms` is numerically identical to `snap-20ms`, `strum-30ms`
+slightly worse.
+**Mechanism, from the decomposition — it is the inverse of the intent:**
+`timing_only`, the bucket snapping exists to drain, **rises monotonically
+15 → 41**, while `correct` **falls 1411 → 1384**; `missed_onset` and
+`extra_detection` barely move. Snapping is not converting near-misses into
+hits, it is pushing already-inside-tolerance notes out. The ensemble's onsets
+are **already more accurate than half-wave-rectified STFT flux peaks**: at a
+10 ms window the mean shift is only 5.4 ms, i.e. the flux peak is essentially
+already on the detected onset.
+**Literature reconciliation:** the item came from "Snapping Matters"
+(arXiv 2606.11903, +2.6 note F1, piano), which the deep-dive already hedged
+as directional-not-transferable. Its precondition is a detector whose timing
+is the weak link; at onset F1 0.9325 that does not hold here.
+**Re-open only** with a backend whose onset timing is measurably worse than
+spectral flux, or a materially better onset estimator than STFT flux.
+**Evidence:** `docs/EVAL_REPORTS/q5_onset_snapping_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q5_onset_snapping.py`;
+`tabvision/tests/unit/test_q5_onset_snapping.py` (7 tests).
+Pure pre-fuse event surgery — no pipeline, registry, routing or §8 change.
+**Reasoning:** the negative is unusually clean because the decomposition
+identifies the mechanism rather than just the sign, and it retires a whole
+class of "refine the onsets" ideas: any such method must first beat the
+backend's own timing, which is a higher bar than beating the metric.
