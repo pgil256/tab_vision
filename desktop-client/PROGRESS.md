@@ -81,11 +81,12 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `c1c48027831f262e650dcd1658fc143f0db84c6de4a5553d2caaef2c5dd4eea1`.
 - [ ] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
   record both wall-clock measurements and the ratio here. BLOCKED 2026-07-22:
-  the development host has no `ffmpeg`/`ffprobe`, so the real pipeline cannot
-  execute. A non-qualifying deterministic-fixture diagnostic measured direct
-  CLI 340.485 ms versus desktop 429.012 ms (ratio 1.260001, FAIL); because that
-  fixture ignores media duration, it is not accepted as the required 60 s
-  end-to-end result.
+  verified `ffmpeg`/`ffprobe` now allow the production run, and direct CLI
+  completed in 132.973164 s. The desktop sidecar exited successfully, but an
+  upstream inference dependency wrote diagnostic text to stdout before the
+  JSON envelope, so parsing failed and no desktop time/ratio is accepted. This
+  violates the pinned `--json` stdout contract and requires an explicitly
+  approved additive CLI fix before the gate can be rerun.
 
 ## D1.5 - Bootstrapper and installer
 
@@ -189,3 +190,17 @@ in Python. D2 is out of scope until the web editor stabilizes.
   the 60 s workload. The temporary harness was removed; the clean build had 0
   warnings/errors and all 31 standing tests passed. Per the loop stop rule, no
   D1.5 work started.
+- 2026-07-22: After user approval, acquired BtbN LGPL shared build
+  `ffmpeg-N-125716-g1b1f602699-20260722` from pinned release
+  `autobuild-2026-07-22-13-36` into the app-local bootstrap cache. The
+  67,053,838-byte archive matched release SHA-256
+  `04d3def4406324e479ab7cb9abe8e9472c103e5be26298aa876ed93074b39386`;
+  `ffmpeg.exe` / `ffprobe.exe` hashes are `b8ba7ca0...05294` /
+  `076ee1bc...a16bf`. A real audio+video fixture derived from public
+  `031_vpswc` was exactly 60.000 s, passed preflight on all preview frames,
+  and had SHA-256
+  `351206c53d1c4ed572299cce70ca405f86c071322866217d39d6d7636009084c`.
+  Direct production CLI completed in 132.973164 s. The desktop process exited
+  0, but dependency diagnostics preceded its JSON stdout, causing the C#
+  envelope parser to fail; no desktop measurement or ratio was accepted. The
+  temporary harness was removed and D1.5 remained untouched.
