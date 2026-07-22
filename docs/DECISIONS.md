@@ -3037,3 +3037,27 @@ gated barre axis represents the contact surface the fingertip alone misses.
 A global deadband and a nut-most-axis variant were both rejected because they
 changed the verified VI arrival to V/no lock. Live multi-position barre holds
 remain part of A2 and no general accuracy claim is made.
+
+---
+
+## 2026-07-22 - WPF machine-mode stdout is reserved at CLI dispatch
+
+**Phase:** Desktop shell D1 overhead gate (out-of-SPEC client tooling; pipeline
+contracts unchanged)
+**Decision tree:** Repair dependency diagnostics contaminating the additive
+`tabvision transcribe --json` result channel after explicit user approval.
+**Branch taken:** In JSON mode only, retain the process's original stdout for
+the final result envelope and redirect dynamic Python stdout to stderr around
+the entire transcription dispatch. Default transcription behavior is unchanged;
+progress and dependency diagnostics remain available on stderr.
+**Evidence:** A regression test injects dependency stdout and proves stdout is
+still one parseable JSON document while the diagnostic appears on stderr; a
+second test proves default mode retains dependency stdout. Full verification:
+863 Python tests passed / 12 skipped, Ruff and mypy passed, the WPF build had 0
+warnings/errors, and all 31 standing desktop tests passed. The real 60 s gate
+then parsed successfully and passed at 356.821334 s direct versus 305.082714 s
+desktop (0.855001 ratio), with byte-identical output.
+**Reasoning:** Guarding the process boundary covers the current high-resolution
+backend and future dependencies without embedding backend knowledge in the CLI
+or C#. Redirecting only in explicit machine mode preserves the public default
+behavior while enforcing the documented single-document stdout contract.

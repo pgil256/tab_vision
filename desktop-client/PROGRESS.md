@@ -79,14 +79,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `949e8de8096f2ead64dae3247aa3e6a57e51e9cba935934b95f72210703b27e9`;
   `043_bc1wc.mp4`
   `c1c48027831f262e650dcd1658fc143f0db84c6de4a5553d2caaef2c5dd4eea1`.
-- [ ] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
-  record both wall-clock measurements and the ratio here. BLOCKED 2026-07-22:
-  verified `ffmpeg`/`ffprobe` now allow the production run, and direct CLI
-  completed in 132.973164 s. The desktop sidecar exited successfully, but an
-  upstream inference dependency wrote diagnostic text to stdout before the
-  JSON envelope, so parsing failed and no desktop time/ratio is accepted. This
-  violates the pinned `--json` stdout contract and requires an explicitly
-  approved additive CLI fix before the gate can be rerun.
+- [x] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
+  record both wall-clock measurements and the ratio here. Result: PASS; direct
+  CLI 356.821334 s versus desktop sidecar 305.082714 s = 0.855001 ratio, below
+  the 1.100000 limit (392.503467 s). Both runs produced the same 2,580-byte
+  output with SHA-256 `e588b041a4e54be4d95fdbc24a5b585f763cb04cf87da4cebec22c4ecb251b4c`.
 
 ## D1.5 - Bootstrapper and installer
 
@@ -204,3 +201,13 @@ in Python. D2 is out of scope until the web editor stabilizes.
   0, but dependency diagnostics preceded its JSON stdout, causing the C#
   envelope parser to fail; no desktop measurement or ratio was accepted. The
   temporary harness was removed and D1.5 remained untouched.
+- 2026-07-22: After explicit user approval, repaired the additive `--json`
+  contract at the CLI dispatch boundary: dependency stdout is redirected to
+  stderr only in machine mode, while the retained original stdout receives the
+  final JSON envelope. Regression tests prove JSON stdout stays parseable and
+  default stdout behavior is unchanged. Full Python verification: 863 passed / 12
+  skipped, Ruff passed, mypy passed. Clean desktop verification: build 0
+  warnings/errors, 31 tests passed. The real 60.000 s fixture then passed the
+  D1 overhead gate at 356.821334 s direct / 305.082714 s desktop = 0.855001;
+  both outputs were byte-identical. The timing harness was removed after use,
+  and D1.5 remains the next phase.

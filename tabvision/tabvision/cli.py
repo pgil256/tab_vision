@@ -12,7 +12,9 @@ import logging
 import os
 import sys
 import time
+from contextlib import redirect_stdout
 from pathlib import Path
+from typing import TextIO
 
 from tabvision.errors import InvalidInputError, TabVisionError
 
@@ -50,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "transcribe":
+            if args.json_output:
+                json_stdout = sys.stdout
+                with redirect_stdout(sys.stderr):
+                    return _cmd_transcribe(args, json_stdout=json_stdout)
             return _cmd_transcribe(args)
         if args.command == "check":
             return _cmd_check(args)
@@ -376,7 +382,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _cmd_transcribe(args: argparse.Namespace) -> int:
+def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = None) -> int:
     """Run the full transcription pipeline (demux → audio + video → fuse → render).
 
     Phase 5 onward: video stack is wired through ``tabvision.pipeline.run_pipeline``.
@@ -467,7 +473,9 @@ def _cmd_transcribe(args: argparse.Namespace) -> int:
                 "total_s": round(time.perf_counter() - total_started, 6),
             },
         }
-        sys.stdout.write(json.dumps(envelope, separators=(",", ":"), sort_keys=True) + "\n")
+        (json_stdout or sys.stdout).write(
+            json.dumps(envelope, separators=(",", ":"), sort_keys=True) + "\n"
+        )
 
     report_progress("complete")
     return 0

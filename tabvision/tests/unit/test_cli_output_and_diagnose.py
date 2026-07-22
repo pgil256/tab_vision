@@ -179,6 +179,67 @@ def test_transcribe_json_envelope_reports_output_flags_and_timings(
     assert all(value >= 0.0 for value in envelope["timings"].values())
 
 
+def test_transcribe_json_redirects_dependency_stdout_to_stderr(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "result.tab"
+
+    def noisy_run_pipeline(*_args, **_kwargs):
+        print("dependency diagnostic")
+        return []
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", noisy_run_pipeline)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--json",
+            "--no-video",
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert json.loads(captured.out)["status"] == "ok"
+    assert captured.err == "dependency diagnostic\n"
+
+
+def test_transcribe_default_preserves_dependency_stdout(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"not a real movie; pipeline is injected")
+    output_path = tmp_path / "result.tab"
+
+    def noisy_run_pipeline(*_args, **_kwargs):
+        print("dependency diagnostic")
+        return []
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", noisy_run_pipeline)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--no-video",
+            "--no-preflight",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out == "dependency diagnostic\n"
+    assert captured.err == ""
+
+
 def test_transcribe_json_requires_output_file(
     tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
