@@ -17,7 +17,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4c | reject off-neck hands + clipped geometry before lock | passed | 38 tests; 5 distinct sources; 2/2 false-lock clips now emit no position | preserve evidence; L1 still pending | — |
 | F4d | wire-cell + barre contact semantics | passed | 44 tests; `031` contact I with tip-x 1.83; verified `104` II→VI preserved | preserve evidence; L1 still pending | — |
 | F4e-A | frozen public position benchmark | passed | 16 sequences/12 sources; F4d baseline precision 55/69, stable coverage 60/276, false locks 10/276 | review report; F4e-B needs separate approval | — |
-| L1 | live test 1 (Pat: A1+A4) | preliminary positive | Pat: works ok; "Time seemed reasonably low"; numeric/display details pending | provide the remaining details below | — |
+| L1 | live test 1 (Pat: A1+A4) | needs one clarification | two lighting conditions worked; no crazy dropouts; latest numeric reply "2-8" is ambiguous | confirm FPS and E2E ordering | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
@@ -37,8 +37,9 @@ on an L2 pass and separate integration sign-off.
 
 Pat's preliminary live observation is positive: "It seems like it works ok."
 The follow-up was: "Time seemed reasonably low." L1 is not yet marked passed
-because the timing type/value, drift/dropouts, second-light result, and HUD
-FPS/end-to-end latency were not reported.
+because the displayed FPS and end-to-end values remain ambiguous: low E2E is
+positive, while low FPS could miss the 10 FPS gate. Pat's latest numeric reply
+was "2-8"; it is not interpreted until its units/order are confirmed.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -49,13 +50,19 @@ FPS/end-to-end latency were not reported.
 - Training runs and Roboflow downloads: STOP for approval.
 
 ## Questions for Pat
-- To close L1, please add: whether you saw drift or hand dropouts; whether the
-  second lighting condition also worked; and the displayed FPS/end-to-end
-  latency if visible. Rough answers are enough.
+- Does "2-8" mean about **2 FPS and 8 ms E2E**, or that FPS ranged from 2 to
+  8? The FPS target is at least 10, so either interpretation would fail A4;
+  please correct the reading if those numbers meant something else.
 - F4e-B still requires separate approval if you want the bounded multi-finger
   pose solver next.
 
 ## Live-test log (newest first)
+- 2026-07-22 — L1 numeric follow-up, verbatim: "2-8". Units and ordering are
+  not explicit, so this is not yet classified as an A4 pass or failure.
+- 2026-07-22 — L1 follow-up, verbatim: "No crazy dropouts. alternate lighting
+  worked. fps ee2e numbers were visible and low." Lighting and dropout evidence
+  are positive; the A4 result remains ambiguous until FPS and E2E are separated
+  or approximated.
 - 2026-07-22 — L1 follow-up, verbatim: "Time seemed reasonably low." This is
   recorded as a positive timing impression, not a numeric lock or latency
   result.
