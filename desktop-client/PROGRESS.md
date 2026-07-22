@@ -33,8 +33,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   typed envelope parser preserves unknown flag details, while the stderr parser
   extracts valid 0-100 progress lines and rejects malformed machine lines; 7
   parser test cases pass.
-- [ ] Add `desktop-client/README.md` linking the plan and stating the rebuild
-  caveat and frozen-directory rule.
+- [x] Add `desktop-client/README.md` linking the plan and stating the rebuild
+  caveat and frozen-directory rule. Result: the README links the plan and
+  progress, documents the thin/disposable shell boundary, and names all three
+  frozen v0 directories.
 - [ ] **D0 gate:** a C# integration test runs the fixture sidecar and parses
   both its result envelope and progress lines.
 
@@ -99,3 +101,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   parsers using the .NET runtime only; unknown low-confidence flag details are
   retained for cheap wire-format evolution. `dotnet build`: 0 warnings/errors;
   `dotnet test`: 10 passed.
+- 2026-07-22: D0.8 completed. Added the desktop-client README with the rebuild
+  warning, Python/C# responsibility boundary, deferred D2 scope, and frozen v0
+  directories. Verification: both Markdown links resolve and all required
+  boundary statements are present.
