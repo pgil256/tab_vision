@@ -3305,3 +3305,60 @@ offline gate into a CI-significant Tab F1 gain, and the bucket evidence rules
 out leakage as the explanation. Promotion still requires the standard gate
 ladder plus a decision about per-instrument calibration, so the channel stays
 unregistered and off by default until the user says otherwise.
+
+---
+
+## 2026-07-22 — Q6 generalization: self-calibration fails; reference table is load-bearing
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), generalization
+**Decision tree:** user requirement — the channel must work on any acoustic
+guitar, not only instruments resembling GuitarSet's. Hypothesis: since
+``B ∝ 1/L²`` and scale length is shared across strings, a session should be
+able to re-fit ``B0`` from its own audio using first-pass assignments.
+**Branch taken:** **the hypothesis is refuted.** On the 20-clip bank:
+``lopo`` (reference from other players' gold labels) **+0.0525
+[+0.0208, +0.0888]**; ``self-seeded`` (reference table + session refit)
+**+0.0388 [+0.0107, +0.0720]**; ``self-blind`` (single clip, no reference)
+**+0.0000** — abstains everywhere; ``self-pooled`` (~2 min of one player, no
+reference) **-0.0029 [-0.0088, +0.0000]**. Only the arms carrying a reference
+table work.
+**Two causes, both measured.** *Data volume:* the channel needs ~8
+well-fitted isolated notes per string; a 30 s clip yields ~10 across all six,
+and four clips pooled is still not enough. *Bootstrap bias:* where notes do
+exist the labels come from the first decode, which is ~65% right on exactly
+the ambiguous notes at issue. Measured median ``log B0`` shift between
+self-fitted and reference tables is **+0.2975** — ~35% in ``B``, comparable
+to the 1.6-1.8x separation the method relies on — and it is systematic, not
+noise a median absorbs, because decoder errors correlate with string.
+**Bug found and fixed (independent of the outcome):** the first ``self-blind``
+run regressed **-0.0329 [-0.0600, -0.0098]**. Cause was in the evidence
+channel: ``inharmonicity_matrix`` scored a candidate whose string was absent
+from the table at probability **zero**, which is a hard veto rather than
+abstention, so a partially-calibrated table silently forced notes onto
+whichever strings had data. An uncalibrated candidate string now makes the
+channel abstain on that note. This turned -0.0329 into +0.0000 and removes a
+latent hazard from the shipping path that *any* sparse table would have hit.
+**Consequence for shipping:** the physics is instrument-general; the
+calibration is not, and cannot currently be recovered from unlabelled audio.
+Three untested routes, in value order: (1) derive the reference table from
+**string-manufacturer physics** (gauge, core construction, scale length)
+rather than fitting it to GuitarSet, making it genuinely general for standard
+sets and demoting GuitarSet to validation — ``self-seeded``'s +0.0388 shows
+reference-plus-refinement retains most of the benefit; (2) anchor the shared
+offset on **unambiguous notes**, which are label-free ground truth needing no
+decoder; (3) a **six-open-string calibration ritual** — perfectly labelled,
+ten seconds of user effort.
+**Untested and material:** whether the GuitarSet-fitted table transfers to a
+different acoustic guitar at all. No second acoustic dataset exists in the
+repo, so +0.0388 is demonstrated only on instruments resembling the table's
+source.
+**Evidence:** `docs/EVAL_REPORTS/q6_self_calibration_2026-07-22.md`
+(+ `.json`); `tabvision/scripts/eval/q6_self_calibration.py`;
+`tabvision/tabvision/fusion/inharmonicity.py` (`calibrate_from_session`,
+`measure_events`, abstention fix).
+901 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the honest reading is that the pilot's +0.0525 is not yet a
+portable result, and saying so is more useful than shipping a number that
+depends on an unstated instrument assumption. The bug fix is worth the
+iteration on its own.

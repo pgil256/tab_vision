@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-fusion-integration
+current_branch: accuracy/q6-self-calibration
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,7 +10,7 @@ current_branch: accuracy/q6-fusion-integration
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **INTEGRATED — Tab F1 lift measured** | pilot **ΔTab F1 +0.0525** [+0.0208, +0.0888], **solo +0.1050** [+0.0553, +0.1537]; decomposition +66 correct / -66 wrong_position, all other buckets 0 | user call: full-dev OOF + GAPS no-reg + player-05, and per-session calibration | user decision |
+| Q6 | Inharmonicity study | **integrated, but NOT yet portable** | +0.0525 needs a reference table; **self-calibration fails** (self-blind +0.0000, self-pooled -0.0029); log-B0 bootstrap bias +0.2975 | derive reference table from string physics, not GuitarSet | generalization |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -252,6 +252,43 @@ a user's own guitar needs its own B0 via the per-session EM bootstrap §4.1
 sketches and this work does not implement. That is the biggest gap between
 "works on GuitarSet" and "works on your recording."
 
+## Q6 generalization — self-calibration FAILS (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q6_self_calibration_2026-07-22.md` (+ `.json`).
+
+| arm | ΔTab F1 [lo-95, hi-95] | requires |
+|---|---|---|
+| `lopo` | **+0.0525** [+0.0208, +0.0888] | other guitars' gold labels |
+| `self-seeded` | **+0.0388** [+0.0107, +0.0720] | reference table + session refit |
+| `self-blind` (1 clip) | +0.0000 | nothing — abstains everywhere |
+| `self-pooled` (~2 min) | -0.0029 [-0.0088, +0.0000] | nothing — and doesn't help |
+
+**Only the arms carrying a reference table work.** Two measured causes:
+*data volume* (needs ~8 fitted isolated notes **per string**; a 30 s clip
+yields ~10 across all six, and 2 min pooled is still short) and *bootstrap
+bias* (first-pass labels are ~65% right on exactly the ambiguous notes at
+issue; measured median log-B0 shift **+0.2975**, ~35% in B, comparable to the
+1.6-1.8x separation the method depends on — and systematic, since decoder
+errors correlate with string).
+
+**Bug found and fixed:** `inharmonicity_matrix` scored candidates on
+uncalibrated strings at probability **zero** — a hard veto, not abstention —
+so a partial table silently forced notes onto whichever strings had data.
+First self-blind run regressed **-0.0329**; after the fix it is +0.0000.
+Latent hazard removed from the shipping path regardless of how calibration is
+solved.
+
+**Routes to portability, none yet tested, in value order:**
+1. Derive the reference table from **string-manufacturer physics** (gauge,
+   core construction, scale length) instead of fitting GuitarSet — genuinely
+   general for standard sets, demotes GuitarSet to validation.
+   `self-seeded`'s +0.0388 shows reference-plus-refinement keeps most of it.
+2. Anchor the shared offset on **unambiguous notes** (label-free, no decoder).
+3. A **six-open-string calibration ritual** — perfect labels, ~10 s of setup.
+
+**Untested and material:** whether the GuitarSet-fitted table transfers to a
+different acoustic guitar at all. No second acoustic dataset exists in-repo.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -293,17 +330,19 @@ python scripts/eval/n2_muscriptor_merge.py --stage sweep \
 
 ## Questions for the user
 
-**DECISION NEEDED (Q6 promotion):** the channel is built, measured and
-CI-positive on a 20-clip pilot. Remaining work before it could ship, in
-order: **(1)** full-dev OOF run (not 20 clips) with the weight/threshold
-fixed *before* the run rather than swept on it; **(2)** GAPS clean-12 strict
-no-regression, since this touches `fuse()` behaviour; **(3)** per-session
-B0 calibration — the current table is fitted from GuitarSet players and will
-not transfer to another guitar, so §4.1's EM bootstrap is a prerequisite for
-real use, not a nicety; **(4)** player-05 confirmation, then registration and
-an `auto`-routing decision. **Options: (a) work down that ladder;
-(b) do (3) first, since it is the difference between a GuitarSet result and
-a usable feature; (c) bank the pilot and move to Q7.** Recommend (b).
+**DECISION NEEDED (Q6 portability):** the +0.0525 lift is real but depends
+on a stiffness table fitted from GuitarSet's guitars, and self-calibration
+from unlabelled audio has now been shown not to recover it. The channel is
+therefore not yet portable to an arbitrary acoustic guitar. **Options:
+(a) derive the reference table from string-manufacturer physics — the
+highest-value route, makes the table instrument-general and turns GuitarSet
+into validation; (b) add the six-open-string calibration ritual — trivially
+reliable, ~10 s of user effort, and it sidesteps the bootstrap problem
+entirely; (c) anchor on unambiguous notes (automatic version of (a)+(b));
+(d) accept the GuitarSet-fitted table as a shipped default and proceed to the
+formal gates (full-dev OOF, GAPS no-reg, player-05), documenting the
+instrument assumption.** Recommend (b) then (a): the ritual makes it work
+today, the physics table makes it work without asking.
 
 Q1, Q2, Q5 closed negative; Q4 dropped; Q3 dropped with Q2; Q8 orphaned.
 Q7 is unblocked and needs no new data (synthetic capo shifts of GuitarSet).
@@ -316,6 +355,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — generalization: **self-calibration FAILS** (self-blind
+  +0.0000, self-pooled -0.0029 vs lopo +0.0525). Causes: data volume + a
+  +0.2975 log-B0 bootstrap bias. Found and fixed a hard-veto bug that had
+  caused a -0.0329 regression. `q6_self_calibration_2026-07-22.md`.
 - 2026-07-22 — Q6 — **INTEGRATED**: ΔTab F1 **+0.0525** [+0.0208, +0.0888],
   solo **+0.1050**; decomposition +66 correct / -66 wrong_position, all other
   buckets exactly 0; onset/pitch bit-identical.

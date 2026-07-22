@@ -24,6 +24,17 @@ Evidence is emitted as a bounded product-of-experts term: the caller's
 ``weight`` is an exponent on the log-probabilities, so it cannot overrule the
 corpus prior, and notes whose fit is poor contribute nothing at all rather
 than contributing noise.
+
+**Generalizing across instruments.** ``B0_s`` is a property of the physical
+string set and scale length, so a table fitted on one guitar does not
+transfer to another. It does not need to: ``B ∝ 1/L²`` and the scale length
+is shared by all six strings, so a different instrument largely *shifts* the
+whole table rather than reshaping it. :func:`calibrate_from_session` exploits
+that — it measures the recording's own notes against provisional string
+assignments and re-fits ``B0``, per string where there is enough evidence and
+as a single shared offset where there is not. A session therefore calibrates
+itself from unlabelled audio, which is what makes this usable on a guitar the
+project has never seen.
 """
 
 from __future__ import annotations
@@ -52,6 +63,16 @@ MIN_PARTIALS = 4
 DEFAULT_MIN_R2 = 0.50
 DEFAULT_SIGMA = 0.35
 DEFAULT_WEIGHT = 0.5
+MIN_NOTES_PER_STRING = 8
+"""Below this, a string re-uses the shared offset instead of its own median.
+
+A handful of notes on one string is easily a handful of *misassigned* notes;
+the shared offset is the robust fallback because scale length — the dominant
+per-instrument term — is common to all six.
+"""
+
+MIN_NOTES_FOR_OFFSET = 12
+"""Below this the session is too thin to calibrate at all; keep the seed."""
 
 
 @dataclass(frozen=True)
@@ -84,6 +105,109 @@ class StringStiffnessModel:
         if base is None:
             return None
         return base + (fret / 6.0) * LOG2
+
+
+@dataclass(frozen=True)
+class StiffnessObservation:
+    """One measured note with the position it is believed to have been played.
+
+    ``string_idx``/``fret`` are *provisional* — for self-calibration they come
+    from a first decode pass, not from labels.
+    """
+
+    string_idx: int
+    fret: int
+    log_b: float
+    r2: float
+
+
+def calibrate_from_session(
+    observations: Sequence[StiffnessObservation],
+    *,
+    seed: StringStiffnessModel | None = None,
+    min_r2: float = DEFAULT_MIN_R2,
+) -> StringStiffnessModel | None:
+    """Fit ``B0`` for the instrument in this recording.
+
+    Two-tier, because per-string evidence is uneven and provisional labels are
+    wrong some of the time:
+
+    * a string with at least :data:`MIN_NOTES_PER_STRING` usable observations
+      takes the **median** of ``log B - (fret/6)·log 2`` over its own notes —
+      median rather than mean so a minority of misassigned notes cannot drag
+      it;
+    * every other string takes ``seed + shared_offset``, where the offset is
+      the median residual against the seed across *all* strings. This is the
+      scale-length term, which is common to the instrument.
+
+    Returns ``None`` when the session is too thin to calibrate and no seed is
+    available, so the caller can decline to apply evidence rather than apply
+    badly-calibrated evidence.
+    """
+    usable = [item for item in observations if item.r2 >= min_r2]
+    if not usable:
+        return seed
+
+    by_string: dict[int, list[float]] = {}
+    for item in usable:
+        by_string.setdefault(item.string_idx, []).append(item.log_b - (item.fret / 6.0) * LOG2)
+
+    shared_offset = 0.0
+    if seed is not None:
+        residuals = [
+            value - base
+            for string, values in by_string.items()
+            if (base := seed.log_b0.get(string)) is not None
+            for value in values
+        ]
+        if len(residuals) >= MIN_NOTES_FOR_OFFSET:
+            shared_offset = float(np.median(residuals))
+
+    table: dict[int, float] = {}
+    for string in range(6):
+        values = by_string.get(string, [])
+        if len(values) >= MIN_NOTES_PER_STRING:
+            table[string] = float(np.median(values))
+        elif seed is not None and string in seed.log_b0:
+            table[string] = seed.log_b0[string] + shared_offset
+    if not table:
+        return seed
+    return StringStiffnessModel(log_b0=table)
+
+
+def measure_events(
+    events: Sequence[AudioEvent],
+    wav: np.ndarray,
+    sr: int,
+    cfg: GuitarConfig | None = None,
+) -> dict[int, InharmonicityFit]:
+    """Fit ``B`` for every isolated, ambiguous event; keyed by event index.
+
+    Shared by the evidence pass and by self-calibration so a session pays the
+    spectral cost once.
+    """
+    cfg = cfg or GuitarConfig()
+    audio = np.asarray(wav, dtype=np.float64)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    ordered = sorted(events, key=lambda event: event.onset_s)
+    isolated = _isolated_flags(ordered)
+    fits: dict[int, InharmonicityFit] = {}
+    for index, (event, is_isolated) in enumerate(zip(ordered, isolated, strict=True)):
+        if not is_isolated:
+            continue
+        duration = event.offset_s - event.onset_s
+        if duration < MIN_WINDOW_S + SKIP_ATTACK_S:
+            continue
+        start = int((event.onset_s + SKIP_ATTACK_S) * sr)
+        stop = start + int(min(MAX_WINDOW_S, duration - SKIP_ATTACK_S) * sr)
+        if start < 0 or stop > audio.size:
+            continue
+        nominal = 440.0 * 2 ** ((event.pitch_midi - 69) / 12.0)
+        fit = estimate_inharmonicity(audio[start:stop], sr, nominal)
+        if fit is not None:
+            fits[index] = fit
+    return fits
 
 
 def _parabolic_peak(spectrum: np.ndarray, index: int) -> float:
@@ -205,16 +329,16 @@ def inharmonicity_matrix(
     if len(candidates) < 2:
         return None
     matrix = np.zeros((cfg.n_strings, cfg.max_fret + 1), dtype=np.float64)
-    any_scored = False
     for candidate in candidates:
         predicted = model.predicted_log_b(candidate.string_idx, candidate.fret)
         if predicted is None:
-            continue
+            # An uncalibrated string must make the channel abstain on this
+            # note, not score the candidate at zero — a zero is a hard veto
+            # that would silently force the note onto whichever strings the
+            # calibration happened to cover.
+            return None
         delta = (log_b - predicted) / sigma
         matrix[candidate.string_idx, candidate.fret] = math.exp(-0.5 * delta * delta)
-        any_scored = True
-    if not any_scored:
-        return None
     total = float(matrix.sum())
     if total <= 0.0:
         return None
@@ -313,7 +437,10 @@ def attach_inharmonicity_evidence(
 
 __all__ = [
     "InharmonicityFit",
+    "StiffnessObservation",
     "StringStiffnessModel",
+    "calibrate_from_session",
+    "measure_events",
     "attach_inharmonicity_evidence",
     "estimate_inharmonicity",
     "inharmonicity_matrix",
