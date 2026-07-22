@@ -80,7 +80,12 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `043_bc1wc.mp4`
   `c1c48027831f262e650dcd1658fc143f0db84c6de4a5553d2caaef2c5dd4eea1`.
 - [ ] **D1 overhead gate:** a 60 s clip completes within direct CLI time +10%;
-  record both wall-clock measurements and the ratio here.
+  record both wall-clock measurements and the ratio here. BLOCKED 2026-07-22:
+  the development host has no `ffmpeg`/`ffprobe`, so the real pipeline cannot
+  execute. A non-qualifying deterministic-fixture diagnostic measured direct
+  CLI 340.485 ms versus desktop 429.012 ms (ratio 1.260001, FAIL); because that
+  fixture ignores media duration, it is not accepted as the required 60 s
+  end-to-end result.
 
 ## D1.5 - Bootstrapper and installer
 
@@ -174,3 +179,13 @@ in Python. D2 is out of scope until the web editor stabilizes.
   failed the guitar-presence preflight. All three raw byte/hash comparisons
   matched. The pinned CLI remains unchanged from `a26d61c`. `dotnet build`: 0
   warnings/errors; `dotnet test`: 31 passed.
+- 2026-07-22: D1 overhead gate remains unchecked. An exact 60.000 s,
+  120-frame/2 FPS fixture derived from public cached `031_vpswc` had SHA-256
+  `cceb145b1f8ed5252bffe61791b3c69df4376c00f547ee301c6ed0d62f11aa15`.
+  The production measurement is blocked because this host has neither
+  `ffmpeg` nor `ffprobe`. A temporary deterministic-sidecar diagnostic failed
+  the relative limit at 340.485 ms direct / 429.012 ms desktop = 1.260001;
+  it was not promoted to gate evidence because its mocked inference ignores
+  the 60 s workload. The temporary harness was removed; the clean build had 0
+  warnings/errors and all 31 standing tests passed. Per the loop stop rule, no
+  D1.5 work started.
