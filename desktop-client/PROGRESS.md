@@ -93,7 +93,12 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `363c38dce94687f4e2a1a635dc0ad9ea60efab80e11fd5fa77182e42e527c4d9`);
   a silent-install audit verified the self-contained runtime and all payloads.
 - [ ] Create the app-local Python environment and install the locked pipeline
-  dependencies with visible, resumable progress.
+  dependencies with visible, resumable progress. BLOCKED 2026-07-22: the lock
+  installs TabVision `a26d61c`, which has `--json`/`--progress` but lacks the
+  required stdout-reservation fix in `b2368c1`; the fixed commit is not present
+  on any remote ref. The lock also has three `git+https` sources, which would
+  require Git on the clean Windows target. Per the rebuild-trigger rule, do not
+  silently repin or add/bundle Git.
 - [ ] Download every manifest artifact with resume support, verify SHA-256,
   and keep `HF_HOME` inside the app data directory.
 - [ ] Run the bundled 5 s fixture smoke transcription and compare its output
@@ -224,3 +229,13 @@ in Python. D2 is out of scope until the web editor stabilizes.
   and every bootstrap input matched its source hash. The generated uninstaller
   removed the smoke installation. Clean verification: build 0 warnings/errors,
   31 tests passed. No runtime or NuGet dependency was added.
+- 2026-07-22: D1.5 environment installation stopped at the required pin-drift
+  check. `requirements.lock` pins TabVision `a26d61c`; direct source inspection
+  proved it has the original machine flags but not `redirect_stdout`, while the
+  production fix is in local-only `b2368c1`. No remote branch contains that
+  commit. The lock's TabVision and two high-resolution dependencies are also
+  `git+https` pins, so the planned clean Windows install would depend on an
+  unbundled Git client. No environment, dependency, or C# change was made.
+  Preferred resolution: publish immutable wheels/source archives for the three
+  VCS pins (including the fixed TabVision commit), record their hashes, and
+  repin the lock without adding Git to the installer.
