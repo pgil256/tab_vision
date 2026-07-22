@@ -1,12 +1,90 @@
-﻿<Window x:Class="TabVision.Desktop.MainWindow"
+<Window x:Class="TabVision.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:TabVision.Desktop"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="TabVision"
+        Width="760"
+        Height="460"
+        MinWidth="620"
+        MinHeight="380"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
+        <TextBlock FontSize="28"
+                   FontWeight="SemiBold"
+                   Text="TabVision" />
+        <TextBlock Grid.Row="1"
+                   Margin="0,6,0,24"
+                   Foreground="#666666"
+                   Text="Choose a guitar video to begin a local transcription."
+                   TextWrapping="Wrap" />
+
+        <Border Grid.Row="2"
+                Padding="20"
+                BorderBrush="#D6D6D6"
+                BorderThickness="1"
+                CornerRadius="6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="Input video" />
+                    <TextBlock Margin="0,4,16,0"
+                               Foreground="#666666"
+                               Text="MP4, MOV, M4V, AVI, MKV, WebM, or another media file."
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <Button x:Name="ChooseVideoButton"
+                        Grid.Column="1"
+                        MinWidth="118"
+                        Padding="14,8"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Choose video"
+                        Click="ChooseVideo_Click"
+                        Content="Choose video..." />
+
+                <Grid Grid.Row="1"
+                      Grid.ColumnSpan="2"
+                      Margin="0,20,0,0">
+                    <TextBlock x:Name="NoInputText"
+                               Foreground="#777777"
+                               Text="No video selected." />
+                    <StackPanel x:Name="SelectedInputPanel"
+                                Visibility="Collapsed">
+                        <TextBlock x:Name="SelectedFileNameText"
+                                   FontSize="15"
+                                   FontWeight="SemiBold" />
+                        <TextBlock x:Name="SelectedFileDetailsText"
+                                   Margin="0,3,0,0"
+                                   Foreground="#555555" />
+                        <TextBlock x:Name="SelectedFilePathText"
+                                   Margin="0,3,0,0"
+                                   Foreground="#777777"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3"
+                   Margin="0,22,0,0"
+                   Foreground="#777777"
+                   Text="Transcription options will appear here after an input is selected."
+                   TextWrapping="Wrap" />
     </Grid>
 </Window>

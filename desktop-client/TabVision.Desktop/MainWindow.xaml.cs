@@ -1,23 +1,41 @@
-﻿using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using Microsoft.Win32;
+using TabVision.Desktop.Models;
 
 namespace TabVision.Desktop;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    private void ChooseVideo_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Choose a guitar video",
+            Filter =
+                "Video files|*.mp4;*.mov;*.m4v;*.avi;*.mkv;*.webm;*.wmv;*.mpeg;*.mpg;*.mts;*.m2ts|All files|*.*",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        ShowSelectedInput(SelectedInputSummary.FromPath(dialog.FileName));
+    }
+
+    private void ShowSelectedInput(SelectedInputSummary selectedInput)
+    {
+        SelectedFileNameText.Text = selectedInput.FileName;
+        SelectedFileDetailsText.Text = selectedInput.Details;
+        SelectedFilePathText.Text = selectedInput.FullPath;
+        NoInputText.Visibility = Visibility.Collapsed;
+        SelectedInputPanel.Visibility = Visibility.Visible;
     }
 }

@@ -45,7 +45,9 @@ in Python. D2 is out of scope until the web editor stabilizes.
 
 ## D1 - Viewer MVP
 
-- [ ] Add a video file picker and selected-input summary.
+- [x] Add a video file picker and selected-input summary. Result: the WPF shell
+  uses the built-in Windows file dialog and shows the selected file name, type,
+  exact byte size, and full path; 2 metadata tests pass with no new dependency.
 - [ ] Add options for instrument, tone, style, capo, audio backend (`auto` by
   default), and the `--no-video` toggle.
 - [ ] Run one sidecar process per transcription job and show stage progress.
@@ -113,3 +115,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   parsed stdout/stderr and verified the rendered file. `dotnet build`: 0
   warnings/errors; `dotnet test`: 11 passed. Python: 861 passed / 12 skipped;
   Ruff (package + fixture) and mypy passed.
+- 2026-07-22: D1.1 completed. Replaced the empty window with a video picker and
+  selected-input card backed by a testable file-metadata summary. The built-in
+  WPF dialog avoids a runtime package. `dotnet build`: 0 warnings/errors;
+  `dotnet test`: 13 passed.
