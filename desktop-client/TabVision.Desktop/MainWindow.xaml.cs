@@ -9,6 +9,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeTranscriptionOptions();
     }
 
     private void ChooseVideo_Click(object sender, RoutedEventArgs e)
@@ -37,5 +38,22 @@ public partial class MainWindow : Window
         SelectedFilePathText.Text = selectedInput.FullPath;
         NoInputText.Visibility = Visibility.Collapsed;
         SelectedInputPanel.Visibility = Visibility.Visible;
+    }
+
+    private void InitializeTranscriptionOptions()
+    {
+        InstrumentComboBox.ItemsSource = TranscriptionOptions.Instruments;
+        ToneComboBox.ItemsSource = TranscriptionOptions.Tones;
+        StyleComboBox.ItemsSource = TranscriptionOptions.Styles;
+        CapoComboBox.ItemsSource = TranscriptionOptions.CapoFrets;
+        AudioBackendComboBox.ItemsSource = TranscriptionOptions.AudioBackends;
+
+        var defaults = TranscriptionOptions.Default;
+        InstrumentComboBox.SelectedItem = defaults.Instrument;
+        ToneComboBox.SelectedItem = defaults.Tone;
+        StyleComboBox.SelectedItem = defaults.Style;
+        CapoComboBox.SelectedItem = defaults.Capo;
+        AudioBackendComboBox.SelectedItem = defaults.AudioBackend;
+        NoVideoCheckBox.IsChecked = defaults.NoVideo;
     }
 }

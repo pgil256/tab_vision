@@ -48,8 +48,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Add a video file picker and selected-input summary. Result: the WPF shell
   uses the built-in Windows file dialog and shows the selected file name, type,
   exact byte size, and full path; 2 metadata tests pass with no new dependency.
-- [ ] Add options for instrument, tone, style, capo, audio backend (`auto` by
-  default), and the `--no-video` toggle.
+- [x] Add options for instrument, tone, style, capo, audio backend (`auto` by
+  default), and the `--no-video` toggle. Result: the dependency-free WPF panel
+  mirrors the pinned CLI choices (including capo 0-7) and initializes every
+  control from a tested default options record.
 - [ ] Run one sidecar process per transcription job and show stage progress.
 - [ ] Show completed ASCII output in a monospace tab viewer.
 - [ ] Export ASCII, GP5, MusicXML, and MIDI through the CLI `--format` option.
@@ -119,3 +121,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   selected-input card backed by a testable file-metadata summary. The built-in
   WPF dialog avoids a runtime package. `dotnet build`: 0 warnings/errors;
   `dotnet test`: 13 passed.
+- 2026-07-22: D1.2 completed. Added instrument, tone, style, capo, backend, and
+  audio-only controls backed by exact pinned-CLI choice lists and defaults. No
+  dependency or process wiring was added. `dotnet build`: 0 warnings/errors;
+  `dotnet test`: 15 passed.
