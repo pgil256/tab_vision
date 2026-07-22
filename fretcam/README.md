@@ -14,8 +14,13 @@ Nothing is recorded or persisted by the server.
 cd fretcam
 python -m venv .venv
 .venv\Scripts\python -m pip install -e .
+.venv\Scripts\python -m pip install --no-deps -e ..\tabvision
 .venv\Scripts\fretcam
 ```
+
+The second editable install exposes TabVision's existing vision modules as a
+library without installing its unrelated audio/render extras. FretCam's own
+package declares the pre-approved vision dependencies it uses.
 
 Open <http://127.0.0.1:8765>, select **Start camera**, and grant camera
 permission. A rear/environment camera is preferred when the browser exposes
@@ -26,7 +31,12 @@ one.
 ```powershell
 .venv\Scripts\python -m unittest discover -s tests -v
 .venv\Scripts\python -m fretcam.benchmark --rounds 100
+.venv\Scripts\python -m fretcam.replay_gaps
 ```
 
 The benchmark starts a temporary loopback server and round-trips an in-memory
 synthetic JPEG. It does not access a camera or write image data to disk.
+
+The GAPS replay samples three public cached MP4s at 640 px, runs the F2 chain,
+and prints a JSON gate report with neck/anchor outcomes and per-stage latency.
+It reads from `~/.tabvision/cache/gaps_video/` and writes nothing.

@@ -2819,3 +2819,35 @@ runtime change in this phase.
 nearly four times the continue gate, and the rescue mass sits exactly where
 the accuracy program's residual errors concentrate (dense comp voicings),
 so the expensive full evaluation is now justified.
+
+---
+
+## 2026-07-22 — FretCam F2 detection-chain gate CLOSED NEGATIVE
+
+**Phase:** FretCam side quest, F2 detection chain
+**Decision tree:** `docs/prompts/fretcam-loop.md` F2 gate — neck lock plus a
+plausible `center_fret` on at least three distinct cached GAPS clips; a failed
+gate is banked and the loop must not tune past it.
+**Branch taken:** Close F2 negative and pause the dependent F3/F4 build path.
+The quarantined F2 adapter is preserved, but no clip substitution, confidence
+relaxation, threshold tuning, fallback architecture, or TabVision package edit
+is authorized by this result.
+**Evidence:** The final replay used the predeclared cached public clips
+`027_Zpswc`, `031_vpswc`, and `043_bc1wc`, resized to a maximum dimension of
+640 px and scanned from 2.0–29.5 s at the required 2 Hz detector cadence.
+`031_vpswc` passed at 2.0 s (`center_fret=17.862`, anchor confidence `0.445`,
+homography confidence `0.634`, nonlinear fret map locked); `043_bc1wc` passed
+at 2.0 s (`20.079`, `0.546`, `0.620`, no nonlinear map). `027_Zpswc` produced
+zero plausible anchors in 56 attempts, so the gate scored **2/3**, below the
+required 3/3. A direct diagnostic frame showed the failure mode despite a
+strong neck/hand detection: the anchor clipped to `center_fret=24.0` with span
+`22.995–24.0`. Warm-path stage medians were detector `123.733 ms`, hand
+`51.324 ms`, anchor `0.288 ms`, and total `174.607 ms`; total p95 was
+`252.166 ms` and cold-start max was `8580.824 ms`. The synthetic scheduling,
+tracking, projection, missing-hand, reset, and WebSocket suite passed 6/6.
+Reproduce with `cd fretcam && .venv/Scripts/python -m fretcam.replay_gaps`.
+**Reasoning:** F1 transport is sound and two clips demonstrate that the chain
+can lock, but F2's explicit cross-clip gate did not pass. Continuing to F3
+would convert a failed coarse anchor into a polished unstable label, precisely
+what the bounded-negative rule forbids. F7 remains an independent cache-only
+probe, pending user direction; it cannot retroactively promote F2.
