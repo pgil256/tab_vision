@@ -7,6 +7,7 @@ import numpy as np
 from fretcam.detection import (
     DetectionChain,
     _fret_wire_xs,
+    compute_index_fret,
     compute_position_anchor,
     process_frame,
 )
@@ -99,7 +100,7 @@ class DetectionChainTest(unittest.TestCase):
         self.assertAlmostEqual(first.anchor.center_fret, 5.869500639052957)
         self.assertEqual(first.anchor.method, "mediapipe_calibrated_fret_map")
         self.assertIsNotNone(first.index_fret)
-        self.assertAlmostEqual(first.index_fret or 0.0, 4.932, places=3)
+        self.assertAlmostEqual(first.index_fret or 0.0, 5.932, places=3)
 
     def test_missing_hand_returns_zero_confidence_anchor(self) -> None:
         chain = DetectionChain(
@@ -157,6 +158,26 @@ class FretWireProjectionTest(unittest.TestCase):
 
 
 class PositionAnchorGeometryTest(unittest.TestCase):
+    def test_index_fret_uses_one_based_physical_cell_number(self) -> None:
+        cfg = GuitarConfig()
+        homography = Homography(
+            H=np.array([[100.0, 0.0, 0.0], [0.0, 50.0, 0.0], [0.0, 0.0, 1.0]]),
+            confidence=1.0,
+            method="fixture",
+        )
+        centers = np.linspace(0.1, 0.9, cfg.max_fret + 1)
+        hand = HandSample(
+            wrist_xy=(10.0, 25.0),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=1.0,
+            fingers={"index": FingerSample("index", (10.0, 25.0), 0.0, 0.8)},
+        )
+
+        index_fret = compute_index_fret(hand, homography, cfg, centers)
+
+        self.assertAlmostEqual(index_fret or 0.0, 1.0)
+
     def test_descending_fret_map_preserves_fret_identity(self) -> None:
         hand = HandSample(
             wrist_xy=(50.0, 25.0),

@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-22
-current_branch: fretcam/f7-calibrated-anchor-probe
+current_branch: fretcam/f4b-position-coordinate-fix
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -13,6 +13,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F2b | calibrated fret-axis geometry fix + original F2 rerun | passed | 3/3 clips; centers 12.000/2.756/9.381; total median 122.504 ms | — | — |
 | F3 | position estimator (smoothing/hysteresis) | passed | 19 tests; first lock 0.4 s; 52/60 GAPS frames locked; estimator median 0.0402 ms | — | — |
 | F4 | HUD + guidance + latency | passed | 25 tests; 21.512 FPS; E2E 39.450 ms median / 120.752 ms p95 | — | — |
+| F4b | physical fret numbering + spike-safe position lock | passed | 33 tests; public II→VI lock in 0.4 s; only II/VI locked | preserve evidence; L1 still pending | — |
 | L1 | live test 1 (Pat: A1+A4) | awaiting Pat | headless A4 pass; live A1/A4 pending | run checklist below and paste report | — |
 | F5 | fix round + full checklist | blocked | — | — | L1 |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
@@ -20,10 +21,11 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
-**Live checkpoint.** F4 passes tests, browser smoke verification, and the public
-cache A4 budget. L1 is now Pat-only and must run before F5. Corrected F7 is
-complete and positive; F8 remains blocked on an L2 pass and still requires a
-separate user sign-off before any integration code.
+**Live checkpoint.** F4b corrects the reproduced public Position II→VI HUD
+failure without a new model: the fret map remained locked, while the downstream
+cell numbering and spike handling were wrong. L1 is still Pat-only and must run
+before F5. Corrected F7 is complete and positive; F8 remains blocked on an L2
+pass and still requires separate user sign-off before any integration code.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - No edits inside `tabvision/`, SPEC, or §8. FretCam is quarantined.
@@ -40,6 +42,12 @@ separate user sign-off before any integration code.
 - None yet.
 
 ## Iteration log (newest first)
+- 2026-07-22 — F4b passed — the calibrated cell index is now normalized to
+  one-based physical fret numbering; nearest-fret locking uses 0.4-fret
+  sub-cell slack, and isolated >10-fret landmark spikes are held unless a
+  second frame confirms the move. Thirty-three tests and Ruff passed. The
+  70-frame public full-neck replay locked only Position II and VI, reached VI
+  0.4 s after stable arrival, and added 0.0399 ms median estimator latency.
 - 2026-07-22 — corrected F7 completed-positive — with the exact clean-12,
   cached frames, A14 audio decoder, window, and timestamp protocol preserved,
   replacing `canonical_x × 24` with F2b calibration/fret-12 mapping changed the

@@ -2956,3 +2956,32 @@ interval is wholly above the frozen comparator; this is strong evidence that
 the old negative was a coordinate-system artifact. It supports proceeding to
 the controlled-live assisted-review A/B design only after FretCam passes L2.
 It is not an automatic Tab F1 claim and does not authorize package changes.
+
+---
+
+## 2026-07-22 - FretCam F4b fixes physical position semantics without a new model
+
+**Phase:** FretCam side quest, explicitly approved F4b public-footage
+diagnostic/fix
+**Decision tree:** Determine whether the visible Position II→VI miss requires
+a new fret-localization model or a bounded correction after the calibrated
+fret map.
+**Branch taken:** PASS F4b. Keep the existing CV model and calibrated board
+geometry; normalize zero-based calibrated cell indices to one-based physical
+frets, use nearest-fret position candidates with sub-fret locked-state slack,
+and suppress isolated >10-fret projection spikes unless the next frame
+confirms the relocation. L1/L2 remain mandatory and no integration is opened.
+**Evidence:** On public cached `104_xf1wc` (12–19 s), the fret map was locked
+throughout at 0.92–0.97 homography confidence while the old index coordinate
+read approximately 1.4→5.0 and emitted isolated 24.00/18.35 spikes. After the
+FretCam-only correction, a 70-frame 10 FPS replay locked only Position II (43
+frames) and VI (13), reached VI 0.4 s after stable arrival, and returned to II;
+estimator latency was 0.0399 ms median / 0.0613 ms p95. Thirty-three tests and
+Ruff passed. Report:
+`docs/EVAL_REPORTS/fretcam_f4b_position_coordinate_fix_2026-07-22.md`.
+**Reasoning:** A dedicated fret model cannot explain or repair an error that
+occurs while the nonlinear fret registration is already locked. The observed
+one-position bias exactly matches the cell-index convention, and the false
+transitions match isolated landmark projections. Correcting those downstream
+semantics is smaller, testable, and preserves the quarantined architecture;
+live A2 still decides general position accuracy.

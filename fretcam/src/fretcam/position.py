@@ -18,7 +18,9 @@ class EstimatorConfig:
     hysteresis_frames: int = 5
     agreement_window: int = 10
     dropout_hold_frames: int = 5
-    boundary_slack_fret: float = 0.15
+    boundary_slack_fret: float = 0.4
+    max_single_frame_jump_fret: float = 10.0
+    jump_confirmation_tolerance_fret: float = 2.0
     min_vision_confidence: float = 0.05
     max_fret: int = 24
 
@@ -31,6 +33,10 @@ class EstimatorConfig:
             raise ValueError("dropout_hold_frames must be non-negative")
         if not 0.0 <= self.boundary_slack_fret < 0.5:
             raise ValueError("boundary_slack_fret must be in [0, 0.5)")
+        if self.max_single_frame_jump_fret <= 0.0:
+            raise ValueError("max_single_frame_jump_fret must be positive")
+        if self.jump_confirmation_tolerance_fret < 0.0:
+            raise ValueError("jump_confirmation_tolerance_fret must be non-negative")
         if not 0.0 <= self.min_vision_confidence <= 1.0:
             raise ValueError("min_vision_confidence must be in [0, 1]")
         if self.max_fret < 1:
@@ -102,6 +108,8 @@ class PositionEstimator:
         self._history: deque[int | None] = deque(maxlen=self.config.agreement_window)
         self._last_locked_confidence = 0.0
         self._last_timestamp_s: float | None = None
+        self._last_accepted_fret: float | None = None
+        self._suspected_jump_fret: float | None = None
 
     def update(
         self,
@@ -131,15 +139,18 @@ class PositionEstimator:
             return self._update_dropout(timestamp)
 
         raw_fret = min(self.config.max_fret, max(0.0, float(index_fret)))
+        filtered_fret = self._filter_single_frame_jump(raw_fret)
         confidence = min(1.0, max(0.0, confidence))
         self._missing_frames = 0
         if self._smoothed_fret is None:
-            self._smoothed_fret = raw_fret
+            self._smoothed_fret = filtered_fret
         else:
             alpha = self.config.ema_alpha
-            self._smoothed_fret = alpha * raw_fret + (1.0 - alpha) * self._smoothed_fret
+            self._smoothed_fret = (
+                alpha * filtered_fret + (1.0 - alpha) * self._smoothed_fret
+            )
 
-        candidate = self._candidate_position(raw_fret)
+        candidate = self._candidate_position(filtered_fret)
         self._history.append(candidate)
         previous: int | None = None
         if self._stable_position is None:
@@ -187,14 +198,47 @@ class PositionEstimator:
         )
 
     def _candidate_position(self, raw_fret: float) -> int:
-        raw_position = min(self.config.max_fret, max(1, math.floor(raw_fret)))
+        raw_position = min(
+            self.config.max_fret,
+            max(1, math.floor(raw_fret + 0.5)),
+        )
         stable = self._stable_position
         if stable is None:
             return raw_position
         slack = self.config.boundary_slack_fret
-        if stable - slack <= raw_fret < stable + 1 + slack:
+        if stable - 0.5 - slack <= raw_fret < stable + 0.5 + slack:
             return stable
         return raw_position
+
+    def _filter_single_frame_jump(self, raw_fret: float) -> float:
+        """Hold the last coordinate across one implausible landmark spike.
+
+        Large real relocations are admitted when the following frame confirms
+        the same destination.  Normal I-to-IX acceptance shifts remain below
+        the ten-fret one-frame guard and therefore incur no extra delay.
+        """
+        previous = self._last_accepted_fret
+        if previous is None:
+            self._last_accepted_fret = raw_fret
+            return raw_fret
+
+        if abs(raw_fret - previous) <= self.config.max_single_frame_jump_fret:
+            self._last_accepted_fret = raw_fret
+            self._suspected_jump_fret = None
+            return raw_fret
+
+        suspected = self._suspected_jump_fret
+        if (
+            suspected is not None
+            and abs(raw_fret - suspected)
+            <= self.config.jump_confirmation_tolerance_fret
+        ):
+            self._last_accepted_fret = raw_fret
+            self._suspected_jump_fret = None
+            return raw_fret
+
+        self._suspected_jump_fret = raw_fret
+        return previous
 
     def _advance_pending(self, candidate: int) -> None:
         if candidate == self._pending_position:
@@ -217,6 +261,7 @@ class PositionEstimator:
 
     def _update_dropout(self, timestamp_s: float) -> PositionEstimate:
         self._missing_frames += 1
+        self._suspected_jump_fret = None
         self._history.append(None)
         self._clear_pending()
         agreement = self._temporal_agreement(self._stable_position)
@@ -239,6 +284,7 @@ class PositionEstimator:
         self._smoothed_fret = None
         self._history.clear()
         self._last_locked_confidence = 0.0
+        self._last_accepted_fret = None
         return self._estimate(
             timestamp_s,
             "lost",

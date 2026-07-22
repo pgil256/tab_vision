@@ -281,7 +281,13 @@ def compute_index_fret(
     *,
     fallback: float | None = None,
 ) -> float | None:
-    """Project the index fingertip to fret space, falling back to a centroid."""
+    """Project the index fingertip to a physical, cell-centred fret number.
+
+    The calibrated map stores the first physical fret cell at array index 0,
+    while the rule-of-18 fallback returns a continuous wire coordinate (the
+    nut is 0).  Normalize both conventions so the centre of the first physical
+    cell reads as fret 1 before the temporal estimator assigns a position.
+    """
     if hand is None or homography.confidence <= 0.0:
         return None
     index = hand.fingers.get("index")
@@ -293,12 +299,12 @@ def compute_index_fret(
         )[:, 0]
     except np.linalg.LinAlgError:
         return fallback
-    positions, _method = _fret_positions_from_canonical_x(
-        canonical_x, cfg, fret_centers
-    )
+    positions, method = _fret_positions_from_canonical_x(canonical_x, cfg, fret_centers)
     if not np.all(np.isfinite(positions)):
         return fallback
-    return float(np.clip(positions[0], 0.0, float(cfg.max_fret)))
+    cell_center_offset = 1.0 if method == "calibrated_fret_map" else 0.5
+    physical_fret = positions[0] + cell_center_offset
+    return float(np.clip(physical_fret, 1.0, float(cfg.max_fret)))
 
 
 class DetectionChain:
