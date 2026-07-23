@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/q7-capo-detect
+current_branch: accuracy/program-summary  (PROGRAM COMPLETE)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -14,7 +14,7 @@ current_branch: accuracy/q7-capo-detect
 | Q7 | Capo/tuning preflight | **transform validated; detection refuted** | covariant **+0.3870** [+0.2818, +0.4906]; capo detection from pitch **1/60** — warn only, no auto-set | **user call: route capo>0 to covariant prior?** (capo stays user-supplied) | user decision |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Both Q6 and Q7 now sit on `auto`-routing decisions the user must take (SPEC §0.8). Q6 is registered and opt-in; Q7's transform is validated and unwired. No unblocked queue item remains — see Questions.**
+**PROGRAM COMPLETE — every item is closed-negative, dropped, or blocked on a user decision. The loop has produced its final summary (bottom of this file) and stopped. Two `auto`-routing decisions remain for the user; a proposed next program (N1-N4) is at the end.**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -646,3 +646,119 @@ worktree so that checkout was left undisturbed.
   and all six merge variants negative (best -0.0167 Tab F1, CI-sig -0.0195
   onset F1); root cause = added-note precision 0.181.
   `n2_muscriptor_merge_pilot_2026-07-21.md`.
+
+---
+
+# PROGRAM COMPLETE — final summary (2026-07-23)
+
+All eight queue items are terminal (`closed-negative`, `dropped`, or
+`blocked` on a user decision), so the loop stops here per its own rule.
+16 iterations, 23 commits on a stacked chain ending at
+`accuracy/q7-capo-detect`, unpushed, to be merged in order.
+
+## What the program bought
+
+| item | outcome | number |
+|---|---|---|
+| Q1 second-opinion merge | closed-negative | added-note precision 0.181 vs break-even 0.528 |
+| Q2 symbolic contextual assigner | closed-negative | +0.0467 vs a +0.05 bar |
+| Q3 S1b integration | dropped with Q2 | — |
+| Q4 Basic Pitch / YourMT3+ | dropped (user) | environment-blocked; leg-2 gate derived |
+| Q5 onset snapping | closed-negative | +0.0002; `timing_only` rose 15→41 |
+| **Q6 inharmonicity** | **all gates passed, registered opt-in** | **player-05 +0.0780 [+0.0502, +0.1078]** |
+| **Q7 capo-covariant prior** | **validated, unwired** | **+0.3870 [+0.2818, +0.4906] at capo 2** |
+| Q8 review-ranker | orphaned | needed Q3's posteriors |
+
+**One lever worked, and it is the one nobody had tried.** Five of eight closed
+negative or dropped. The survivor is physics: inharmonicity as per-note string
+evidence, derived from published string specifications rather than fitted to
+any dataset, taking sealed player-05 aggregate Tab F1 from **0.6340 → 0.7119**
+and solo from **0.5503 → 0.6899**.
+
+## The three findings worth carrying forward
+
+**1. Wrong-position is the target, and single lines are where it hides.**
+57.3% of all loss, 77.5% of single-line loss. Q2 then showed that *context*
+resolves chords (+0.0661) far better than single lines (+0.0112) — so the
+tier carrying most of the loss is the one sequence models cannot help. That is
+precisely the gap the physics channel fills (solo +0.1396 on player-05).
+
+**2. Complementarity is not sufficient for a merge — added-note precision is.**
+MuScriptor cleared the ≥0.10 complementarity gate by 3.8× and still produced
+no admissible merge. The derived break-even
+`p > (F1/2) / (α·(1 − F1/2) + F1/2)` = **0.528** predicted the sign of all five
+admitting variants (5/5). Volume cancels: how many notes a merge admits never
+changes the sign, only the magnitude.
+
+**3. Today's capo handling is a collapse, not a shortfall.** §4.3 framed capo
+sessions as losing a "+22 pp" bonus. They actually score **0.2956 against a
+0.6773 capo-0 control** — the no-prior fallback's low-fret heuristic breaks
+when every candidate sits above the capo. This is the largest single defect
+the program found, and it needs no new research to fix.
+
+## Two decisions pending (both yours, SPEC §0.8)
+
+1. **Default-on the Q6 channel** for clean steel-string acoustic, or keep it
+   opt-in behind `--string-evidence acoustic-physics-v1`? Evidence: every
+   offline gate passed, one-for-one bucket conversion on all three runs,
+   onset/pitch bit-identical, domain-guarded twice. Caveat: all validation is
+   GuitarSet on similar steel-strings — portability to another guitar is
+   argued from physics, not measured.
+2. **Route capo>0 to the covariant prior** instead of `priors=none`? Worth
+   ~+0.37 to a capo user. Note the capo must still be supplied by hand;
+   detection is refuted.
+
+## Proposed next program, in ROI order
+
+**N1 — Extend the physics channel's coverage (highest ROI).** Accuracy when it
+fires is 0.92; **coverage is 8-10% of detections** and is the binding
+constraint. Only 4,407 of 9,927 isolated notes (44%) produce a usable fit, so
+the cheapest lever is fit *success*, not fit quality: longer adaptive windows,
+better partial tracking, and replacing the hard `r² ≥ 0.50` gate with a
+calibrated soft weight so marginal fits contribute proportionally instead of
+nothing. Doubling coverage roughly doubles the gain. Days, `$0`, and it reuses
+the shipped module.
+
+**N2 — A nylon table for classical.** The channel abstains on classical
+entirely because no nylon table exists. Nylon's `E` (~3 GPa vs steel's ~200)
+is published, the machinery is identical, and GAPS is already on disk to
+validate against — and classical is single-line-heavy, exactly where the
+method is strongest. This also converts the GAPS cross-domain gate from
+"satisfied by abstention" into a real measurement. ~1 week.
+
+**N3 — Re-scope Q8 on the physics channel.** The review-ranker died because it
+wanted Q3's posteriors. The inharmonicity fit produces exactly what it lacked:
+a per-note confidence (`r²`) and a physically-grounded margin between
+candidate strings. Target: beat the shipped 38.76% wrong-position reduction
+@60 s. Reported separately from automatic Tab F1. Days.
+
+**N4 — Per-instrument calibration for real use.** `calibrate_from_ritual`
+(18 notes, three frets × six strings, fits `B0` *and* the fret exponent) is
+built but unvalidated on real plucks — GuitarSet contains only 1-3 usable
+isolated open notes per player, so it cannot contain the ritual. Needs public
+capo/calibration audio or an explicit exception to the private-recordings ban.
+This is the gap between "works on GuitarSet" and "works on your guitar."
+
+**Explicitly not recommended:** more second-opinion merges (the two-leg gate
+kills them cheaply — use the bench first), more context/sequence modelling for
+single lines (Q2 closed it), any onset refinement (Q5: the backend already
+beats spectral flux), and capo detection from pitch (Q7: impossible in
+principle).
+
+## Methodology rules earned here
+
+- **Synthetic pitch-shift is valid for pitch/position evaluation and invalid
+  for timbre/physics** — it scales frequencies without shortening the string.
+  Cost: one invalidated experiment, caught by checking the measured stiffness
+  shift against the physical prediction.
+- **Always use leave-one-player-out priors on dev clips.** An in-sample slip
+  inflated a capo result to +0.45 against a true +0.387.
+- **Registered artifacts must be written as the bytes git stores (LF)**, or
+  hash verification fails on a fresh checkout — the artifact is then broken
+  for everyone but its author.
+- **Domain guards can discharge cross-domain gates by proof.** Scoping the
+  channel to instruments it has a table for satisfied the GAPS clean-12
+  no-regression check by construction, replacing a ~2-hour run with a unit
+  test.
+- **Bank events, replay offline.** Most gates in this program cost seconds
+  because inference was cached once and every variant swept against it.
