@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/n1-coverage  (post-program N1)
+current_branch: accuracy/n1-latency  (post-program N1)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -710,7 +710,7 @@ the program found, and it needs no new research to fix.
 
 ## Proposed next program, in ROI order
 
-**N1 — DONE (2026-07-23): full-dev PASSED +0.0629 [+0.0481, +0.0792], +0.0182 [+0.0111, +0.0256] over shipped `strict`; coverage 8.26% -> 21.69%; solo +0.0860 -> +0.1139. player-05 not run (user-gated), nothing registered. See `n1_partial_aware_isolation_2026-07-23.md`. Original text:** Accuracy when it
+**N1 — DONE (2026-07-23): full-dev PASSED +0.0629 [+0.0481, +0.0792], +0.0182 [+0.0111, +0.0256] over shipped `strict`; coverage 8.26% -> 21.69%; solo +0.0860 -> +0.1139. player-05 not run (user-gated), nothing registered. **Latency claim RETRACTED (measured): 4.4s per 60s audio = 1.5% of the 300s budget, no blocker, no optimisation needed.** See `n1_partial_aware_isolation_2026-07-23.md`. Original text:** Accuracy when it
 fires is 0.92; **coverage is 8-10% of detections** and is the binding
 constraint. Only 4,407 of 9,927 isolated notes (44%) produce a usable fit, so
 the cheapest lever is fit *success*, not fit quality: longer adaptive windows,

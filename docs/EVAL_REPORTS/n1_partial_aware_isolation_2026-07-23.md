@@ -101,9 +101,10 @@ the full run corrected it.
   mildly optimistic.
 - Still GuitarSet. Contamination behaviour on denser or differently-voiced
   material is unmeasured.
-- `_overlapping` is O(n²) per clip; the full sweep took ~25 min where the
-  strict path takes seconds. Fine offline, but it needs an interval index
-  before this could run inside the 5-min-per-60s latency budget.
+- ~~`_overlapping` is O(n²) per clip ... needs an interval index before this
+  could run inside the 5-min-per-60s latency budget.~~ **Retracted — this was
+  asserted without measurement and is wrong on both counts. See the latency
+  appendix below.**
 
 ## Reproduce
 
@@ -114,3 +115,49 @@ python scripts/eval/n1_coverage_diagnostic.py --clips 60 \
 python scripts/eval/n1_isolation_sweep.py --all-dev \
   --json ../docs/EVAL_REPORTS/n1_isolation_fulldev_2026-07-23.json
 ```
+
+
+---
+
+## Appendix — latency claim retracted (measured 2026-07-23)
+
+The limits section above originally warned that partial-aware isolation
+"needs an interval index before this could run inside the 5-min-per-60s
+latency budget". That was asserted from reading the code, not measured, and
+it is wrong twice over.
+
+**Measured cost on the three densest dev clips** (SPEC §1.4 allows 300 s per
+60 s clip; transcription alone is ~40 s):
+
+| clip | events | audio | strict | partial_aware |
+|---|---:|---:|---:|---:|
+| 00_Rock2-85-F_comp | 802 | 45.2 s | 0.10 s/60s | **4.45 s/60s** |
+| 04_SS1-68-E_comp | 784 | 42.3 s | 0.14 s/60s | **4.43 s/60s** |
+| 00_Rock1-90-C#_comp | 654 | 32.0 s | 0.09 s/60s | **4.32 s/60s** |
+
+**~4.4 s per 60 s of audio is 1.5% of the budget.** Partial-aware is ~45×
+slower than strict in relative terms and irrelevant in absolute ones.
+
+**The bottleneck is not the overlap scan.** `strict` rejects non-isolated
+notes *before* fitting, so it runs an FFT on ~19% of events; `partial_aware`
+fits nearly all of them. The extra spectral work dominates, not the O(n²)
+neighbour search.
+
+**The O(n²) is real but never material at realistic sizes.** Isolating the
+scan on synthetic events:
+
+| events | ≈ audio | scan cost | per 60 s audio |
+|---:|---:|---:|---:|
+| 800 | 1.6 min | 0.03 s | 0.02 s |
+| 2,000 | 4.0 min | 0.31 s | 0.08 s |
+| 5,000 | 10 min | 1.85 s | 0.18 s |
+| 10,000 | 20 min | 17.10 s | 0.86 s |
+
+The absolute cost grows quadratically while the budget grows linearly, so it
+does eventually bite — but reaching even 10% of budget needs roughly 60,000
+events, about two hours of continuously dense playing in one recording.
+
+**No optimisation made.** An interval index would be premature against 1.5%
+of budget, and any change to this path would invalidate the full-dev gate it
+just passed. The measurement is recorded so a future session can skip the
+question, and so the earlier claim does not propagate.

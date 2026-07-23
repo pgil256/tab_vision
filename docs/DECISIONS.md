@@ -3776,3 +3776,37 @@ fine offline but needing an interval index before it could run inside the
 from a lever that did not exist to the one that did, and the full-dev run then
 reversed the pilot's per-tier conclusion. Both corrections are recorded
 because the intermediate write-ups were wrong.
+
+---
+
+## 2026-07-23 — N1 latency claim retracted; partial-aware costs 1.5% of budget
+
+**Phase:** Post-program item N1, follow-up
+**Decision tree:** the N1 write-up asserted partial-aware isolation "needs an
+interval index before this could run inside the 5-min-per-60s latency budget",
+which if true would have made the +0.0182 gain unshippable regardless of
+accuracy. That claim was never measured.
+**Branch taken:** **retracted — the claim is wrong on both counts, and no
+optimisation is warranted.** Measured on the three densest development clips,
+partial-aware costs **4.32-4.45 s per 60 s of audio** against SPEC §1.4's
+**300 s** budget: **~1.5%**. It is ~45x slower than `strict` relatively and
+negligible absolutely.
+**The bottleneck was misattributed.** `strict` rejects non-isolated notes
+before fitting and so runs an FFT on ~19% of events, while `partial_aware`
+fits nearly all of them; the extra spectral work dominates, not the O(n²)
+neighbour search I blamed.
+**The O(n²) is real but not material.** Isolating the scan on synthetic
+events: 0.02 s per 60 s audio at 800 events, 0.08 at 2,000, 0.18 at 5,000,
+0.86 at 10,000 (~20 min of audio). Absolute cost grows quadratically while the
+budget grows linearly, so it does eventually bite — but reaching even 10% of
+budget needs roughly 60,000 events, about two hours of continuously dense
+playing in a single recording.
+**No code changed.** An interval index is premature against 1.5% of budget,
+and touching this path would invalidate the full-dev gate it just passed.
+**Consequence:** partial-aware isolation has no latency blocker. Its remaining
+gate is the player-05 confirmation, which is user-gated exactly as v1's was.
+**Evidence:** latency appendix in
+`docs/EVAL_REPORTS/n1_partial_aware_isolation_2026-07-23.md`.
+**Reasoning:** the original claim was plausible from reading the code and
+false in practice; leaving it in the record would have deterred a future
+session from a change that is in fact free. Cost to check: two measurements.
