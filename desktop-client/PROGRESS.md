@@ -15,7 +15,7 @@ in Python. D2 is out of scope until the web editor stabilizes.
   preflight, pipeline stages, render, and completion at 0-100%; default stays silent.
 - [x] Create `bootstrap/requirements.lock` with the pipeline commit and the
   planned audio-highres, vision, and render extras pinned. Result: CPython 3.11
-  lock has 93 exact registry pins, two hash-verified upstream commit archives,
+  lock has 94 exact registry pins, two hash-verified upstream commit archives,
   and the published fixed-commit TabVision wheel; no Git client is required.
 - [x] Create `bootstrap/weights.manifest.json` with URL, revision, SHA-256, and
   app-local destination for every external model/prior artifact in the plan.
@@ -89,15 +89,15 @@ in Python. D2 is out of scope until the web editor stabilizes.
 
 - [x] Bundle the self-contained WPF publish, CPython 3.11 embeddable package,
   `pip.pyz`, requirements lock, and weights manifest with Inno Setup. Result:
-  pinned/hash-verified inputs produced a 63,911,774-byte installer (SHA-256
-  `363c38dce94687f4e2a1a635dc0ad9ea60efab80e11fd5fa77182e42e527c4d9`);
+  pinned/hash-verified inputs produced a 63,920,983-byte installer (SHA-256
+  `f3506ef65f9c191b3e1d3041265db591ecb389e06496973047aae532a80f6616`);
   a silent-install audit verified the self-contained runtime and all payloads.
-- [ ] Create the app-local Python environment and install the locked pipeline
-  dependencies with visible, resumable progress. UNBLOCKED 2026-07-22 after
-  explicit approval: fixed commit `b2368c1` is a hash-pinned release wheel and
-  both external VCS pins are hash-pinned upstream commit archives. Because the
-  upstream metadata still declares Git URLs, install the complete lock closure
-  with `--no-deps`; environment creation and progress UI remain to be built.
+- [x] Create the app-local Python environment and install the locked pipeline
+  dependencies with visible, resumable progress. Result: first launch expands
+  embedded CPython under local app data, streams 0-100% pip status through the
+  existing UI, and installs the 97-package `--no-deps` closure. A payload-hash
+  ready marker skips completed work, while an app-local pip cache resumes failed
+  runs; a real install and `pip check` passed without Git.
 - [ ] Download every manifest artifact with resume support, verify SHA-256,
   and keep `HF_HOME` inside the app data directory.
 - [ ] Run the bundled 5 s fixture smoke transcription and compare its output
@@ -249,3 +249,20 @@ in Python. D2 is out of scope until the web editor stabilizes.
   An isolated install with Git absent from `PATH` succeeded for all three direct
   artifacts. Clean desktop build: 0 warnings/errors; all 31 tests passed.
   Environment/bootstrap UI work remains in the unchecked item.
+- 2026-07-22: D1.5 app-local Python environment completed. First launch now
+  expands CPython 3.11.9 to `%LOCALAPPDATA%\\TabVision\\python`, preserves the
+  bundled `_pth` file as a backup, mirrors extension modules into standard
+  `DLLs` for pip build isolation, and installs the exact lock with `--no-deps`,
+  `--upgrade`, visible 0-100% status, and a persistent pip cache. Two real
+  interrupted attempts retained their runtime/cache and resumed successfully.
+  The initial 96-package install completed in 423.4 s; `pip check` then exposed
+  pip-compile's omitted unsafe `setuptools` dependency for Torch, so the final
+  97-package lock pins `setuptools==83.0.0` and the cached repair took 54.2 s.
+  Final `pip check` reported no broken requirements; imports verified TabVision
+  1.0.0, Torch 2.13.0+cpu, OpenCV 5.0.0, and MediaPipe 0.10.35. The 43,517-file
+  environment is 1,753,790,877 bytes with a reusable 534,909,462-byte cache;
+  the next invocation used the ready-marker fast path. Clean desktop build:
+  0 warnings/errors; 36 tests passed. The rebuilt 63,920,983-byte installer
+  matched the final lock in a 471-file silent install, and the installed app
+  stayed running through its startup smoke before clean uninstall. No NuGet
+  dependency was added.

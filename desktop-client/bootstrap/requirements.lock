@@ -313,5 +313,5 @@ urllib3==2.7.0
 webcolors==25.10.0
     # via music21
 
-# The following packages are considered to be unsafe in a requirements file:
-# setuptools
+setuptools==83.0.0
+    # via torch

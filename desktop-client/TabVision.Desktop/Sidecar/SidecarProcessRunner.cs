@@ -12,6 +12,7 @@ public sealed class SidecarProcessRunner
         string? workingDirectory = null,
         IReadOnlyDictionary<string, string?>? environment = null,
         IProgress<string>? standardErrorLineProgress = null,
+        IProgress<string>? standardOutputLineProgress = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -58,8 +59,11 @@ public sealed class SidecarProcessRunner
             throw new InvalidOperationException($"Failed to start sidecar process '{executablePath}'.");
         }
 
-        var standardOutputTask = process.StandardOutput.ReadToEndAsync();
-        var standardErrorTask = ReadStandardErrorAsync(
+        var standardOutputTask = ReadStreamAsync(
+            process.StandardOutput,
+            standardOutputLineProgress
+        );
+        var standardErrorTask = ReadStreamAsync(
             process.StandardError,
             standardErrorLineProgress
         );
@@ -86,7 +90,7 @@ public sealed class SidecarProcessRunner
         );
     }
 
-    private static async Task<string> ReadStandardErrorAsync(
+    private static async Task<string> ReadStreamAsync(
         StreamReader reader,
         IProgress<string>? lineProgress
     )

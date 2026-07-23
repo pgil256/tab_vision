@@ -78,6 +78,32 @@ public sealed class SidecarProcessRunnerTests
         );
     }
 
+    [Fact]
+    public async Task RunAsyncReportsStdoutLinesWhilePreservingCapturedText()
+    {
+        var runner = new SidecarProcessRunner();
+        var lines = new List<string>();
+
+        var result = await runner.RunAsync(
+            "powershell.exe",
+            [
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "[Console]::Out.WriteLine('Collecting one'); "
+                    + "[Console]::Out.Write('Successfully installed one')",
+            ],
+            standardOutputLineProgress: new CallbackProgress<string>(lines.Add)
+        );
+
+        Assert.Equal(["Collecting one", "Successfully installed one"], lines);
+        Assert.Equal(
+            $"Collecting one{Environment.NewLine}Successfully installed one",
+            result.StandardOutput
+        );
+    }
+
     private sealed class CallbackProgress<T>(Action<T> callback) : IProgress<T>
     {
         public void Report(T value) => callback(value);

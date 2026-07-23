@@ -6,6 +6,7 @@
         Height="900"
         MinWidth="620"
         MinHeight="820"
+        Loaded="Window_Loaded"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="28">
         <Grid.RowDefinitions>

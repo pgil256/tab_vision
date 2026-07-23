@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using TabVision.Desktop.Bootstrap;
 using TabVision.Desktop.Models;
 using TabVision.Desktop.Sidecar;
 
@@ -10,12 +11,56 @@ public partial class MainWindow : Window
 {
     private SelectedInputSummary? _selectedInput;
     private TranscriptionOptions? _completedOptions;
+    private bool _bootstrapReady = true;
+    private bool _bootstrapStarted;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeTranscriptionOptions();
         InitializeExportFormats();
+    }
+
+    private async void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (_bootstrapStarted)
+        {
+            return;
+        }
+
+        _bootstrapStarted = true;
+        if (!BootstrapPayloadPaths.TryFromApplicationDirectory(AppContext.BaseDirectory, out var payloads))
+        {
+            return;
+        }
+
+        _bootstrapReady = false;
+        SetJobRunning(isRunning: false);
+        JobProgressBar.Value = 0;
+        JobStatusText.Text = "Preparing first-run Python setup...";
+
+        try
+        {
+            var progress = new Progress<PythonBootstrapProgress>(ShowBootstrapProgress);
+            var bootstrapper = new PythonEnvironmentBootstrapper();
+            var result = await bootstrapper.InstallAsync(
+                payloads,
+                PythonEnvironmentLayout.Default,
+                progress
+            );
+
+            _bootstrapReady = true;
+            SetJobRunning(isRunning: false);
+            JobProgressBar.Value = 100;
+            JobStatusText.Text = result.WasAlreadyReady
+                ? "Choose an input to begin."
+                : "Python setup complete. Choose an input to begin.";
+        }
+        catch (Exception exception)
+        {
+            JobProgressBar.Value = 0;
+            JobStatusText.Text = $"Setup failed: {exception.Message}";
+        }
     }
 
     private void ChooseVideo_Click(object sender, RoutedEventArgs e)
@@ -216,6 +261,11 @@ public partial class MainWindow : Window
             sidecarExecutable,
             arguments,
             workingDirectory: Path.GetDirectoryName(sidecarExecutable),
+            environment: new Dictionary<string, string?>
+            {
+                ["PYTHONNOUSERSITE"] = "1",
+                ["PYTHONUTF8"] = "1",
+            },
             standardErrorLineProgress: lineProgress
         );
     }
@@ -242,6 +292,12 @@ public partial class MainWindow : Window
 
         JobProgressBar.Value = progress!.Percentage;
         JobStatusText.Text = $"{progress.Stage.Replace('_', ' ')} ({progress.Percentage}%)";
+    }
+
+    private void ShowBootstrapProgress(PythonBootstrapProgress progress)
+    {
+        JobProgressBar.Value = progress.Percentage;
+        JobStatusText.Text = progress.Message;
     }
 
     private void ShowSidecarFailure(SidecarProcessResult result, string operation)
@@ -286,10 +342,12 @@ public partial class MainWindow : Window
 
     private void SetJobRunning(bool isRunning)
     {
-        ChooseVideoButton.IsEnabled = !isRunning;
-        OptionsPanel.IsEnabled = !isRunning;
-        TranscribeButton.IsEnabled = !isRunning && _selectedInput is not null;
-        ExportButton.IsEnabled = !isRunning && _completedOptions is not null;
+        ChooseVideoButton.IsEnabled = _bootstrapReady && !isRunning;
+        OptionsPanel.IsEnabled = _bootstrapReady && !isRunning;
+        TranscribeButton.IsEnabled =
+            _bootstrapReady && !isRunning && _selectedInput is not null;
+        ExportButton.IsEnabled =
+            _bootstrapReady && !isRunning && _completedOptions is not null;
     }
 
     private static string CreateJobOutputPath()

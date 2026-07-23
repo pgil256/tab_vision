@@ -3137,3 +3137,35 @@ and all 31 tests passed.
 `--no-deps` makes the compiled lock, rather than stale transitive URLs, the sole
 dependency authority. This keeps first run reproducible and removes the need to
 ship a general-purpose Git client.
+
+---
+
+## 2026-07-22 - D1.5 uses a fingerprinted embedded-Python environment
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Create a clean-machine, app-local Python installation with
+visible progress and retry safety using only the already bundled CPython and pip
+payloads.
+**Branch taken:** Expand CPython 3.11.9 directly under local app data rather
+than requesting unsupported `venv`/`ensurepip` modules from the embeddable
+distribution. Preserve its restrictive `_pth` file as `.bundled`, enable the
+standard site layout, and mirror root-level `.pyd` extension modules into
+`DLLs` so pip's isolated source-build environment retains native stdlib imports.
+Install the complete 97-package lock with `--no-deps --upgrade --prefix`, stream
+pip lines into the existing WPF progress bar, retain an app-local pip cache, and
+write a ready marker fingerprinting CPython, pip, and the requirements lock.
+**Evidence:** A real first run installed TabVision 1.0.0 plus the high-resolution,
+vision, and render stack under `%LOCALAPPDATA%\\TabVision` without Git. The final
+environment contains 43,517 files / 1,753,790,877 bytes; its retained pip cache
+contains 534,909,462 bytes. `pip check` reports no broken requirements after
+explicitly pinning Torch's pip-compile-omitted `setuptools==83.0.0` dependency.
+Native imports verified Torch 2.13.0+cpu, OpenCV 5.0.0, and MediaPipe 0.10.35;
+the ready-marker retry skipped pip. The WPF build had 0 warnings/errors and all
+36 tests passed. The rebuilt installer is 63,920,983 bytes with SHA-256
+`f3506ef65f9c191b3e1d3041265db591ecb389e06496973047aae532a80f6616`;
+its silent-install payload matched the final lock and the app passed startup.
+**Reasoning:** The direct embedded layout avoids shipping a second bootstrap
+tool while preserving the installed command path the shell already resolves.
+Content fingerprints make completion trustworthy; idempotent pip plus its cache
+make interruption cheap. Standard `DLLs` placement is required because pip
+removes the runtime root from isolated builds, otherwise hiding `_socket.pyd`.
