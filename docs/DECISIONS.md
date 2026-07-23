@@ -3461,3 +3461,43 @@ registered, player-05 never read.
 that it *cannot* regress is stronger than a measurement that it did not, and
 costs nothing. Prompted by the user's observation that running nylon material
 to validate a steel-string feature was the wrong shape of experiment.
+
+---
+
+## 2026-07-22 — Q6 full-dev OOF: channel PASSES with frozen config
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), full-dev gate
+**Decision tree:** house standard — a fuse()-touching change ships only on
+lower-95 CI > 0 over the full development set, config frozen before the run.
+**Branch taken:** **PASS.** All 300 GuitarSet dev clips (players 00-04),
+weight 1.0 / min_r2 0.50 / raw physics table fixed in source before the run
+(no sweep, no arm selection): **Tab F1 0.6031 -> 0.6474, delta +0.0443
+[+0.0339, +0.0555]** paired bootstrap N=10,000 seed=42. Solo **+0.0860
+[+0.0673, +0.1055]**, comp +0.0026 [-0.0000, +0.0069]. Onset F1 0.9182 and
+pitch F1 0.8951 **bit-identical** to baseline. The figure sits ~0.008 below
+the pilot's tuned +0.0525, the expected direction once the weight is no longer
+chosen on the reported set.
+**Decomposition, one-for-one at scale:** correct 30,708 -> 31,956 (+1,248),
+wrong_position_same_pitch 12,907 -> 11,659 (-1,248), and pitch_off,
+timing_only, missed_onset, extra_detection **each move by exactly 0 across
+52,741 detections**. The §6.3 leakage check passes as strictly as possible —
+the entire gain is in the targeted bucket.
+**Honest cost:** 129 clips improved, 146 unchanged, **25 regressed**. A soft
+evidence term can flip a previously-correct note when confidently wrong; the
+regressions are outnumbered ~5:1 and absorbed by the aggregate CI, but this
+is a mean improvement, not a strict Pareto one. Coverage is 8.3% of
+detections (4,354 applied) and overwhelmingly solo, so aggregate lift on
+strum-heavy input will be much smaller.
+**Evidence:** `docs/EVAL_REPORTS/q6_full_dev_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q6_full_dev.py` (config frozen in source).
+917 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, **player-05 never read.**
+**Next, user-gated:** player-05 confirmation is the remaining gate and is a
+user decision — config is now frozen, which is its entry condition. Then a
+registration + auto-routing decision (default-on for clean steel-string
+acoustic, or behind TABVISION_STRING_EVIDENCE). The calibration take is still
+unvalidated on real audio; the physics table does not depend on it.
+**Reasoning:** this is the first lever in the accuracy program to pass a
+full-dev OOF gate with pre-frozen config, and the decomposition rules out
+leakage as the explanation at 52k-event scale. Everything short of player-05
+is now done, and player-05 is deliberately not opened without the user.

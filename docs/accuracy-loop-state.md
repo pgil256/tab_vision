@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-gaps-gate
+current_branch: accuracy/q6-full-dev
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,7 +10,7 @@ current_branch: accuracy/q6-gaps-gate
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **portable + domain-guarded** | `physics` **+0.0502** [+0.0198, +0.0853]; **GAPS gate satisfied by construction** (classical abstains, unit-tested) | remaining gates: full-dev OOF, then player-05 | user decision |
+| Q6 | Inharmonicity study | **FULL-DEV GATE PASSED** | 300 clips frozen config: **+0.0443** [+0.0339, +0.0555]; solo +0.0860; +1248 correct / -1248 wrong_position, all else 0 | **player-05 confirmation (user-gated)** | user proceed |
 | Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -342,6 +342,31 @@ no-op, so out-of-domain sessions are **bit-identical to baseline**.
   `scripts/eval/q6_gaps_no_regression.py` is retained as the empirical
   confirmation for the day a nylon table exists.
 
+## Q6 full-dev OOF — PASSED (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q6_full_dev_2026-07-22.md` (+ `.json`).
+Runner: `scripts/eval/q6_full_dev.py` (config frozen in source).
+
+300 GuitarSet dev clips, weight 1.0 / min_r2 0.50 / raw physics table, all
+fixed **before** the run — no sweep.
+
+| metric | baseline | arm | Δ [lo-95, hi-95] |
+|---|---:|---:|---|
+| **Tab F1** | 0.6031 | 0.6474 | **+0.0443 [+0.0339, +0.0555]** |
+| solo | — | — | **+0.0860 [+0.0673, +0.1055]** |
+| comp | — | — | +0.0026 [-0.0000, +0.0069] |
+| onset / pitch | 0.9182 / 0.8951 | 0.9182 / 0.8951 | bit-identical |
+
+**Gate lo-95 > 0: PASS** (lower bound +0.0339, far clear of zero). Sits
+~0.008 below the pilot's tuned +0.0525 — expected once the weight is no
+longer chosen on the reported set.
+
+- **Decomposition one-for-one at 52k events:** correct +1,248,
+  wrong_position -1,248, pitch_off/timing/missed/extra **each 0**. §6.3
+  leakage check passes strictly.
+- **Honest cost:** 129 improved, 146 unchanged, **25 regressed** — a mean
+  improvement, not strict Pareto. Coverage 8.3% of detections, ~all solo.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -406,6 +431,11 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **FULL-DEV GATE PASSED**: 300 clips, frozen config,
+  **+0.0443** [+0.0339, +0.0555] (solo +0.0860, comp +0.0026); +1248 correct
+  / -1248 wrong_position, all other buckets exactly 0; onset/pitch
+  bit-identical. Next gate = player-05 (user-gated).
+  `q6_full_dev_2026-07-22.md`.
 - 2026-07-22 — Q6 — **domain guard**: channel abstains outside clean
   steel-string acoustic (classical/nylon ~65x less inharmonic; also capo and
   alt tuning). GAPS cross-domain gate now **satisfied by construction and
