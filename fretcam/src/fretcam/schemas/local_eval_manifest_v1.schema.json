@@ -1,0 +1,414 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fretcam://schemas/local_eval_manifest_v1.schema.json",
+  "title": "FretCam local development evaluation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "schema_id",
+    "dataset_id",
+    "created_at",
+    "updated_at",
+    "policy",
+    "clips"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "schema_id": {
+      "const": "fretcam-local-eval-manifest-v1"
+    },
+    "dataset_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "clips": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/clip"
+      }
+    }
+  },
+  "$defs": {
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "storage_scope",
+        "capture_mode",
+        "automatic_recording",
+        "automatic_frame_extraction",
+        "source_scope",
+        "private_or_user_media_allowed",
+        "model_training_allowed",
+        "release_gate_allowed",
+        "media_retention"
+      ],
+      "properties": {
+        "purpose": {
+          "const": "fretcam_local_development_evaluation"
+        },
+        "storage_scope": {
+          "const": "local_only"
+        },
+        "capture_mode": {
+          "const": "manual_opt_in_only"
+        },
+        "automatic_recording": {
+          "const": false
+        },
+        "automatic_frame_extraction": {
+          "const": false
+        },
+        "source_scope": {
+          "const": "public_or_synthetic_only"
+        },
+        "private_or_user_media_allowed": {
+          "const": false
+        },
+        "model_training_allowed": {
+          "const": false
+        },
+        "release_gate_allowed": {
+          "const": false
+        },
+        "media_retention": {
+          "const": "user_managed"
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clip_id",
+        "media",
+        "provenance",
+        "capture",
+        "annotations"
+      ],
+      "properties": {
+        "clip_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$"
+        },
+        "media": {
+          "$ref": "#/$defs/media"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "capture": {
+          "$ref": "#/$defs/capture"
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      }
+    },
+    "media": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "byte_size",
+        "duration_ms"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^media/[a-z0-9][a-z0-9_-]*\\.(avi|mkv|mov|mp4|webm)$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "byte_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_uri",
+        "license",
+        "rights_verified",
+        "appearance_metadata_rights_verified",
+        "redistribution_allowed"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "public_licensed",
+            "synthetic"
+          ]
+        },
+        "source_uri": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "license": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]{1,63}$"
+        },
+        "rights_verified": {
+          "type": "boolean"
+        },
+        "appearance_metadata_rights_verified": {
+          "type": "boolean"
+        },
+        "redistribution_allowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handedness",
+        "framing",
+        "lighting",
+        "skin_tone",
+        "appearance_basis",
+        "guitar",
+        "sleeve",
+        "background",
+        "face_visibility",
+        "minors_present"
+      ],
+      "properties": {
+        "handedness": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "framing": {
+          "enum": [
+            "close",
+            "full_neck"
+          ]
+        },
+        "lighting": {
+          "enum": [
+            "bright",
+            "dim",
+            "warm",
+            "cool",
+            "uneven",
+            "mixed"
+          ]
+        },
+        "skin_tone": {
+          "enum": [
+            "not_recorded",
+            "very_light",
+            "light",
+            "medium",
+            "deep",
+            "very_deep"
+          ]
+        },
+        "appearance_basis": {
+          "enum": [
+            "not_recorded",
+            "source_declared",
+            "licensed_dataset_label",
+            "synthetic_specification"
+          ]
+        },
+        "guitar": {
+          "enum": [
+            "acoustic_steel",
+            "acoustic_classical",
+            "electric_solid",
+            "electric_hollow",
+            "other"
+          ]
+        },
+        "sleeve": {
+          "enum": [
+            "bare_arm",
+            "short_sleeve",
+            "long_sleeve",
+            "glove",
+            "other"
+          ]
+        },
+        "background": {
+          "enum": [
+            "plain",
+            "cluttered",
+            "outdoor",
+            "studio",
+            "other"
+          ]
+        },
+        "face_visibility": {
+          "enum": [
+            "none",
+            "partial",
+            "full"
+          ]
+        },
+        "minors_present": {
+          "const": false
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "annotation_id",
+        "timestamp_ms",
+        "phase",
+        "position",
+        "technique",
+        "fingers"
+      ],
+      "properties": {
+        "annotation_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{1,63}$"
+        },
+        "timestamp_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "phase": {
+          "enum": [
+            "stable",
+            "shifting",
+            "occluded",
+            "invalid"
+          ]
+        },
+        "position": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 12
+        },
+        "technique": {
+          "enum": [
+            "note",
+            "chord",
+            "barre",
+            "stretch",
+            "slide"
+          ]
+        },
+        "fingers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "thumb",
+            "index",
+            "middle",
+            "ring",
+            "pinky"
+          ],
+          "properties": {
+            "thumb": {
+              "$ref": "#/$defs/finger"
+            },
+            "index": {
+              "$ref": "#/$defs/finger"
+            },
+            "middle": {
+              "$ref": "#/$defs/finger"
+            },
+            "ring": {
+              "$ref": "#/$defs/finger"
+            },
+            "pinky": {
+              "$ref": "#/$defs/finger"
+            }
+          }
+        }
+      }
+    },
+    "finger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visibility",
+        "pressing",
+        "contacts"
+      ],
+      "properties": {
+        "visibility": {
+          "enum": [
+            "visible",
+            "partially_visible",
+            "occluded",
+            "out_of_frame"
+          ]
+        },
+        "pressing": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "contacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contact"
+          },
+          "maxItems": 6
+        }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "string",
+        "fret"
+      ],
+      "properties": {
+        "string": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "fret": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 24
+        }
+      }
+    }
+  }
+}

@@ -38,6 +38,10 @@ class CalibrationState:
     status: str = "idle"
     target_position: int = 1
     offset_fret: float = 0.0
+    scale: float = 1.0
+    mode: str = "single"
+    anchors: tuple[tuple[int, float], ...] = ()
+    next_target_position: int | None = None
     samples: int = 0
     message: str = "Optional Position-I calibration is idle."
 
@@ -57,6 +61,7 @@ class PositionCalibration:
         acquisition_timeout_s: float | None = None,
         max_mad_fret: float = 0.35,
         max_offset_fret: float = 1.5,
+        max_scale_error: float = 0.35,
     ) -> None:
         if min_samples < 3:
             raise ValueError("min_samples must be at least 3")
@@ -72,12 +77,17 @@ class PositionCalibration:
             raise ValueError("acquisition_timeout_s must be positive")
         self.max_mad_fret = max_mad_fret
         self.max_offset_fret = max_offset_fret
+        self.max_scale_error = max_scale_error
         self.reset()
 
     def reset(self) -> None:
         self._status = "idle"
         self._target = 1
         self._offset = 0.0
+        self._scale = 1.0
+        self._mode = "single"
+        self._upper_target = 5
+        self._anchors: list[tuple[int, float]] = []
         self._values: list[float] = []
         self._started_s: float | None = None
         self._first_sample_s: float | None = None
@@ -91,6 +101,54 @@ class PositionCalibration:
     ) -> None:
         if target_position < 1:
             raise ValueError("target_position must be positive")
+        self._mode = "single"
+        self._anchors = []
+        self._scale = 1.0
+        self._offset = 0.0
+        self._begin_collection(
+            target_position,
+            timestamp_s=timestamp_s,
+        )
+
+    def start_two_point(
+        self,
+        *,
+        upper_position: int = 5,
+        timestamp_s: float | None = None,
+    ) -> None:
+        """Start Position-I plus Position-V/IX scale-and-offset calibration."""
+        if upper_position not in {5, 9}:
+            raise ValueError("upper_position must be 5 or 9")
+        self._mode = "two_point"
+        self._upper_target = upper_position
+        self._anchors = []
+        self._scale = 1.0
+        self._offset = 0.0
+        self._begin_collection(1, timestamp_s=timestamp_s)
+        self._message = (
+            f"Two-point calibration: hold Position I steadily, then "
+            f"Position {upper_position}."
+        )
+
+    def continue_next(self, *, timestamp_s: float | None = None) -> None:
+        """Begin the upper-position capture after the Position-I anchor."""
+        if (
+            self._mode != "two_point"
+            or self._status != "awaiting_second"
+            or len(self._anchors) != 1
+        ):
+            raise ValueError("two-point calibration is not awaiting its second point")
+        self._begin_collection(
+            self._upper_target,
+            timestamp_s=timestamp_s,
+        )
+
+    def _begin_collection(
+        self,
+        target_position: int,
+        *,
+        timestamp_s: float | None,
+    ) -> None:
         self._status = "collecting"
         self._target = target_position
         self._values = []
@@ -130,17 +188,19 @@ class PositionCalibration:
             mad = float(
                 statistics.median(abs(value - median) for value in self._values)
             )
-            offset = float(self._target) - median
             if mad > self.max_mad_fret:
                 self._fail("Calibration was unstable; hold one position steadily.")
-            elif abs(offset) > self.max_offset_fret:
-                self._fail("Calibration offset was implausible; reframe the neck.")
-            else:
-                self._offset = offset
-                self._status = "calibrated"
+            elif self._mode == "two_point" and not self._anchors:
+                self._anchors.append((self._target, median))
+                self._status = "awaiting_second"
                 self._message = (
-                    f"Calibrated with {offset:+.2f} fret residual for this session."
+                    f"Position I captured. Move to Position {self._upper_target}, "
+                    "then continue calibration."
                 )
+            elif self._mode == "two_point":
+                self._complete_two_point(median)
+            else:
+                self._complete_single(median)
             return True
         timed_out = (
             self._first_sample_s is None
@@ -156,20 +216,68 @@ class PositionCalibration:
     def apply(self, value: float | None) -> float | None:
         if value is None or self._status != "calibrated":
             return value
-        return value + self._offset
+        return self._scale * value + self._offset
 
     def state(self) -> CalibrationState:
         return CalibrationState(
             status=self._status,
             target_position=self._target,
             offset_fret=round(self._offset, 3),
+            scale=round(self._scale, 4),
+            mode=self._mode,
+            anchors=tuple((target, round(raw, 3)) for target, raw in self._anchors),
+            next_target_position=(
+                self._upper_target if self._status == "awaiting_second" else None
+            ),
             samples=len(self._values),
             message=self._message,
+        )
+
+    def transform(self) -> tuple[float, float]:
+        """Return the exact session scale and offset (unrounded)."""
+        return self._scale, self._offset
+
+    def _complete_single(self, median: float) -> None:
+        offset = float(self._target) - median
+        if abs(offset) > self.max_offset_fret:
+            self._fail("Calibration offset was implausible; reframe the neck.")
+            return
+        self._offset = offset
+        self._scale = 1.0
+        self._anchors = [(self._target, median)]
+        self._status = "calibrated"
+        self._message = f"Calibrated with {offset:+.2f} fret residual for this session."
+
+    def _complete_two_point(self, median: float) -> None:
+        first_target, first_raw = self._anchors[0]
+        raw_span = median - first_raw
+        target_span = float(self._target - first_target)
+        if raw_span <= 1.0 or target_span <= 0.0:
+            self._fail(
+                "Calibration points were not separated enough; "
+                "reframe and capture Position I plus the upper position."
+            )
+            return
+        scale = target_span / raw_span
+        offset = float(first_target) - scale * first_raw
+        if abs(scale - 1.0) > self.max_scale_error:
+            self._fail("Calibration scale was implausible; reframe the full neck.")
+            return
+        if abs(offset) > self.max_offset_fret:
+            self._fail("Calibration offset was implausible; reframe the neck.")
+            return
+        self._anchors.append((self._target, median))
+        self._scale = scale
+        self._offset = offset
+        self._status = "calibrated"
+        self._message = (
+            f"Two-point calibration active (scale {scale:.3f}, offset {offset:+.2f})."
         )
 
     def _fail(self, message: str) -> None:
         self._status = "failed"
         self._offset = 0.0
+        self._scale = 1.0
         self._message = message
 
 
@@ -194,6 +302,7 @@ class HudFrameProcessor:
         self.max_frame_width = max_frame_width
         self.max_frame_height = max_frame_height
         self._lock = RLock()
+        self._chain_calibration_active = False
 
     def warmup(self) -> None:
         """Pay one-time model initialization before the server reports ready."""
@@ -204,22 +313,27 @@ class HudFrameProcessor:
             waiter = getattr(self.chain, "wait_for_background_detector", None)
             if waiter is not None:
                 waiter()
-            self._reset_tracking()
+            self._reset_tracking(reset_hand_runtime=False)
             self.estimator.reset()
             self.calibration.reset()
+            self._chain_calibration_active = False
 
     def reset(self) -> None:
         with self._lock:
-            self._reset_tracking()
+            self._reset_tracking(reset_hand_runtime=True)
             self.estimator.reset()
             self.calibration.reset()
+            self._chain_calibration_active = False
 
-    def _reset_tracking(self) -> None:
+    def _reset_tracking(self, *, reset_hand_runtime: bool) -> None:
         resetter = getattr(self.chain, "reset_tracking", None)
         if resetter is None:
             self.chain.reset()
         else:
-            resetter()
+            try:
+                resetter(reset_hand_runtime=reset_hand_runtime)
+            except TypeError:
+                resetter()
 
     def handle_control(self, message: dict[str, object]) -> dict[str, object]:
         with self._lock:
@@ -231,12 +345,14 @@ class HudFrameProcessor:
                 self.chain.set_player_handedness(handedness)
                 self.estimator.reset()
                 self.calibration.reset()
+                self._clear_chain_calibration()
                 return {
                     "type": "control",
                     "status": "settings_applied",
                     "player_handedness": handedness,
                 }
             if message_type == "calibrate":
+                self._clear_chain_calibration()
                 self.calibration.start(target_position=1)
                 self.estimator.reset()
                 return {
@@ -244,9 +360,39 @@ class HudFrameProcessor:
                     "status": "calibration_started",
                     "calibration": self.calibration.state().as_dict(),
                 }
+            if message_type == "calibrate_two_point":
+                self._clear_chain_calibration()
+                raw_upper_position = message.get("upper_position", 5)
+                if isinstance(raw_upper_position, bool) or not isinstance(
+                    raw_upper_position,
+                    (int, float, str),
+                ):
+                    raise ValueError("upper_position must be 5 or 9")
+                try:
+                    upper_position = int(raw_upper_position)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("upper_position must be 5 or 9") from exc
+                self.calibration.start_two_point(
+                    upper_position=upper_position,
+                )
+                self.estimator.reset()
+                return {
+                    "type": "control",
+                    "status": "two_point_calibration_started",
+                    "calibration": self.calibration.state().as_dict(),
+                }
+            if message_type == "continue_calibration":
+                self.calibration.continue_next()
+                self.estimator.reset()
+                return {
+                    "type": "control",
+                    "status": "calibration_continued",
+                    "calibration": self.calibration.state().as_dict(),
+                }
             if message_type == "reset_calibration":
                 self.calibration.reset()
                 self.estimator.reset()
+                self._clear_chain_calibration()
                 return {
                     "type": "control",
                     "status": "calibration_reset",
@@ -269,15 +415,47 @@ class HudFrameProcessor:
         timestamp_s = time.monotonic()
         detection = self.chain.process_frame(frame, timestamp_s=timestamp_s)
         observation, confidence = self._position_observation(detection)
+        calibration_observation = observation
+        calibration_confidence = confidence
+        if (
+            self.calibration.state().status == "collecting"
+            and calibration_observation is None
+            and detection.neck_locked
+        ):
+            calibration_observation = (
+                detection.index_fret_raw
+                if detection.index_fret_raw is not None
+                else detection.index_fret
+            )
+            calibration_confidence = min(
+                float(detection.homography_confidence),
+                max(
+                    float(detection.anchor.confidence),
+                    float(detection.observation_confidence),
+                ),
+            )
+        chain_calibration_was_active = self._chain_calibration_active
         calibration_completed = self.calibration.observe(
-            observation,
-            confidence=confidence,
+            calibration_observation,
+            confidence=calibration_confidence,
             geometry_status=detection.geometry_status,
             timestamp_s=timestamp_s,
         )
         if calibration_completed:
             self.estimator.reset()
-        adjusted_observation = self.calibration.apply(observation)
+            calibration_state = self.calibration.state()
+            if calibration_state.status == "calibrated":
+                scale, offset = self.calibration.transform()
+                self._chain_calibration_active = self._set_chain_calibration(
+                    scale=scale, offset=offset
+                )
+            elif calibration_state.status == "failed":
+                self._clear_chain_calibration()
+        adjusted_observation = (
+            observation
+            if chain_calibration_was_active
+            else self.calibration.apply(observation)
+        )
         estimate = self.estimator.update(
             index_fret=adjusted_observation,
             vision_confidence=confidence,
@@ -328,6 +506,19 @@ class HudFrameProcessor:
             (max(1, round(width * scale)), max(1, round(height * scale))),
             interpolation=cv2.INTER_AREA,
         )
+
+    def _set_chain_calibration(self, *, scale: float, offset: float) -> bool:
+        setter = getattr(self.chain, "set_position_calibration", None)
+        if setter is None:
+            return False
+        setter(scale=scale, offset=offset)
+        return True
+
+    def _clear_chain_calibration(self) -> None:
+        setter = getattr(self.chain, "set_position_calibration", None)
+        if setter is not None:
+            setter(scale=1.0, offset=0.0)
+        self._chain_calibration_active = False
 
     def close(self) -> None:
         with self._lock:

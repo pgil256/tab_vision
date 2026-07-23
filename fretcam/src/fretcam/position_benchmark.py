@@ -8,13 +8,13 @@ import math
 import statistics
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Literal
 
 import cv2
 
-from fretcam.detection import DetectionChain
+from fretcam.detection import ConfidenceFactors, DetectionChain
 from fretcam.position import PositionEstimator
 
 Split = Literal["dev", "test"]
@@ -78,6 +78,9 @@ class FramePrediction:
     position: int | None
     confidence: float
     observation_valid: bool
+    confidence_factors: ConfidenceFactors | None = None
+    geometry_status: str = "unknown"
+    geometry_age_ms: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -344,6 +347,9 @@ def run_inference(
                             position=estimate.position,
                             confidence=estimate.confidence,
                             observation_valid=estimate.raw_index_fret is not None,
+                            confidence_factors=detection.confidence_factors,
+                            geometry_status=detection.geometry_status,
+                            geometry_age_ms=detection.geometry_age_ms,
                         )
                     )
             finally:
@@ -395,6 +401,53 @@ def _metric_block(frames: Sequence[_ScoredFrame]) -> dict[str, object]:
         "displayed_position_precision": _ratio(len(correct), len(displayed)),
         "coverage": _ratio(len(stable_displayed), len(stable)),
         "false_lock_rate": _ratio(len(stable_wrong), len(stable)),
+    }
+
+
+_FACTOR_FIELDS = tuple(
+    field.name for field in fields(ConfidenceFactors) if field.name != "blockers"
+)
+
+
+def _blocker_summary(frames: Sequence[_ScoredFrame]) -> dict[str, object]:
+    """Summarize raw solver blockers without collapsing their frame context."""
+    blocker_counts: dict[str, int] = defaultdict(int)
+    geometry_counts: dict[str, int] = defaultdict(int)
+    factor_values: dict[str, list[float]] = {field: [] for field in _FACTOR_FIELDS}
+    frames_with_blockers = 0
+    frames_with_factor_data = 0
+    for frame in frames:
+        prediction = frame.prediction
+        factors = prediction.confidence_factors
+        geometry_counts[prediction.geometry_status] += 1
+        if factors is None:
+            continue
+        frames_with_factor_data += 1
+        blockers = tuple(dict.fromkeys(factors.blockers))
+        if blockers:
+            frames_with_blockers += 1
+        for blocker in blockers:
+            blocker_counts[blocker] += 1
+        for field in _FACTOR_FIELDS:
+            value = float(getattr(factors, field))
+            if math.isfinite(value):
+                factor_values[field].append(value)
+
+    population = len(frames)
+    return {
+        "frames": population,
+        "frames_with_factor_data": _ratio(frames_with_factor_data, population),
+        "frames_with_blockers": _ratio(frames_with_blockers, population),
+        "counts": dict(sorted(blocker_counts.items())),
+        "rates": {
+            blocker: _ratio(count, population)
+            for blocker, count in sorted(blocker_counts.items())
+        },
+        "geometry_status_counts": dict(sorted(geometry_counts.items())),
+        "factor_means": {
+            field: (round(statistics.fmean(values), 6) if values else None)
+            for field, values in factor_values.items()
+        },
     }
 
 
@@ -584,6 +637,10 @@ def score_predictions(
             [frame for frame in frames if frame.prediction.sequence_id == sequence_id]
         )
 
+    stable_frames = [frame for frame in frames if frame.label.state == "stable"]
+    invalid_observations = [
+        frame for frame in frames if not frame.prediction.observation_valid
+    ]
     return {
         "overall": _metric_block(frames),
         "splits": split_metrics,
@@ -601,6 +658,17 @@ def score_predictions(
         },
         "breakdowns": breakdowns,
         "sequences": sequence_breakdown,
+        "blockers": {
+            "overall": _blocker_summary(frames),
+            "stable": _blocker_summary(stable_frames),
+            "invalid_observations": _blocker_summary(invalid_observations),
+            "splits": {
+                split: _blocker_summary(
+                    [frame for frame in frames if frame.prediction.split == split]
+                )
+                for split in ("dev", "test")
+            },
+        },
     }
 
 
@@ -725,6 +793,48 @@ def render_report(
         [
             f"- Shift latency: {shift_latency} across {shift['events']} observed event(s); {shift['censored_events']} censored and {shift['origin_not_locked_events']} excluded because the origin was not freshly locked.",
             f"- Dropout recovery from the annotated valid-return boundary: {dropout_latency} across {dropout['events']} observed event(s); {dropout['censored_events']} censored and {dropout['origin_not_locked_events']} origin-not-locked.",
+            "",
+            "## Observation blockers",
+            "",
+            "Blockers below are the solver's raw `confidence_factors.blockers`; "
+            "a frame can contribute to more than one row.",
+        ]
+    )
+    blocker_metrics = metrics["blockers"]
+    assert isinstance(blocker_metrics, dict)
+    overall_blockers = blocker_metrics["overall"]
+    assert isinstance(overall_blockers, dict)
+    blocker_counts = overall_blockers["counts"]
+    blocker_rates = overall_blockers["rates"]
+    assert isinstance(blocker_counts, dict) and isinstance(blocker_rates, dict)
+    lines.extend(
+        [
+            "",
+            "Factor vectors available for "
+            f"{_format_ratio(overall_blockers['frames_with_factor_data'])} "
+            "of labeled frames.",
+            "",
+            "| blocker | frames | rate over labeled frames |",
+            "|---|---:|---:|",
+        ]
+    )
+    if blocker_counts:
+        for blocker, count in blocker_counts.items():
+            lines.append(
+                f"| `{blocker}` | {count} | {_format_ratio(blocker_rates[blocker])} |"
+            )
+    else:
+        lines.append("| none observed | 0 | n/a |")
+    geometry_counts = overall_blockers["geometry_status_counts"]
+    assert isinstance(geometry_counts, dict)
+    lines.extend(
+        [
+            "",
+            "- Geometry status counts: "
+            + ", ".join(
+                f"`{status}` {count}" for status, count in geometry_counts.items()
+            )
+            + ".",
             "",
             "## Position breakdown",
             "",

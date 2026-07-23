@@ -94,7 +94,7 @@ def create_app(
                             )
                         else:
                             raise ValueError("expected a binary frame or JSON control")
-                    except (ValueError, json.JSONDecodeError) as exc:
+                    except (TypeError, ValueError, json.JSONDecodeError) as exc:
                         await websocket.send_json(
                             {"type": "error", "message": str(exc)}
                         )

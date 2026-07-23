@@ -21,6 +21,9 @@ const cameraSelect = document.querySelector("#camera-select");
 const handednessSelect = document.querySelector("#player-handedness");
 const mirrorPreview = document.querySelector("#mirror-preview");
 const calibrateButton = document.querySelector("#calibrate");
+const calibrateTwoPointButton = document.querySelector("#calibrate-two-point");
+const continueCalibrationButton = document.querySelector("#continue-calibration");
+const calibrationUpperPosition = document.querySelector("#calibration-upper-position");
 const resetCalibrationButton = document.querySelector("#reset-calibration");
 const exportDiagnosticsButton = document.querySelector("#export-diagnostics");
 const lockReason = document.querySelector("#lock-reason");
@@ -57,6 +60,7 @@ let lastHud = null;
 let diagnosticSamples = [];
 let sessionStartedAt = performance.now();
 let sessionGeneration = 0;
+let liveControlsEnabled = false;
 
 function setConnection(label, state) {
   connection.textContent = label;
@@ -64,9 +68,35 @@ function setConnection(label, state) {
 }
 
 function setLiveControls(enabled) {
+  liveControlsEnabled = enabled;
   calibrateButton.disabled = !enabled;
+  calibrateTwoPointButton.disabled = !enabled;
+  continueCalibrationButton.disabled = true;
+  calibrationUpperPosition.disabled = !enabled;
   resetCalibrationButton.disabled = !enabled;
   exportDiagnosticsButton.disabled = !enabled;
+}
+
+function updateCalibrationControls(calibration) {
+  if (!calibration) return;
+  calibrationStatus.textContent = calibration.message;
+  const collecting = calibration.status === "collecting";
+  const isTwoPoint = calibration.mode === "two_point";
+  calibrateButton.textContent = collecting && !isTwoPoint
+    ? `Hold Position I... (${calibration.samples})`
+    : "Calibrate Position I";
+  const upper = Number.parseInt(calibrationUpperPosition.value, 10) || 5;
+  const activeTarget = calibration.target_position || 1;
+  calibrateTwoPointButton.textContent = collecting && isTwoPoint
+    ? `Hold Position ${activeTarget}... (${calibration.samples})`
+    : `Calibrate I + ${upper === 9 ? "IX" : "V"}`;
+  continueCalibrationButton.disabled = (
+    !liveControlsEnabled || calibration.status !== "awaiting_second"
+  );
+  calibrationUpperPosition.disabled = (
+    !liveControlsEnabled
+    || (isTwoPoint && ["collecting", "awaiting_second"].includes(calibration.status))
+  );
 }
 
 function updateFps(now) {
@@ -289,12 +319,7 @@ function updateDiagnostics(payload) {
   factorOnNeck.textContent = percent(factors.on_neck);
   factorAgreement.textContent = percent(factors.finger_agreement);
   factorTemporal.textContent = percent(payload.position.temporal_agreement);
-  if (payload.calibration) {
-    calibrationStatus.textContent = payload.calibration.message;
-    calibrateButton.textContent = payload.calibration.status === "collecting"
-      ? `Hold Position I... (${payload.calibration.samples})`
-      : "Calibrate Position I";
-  }
+  updateCalibrationControls(payload.calibration);
 }
 
 function adaptPerformance(serverMs, e2eMs) {
@@ -348,6 +373,13 @@ function recordDiagnostics(payload, e2eMs) {
       detector_age_ms: detection.detector_age_ms,
       confidence: detection.homography_confidence,
       stability: detection.geometry_stability,
+      fret_refinement_support: detection.fret_refinement_support || 0,
+      string_refinement_support: detection.string_refinement_support || 0,
+      distortion_residual: detection.geometry_distortion_residual || 0,
+      nut_x: detection.nut_x,
+      body_joint_x: detection.body_joint_x,
+      boundary_support: detection.boundary_support || 0,
+      body_joint_fret: detection.body_joint_fret,
     },
     position: {
       state: position.state,
@@ -355,6 +387,7 @@ function recordDiagnostics(payload, e2eMs) {
       confidence: position.confidence,
       temporal_agreement: position.temporal_agreement,
       reason: position.reason,
+      hand_source: detection.hand_source || "none",
     },
     confidence: {
       board: factors.board || 0,
@@ -372,6 +405,9 @@ function recordDiagnostics(payload, e2eMs) {
     calibration: {
       status: payload.calibration?.status || "idle",
       offset_fret: payload.calibration?.offset_fret || 0,
+      scale: payload.calibration?.scale || 1,
+      mode: payload.calibration?.mode || "single",
+      anchors: payload.calibration?.anchors || [],
     },
   });
   if (diagnosticSamples.length > MAX_DIAGNOSTIC_SAMPLES) diagnosticSamples.shift();
@@ -392,7 +428,7 @@ function handleSocketMessage(rawPayload) {
     return;
   }
   if (payload.type === "control") {
-    if (payload.calibration) calibrationStatus.textContent = payload.calibration.message;
+    updateCalibrationControls(payload.calibration);
     return;
   }
   if (payload.type !== "hud") return;
@@ -598,6 +634,17 @@ mirrorPreview.addEventListener("change", () => {
   if (lastHud) drawHud(lastHud);
 });
 calibrateButton.addEventListener("click", () => sendControl({ type: "calibrate" }));
+calibrateTwoPointButton.addEventListener("click", () => sendControl({
+  type: "calibrate_two_point",
+  upper_position: Number.parseInt(calibrationUpperPosition.value, 10) || 5,
+}));
+continueCalibrationButton.addEventListener("click", () => sendControl({
+  type: "continue_calibration",
+}));
+calibrationUpperPosition.addEventListener("change", () => {
+  const upper = Number.parseInt(calibrationUpperPosition.value, 10) || 5;
+  calibrateTwoPointButton.textContent = `Calibrate I + ${upper === 9 ? "IX" : "V"}`;
+});
 resetCalibrationButton.addEventListener("click", () => sendControl({ type: "reset_calibration" }));
 exportDiagnosticsButton.addEventListener("click", exportDiagnostics);
 video.addEventListener("resize", syncCanvasSize);

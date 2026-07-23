@@ -20,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 fretcam = "fretcam.cli:main"
+fretcam-local-eval = "fretcam.local_eval:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -29,4 +30,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-fretcam = ["static/*"]
+fretcam = ["schemas/*.json", "static/*"]

@@ -1,3 +1,5 @@
 .venv/
 *.egg-info/
 __pycache__/
+data/local*/
+local_eval*/

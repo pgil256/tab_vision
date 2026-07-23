@@ -66,8 +66,17 @@
           <input id="mirror-preview" type="checkbox" />
           <span>Mirror preview</span>
         </label>
+        <label>
+          <span>Two-point upper anchor</span>
+          <select id="calibration-upper-position">
+            <option value="5">Position V</option>
+            <option value="9">Position IX</option>
+          </select>
+        </label>
         <div class="button-row">
           <button id="calibrate" class="secondary" type="button" disabled>Calibrate Position I</button>
+          <button id="calibrate-two-point" class="secondary" type="button" disabled>Calibrate I + V</button>
+          <button id="continue-calibration" class="secondary" type="button" disabled>Capture upper position</button>
           <button id="reset-calibration" class="secondary" type="button" disabled>Reset calibration</button>
           <button id="export-diagnostics" class="secondary" type="button" disabled>Export diagnostics</button>
         </div>

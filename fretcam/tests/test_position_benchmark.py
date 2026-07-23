@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, fields, replace
 
 import numpy as np
 import pytest
 
 import fretcam.position_benchmark as position_benchmark
+from fretcam.detection import ConfidenceFactors
 from fretcam.position_benchmark import (
     BenchmarkManifest,
     BenchmarkSequence,
@@ -161,6 +162,63 @@ def test_scorer_reports_precision_coverage_false_locks_and_negative_controls() -
     assert dev_metrics["false_lock_rate"]["value"] == pytest.approx(1 / 4)
     assert dev_metrics["valid_observation_rate"]["value"] == pytest.approx(1 / 2)
     assert metrics["negative_control_display_rate"]["value"] == pytest.approx(1 / 2)
+
+
+def test_predictions_preserve_factor_values_and_summarize_raw_blockers() -> None:
+    dev = _sequence("dev", "dev-source", "dev", (_label(0.0, 0.2),))
+    test = _sequence("test", "test-source", "test", (_label(0.0, 0.1),))
+    factors = ConfidenceFactors(
+        board=0.8,
+        freshness=0.2,
+        stability=0.7,
+        landmark_quality=0.0,
+        on_neck=0.0,
+        finger_agreement=0.0,
+        coarse_agreement=0.0,
+        support_sufficiency=0.0,
+        combined=0.0,
+        chord_compatibility=0.25,
+        blockers=("no_hand", "low_confidence"),
+    )
+    blocked = replace(
+        _prediction(dev, 0.0, position=None, state="lost", valid=False),
+        confidence_factors=factors,
+        geometry_status="stale",
+        geometry_age_ms=420.0,
+    )
+    recovered = replace(
+        _prediction(dev, 0.1, position=5),
+        confidence_factors=replace(
+            factors,
+            freshness=1.0,
+            landmark_quality=0.9,
+            on_neck=1.0,
+            finger_agreement=0.8,
+            support_sufficiency=0.8,
+            combined=0.7,
+            blockers=(),
+        ),
+        geometry_status="tracked",
+        geometry_age_ms=0.0,
+    )
+
+    metrics = score_predictions(_manifest(dev, test), [blocked, recovered])
+    summary = metrics["blockers"]["overall"]
+
+    serialized = asdict(blocked)["confidence_factors"]
+    assert serialized["board"] == 0.8
+    assert serialized["freshness"] == 0.2
+    assert serialized["chord_compatibility"] == 0.25
+    assert serialized["blockers"] == ("no_hand", "low_confidence")
+    assert set(serialized) == {field.name for field in fields(ConfidenceFactors)}
+    assert summary["frames_with_factor_data"]["value"] == 1.0
+    assert summary["counts"] == {"low_confidence": 1, "no_hand": 1}
+    assert summary["rates"]["no_hand"]["value"] == pytest.approx(0.5)
+    assert summary["geometry_status_counts"] == {"stale": 1, "tracked": 1}
+    assert summary["factor_means"]["freshness"] == pytest.approx(0.6)
+    invalid = metrics["blockers"]["invalid_observations"]
+    assert invalid["frames"] == 1
+    assert invalid["counts"]["no_hand"] == 1
 
 
 def test_scorer_measures_shift_latency_and_relock_after_valid_return() -> None:

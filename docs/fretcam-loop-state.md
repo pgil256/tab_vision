@@ -1,6 +1,6 @@
 # FretCam-loop state
 last_updated: 2026-07-23
-current_branch: codex/fretcam-quality-overhaul
+current_branch: codex/fretcam-accuracy-phase-2
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -20,21 +20,20 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4f | explicit live browser fretboard + hand-position display | passed | glowing green neck border; dedicated live status cards; browser HUD live with 0 console errors; 56 tests | preserve; complete | — |
 | L1 | live test 1 (Pat: A1+A4) | accepted for now (informal) | Pat: "Im telling you its fine for now."; no formal numeric A4 claim | no further action unless Pat reopens it | — |
 | F5 | accuracy/performance/product overhaul | passed | 106 tests; dev precision 76/80; coverage 71/161; stable false locks 0/161; negative displays 0/120 | preserve and run L2 only if Pat reopens formal acceptance | — |
+| F5b | neck/landmark/contact/upper-neck accuracy phase | passed | 172 tests + 5 subtests; dev precision 77/77; coverage 72/161; stable false locks 0/161; negative displays 0/120 | preserve; do not open held-out split | — |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
-**Live checkpoint.** F5 is complete. The final dev-only frozen benchmark
-improves the F4d baseline to displayed precision 76/80 (0.950), stable
-coverage 71/161 (0.441), stable false locks 0/161, and negative-control
-displays 0/120. The source-disjoint test split was opened only once before
-the final lifecycle hardening and was not reused for tuning. A final Chrome
-fake-camera run exercised camera discovery, start/restart, handedness,
-mirroring, calibration controls, bounded diagnostics export, desktop/mobile
-layout, and the live WebSocket with no console or page errors. The synthetic
-run observed 18.8-29.5 HUD FPS and 18.0-34.6 ms end-to-end; these are browser
-smoke numbers, not a replacement for Pat's real-camera acceptance.
+**Live checkpoint.** F5b is complete. The accepted dev-only frozen benchmark
+reached displayed precision 77/77 (1.000), stable coverage 72/161 (0.447),
+stable false locks 0/161, and negative-control displays 0/120. This improves
+both precision and coverage over the F5 checkpoint while retaining new
+Position-V and Position-VII detections. The source-disjoint test split was not
+opened during F5b. The rendered local-browser check found meaningful content,
+the expected live/calibration controls, no error overlay, and no console
+errors; handedness, mirroring, and Position V/IX control interactions passed.
 
 Pat's live observation is positive and accepted for now. The final direction
 was: "Im telling you its fine for now." No numeric FPS/E2E value is inferred,
@@ -70,6 +69,17 @@ unless Pat reopens the gate.
   was supplied, so the formal L1 status remains open.
 
 ## Iteration log (newest first)
+- 2026-07-23 — F5b passed — added immediate neck-guided all-hand acquisition,
+  timestamped VIDEO-mode refreshes with per-joint optical flow/One Euro
+  tracking, physical finger-pad/hover/press/barre evidence, independently
+  gated nonlinear upper-neck geometry, two-point Position I + V/IX
+  calibration, a real-WebSocket accuracy matrix, and public/synthetic-only
+  local finger-label tooling. Production replay found and fixed unsupported
+  body-joint axes and a picking-hand boundary false lock. The accepted
+  dev-only result is 77/77 displayed precision, 72/161 stable coverage, 0/161
+  stable false locks, and 0/120 negative displays. One hundred seventy-two
+  tests plus five parameterized subtests, Ruff, JavaScript syntax, and
+  rendered-browser checks passed; the held-out split remained closed.
 - 2026-07-23 — F5 passed — replaced index-dominant locking with a
   multi-finger/contact solver, time-weighted confidence and elapsed-time
   hysteresis; added asynchronous YOLO plus optical board tracking and
