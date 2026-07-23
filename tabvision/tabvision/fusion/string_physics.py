@@ -74,6 +74,9 @@ class StringSpec:
     unit_weight_lb_per_in: float
     wound: bool
     open_midi: int
+    youngs_modulus_pa: float | None = None
+    """Core Young modulus; ``None`` uses the caller default (steel). Nylon
+    strings set it explicitly."""
 
 
 # Typical light-gauge phosphor bronze (.012-.053), e.g. D'Addario EJ16 class.
@@ -88,6 +91,58 @@ ACOUSTIC_LIGHT_SET: tuple[StringSpec, ...] = (
     StringSpec("B3", 0.016, 0.016, 0.00005732, False, 59),
     StringSpec("E4", 0.012, 0.012, 0.00003239, False, 64),
 )
+
+
+NYLON_TREBLE_MODULUS_PA = 5.0e9
+"""Drawn nylon monofilament, ~5 GPa. Two orders below steel (~200 GPa), which
+is why a classical guitar is far less inharmonic than a steel-string."""
+
+NYLON_DENSITY_KG_M3 = 1150.0
+"""Polyamide density, used to derive treble linear mass from gauge alone."""
+
+CLASSICAL_SCALE_LENGTH_IN = 25.6
+"""650 mm, the standard classical scale."""
+
+
+# Classical normal-tension set. The three trebles (G3, B3, E4) are plain nylon
+# monofilament: their linear mass is computed from NYLON_DENSITY and gauge, so
+# those rows are first-principles. The three basses (E2, A2, D3) are a nylon
+# multifilament floss core under metal winding — the winding mass is essential
+# and the *effective* bending core is ill-defined, so their core diameters and
+# unit weights are DOCUMENTED APPROXIMATIONS (unit weight derived from typical
+# normal tension via mu = T/(4 L^2 f^2); core ~0.55x gauge). Since B ~ d_core^4
+# the bass predictions are rough by construction; the GAPS eval is the honest
+# test of whether they are good enough. Repo string order is low-E (0) to
+# high-E (5).
+def _nylon_treble_mu_lb_per_in(gauge_in: float) -> float:
+    radius_m = (gauge_in * IN_TO_M) / 2.0
+    mu_kg_per_m = NYLON_DENSITY_KG_M3 * math.pi * radius_m**2
+    return mu_kg_per_m / LB_PER_IN_TO_KG_PER_M
+
+
+CLASSICAL_NYLON_SET: tuple[StringSpec, ...] = (
+    StringSpec("E2", 0.043, 0.024, 3.354e-4, True, 40, NYLON_TREBLE_MODULUS_PA),
+    StringSpec("A2", 0.035, 0.020, 1.747e-4, True, 45, NYLON_TREBLE_MODULUS_PA),
+    StringSpec("D3", 0.029, 0.017, 8.460e-5, True, 50, NYLON_TREBLE_MODULUS_PA),
+    StringSpec(
+        "G3", 0.0403, 0.0403, _nylon_treble_mu_lb_per_in(0.0403), False, 55, NYLON_TREBLE_MODULUS_PA
+    ),
+    StringSpec(
+        "B3", 0.0322, 0.0322, _nylon_treble_mu_lb_per_in(0.0322), False, 59, NYLON_TREBLE_MODULUS_PA
+    ),
+    StringSpec(
+        "E4", 0.0280, 0.0280, _nylon_treble_mu_lb_per_in(0.0280), False, 64, NYLON_TREBLE_MODULUS_PA
+    ),
+)
+
+
+def classical_stiffness_model() -> StringStiffnessModel:
+    """Specification-derived stiffness for a classical (nylon) guitar."""
+    table = {
+        index: math.log(inharmonicity_coefficient(spec, scale_length_in=CLASSICAL_SCALE_LENGTH_IN))
+        for index, spec in enumerate(CLASSICAL_NYLON_SET)
+    }
+    return StringStiffnessModel(log_b0=table)
 
 
 def open_frequency_hz(open_midi: int) -> float:
@@ -105,7 +160,8 @@ def inharmonicity_coefficient(
     core_m = spec.core_diameter_in * IN_TO_M
     mu_kg_per_m = spec.unit_weight_lb_per_in * LB_PER_IN_TO_KG_PER_M
     frequency = open_frequency_hz(spec.open_midi)
-    numerator = math.pi**3 * youngs_modulus_pa * core_m**4
+    modulus = spec.youngs_modulus_pa if spec.youngs_modulus_pa is not None else youngs_modulus_pa
+    numerator = math.pi**3 * modulus * core_m**4
     denominator = 256.0 * mu_kg_per_m * length_m**4 * frequency**2
     return numerator / denominator
 
@@ -135,6 +191,7 @@ def reference_stiffness_model(
 
 __all__ = [
     "ACOUSTIC_LIGHT_SET",
+    "CLASSICAL_NYLON_SET",
     "NYLON_YOUNGS_MODULUS_PA",
     "DEFAULT_SCALE_LENGTH_IN",
     "StringSpec",
@@ -143,6 +200,7 @@ __all__ = [
     "REGISTERED_TABLE",
     "StringEvidenceConfig",
     "load_string_evidence",
+    "classical_stiffness_model",
     "reference_stiffness_model",
     "stiffness_model_for_session",
 ]
@@ -185,13 +243,15 @@ def stiffness_model_for_session(
     then satisfied by construction rather than by measurement.
     """
     cfg = cfg or GuitarConfig()
-    if session.instrument != "acoustic" or session.tone != "clean":
-        return None
-    if cfg.capo != 0:
+    if session.tone != "clean" or cfg.capo != 0:
         return None
     if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
         return None
-    return reference_stiffness_model()
+    if session.instrument == "acoustic":
+        return reference_stiffness_model()
+    if session.instrument == "classical":
+        return classical_stiffness_model()
+    return None
 
 
 REGISTERED_TABLE = "acoustic-physics-v1"
