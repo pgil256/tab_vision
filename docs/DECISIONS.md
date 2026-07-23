@@ -3854,3 +3854,53 @@ mypy clean. `auto` unchanged, nothing registered.
 mode that gets classical coverage) and the sign is not in doubt, so it is
 banked rather than iterated. Keeping the machinery makes the retry cheap the
 day the missing spec data appears.
+
+---
+
+## 2026-07-23 — N3 entry probe: physics is a strong wrong-position doubt signal
+
+**Phase:** Post-program item N3 (re-scope the assisted review ranker onto the
+Q6 physics channel)
+**Decision tree:** probe-before-build — do the physics channel's per-note
+signals carry wrong-position information the Phase 6 ranker lacks, before
+spending a retrain?
+**Branch taken:** **entry gate PASS; build justified but not yet run.** On
+35,227 ambiguous dev-OOF notes (base wrong rate 0.3445, matching Phase 6's
+0.3452), physics fires on 27.4%. The probability the physics posterior assigns
+the decoder's chosen string ("does physics doubt the decoder") is a strong
+wrong-position detector: **AUC 0.6964 on the fired subset and 0.7515 on
+isolated notes**, against the decoder margin's 0.5897 / 0.5540. Agreement
+split corroborates: P(wrong | physics disagrees) 0.3999 vs P(wrong | agrees)
+0.3182 vs base 0.3445.
+**Counterintuitive part resolved:** physics *hard* argmax accuracy on these
+notes is only 0.29 (0.35 isolated), far below Q6's 0.92 — because Q6's number
+was over all notes (mostly unambiguous singletons) while these are the hard
+ambiguous core, and the σ=0.35 posterior is a deliberately soft classifier
+whose *doubt calibration* is strong even though its argmax is noisy. Physics is
+better at "the decoder is probably wrong" than "here is the right string,"
+which is what a review flag needs. Not a bug; the AUC of the continuous doubt
+score is the relevant metric.
+**Honest limits (why entry probe, not win):** coverage is 27.4%, so any ranker
+gain dilutes to the covered fraction; the comparison is against decoder margin
+(one Phase 6 feature), not the full nine-feature MLP (AUC 0.7127), so it shows
+physics beats *that feature* and is complementary, not that it beats the
+ranker; and the naive z-blend underperforms physics-alone on isolated notes
+(0.6901 vs 0.7515), meaning a *learned* combiner is needed — exactly what the
+Phase 6 MLP is, so the integration path is clean and the blend understates it.
+**Bug fixed in passing:** the probe's initial AUC used naive ranks, not
+midranks, so tied scores were mis-scored; corrected to `scipy.stats.rankdata`
+average ranks (the continuous-score result was unaffected — 0.6961 -> 0.6964 —
+but decoder margins have ties).
+**Build slice (next iteration):** add `physics_prob_decoder` + `r2` + a
+fired indicator to the Phase 6 features, retrain the calibrated player-held
+MLP, and re-run the offline replay against the shipped **38.76%
+wrong-reduction @60 s** — the actual N3 ship metric, reported separately from
+automatic Tab F1.
+**Evidence:** `docs/EVAL_REPORTS/n3_physics_review_probe_2026-07-23.md`
+(+ `.json`); `tabvision/scripts/eval/n3_physics_review_probe.py`;
+`tabvision/tests/unit/test_n3_physics_review_probe.py` (7 tests).
+957 unit tests pass; ruff and mypy clean. No pipeline change.
+**Reasoning:** the assisted metric is separate from automatic Tab F1 and from
+the pending auto decisions, so N3 is safe to pursue; the probe cost ~2 min and
+converts "physics might help the ranker" into a measured, complementary
+AUC 0.75 signal, which is the evidence the retrain needs.
