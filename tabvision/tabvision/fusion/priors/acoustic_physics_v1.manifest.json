@@ -4,7 +4,7 @@
   "artifact_version": "acoustic-physics-v1",
   "name": "acoustic-physics-v1",
   "artifact_file": "acoustic_physics_v1.json",
-  "artifact_sha256": "026444965b88c44b19bc4c1710e852626d1dcd670488317b33c8a593778f859d",
+  "artifact_sha256": "3af0274a89f6f71afd4a82e04c9132abcec25005db1912fea8be22c815e9c1fb",
   "registered": true,
   "compatible_position_prior": null,
   "compatible_sequence_prior": null,

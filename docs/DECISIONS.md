@@ -3660,3 +3660,61 @@ F1** to a capo user on this evidence. That is an `auto`-path change per SPEC
 claimed, but the two independent halves — today's collapse, and the naive
 arm's decay — are real measurements, and together they make the routing
 change the highest-value unclaimed fix in the queue for real-world use.
+
+---
+
+## 2026-07-23 — Q7 capo detection: pitch route refuted, physics route untestable
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3, piece 1 — preflight
+capo/tuning detection)
+**Decision tree:** §4.3 offers "warn or auto-set" once the capo is estimated.
+Which branch is supportable depends on how accurate estimation actually is.
+**Branch taken:** **warn only; auto-set is not supportable.** 60 cases (20
+clips × capo 0/2/4, ground truth by construction). Pitch-based detection:
+**1/60 exact (0.017)**, mean signed error **+1.92** — a systematic
+over-estimate, not noise. Physical upper bound valid **60/60**.
+**The pitch negative is valid and is a first-principles result.** A capo at
+`C` playing a shape produces exactly the pitches of capo 0 playing the same
+music transposed up `C`; the note sets are identical, so pitch content cannot
+separate them, and occupancy heuristics are guessing repertoire rather than
+measuring the instrument. Pitch-shift reproduces pitch content faithfully, so
+this estimator was tested on data that models exactly what it consumes.
+**The physics estimator scored 0.183 and that number must not be quoted.**
+A real capo shortens the string, so `B ∝ 2^(n/6)` predicts median `log B`
+rising **+0.231** at capo 2 and **+0.462** at capo 4. Measured on the
+pitch-shifted audio: **−0.113 / −0.055 / +0.070** at capo 2 and
+**+0.111 / +0.138 / +0.009** at capo 4 — around zero, unrelated to
+prediction. Pitch-shifting scales frequencies uniformly and does **not**
+shorten the string, so the synthetic audio carries capo-0 stiffness with
+capo-`C` pitches: a physically impossible instrument. The detector reading
+capo 0 for 10/20 cases at every true capo is it measuring correctly. **The
+test is invalid, not the method.** A valid test needs real capo recordings or
+resynthesis that models string shortening; neither exists in-repo.
+**Scope of the methodology gap, checked rather than assumed:** synthetic
+pitch-shift is valid for pitch/position evaluation and invalid for
+timbre/physics evaluation. Q7's covariant-prior result therefore **stands**
+(its arms were position priors over pitch content), and the Q6 inharmonicity
+channel is **uncontaminated** (its domain guard makes it abstain at capo>0,
+so it never ran on this audio). Recorded so a future session does not repeat
+the experiment or trust a physics number measured this way.
+**Consequence for §4.3:** preflight reports the physical upper bound — sound
+(60/60) but weak, since a piece avoiding low notes permits a capo it does not
+have — and asks. Auto-setting from pitch would be wrong ~98% of the time.
+**Separate fix, found in this iteration:** `acoustic_physics_v1.json` was
+written with `write_text` (CRLF on Windows) and hashed over those bytes, while
+`.gitattributes` stores the repo as LF — so a fresh checkout produced
+different bytes and `load_artifact_manifest` raised a hash mismatch. The
+registered artifact was broken for anyone cloning the repo; it surfaced only
+because a new worktree could not load it. Fixed by writing the exact bytes git
+stores (`write_bytes`, LF); verified 0 CRLF, hash stable across a git
+round-trip, matching the convention `guitarset_v1.json` already follows.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_detect_2026-07-23.md` (+ `.json`);
+`tabvision/tabvision/preflight/capo.py`;
+`tabvision/scripts/eval/q7_capo_detect_eval.py`;
+`tabvision/tests/unit/test_capo_detection.py` (5 tests).
+940 unit tests pass; ruff and mypy clean. No routing change.
+**Reasoning:** the honest outcome of this slice is one solid negative, one
+invalidated experiment, and one shipped bug fix. Reporting the 0.183 as the
+physics detector's accuracy would have been the easy and wrong move; the
+stiffness-shift check that exposed it cost minutes and changes the
+conclusion.

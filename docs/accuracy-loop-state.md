@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/q7-capo-build
+current_branch: accuracy/q7-capo-detect
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -11,7 +11,7 @@ current_branch: accuracy/q7-capo-build
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
 | Q6 | Inharmonicity study | **REGISTERED (opt-in)** | player-05 **+0.0780** [+0.0502, +0.1078]; `acoustic-physics-v1` registered + wired; **`auto` still `none`** | **user call: default-on for clean steel acoustic?** | user decision |
-| Q7 | Capo/tuning preflight | **transform validated on audio** | today **0.2956** vs covariant **0.6827** (**+0.3870** [+0.2818, +0.4906]) at capo 2; capo-0 control 0.6773 | **user call: route capo>0 to covariant prior?** | user decision |
+| Q7 | Capo/tuning preflight | **transform validated; detection refuted** | covariant **+0.3870** [+0.2818, +0.4906]; capo detection from pitch **1/60** — warn only, no auto-set | **user call: route capo>0 to covariant prior?** (capo stays user-supplied) | user decision |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
 **Both Q6 and Q7 now sit on `auto`-routing decisions the user must take (SPEC §0.8). Q6 is registered and opt-in; Q7's transform is validated and unwired. No unblocked queue item remains — see Questions.**
@@ -462,6 +462,39 @@ arms paired on identical shifted audio. **Capo-0 control 0.6773.**
   (trained on players 00-04 = these clips) and reported an in-sample +0.45;
   LOPO gives +0.387.
 
+## Q7 capo detection — pitch route refuted (2026-07-23)
+
+Report: `docs/EVAL_REPORTS/q7_capo_detect_2026-07-23.md` (+ `.json`).
+Module: `tabvision/preflight/capo.py`.
+
+60 cases (20 clips × capo 0/2/4), ground truth by construction.
+
+| estimator | exact | mean signed error |
+|---|---:|---:|
+| pitches | **0.017** (1/60) | **+1.92** |
+| physical upper bound valid | **1.000** | — |
+
+- **Pitch-based detection is refuted, and the negative is valid.** A capo at
+  `C` is pitch-identical to capo 0 transposed up `C`, so no pitch heuristic
+  can separate them; occupancy guesses repertoire. Pitch-shift models pitch
+  content faithfully, so the test was fair to what this estimator consumes.
+- **The physics estimator could not be tested — do not quote its 0.183.**
+  A real capo 2/4 should raise median `log B` by **+0.231 / +0.462**;
+  measured on pitch-shifted audio it moved **−0.11 … +0.14**. Pitch-shifting
+  scales frequencies without shortening the string, so the synthetic audio is
+  capo-0 stiffness with capo-`C` pitches. The test is invalid, not the method.
+- **Methodology rule for the program:** synthetic pitch-shift is valid for
+  pitch/position evaluation, **invalid** for timbre/physics evaluation.
+  Checked: Q7's covariant result stands (position priors over pitch content);
+  the Q6 channel is uncontaminated (abstains at capo>0, never ran on it).
+- **Conclusion:** preflight reports the bound and asks. Auto-setting the capo
+  from pitch would be wrong ~98% of the time, so the capo stays user-supplied.
+
+**Also fixed:** `acoustic_physics_v1.json` was hashed over CRLF bytes while
+git stores LF, so the registered artifact failed hash verification on a fresh
+checkout — broken for anyone cloning. Now written as the bytes git stores;
+hash stable across a round-trip.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -526,6 +559,12 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-23 — Q7 — capo **detection** slice: pitch-based **refuted**
+  (1/60 exact, +1.92 bias); physics route **untestable** on pitch-shifted
+  audio (stiffness shift −0.11…+0.14 vs +0.231/+0.462 expected) — test
+  invalid, not method. Preflight warns, never auto-sets. Also fixed a
+  CRLF/LF artifact-hash bug that broke `acoustic-physics-v1` on fresh
+  checkout. `q7_capo_detect_2026-07-23.md`.
 - 2026-07-23 — Q7 — build slice: capo-covariant prior **validated on audio**.
   Today's capo routing measured at **0.2956 vs 0.6773** capo-0 control — a
   collapse, not a shortfall; covariant restores to **0.6827** (+0.3870).

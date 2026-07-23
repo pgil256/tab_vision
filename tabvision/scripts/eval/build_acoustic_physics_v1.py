@@ -38,6 +38,11 @@ GATE_WEIGHT = 1.0
 """Weight the full-dev and player-05 gates ran at (not the module default)."""
 
 
+def _lf(text: str) -> bytes:
+    """UTF-8 bytes with LF endings — the exact bytes git stores."""
+    return (text + "\n").replace("\r\n", "\n").encode("utf-8")
+
+
 def build_artifact() -> dict[str, object]:
     model = reference_stiffness_model()
     return {
@@ -132,11 +137,14 @@ def main() -> int:
     artifact_path = priors_dir / artifact_file
     manifest_path = priors_dir / "acoustic_physics_v1.manifest.json"
 
-    artifact_path.write_text(json.dumps(build_artifact(), indent=2) + "\n", encoding="utf-8")
+    # write_bytes, not write_text: on Windows text mode emits CRLF, but
+    # .gitattributes stores these as LF, so a CRLF artifact hashes differently
+    # after a fresh checkout and the registry's hash verification fails on
+    # every other machine. Writing the bytes git will store keeps the hash
+    # portable.
+    artifact_path.write_bytes(_lf(json.dumps(build_artifact(), indent=2)))
     sha = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
-    manifest_path.write_text(
-        json.dumps(build_manifest(artifact_file, sha), indent=2) + "\n", encoding="utf-8"
-    )
+    manifest_path.write_bytes(_lf(json.dumps(build_manifest(artifact_file, sha), indent=2)))
     print(f"wrote {artifact_path}\nwrote {manifest_path}\nsha256 {sha}")
     return 0
 
