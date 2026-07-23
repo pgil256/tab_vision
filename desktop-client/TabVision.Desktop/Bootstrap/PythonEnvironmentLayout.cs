@@ -23,6 +23,8 @@ public sealed record PythonEnvironmentLayout(
 
     public string ReadyMarker => Path.Combine(StateDirectory, "python-environment-ready.json");
 
+    public string RuntimeReadyMarker => Path.Combine(StateDirectory, "python-runtime-ready.sha256");
+
     public string InstallLog => Path.Combine(StateDirectory, "python-environment-install.log");
 
     public string SmokeReadyMarker => Path.Combine(StateDirectory, "bootstrap-smoke-ready.json");

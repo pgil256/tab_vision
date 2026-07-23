@@ -155,6 +155,86 @@ public sealed class ManifestArtifactBootstrapperTests
     }
 
     [Fact]
+    public async Task InstallAsyncKeepsVerifiedFilesAndResumesInterruptedFile()
+    {
+        using var fixture = new ArtifactFixture();
+        var firstBytes = Encoding.UTF8.GetBytes("first verified artifact");
+        var secondBytes = Encoding.UTF8.GetBytes("second interrupted artifact");
+        var first = fixture.CreateArtifact(firstBytes) with
+        {
+            Id = "first",
+            Url = "https://example.invalid/first.bin",
+            Destination = "{APP_DATA}/models/first.bin",
+        };
+        var second = fixture.CreateArtifact(secondBytes) with
+        {
+            Id = "second",
+            Url = "https://example.invalid/second.bin",
+            Destination = "{APP_DATA}/models/second.bin",
+        };
+        var interruptedBytes = 7;
+        var firstAttemptHandler = new CallbackHandler(request =>
+        {
+            var isFirst = request.RequestUri!.AbsolutePath.EndsWith(
+                "first.bin",
+                StringComparison.Ordinal
+            );
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(
+                    isFirst ? firstBytes : secondBytes[..interruptedBytes]
+                ),
+            };
+        });
+        using (var firstClient = new HttpClient(firstAttemptHandler))
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                new ManifestArtifactBootstrapper(firstClient).InstallAsync(
+                    fixture.CreateManifest(first, second),
+                    fixture.Layout
+                )
+            );
+        }
+
+        Assert.Equal(firstBytes, await File.ReadAllBytesAsync(fixture.Resolve(first)));
+        Assert.False(File.Exists(fixture.Resolve(second)));
+        Assert.Equal(
+            secondBytes[..interruptedBytes],
+            await File.ReadAllBytesAsync(fixture.GetPartialPath(second))
+        );
+
+        var retryRequests = new List<HttpRequestMessage>();
+        var retryHandler = new CallbackHandler(request =>
+        {
+            retryRequests.Add(request);
+            Assert.EndsWith("second.bin", request.RequestUri!.AbsolutePath);
+            Assert.Equal(interruptedBytes, request.Headers.Range?.Ranges.Single().From);
+            var response = new HttpResponseMessage(HttpStatusCode.PartialContent)
+            {
+                Content = new ByteArrayContent(secondBytes[interruptedBytes..]),
+            };
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(
+                interruptedBytes,
+                secondBytes.Length - 1,
+                secondBytes.Length
+            );
+            return response;
+        });
+        using var retryClient = new HttpClient(retryHandler);
+
+        var resumed = await new ManifestArtifactBootstrapper(retryClient).InstallAsync(
+            fixture.CreateManifest(first, second),
+            fixture.Layout
+        );
+
+        Assert.Equal(1, resumed.ReusedCount);
+        Assert.Equal(1, resumed.DownloadedCount);
+        Assert.Single(retryRequests);
+        Assert.Equal(secondBytes, await File.ReadAllBytesAsync(fixture.Resolve(second)));
+        Assert.False(File.Exists(fixture.GetPartialPath(second)));
+    }
+
+    [Fact]
     public async Task InstallAsyncDoesNotPromoteInvalidHash()
     {
         using var fixture = new ArtifactFixture();

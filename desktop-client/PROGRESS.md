@@ -108,8 +108,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   installed pinned CLI ran real high-resolution inference on the 5.000 s
   synthetic fixture and matched all 222 golden bytes; only then did it write
   a fingerprinted health marker, which the next launch reused.
-- [ ] Make failed/interrupted bootstrap resumable without discarding verified
-  downloads.
+- [x] Make failed/interrupted bootstrap resumable without discarding verified
+  downloads. Result: app-close cancellation now stops active setup work while
+  atomic stage markers, the pip cache, verified artifacts, and digest-keyed
+  partials survive; retries re-extract an unmarked partial runtime, skip every
+  verified file, and range-resume only the interrupted artifact.
 - [ ] Add Settings > Repair / Re-download using the same bootstrap workflow.
 - [ ] Verify normal transcription performs no network access after bootstrap.
 - [ ] **D1.5 gate:** on a clean Windows 11 VM with no Python installed, install,
@@ -298,3 +301,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   105,207,001-byte installer has SHA-256 `2335ef9f...745ca`; silent install,
   17-file bundle audit, startup, and clean uninstall passed. No NuGet or Python
   dependency was added.
+- 2026-07-22: D1.5 interruption recovery completed. CPython extraction now
+  writes an atomic archive-fingerprint marker only after the runtime is fully
+  expanded; an unmarked partial runtime is safely re-extracted on retry. Window
+  close passes cancellation through pip, HTTP downloads, and smoke inference,
+  while setup failures tell the user to relaunch. A two-artifact failure test
+  proved the completed destination was reused without network access and only
+  the seven-byte partial was range-resumed. Clean Release build: 0
+  warnings/errors; all 48 tests passed. No dependency was added.

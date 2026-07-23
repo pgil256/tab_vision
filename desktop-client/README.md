@@ -46,3 +46,7 @@ Generated staging files and the unsigned personal-use installer are written to
 the ignored `artifacts/` directory. Upstream payload URLs, sizes, and SHA-256
 values are recorded in `installer/payloads.json`; the build cache lives under
 `%LOCALAPPDATA%\TabVision\bootstrap-cache\desktop-installer`.
+
+If first-run setup fails or the app closes, launch TabVision again. Completed
+Python/runtime stages, verified model files, partial downloads, and the pip
+cache remain in app-local storage and are validated or resumed on the retry.

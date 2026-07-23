@@ -42,6 +42,7 @@ public sealed class PythonEnvironmentBootstrapperTests
             File.Exists(Path.Combine(fixture.Layout.ExtensionModulesDirectory, "_socket.pyd"))
         );
         Assert.True(File.Exists(fixture.Layout.ReadyMarker));
+        Assert.True(File.Exists(fixture.Layout.RuntimeReadyMarker));
         Assert.True(File.Exists(fixture.Layout.InstallLog));
         Assert.Equal(3, runner.Commands.Count);
 
@@ -86,6 +87,33 @@ public sealed class PythonEnvironmentBootstrapperTests
         Assert.False(resumed.WasAlreadyReady);
         Assert.True(File.Exists(fixture.Layout.ReadyMarker));
         Assert.Equal(4, runner.Commands.Count);
+    }
+
+    [Fact]
+    public async Task InstallAsyncReextractsRuntimeWithoutCompletionMarker()
+    {
+        using var fixture = new BootstrapFixture();
+        Directory.CreateDirectory(fixture.Layout.RootDirectory);
+        await File.WriteAllTextAsync(fixture.Layout.PythonExecutable, "partial python");
+        await File.WriteAllTextAsync(
+            fixture.Layout.PythonStandardLibrary,
+            "partial standard library"
+        );
+        var runner = new FakeBootstrapCommandRunner();
+
+        await new PythonEnvironmentBootstrapper(runner).InstallAsync(
+            fixture.Payloads,
+            fixture.Layout
+        );
+
+        Assert.Equal(
+            "fixture extension module",
+            await File.ReadAllTextAsync(
+                Path.Combine(fixture.Layout.ExtensionModulesDirectory, "_socket.pyd")
+            )
+        );
+        Assert.True(File.Exists(fixture.Layout.RuntimeReadyMarker));
+        Assert.Equal(3, runner.Commands.Count);
     }
 
     private sealed class BootstrapFixture : IDisposable

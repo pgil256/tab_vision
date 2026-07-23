@@ -3219,3 +3219,29 @@ removes camera/preflight variability. Although the guitar-specific model emits
 zero notes for this out-of-domain tone, the run still exercises real media
 demux, checkpoint loading, CPU inference, fusion, machine output, and rendering;
 artifact integrity is independently enforced before the smoke starts.
+
+---
+
+## 2026-07-22 - D1.5 resumes each bootstrap stage from verified local state
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Recover cleanly from setup failure, application close, or a
+process kill without deleting expensive downloads or trusting partially written
+runtime state.
+**Branch taken:** Keep the existing content-addressed pip cache, verified
+artifact destinations, digest-keyed `.part` files, and stage-specific ready
+markers. Add an atomic CPython archive-fingerprint marker so an interrupted
+extraction is overwritten from the pinned archive instead of being accepted
+because two early archive files happen to exist. Pass window-close cancellation
+through pip, HTTP, and smoke work; retry always validates local state before
+skipping or range-resuming it.
+**Evidence:** A focused test began with the two old false-positive runtime files
+but no completion marker and proved the missing extension module was restored.
+A two-artifact test completed the first file, truncated the second at seven
+bytes, then proved the retry made exactly one ranged request for the remainder
+and reused the verified first destination. The Release build had 0
+warnings/errors and all 48 tests passed.
+**Reasoning:** Content validation and atomic completion markers make every
+stage independently idempotent, so recovery needs no fragile global journal and
+never deletes useful cache state. Cancellation stops active child processes and
+network streams while leaving their retry-safe local bytes intact.

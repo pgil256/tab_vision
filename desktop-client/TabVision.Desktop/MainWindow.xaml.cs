@@ -10,6 +10,7 @@ namespace TabVision.Desktop;
 
 public partial class MainWindow : Window
 {
+    private readonly CancellationTokenSource _bootstrapCancellationSource = new();
     private SelectedInputSummary? _selectedInput;
     private TranscriptionOptions? _completedOptions;
     private bool _bootstrapReady = true;
@@ -61,7 +62,8 @@ public partial class MainWindow : Window
             var result = await bootstrapper.InstallAsync(
                 payloads,
                 layout,
-                progress
+                progress,
+                _bootstrapCancellationSource.Token
             );
             var manifest = await WeightsManifest.LoadAsync(payloads.WeightsManifest);
             using var httpClient = new HttpClient
@@ -76,7 +78,8 @@ public partial class MainWindow : Window
             var artifactResult = await new ManifestArtifactBootstrapper(httpClient).InstallAsync(
                 manifest,
                 layout,
-                artifactProgress
+                artifactProgress,
+                _bootstrapCancellationSource.Token
             );
             _sidecarEnvironment = BootstrapRuntimeEnvironment.Create(
                 layout,
@@ -92,7 +95,8 @@ public partial class MainWindow : Window
                 payloads,
                 layout,
                 _sidecarEnvironment,
-                smokeProgress
+                smokeProgress,
+                _bootstrapCancellationSource.Token
             );
 
             _bootstrapReady = true;
@@ -105,11 +109,29 @@ public partial class MainWindow : Window
                 ? "Choose an input to begin."
                 : "First-run setup complete. Choose an input to begin.";
         }
+        catch (OperationCanceledException)
+            when (_bootstrapCancellationSource.IsCancellationRequested)
+        {
+            if (IsVisible)
+            {
+                JobProgressBar.Value = 0;
+                JobStatusText.Text =
+                    "Setup paused. Restart TabVision to resume; verified downloads were kept.";
+            }
+        }
         catch (Exception exception)
         {
             JobProgressBar.Value = 0;
-            JobStatusText.Text = $"Setup failed: {exception.Message}";
+            JobStatusText.Text =
+                $"Setup failed: {exception.Message} Restart TabVision to resume; "
+                + "verified downloads were kept.";
         }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _bootstrapCancellationSource.Cancel();
+        base.OnClosed(e);
     }
 
     private void ChooseVideo_Click(object sender, RoutedEventArgs e)

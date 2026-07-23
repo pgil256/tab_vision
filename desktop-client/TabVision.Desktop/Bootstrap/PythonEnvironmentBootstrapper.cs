@@ -52,7 +52,12 @@ public sealed class PythonEnvironmentBootstrapper
         progress?.Report(
             new PythonBootstrapProgress("runtime", 6, "Preparing app-local Python 3.11...")
         );
-        await EnsureRuntimeAsync(payloads.PythonEmbedArchive, layout, cancellationToken);
+        await EnsureRuntimeAsync(
+            payloads.PythonEmbedArchive,
+            fingerprint.PythonEmbedSha256,
+            layout,
+            cancellationToken
+        );
         EnableStandardSiteConfiguration(layout);
 
         var expectedPackages = PipInstallProgressTracker.CountLockedRequirements(
@@ -170,11 +175,18 @@ public sealed class PythonEnvironmentBootstrapper
 
     private static async Task EnsureRuntimeAsync(
         string pythonArchive,
+        string archiveSha256,
         PythonEnvironmentLayout layout,
         CancellationToken cancellationToken
     )
     {
-        if (File.Exists(layout.PythonExecutable) && File.Exists(layout.PythonStandardLibrary))
+        if (
+            await IsRuntimeReadyAsync(
+                layout,
+                archiveSha256,
+                cancellationToken
+            )
+        )
         {
             return;
         }
@@ -189,6 +201,49 @@ public sealed class PythonEnvironmentBootstrapper
             throw new InvalidDataException(
                 "The bundled CPython archive did not contain the expected 3.11 runtime files."
             );
+        }
+
+        await WriteRuntimeReadyMarkerAsync(
+            layout.RuntimeReadyMarker,
+            archiveSha256,
+            cancellationToken
+        );
+    }
+
+    private static async Task<bool> IsRuntimeReadyAsync(
+        PythonEnvironmentLayout layout,
+        string expectedSha256,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            !File.Exists(layout.RuntimeReadyMarker)
+            || !File.Exists(layout.PythonExecutable)
+            || !File.Exists(layout.PythonStandardLibrary)
+        )
+        {
+            return false;
+        }
+
+        try
+        {
+            var actualSha256 = await File.ReadAllTextAsync(
+                layout.RuntimeReadyMarker,
+                cancellationToken
+            );
+            return string.Equals(
+                actualSha256,
+                expectedSha256,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -374,6 +429,17 @@ public sealed class PythonEnvironmentBootstrapper
         var temporaryPath = path + ".tmp";
         var json = JsonSerializer.Serialize(fingerprint, MarkerJsonOptions);
         await File.WriteAllTextAsync(temporaryPath, json, cancellationToken);
+        File.Move(temporaryPath, path, overwrite: true);
+    }
+
+    private static async Task WriteRuntimeReadyMarkerAsync(
+        string path,
+        string archiveSha256,
+        CancellationToken cancellationToken
+    )
+    {
+        var temporaryPath = path + ".tmp";
+        await File.WriteAllTextAsync(temporaryPath, archiveSha256, cancellationToken);
         File.Move(temporaryPath, path, overwrite: true);
     }
 
