@@ -283,6 +283,7 @@ public sealed class ManifestArtifactBootstrapperTests
         Assert.Equal(fixture.Layout.HuggingFaceHome, environment["HF_HOME"]);
         Assert.Equal(fixture.Layout.TabVisionDataRoot, environment["TABVISION_DATA_ROOT"]);
         Assert.Equal("1", environment["HF_HUB_OFFLINE"]);
+        Assert.Equal("1", environment["YOLO_OFFLINE"]);
         Assert.StartsWith(
             Path.GetFullPath(Path.Combine(fixture.Root, "runtime-tools")),
             environment["PATH"]

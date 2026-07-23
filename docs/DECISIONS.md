@@ -3268,3 +3268,28 @@ partial artifact remained byte-present.
 re-earned during repair. Content-addressed cache and verified downloads are
 evidence, not disposable state; preserving them makes repair fast while the
 same validators still replace anything missing or corrupt.
+
+---
+
+## 2026-07-22 - D1.5 disables Ultralytics online probing in sidecar jobs
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Verify the post-bootstrap promise that normal transcription
+does not use the network, including optional-library import behavior rather than
+only successful offline model resolution.
+**Branch taken:** Add the pinned Ultralytics package's supported
+`YOLO_OFFLINE=1` switch whenever the manifest declares offline-after-bootstrap,
+beside the existing `HF_HUB_OFFLINE=1`. Keep a repeatable audit that injects a
+fail-closed socket guard into the exact installed `tabvision.exe` and counts
+outbound DNS, TCP, and UDP entry-point calls during a normal desktop command.
+**Evidence:** The first guarded run caught two import-time DNS resolutions,
+`one.one.one.one` and `dns.google`, traced to `ultralytics.utils.is_online`.
+After setting `YOLO_OFFLINE=1`, the installed sidecar processed the 5.015510 s
+public GAPS-derived audit clip in 47.181 seconds, emitted 8 progress lines,
+recorded 0 outbound socket attempts, and produced 487 bytes at SHA-256
+`22c337d713d66295ac1e20e34edbe47bce16f9ea2e129022fe13ef8705c60370`.
+The Release build had 0 warnings/errors and all 49 tests passed.
+**Reasoning:** Hugging Face offline mode covers checkpoint lookup but cannot
+silence unrelated libraries. Using each pinned dependency's explicit offline
+contract prevents even harmless connectivity probes, while a fail-closed
+process audit makes the product promise measurable instead of inferred.

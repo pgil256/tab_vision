@@ -30,6 +30,7 @@ public static class BootstrapRuntimeEnvironment
         if (manifest.OfflineAfterBootstrap)
         {
             environment["HF_HUB_OFFLINE"] = "1";
+            environment["YOLO_OFFLINE"] = "1";
         }
 
         foreach (var artifact in manifest.Artifacts)

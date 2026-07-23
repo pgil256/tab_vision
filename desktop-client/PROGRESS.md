@@ -117,7 +117,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: the menu action invalidates only Python/smoke completion markers,
   then reuses the first-run progress path to reinstall the lock, hash-check all
   artifacts, download only missing/corrupt files, and rerun the smoke test.
-- [ ] Verify normal transcription performs no network access after bootstrap.
+- [x] Verify normal transcription performs no network access after bootstrap.
+  Result: the exact installed sidecar completed a normal acoustic/clean/mixed,
+  `auto` audio+video job under a process-level outbound socket guard with 0 DNS,
+  TCP, or UDP attempts; 487 output bytes matched SHA-256 `22c337d7...0370`.
 - [ ] **D1.5 gate:** on a clean Windows 11 VM with no Python installed, install,
   complete first-run download, disable networking, and successfully transcribe;
   record VM version and measured result here.
@@ -319,4 +322,15 @@ in Python. D2 is out of scope until the web editor stabilizes.
   runtime extraction state, pip cache, verified models, and partial downloads
   remain reusable while every artifact is hash-checked. A focused idempotency
   test proved those preservation boundaries. Clean Release build: 0
+  warnings/errors; all 49 tests passed. No dependency was added.
+- 2026-07-22: D1.5 offline-transcription verification passed after the guard
+  exposed and this increment fixed one real gap. The first normal run caught
+  Ultralytics resolving `one.one.one.one` and `dns.google` at import; the pinned
+  package documents `YOLO_OFFLINE=1`, now set beside `HF_HUB_OFFLINE=1` for
+  every post-bootstrap sidecar. The repeatable PowerShell audit injected a
+  fail-closed socket guard into the exact installed `tabvision.exe` and ran the
+  normal acoustic/clean/mixed, `auto` audio+video command on a 5.015510 s public
+  GAPS-derived clip (396,988 bytes, SHA-256 `39afaaa2...b58`). It completed in
+  47.181 s with 8 progress lines, 0 outbound DNS/TCP/UDP attempts, and a
+  487-byte output at SHA-256 `22c337d7...0370`. Clean Release build: 0
   warnings/errors; all 49 tests passed. No dependency was added.

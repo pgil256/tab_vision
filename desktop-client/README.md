@@ -53,3 +53,8 @@ cache remain in app-local storage and are validated or resumed on the retry.
 After setup, **Settings → Repair / Re-download** runs the same workflow again:
 it reinstalls the locked Python packages, revalidates every model, downloads
 only missing or corrupt files, and reruns the bundled transcription smoke test.
+
+Normal sidecar jobs set both `HF_HUB_OFFLINE=1` and `YOLO_OFFLINE=1`. The
+repeatable `scripts/Verify-OfflineTranscription.ps1` audit launches the installed
+sidecar with normal desktop defaults while blocking and counting Python outbound
+DNS, TCP, and UDP socket entry points; any attempted access fails the audit.
