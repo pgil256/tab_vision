@@ -33,6 +33,11 @@ Arms:
 Notes whose shifted fret exceeds ``max_fret`` are dropped from gold (they
 would be unplayable); the count is reported.
 
+Priors are **leave-one-player-out**. The registered ``guitarset-v1`` was
+trained on players 00-04 and these clips are drawn from those players, so
+using it would hand every prior arm an in-sample advantage — an early run
+with it showed an implausible +0.45, which is what prompted the switch.
+
 **Two stages, deliberately in separate processes.** Interleaving librosa's
 pitch shift with repeated highres-backend loads in one process segfaults on
 this machine (exit 139) — reproducible in the loop, but not when either is run
@@ -52,7 +57,12 @@ from typing import Any
 
 import numpy as np
 
-from scripts.eval.n2_muscriptor_merge import _event_from_json, _event_to_json, select_clips
+from scripts.eval.n2_muscriptor_merge import (
+    _event_from_json,
+    _event_to_json,
+    build_oof_priors,
+    select_clips,
+)
 from tabvision.eval.bootstrap import bootstrap_ci
 from tabvision.eval.error_decomposition import ErrorDecomposition, aggregate_decompositions
 from tabvision.eval.guitarset_audio import (
@@ -63,7 +73,6 @@ from tabvision.eval.guitarset_audio import (
 from tabvision.fusion.position_prior import (
     apply_pitch_position_prior,
     capo_covariant_prior,
-    load_pitch_position_prior,
 )
 from tabvision.pipeline import sequence_decode_context
 from tabvision.types import GuitarConfig, SessionConfig, TabEvent
@@ -154,7 +163,10 @@ def main() -> int:
 
     cfg0 = GuitarConfig()
     session = SessionConfig()
-    base_prior = load_pitch_position_prior("guitarset-v1")
+    # Leave-one-player-out, not the registered guitarset-v1: that artifact was
+    # trained on players 00-04, which is exactly where these clips come from,
+    # so using it would give every prior arm an in-sample advantage.
+    oof_priors = build_oof_priors(data_home, cfg0)
 
     backend = None
     results: dict[int, dict[str, list[dict[str, float]]]] = {
@@ -185,8 +197,14 @@ def main() -> int:
                 cache0.write_text(
                     json.dumps([_event_to_json(e) for e in ev0], indent=1) + "\n", encoding="utf-8"
                 )
+            base_prior = oof_priors[track_id[:2]]
             m0, _ = decode(
-                ev0, gold0, cfg=cfg0, session=session, prior=base_prior, sequence="guitarset-seq-v1"
+                ev0,
+                gold0,
+                cfg=cfg0,
+                session=session,
+                prior=base_prior,
+                sequence="guitarset-seq-v1",
             )
             control.append(m0["tab_f1"])
 

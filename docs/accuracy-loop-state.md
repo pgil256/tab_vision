@@ -1,6 +1,6 @@
 # Accuracy-loop state
-last_updated: 2026-07-22
-current_branch: accuracy/q6-player05-confirm
+last_updated: 2026-07-23
+current_branch: accuracy/q7-capo-build
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,11 +10,11 @@ current_branch: accuracy/q6-player05-confirm
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **ALL GATES PASSED** | player-05 sealed: **+0.0780** [+0.0502, +0.1078]; solo 0.5503→**0.6899**; agg 0.6340→**0.7119**; +367/-367 one-for-one | **user call: register + `auto` routing** | user decision |
-| Q7 | Capo/tuning preflight | **in-progress** | entry probe PASS: covariant 0.596 flat vs today's 0.438 (**+0.158** conditional); naive degrades 0.596→0.437 | build preflight + wire flag + pitch-shifted-audio Tab F1 | — |
+| Q6 | Inharmonicity study | **REGISTERED (opt-in)** | player-05 **+0.0780** [+0.0502, +0.1078]; `acoustic-physics-v1` registered + wired; **`auto` still `none`** | **user call: default-on for clean steel acoustic?** | user decision |
+| Q7 | Capo/tuning preflight | **transform validated on audio** | today **0.2956** vs covariant **0.6827** (**+0.3870** [+0.2818, +0.4906]) at capo 2; capo-0 control 0.6773 | **user call: route capo>0 to covariant prior?** | user decision |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q6 has passed every gate including player-05; registration + `auto` routing is a user call. Q7 entry probe passed; its build slice (pitch-shifted-audio Tab F1) is the next loop item. Q8 orphaned.**
+**Both Q6 and Q7 now sit on `auto`-routing decisions the user must take (SPEC §0.8). Q6 is registered and opt-in; Q7's transform is validated and unwired. No unblocked queue item remains — see Questions.**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -430,6 +430,38 @@ weakest on and where every other lever failed (Q2 moved solo +0.0112).
 **Every offline gate in the program is now passed.** What remains is product
 decisions, not evidence: registration and `auto` routing.
 
+## Q7 build slice — capo-covariant prior validated on audio (2026-07-23)
+
+Report: `docs/EVAL_REPORTS/q7_capo_audio_2026-07-23.md` (+ `.json`).
+Transform: `capo_covariant_prior` in `fusion/position_prior.py`.
+
+20 clips pitch-shifted +2/+4 semitones with capo-shifted labels, LOPO priors,
+arms paired on identical shifted audio. **Capo-0 control 0.6773.**
+
+| capo | today (priors=none) | covariant | Δ [lo-95, hi-95] | naive |
+|---:|---:|---:|---|---:|
+| 2 | **0.2956** | **0.6827** | **+0.3870 [+0.2818, +0.4906]** | 0.3573 |
+| 4 | **0.2875** | **0.6533** | +0.3658 [+0.2613, +0.4685] | 0.2868 |
+
+- **Today's capo routing is a collapse, not a shortfall.** §4.3 framed it as
+  losing "+22 pp"; capo sessions actually score **0.2956 vs 0.6773** — less
+  than half — with wrong_position at 1182 of ~1800 notes. Without a prior the
+  decoder's low-fret fallback breaks when every candidate sits above the capo.
+  **This half depends on no modelling assumption.**
+- **Recovery is partly by construction** (synthetic capo relabels capo-0 gold;
+  the covariant prior shifts identically). What it proves is the transform is
+  correct end-to-end through real audio/fuse(); it does **not** prove real
+  capo playing follows capo-0 conventions.
+- **One-for-one:** capo 2 +767 correct / −767 wrong_position; capo 4 +686/−686.
+- **Naive decays with depth:** +0.0617 at capo 2, **−0.0007 at capo 4**.
+- **Sequence prior adds nothing under capo (measured):** covariant+seq 0.6766
+  vs 0.6827 at capo 2. `guitarset-seq-v1` uses `delta_fret`, whose absolute
+  fret-region conditioning is capo-shifted, so it backs off to the delta
+  backbone. A capo-covariant seq prior is separate, small work.
+- **Methodology correction:** the first run used the registered `guitarset-v1`
+  (trained on players 00-04 = these clips) and reported an in-sample +0.45;
+  LOPO gives +0.387.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -494,6 +526,16 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-23 — Q7 — build slice: capo-covariant prior **validated on audio**.
+  Today's capo routing measured at **0.2956 vs 0.6773** capo-0 control — a
+  collapse, not a shortfall; covariant restores to **0.6827** (+0.3870).
+  Naive decays to −0.0007 by capo 4; seq prior adds nothing under capo.
+  Caught + fixed an in-sample-prior error mid-run (+0.45 → +0.387).
+  `q7_capo_audio_2026-07-23.md`.
+- 2026-07-23 — Q6 — **registered** `acoustic-physics-v1` (hash-verified,
+  gate provenance in manifest, decode config bound to the hash) and wired
+  behind explicit selection. **`auto` still resolves to `none`** (asserted by
+  test); default-on remains a user decision.
 - 2026-07-22 — Q6 — **player-05 sealed confirmation PASS**: agg 0.6340→0.7119
   (**+0.0780** [+0.0502, +0.1078]), solo 0.5503→0.6899 (+0.1396); +367/−367
   one-for-one, onset/pitch bit-identical; baseline reproduces shipped numbers

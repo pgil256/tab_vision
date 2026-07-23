@@ -3596,3 +3596,67 @@ classification, transfer to detected notes, portability without a dataset,
 cross-domain safety by construction, full-dev OOF, and the sealed hold-out.
 The remaining questions are product decisions about defaults, not evidence
 questions.
+
+---
+
+## 2026-07-23 — Q7 build slice: capo-covariant prior validated on audio
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3), build slice
+**Decision tree:** the entry probe validated the transform at label level;
+the shipping gate is real Tab F1 through `fuse()` on synthetic-capo audio.
+**Branch taken:** **transform validated end-to-end; routing change is a user
+decision.** 20 clips pitch-shifted +2/+4 semitones with capo-shifted labels,
+LOPO priors, arms paired on identical shifted audio. Capo-0 control 0.6773.
+Capo 2: today (priors=none) **0.2956**, covariant **0.6827**
+(**+0.3870 [+0.2818, +0.4906]**). Capo 4: today 0.2875, covariant 0.6533
+(+0.3658 [+0.2613, +0.4685]).
+**The genuinely new finding — today's capo routing is a collapse, not a
+shortfall.** §4.3 framed capo sessions as losing the "+22 pp prior lift".
+They actually score **0.2956 against 0.6773**, less than half, with
+`wrong_position_same_pitch` at **1182 of ~1800** decoded notes. Without a
+prior the decoder falls back to a low-fret preference; at capo `C` every
+candidate sits at fret ≥ `C`, that heuristic's assumption breaks, and it
+mispicks systematically. This half of the result depends on **no** synthetic
+modelling assumption — it is simply what a capo user gets today.
+**The recovery is partly by construction, and is stated as such.** The
+synthetic capo relabels capo-0 gold while the covariant prior shifts the
+capo-0 prior identically, so "covariant ≈ capo-0 control" is expected. What
+the run establishes is that the transform is correct and complete
+*end-to-end* — through real transcription, candidate generation, Viterbi and
+metric, with no bug the label probe could hide. It does not establish that
+real capo playing follows capo-0 relative-fret conventions; GuitarSet has no
+capo audio, so that remains assumed.
+**Decomposition one-for-one at both capos:** capo 2 correct 615 → 1382
+(+767) against wrong_position 1182 → 415 (−767); capo 4 +686/−686.
+`pitch_off`, `missed_onset`, `extra_detection` identical across arms.
+**Secondary results.** *Naive is useless and decays with depth:* +0.0617 at
+capo 2, **−0.0007 at capo 4** — matching the entry probe's 0.596 → 0.437 and
+confirming the shift is load-bearing. *The sequence prior contributes nothing
+under a capo, measured not assumed:* `covariant+seq` 0.6766 vs 0.6827 at capo
+2 (slightly worse) and 0.6530 vs 0.6533 at capo 4, because the registered
+`guitarset-seq-v1` uses the `delta_fret` scheme whose absolute fret-region
+conditioning is capo-shifted, so it backs off to the delta backbone. A
+capo-covariant sequence prior is separate, small, and worth only what the seq
+prior contributes at capo 0.
+**Methodology correction made mid-run:** the first attempt used the registered
+`guitarset-v1`, which was trained on players 00-04 — the very players these
+clips come from — so every prior arm scored in-sample and reported +0.45.
+Switching to leave-one-player-out (the Q6 protocol) gave +0.387, the reported
+figure.
+**Limits:** 20 clips / two capos, directional not definitive; pitch-shifting
+costs some transcription accuracy (pitch F1 0.9052 / 0.8874) identically
+across arms, so paired deltas hold but absolute levels are mildly pessimistic;
+a capo mechanically shrinks the candidate set so capo-`C` is not strictly
+comparable to capo-0; zero gold notes exceeded `max_fret`.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_audio_2026-07-23.md` (+ `.json`);
+`tabvision/scripts/eval/q7_capo_audio_eval.py`;
+`capo_covariant_prior` in `fusion/position_prior.py`.
+**Open, user-gated:** the fix is a routing change —
+`resolve_inference_policy` sends capo>0 to `priors=none` today and would
+instead apply `capo_covariant_prior(guitarset-v1, capo)`, worth ~**+0.37 Tab
+F1** to a capo user on this evidence. That is an `auto`-path change per SPEC
+§0.8. Nothing in this iteration altered routing.
+**Reasoning:** the by-construction component is called out rather than
+claimed, but the two independent halves — today's collapse, and the naive
+arm's decay — are real measurements, and together they make the routing
+change the highest-value unclaimed fix in the queue for real-world use.

@@ -1,0 +1,164 @@
+{
+  "clips": [
+    "00_BN1-129-Eb_comp",
+    "00_Jazz2-187-F#_comp",
+    "01_BN1-129-Eb_comp",
+    "01_Jazz2-187-F#_comp",
+    "02_BN1-129-Eb_comp",
+    "02_Jazz2-187-F#_comp",
+    "03_BN1-129-Eb_comp",
+    "03_Jazz2-187-F#_comp",
+    "04_BN1-129-Eb_comp",
+    "04_Jazz2-187-F#_comp",
+    "00_BN1-129-Eb_solo",
+    "00_Jazz2-187-F#_solo",
+    "01_BN1-129-Eb_solo",
+    "01_Jazz2-187-F#_solo",
+    "02_BN1-129-Eb_solo",
+    "02_Jazz2-187-F#_solo",
+    "03_BN1-129-Eb_solo",
+    "03_Jazz2-187-F#_solo",
+    "04_BN1-129-Eb_solo",
+    "04_Jazz2-187-F#_solo"
+  ],
+  "capos": [
+    2,
+    4
+  ],
+  "gold_notes_dropped_above_max_fret": 0,
+  "capo0_control_tab_f1": 0.677284867982025,
+  "results": {
+    "2": {
+      "today": {
+        "tab_f1": 0.2956404881008151,
+        "delta_vs_today": 0.0,
+        "lo95": 0.0,
+        "hi95": 0.0,
+        "onset_f1": 0.9292984735495547,
+        "pitch_f1": 0.905186576738639,
+        "decomposition": {
+          "correct": 615,
+          "wrong_position_same_pitch": 1182,
+          "pitch_off": 166,
+          "timing_only": 14,
+          "missed_onset": 220,
+          "extra_detection": 89
+        }
+      },
+      "covariant": {
+        "tab_f1": 0.6826709618643246,
+        "delta_vs_today": 0.3870304737635095,
+        "lo95": 0.2818056922163197,
+        "hi95": 0.49063656079894635,
+        "onset_f1": 0.9292984735495547,
+        "pitch_f1": 0.905186576738639,
+        "decomposition": {
+          "correct": 1382,
+          "wrong_position_same_pitch": 415,
+          "pitch_off": 166,
+          "timing_only": 14,
+          "missed_onset": 220,
+          "extra_detection": 89
+        }
+      },
+      "covariant+seq": {
+        "tab_f1": 0.6766160277671032,
+        "delta_vs_today": 0.3809755396662881,
+        "lo95": 0.26153958896051055,
+        "hi95": 0.5015193929399423,
+        "onset_f1": 0.9292984735495547,
+        "pitch_f1": 0.905186576738639,
+        "decomposition": {
+          "correct": 1374,
+          "wrong_position_same_pitch": 423,
+          "pitch_off": 166,
+          "timing_only": 14,
+          "missed_onset": 220,
+          "extra_detection": 89
+        }
+      },
+      "naive": {
+        "tab_f1": 0.3573260733331035,
+        "delta_vs_today": 0.06168558523228847,
+        "lo95": 0.021914921879879194,
+        "hi95": 0.1081183208060916,
+        "onset_f1": 0.9292984735495547,
+        "pitch_f1": 0.905186576738639,
+        "decomposition": {
+          "correct": 706,
+          "wrong_position_same_pitch": 1091,
+          "pitch_off": 166,
+          "timing_only": 14,
+          "missed_onset": 220,
+          "extra_detection": 89
+        }
+      }
+    },
+    "4": {
+      "today": {
+        "tab_f1": 0.28749602248703343,
+        "delta_vs_today": 0.0,
+        "lo95": 0.0,
+        "hi95": 0.0,
+        "onset_f1": 0.9139705988500696,
+        "pitch_f1": 0.8874404747177603,
+        "decomposition": {
+          "correct": 610,
+          "wrong_position_same_pitch": 1141,
+          "pitch_off": 201,
+          "timing_only": 18,
+          "missed_onset": 227,
+          "extra_detection": 154
+        }
+      },
+      "covariant": {
+        "tab_f1": 0.6533027051039697,
+        "delta_vs_today": 0.3658066826169362,
+        "lo95": 0.26130169335673087,
+        "hi95": 0.4684692728126251,
+        "onset_f1": 0.9139705988500696,
+        "pitch_f1": 0.8874404747177603,
+        "decomposition": {
+          "correct": 1296,
+          "wrong_position_same_pitch": 455,
+          "pitch_off": 201,
+          "timing_only": 18,
+          "missed_onset": 227,
+          "extra_detection": 154
+        }
+      },
+      "covariant+seq": {
+        "tab_f1": 0.652994723100698,
+        "delta_vs_today": 0.3654987006136644,
+        "lo95": 0.24884750193801347,
+        "hi95": 0.4848158719379702,
+        "onset_f1": 0.9139705988500696,
+        "pitch_f1": 0.8874404747177603,
+        "decomposition": {
+          "correct": 1293,
+          "wrong_position_same_pitch": 458,
+          "pitch_off": 201,
+          "timing_only": 18,
+          "missed_onset": 227,
+          "extra_detection": 154
+        }
+      },
+      "naive": {
+        "tab_f1": 0.2867943293949727,
+        "delta_vs_today": -0.000701693092060722,
+        "lo95": -0.011590315026567896,
+        "hi95": 0.011833245083169755,
+        "onset_f1": 0.9139705988500696,
+        "pitch_f1": 0.8874404747177603,
+        "decomposition": {
+          "correct": 602,
+          "wrong_position_same_pitch": 1149,
+          "pitch_off": 201,
+          "timing_only": 18,
+          "missed_onset": 227,
+          "extra_detection": 154
+        }
+      }
+    }
+  }
+}
