@@ -3718,3 +3718,61 @@ invalidated experiment, and one shipped bug fix. Reporting the 0.183 as the
 physics detector's accuracy would have been the easy and wrong move; the
 stiffness-shift check that exposed it cost minutes and changes the
 conclusion.
+
+---
+
+## 2026-07-23 — N1: partial-aware isolation passes full-dev, +0.0182 over shipped
+
+**Phase:** Post-program item N1 (coverage extension for the Q6 physics
+channel, proposed in the program summary)
+**Decision tree:** coverage bounds the channel's value (8.3% of detections at
+0.92 accuracy); find where it is lost and recover it, gated as v1 was.
+**Branch taken:** **partial-aware isolation adopted as an opt-in mode; full-dev
+gate PASSED, player-05 not run.** The diagnostic corrected the plan first: over
+60 clips / 12,733 events the losses are **not_isolated 87.81%**, low_r2 2.23%,
+too_short 1.19%, and **too_few_partials / fit_failed exactly 0.00%**. Partial
+finding and fitting never fail; the proposed "44% of isolated notes fit"
+framing had conflated unambiguous notes dropped later at the matrix stage.
+Isolation was the whole problem.
+**Change:** a neighbour only ruins the measurement if its partials collide, so
+`partial_aware` drops target partials within `3/T` Hz of an interferer
+harmonic (under a Hann main lobe's `~4/T`, hence genuinely unresolvable) and
+fits the survivors, re-checking the located peak against blocked bands so a
+loud interferer cannot be measured as this note's partial. `strict` stays the
+default and is bit-identical to shipped v1; all 26 pre-existing tests pass.
+**Full dev, 300 clips:** strict +0.0443 [+0.0339, +0.0555]; **pa4 +0.0629
+[+0.0481, +0.0792]**, pa6 +0.0625, pa8 +0.0594. **Head-to-head pa6 − strict =
++0.0182 [+0.0111, +0.0256]**, interval excluding zero. Coverage **8.26% →
+21.69%**, solo **+0.0860 → +0.1139**, onset F1 0.9182 bit-identical in every
+arm. Decomposition still one-for-one: correct +646 against
+wrong_position −646, other four buckets exactly 0.
+**The 20-clip pilot was wrong and is worth recording as such.** It reported
+comp *regressing* (+0.0000 → −0.0347) and I wrote that up as a solo-only
+improvement with a chord-tier cost; on 300 clips comp **improves** (+0.0026 →
++0.0120). It also suggested `min_clean_partials` traded solo against comp
+monotonically, where on the full set pa4 and pa6 are indistinguishable. Both
+were small-sample artifacts — 20 clips detected the coverage change but got
+the sign of a per-tier effect wrong.
+**Recommended arm pa4** — no extra contaminated-note gate beyond the
+estimator's existing `MIN_PARTIALS`, since pa6/pa8 buy nothing measurable and
+a threshold that buys nothing is a parameter to defend for no gain.
+**Gate status:** full-dev PASSED; GAPS cross-domain still satisfied by
+construction (the domain guard is untouched, so the mode never runs on
+classical/electric/capo/alt-tuning); **player-05 NOT run** — v1 was registered
+only after the sealed hold-out confirmed it and v2 should clear the same bar,
+which is user-gated. Nothing registered, `auto` unchanged.
+**Limits:** the threshold was chosen after seeing full-dev, so pa4's +0.0629
+is mildly optimistic (the *decision* does not rest on it — all arms beat
+strict significantly); still GuitarSet; and `_overlapping` is O(n²) per clip,
+fine offline but needing an interval index before it could run inside the
+5-min latency budget.
+**Evidence:** `docs/EVAL_REPORTS/n1_partial_aware_isolation_2026-07-23.md`
+(+ `n1_coverage_diagnostic_2026-07-23.json`,
+`n1_isolation_sweep_2026-07-23.json`, `n1_isolation_fulldev_2026-07-23.json`);
+`tabvision/tabvision/fusion/inharmonicity.py`;
+`tabvision/scripts/eval/{n1_coverage_diagnostic,n1_isolation_sweep}.py`.
+945 unit tests pass; ruff and mypy clean.
+**Reasoning:** the diagnostic paid for itself twice — it redirected the work
+from a lever that did not exist to the one that did, and the full-dev run then
+reversed the pilot's per-tier conclusion. Both corrections are recorded
+because the intermediate write-ups were wrong.
