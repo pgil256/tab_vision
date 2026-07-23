@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from contextlib import asynccontextmanager
 from importlib.resources import files
 from typing import AsyncIterator
@@ -69,15 +70,31 @@ def create_app(
                 processor = app.state.frame_processor
                 await asyncio.to_thread(processor.reset)
                 while True:
-                    frame = await websocket.receive_bytes()
-                    if len(frame) > max_frame_bytes:
-                        await websocket.close(code=1009, reason="frame too large")
+                    message = await websocket.receive()
+                    if message.get("type") == "websocket.disconnect":
                         return
+                    frame = message.get("bytes")
+                    text = message.get("text")
                     try:
-                        response = await asyncio.to_thread(
-                            processor.process_jpeg, frame
-                        )
-                    except ValueError as exc:
+                        if frame is not None:
+                            if len(frame) > max_frame_bytes:
+                                await websocket.close(
+                                    code=1009, reason="frame too large"
+                                )
+                                return
+                            response = await asyncio.to_thread(
+                                processor.process_jpeg, frame
+                            )
+                        elif text is not None:
+                            payload = json.loads(text)
+                            if not isinstance(payload, dict):
+                                raise ValueError("control payload must be an object")
+                            response = await asyncio.to_thread(
+                                processor.handle_control, payload
+                            )
+                        else:
+                            raise ValueError("expected a binary frame or JSON control")
+                    except (ValueError, json.JSONDecodeError) as exc:
                         await websocket.send_json(
                             {"type": "error", "message": str(exc)}
                         )

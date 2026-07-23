@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from fretcam.detection import FrameDetection, HandPoint, StageLatency
+from fretcam.detection import (
+    ConfidenceFactors,
+    FrameDetection,
+    HandPoint,
+    StageLatency,
+)
 from fretcam.guidance import assess_guidance
 from fretcam.position import PositionEstimate
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
@@ -57,9 +62,10 @@ def test_guidance_prioritizes_missing_or_clipped_neck() -> None:
         neck_quad=((0.0, 10.0), (90.0, 10.0), (90.0, 40.0), (0.0, 40.0)),
     )
 
-    assert assess_guidance(
-        missing, _estimate(), frame_width=100, frame_height=50
-    ).code == "frame_neck"
+    assert (
+        assess_guidance(missing, _estimate(), frame_width=100, frame_height=50).code
+        == "frame_neck"
+    )
     clipped_result = assess_guidance(
         clipped, _estimate(), frame_width=100, frame_height=50
     )
@@ -71,12 +77,60 @@ def test_guidance_distinguishes_weak_lock_missing_hand_and_transition() -> None:
     weak = replace(_detection(), homography_confidence=0.3)
     no_hand = replace(_detection(), hand_points=())
 
-    assert assess_guidance(
-        weak, _estimate(), frame_width=100, frame_height=50
-    ).code == "weak_board_lock"
-    assert assess_guidance(
-        no_hand, _estimate("lost"), frame_width=100, frame_height=50
-    ).code == "show_hand"
-    assert assess_guidance(
-        _detection(), _estimate("shifting"), frame_width=100, frame_height=50
-    ).code == "shifting"
+    assert (
+        assess_guidance(weak, _estimate(), frame_width=100, frame_height=50).code
+        == "weak_board_lock"
+    )
+    assert (
+        assess_guidance(
+            no_hand, _estimate("lost"), frame_width=100, frame_height=50
+        ).code
+        == "show_hand"
+    )
+    assert (
+        assess_guidance(
+            _detection(), _estimate("shifting"), frame_width=100, frame_height=50
+        ).code
+        == "shifting"
+    )
+
+
+def test_guidance_exposes_stale_geometry_and_low_composite_confidence() -> None:
+    stale = replace(_detection(), geometry_status="stale")
+    low_confidence = replace(
+        _detection(),
+        confidence_factors=ConfidenceFactors(
+            board=0.8,
+            freshness=1.0,
+            stability=0.8,
+            landmark_quality=0.7,
+            on_neck=1.0,
+            finger_agreement=0.2,
+            coarse_agreement=0.8,
+            support_sufficiency=0.2,
+            combined=0.1,
+            blockers=("finger_conflict", "low_confidence"),
+        ),
+    )
+
+    stale_result = assess_guidance(stale, _estimate(), frame_width=100, frame_height=50)
+    assert stale_result.code == "stale_board"
+    assert "reacquires" in stale_result.message
+    assert (
+        assess_guidance(
+            low_confidence,
+            replace(_estimate("acquiring"), reason="low_confidence"),
+            frame_width=100,
+            frame_height=50,
+        ).code
+        == "low_confidence"
+    )
+    assert (
+        assess_guidance(
+            low_confidence,
+            replace(_estimate("lost"), reason="low_confidence"),
+            frame_width=100,
+            frame_height=50,
+        ).code
+        == "low_confidence"
+    )

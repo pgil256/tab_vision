@@ -26,6 +26,7 @@ class FakeProcessor:
         self.closed = False
         self.warmed_up = False
         self.reset_calls = 0
+        self.controls: list[dict[str, object]] = []
 
     def warmup(self) -> None:
         self.warmed_up = True
@@ -39,6 +40,10 @@ class FakeProcessor:
             "payload_bytes": len(payload),
             "server_ms": 1.0,
         }
+
+    def handle_control(self, message: dict[str, object]) -> dict[str, object]:
+        self.controls.append(message)
+        return {"type": "control", "status": "applied"}
 
     def close(self) -> None:
         self.closed = True
@@ -55,8 +60,24 @@ class HudWebSocketTest(unittest.TestCase):
         self.assertIn('id="position-status"', page.text)
         self.assertIn("The green border follows the detected fretboard", page.text)
         self.assertIn('<link rel="icon" href="data:,"', page.text)
+        self.assertIn('id="camera"', page.text)
+        self.assertIn('id="preview"', page.text)
+        self.assertIn('id="inference"', page.text)
+        self.assertIn('id="camera-select"', page.text)
+        self.assertIn('id="player-handedness"', page.text)
+        self.assertIn('id="mirror-preview"', page.text)
+        self.assertIn('id="calibrate"', page.text)
+        self.assertIn('id="export-diagnostics"', page.text)
+        self.assertIn('id="diagnostics"', page.text)
         self.assertIn("updateLiveReadouts(detection, position)", script.text)
-        self.assertIn('context.strokeStyle = "#59ff88"', script.text)
+        self.assertIn("fitInferenceSize", script.text)
+        self.assertIn("MAX_DIAGNOSTIC_SAMPLES = 300", script.text)
+        self.assertIn("geometry_status", script.text)
+        self.assertIn("devicechange", script.text)
+        self.assertIn("populateCameras().catch", script.text)
+        self.assertIn("sessionGeneration !== encodeGeneration", script.text)
+        self.assertIn("socket !== encodeSocket", script.text)
+        self.assertNotIn('<video id="camera" hidden', page.text)
 
     def test_binary_frame_returns_json_and_closes_session_processor(self) -> None:
         processor = FakeProcessor()
@@ -71,6 +92,31 @@ class HudWebSocketTest(unittest.TestCase):
         self.assertTrue(processor.warmed_up)
         self.assertEqual(processor.reset_calls, 1)
         self.assertTrue(processor.closed)
+
+    def test_json_control_message_is_dispatched_without_consuming_frame_slot(
+        self,
+    ) -> None:
+        processor = FakeProcessor()
+        message = {"type": "settings", "player_handedness": "left"}
+        with TestClient(create_app(processor_factory=lambda: processor)) as client:
+            with client.websocket_connect("/ws") as websocket:
+                websocket.send_json(message)
+                response = websocket.receive_json()
+
+        self.assertEqual(response, {"type": "control", "status": "applied"})
+        self.assertEqual(processor.controls, [message])
+
+    def test_invalid_control_message_returns_recoverable_error(self) -> None:
+        processor = FakeProcessor()
+        with TestClient(create_app(processor_factory=lambda: processor)) as client:
+            with client.websocket_connect("/ws") as websocket:
+                websocket.send_text("not-json")
+                response = websocket.receive_json()
+                websocket.send_bytes(SYNTHETIC_JPEG)
+                recovered = websocket.receive_json()
+
+        self.assertEqual(response["type"], "error")
+        self.assertEqual(recovered["type"], "hud")
 
 
 if __name__ == "__main__":

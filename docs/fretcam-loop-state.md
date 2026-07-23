@@ -1,6 +1,6 @@
 # FretCam-loop state
-last_updated: 2026-07-22
-current_branch: fretcam/f4e-a-position-benchmark
+last_updated: 2026-07-23
+current_branch: codex/fretcam-quality-overhaul
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 `docs/plans/2026-07-22-fretcam-live-position-hud-design.md`.
@@ -19,22 +19,22 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F4e-A | frozen public position benchmark | passed | 16 sequences/12 sources; F4d baseline precision 55/69, stable coverage 60/276, false locks 10/276 | review report; F4e-B needs separate approval | — |
 | F4f | explicit live browser fretboard + hand-position display | passed | glowing green neck border; dedicated live status cards; browser HUD live with 0 console errors; 56 tests | preserve; complete | — |
 | L1 | live test 1 (Pat: A1+A4) | accepted for now (informal) | Pat: "Im telling you its fine for now."; no formal numeric A4 claim | no further action unless Pat reopens it | — |
-| F5 | fix round + full checklist | blocked | — | — | L1 |
+| F5 | accuracy/performance/product overhaul | passed | 106 tests; dev precision 76/80; coverage 71/161; stable false locks 0/161; negative displays 0/120 | preserve and run L2 only if Pat reopens formal acceptance | — |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
-**Live checkpoint.** F4e-A freezes the first source-disjoint public position
-benchmark without changing F4d inference. Across 450 samples from 16 sequences
-and 12 sources, overall displayed precision is 55/69 (0.797), stable coverage
-is 60/276 (0.217), and stable false locks are 10/276 (0.036). Held-out stable
-false locks are 0/115, but coverage is only 8/115 and four displays occur on
-an invalid crossfade. No shift origin was freshly locked and neither dropout
-produced a measured recovery, so coverage/observation support is the dominant
-baseline limitation. L1 is still Pat-only and must run before F5. F4e-B, if
-desired before L1, requires a separate explicit approval; F8 remains blocked
-on an L2 pass and separate integration sign-off.
+**Live checkpoint.** F5 is complete. The final dev-only frozen benchmark
+improves the F4d baseline to displayed precision 76/80 (0.950), stable
+coverage 71/161 (0.441), stable false locks 0/161, and negative-control
+displays 0/120. The source-disjoint test split was opened only once before
+the final lifecycle hardening and was not reused for tuning. A final Chrome
+fake-camera run exercised camera discovery, start/restart, handedness,
+mirroring, calibration controls, bounded diagnostics export, desktop/mobile
+layout, and the live WebSocket with no console or page errors. The synthetic
+run observed 18.8-29.5 HUD FPS and 18.0-34.6 ms end-to-end; these are browser
+smoke numbers, not a replacement for Pat's real-camera acceptance.
 
 Pat's live observation is positive and accepted for now. The final direction
 was: "Im telling you its fine for now." No numeric FPS/E2E value is inferred,
@@ -70,6 +70,15 @@ unless Pat reopens the gate.
   was supplied, so the formal L1 status remains open.
 
 ## Iteration log (newest first)
+- 2026-07-23 — F5 passed — replaced index-dominant locking with a
+  multi-finger/contact solver, time-weighted confidence and elapsed-time
+  hysteresis; added asynchronous YOLO plus optical board tracking and
+  implausible-geometry rejection; capped/adapted inference work; and shipped
+  camera, handedness, mirror, calibration, why-not-locked, diagnostics, and
+  stale-border controls. The final dev benchmark reached 76/80 displayed
+  precision, 71/161 coverage, 0/161 stable false locks, and 0/120 negative
+  displays. One hundred six tests, Ruff, JavaScript syntax, and desktop/mobile
+  live-browser verification passed.
 - 2026-07-22 — F4f passed — the browser now gives the fretboard and hand
   position their own persistent live readouts, and draws a thicker glowing
   green border around the detected neck. Start/stop and acquiring/locked/held

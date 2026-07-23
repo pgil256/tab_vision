@@ -26,6 +26,15 @@ Open <http://127.0.0.1:8765>, select **Start camera**, and grant camera
 permission. A rear/environment camera is preferred when the browser exposes
 one.
 
+The page keeps the full camera preview separate from a bounded adaptive
+inference canvas. It draws the tracked fretboard border and fret map over the
+preview, then shows the elapsed-time-stabilized hand position beside it.
+Camera selection, right/left-handed player mode, preview mirroring, optional
+Position-I calibration, lock diagnostics, and a session diagnostics export
+are available below the preview. The export is capped at 300 timing/confidence
+samples and contains no frames, camera identifiers, landmarks, or fretboard
+coordinates.
+
 ## Verify
 
 ```powershell

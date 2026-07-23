@@ -38,6 +38,12 @@ def assess_guidance(
 
     if not detection.neck_locked or len(detection.neck_quad) != 4:
         return Guidance("frame_neck", "Frame the full guitar neck", "warning")
+    if detection.geometry_status == "stale":
+        return Guidance(
+            "stale_board",
+            "Fretboard tracking is stale - hold still while it reacquires",
+            "warning",
+        )
 
     x_margin = frame_width * edge_margin
     y_margin = frame_height * edge_margin
@@ -61,10 +67,17 @@ def assess_guidance(
             "warning",
         )
 
-    if not detection.hand_points or estimate.state == "lost":
+    if detection.hand_points and (
+        estimate.reason == "low_confidence"
+        or "low_confidence" in detection.confidence_factors.blockers
+    ):
         return Guidance(
-            "show_hand", "Show your fretting hand on the neck", "warning"
+            "low_confidence",
+            "Position evidence is weak - keep several fingertips visible",
+            "warning",
         )
+    if not detection.hand_points or estimate.state == "lost":
+        return Guidance("show_hand", "Show your fretting hand on the neck", "warning")
     if estimate.state == "acquiring":
         return Guidance("acquiring", "Hold position while the readout locks", "info")
     if estimate.state == "shifting":

@@ -145,12 +145,22 @@ def render_position_replay(
                         raise RuntimeError(f"could not create {output_path}")
 
                 detection = chain.process_frame(frame, timestamp_s=float(timestamp_s))
+                position_observation = (
+                    detection.position_fret
+                    if detection.composite_available
+                    or detection.position_fret is not None
+                    else detection.index_fret
+                )
+                observation_confidence = (
+                    detection.observation_confidence
+                    if detection.composite_available
+                    or detection.position_fret is not None
+                    else (detection.anchor.confidence if detection.neck_locked else 0.0)
+                )
                 started = time.perf_counter()
                 estimate = estimator.update(
-                    index_fret=detection.index_fret,
-                    vision_confidence=(
-                        detection.anchor.confidence if detection.neck_locked else 0.0
-                    ),
+                    index_fret=position_observation,
+                    vision_confidence=observation_confidence,
                     timestamp_s=float(timestamp_s),
                 )
                 estimator_ms.append((time.perf_counter() - started) * 1000.0)

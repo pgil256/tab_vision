@@ -313,13 +313,25 @@ def run_inference(
                         _find_label(sequence, timestamp_s),
                     )
                     detection = chain.process_frame(frame, timestamp_s=timestamp_s)
-                    estimate = estimator.update(
-                        index_fret=detection.index_fret,
-                        vision_confidence=(
+                    position_observation = (
+                        detection.position_fret
+                        if detection.composite_available
+                        or detection.position_fret is not None
+                        else detection.index_fret
+                    )
+                    observation_confidence = (
+                        detection.observation_confidence
+                        if detection.composite_available
+                        or detection.position_fret is not None
+                        else (
                             detection.anchor.confidence
                             if detection.neck_locked
                             else 0.0
-                        ),
+                        )
+                    )
+                    estimate = estimator.update(
+                        index_fret=position_observation,
+                        vision_confidence=observation_confidence,
                         timestamp_s=timestamp_s,
                     )
                     predictions.append(
