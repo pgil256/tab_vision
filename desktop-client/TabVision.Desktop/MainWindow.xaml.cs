@@ -13,7 +13,9 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _bootstrapCancellationSource = new();
     private SelectedInputSummary? _selectedInput;
     private TranscriptionOptions? _completedOptions;
+    private BootstrapPayloadPaths? _bootstrapPayloads;
     private bool _bootstrapReady = true;
+    private bool _bootstrapRunning;
     private bool _bootstrapStarted;
     private IReadOnlyDictionary<string, string?> _sidecarEnvironment =
         new Dictionary<string, string?>
@@ -37,19 +39,53 @@ public partial class MainWindow : Window
         }
 
         _bootstrapStarted = true;
-        if (!BootstrapPayloadPaths.TryFromApplicationDirectory(AppContext.BaseDirectory, out var payloads))
+        if (
+            !BootstrapPayloadPaths.TryFromApplicationDirectory(
+                AppContext.BaseDirectory,
+                out var payloads
+            )
+        )
         {
             return;
         }
 
+        _bootstrapPayloads = payloads;
+        await RunBootstrapAsync(payloads, repair: false);
+    }
+
+    private async void RepairBootstrapMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_bootstrapPayloads is null || _bootstrapRunning)
+        {
+            return;
+        }
+
+        await RunBootstrapAsync(_bootstrapPayloads, repair: true);
+    }
+
+    private async Task RunBootstrapAsync(BootstrapPayloadPaths payloads, bool repair)
+    {
+        if (_bootstrapRunning)
+        {
+            return;
+        }
+
+        _bootstrapRunning = true;
         _bootstrapReady = false;
         SetJobRunning(isRunning: false);
         JobProgressBar.Value = 0;
-        JobStatusText.Text = "Preparing first-run Python setup...";
+        JobStatusText.Text = repair
+            ? "Preparing setup repair..."
+            : "Preparing first-run Python setup...";
 
         try
         {
             var layout = PythonEnvironmentLayout.Default;
+            if (repair)
+            {
+                BootstrapRepair.Prepare(layout);
+            }
+
             var progress = new Progress<PythonBootstrapProgress>(value =>
                 ShowBootstrapProgress(
                     value with
@@ -100,14 +136,20 @@ public partial class MainWindow : Window
             );
 
             _bootstrapReady = true;
-            SetJobRunning(isRunning: false);
             JobProgressBar.Value = 100;
-            JobStatusText.Text =
-                result.WasAlreadyReady
-                && artifactResult.DownloadedCount == 0
-                && smokeResult.WasAlreadyReady
-                ? "Choose an input to begin."
-                : "First-run setup complete. Choose an input to begin.";
+            if (repair)
+            {
+                JobStatusText.Text = "Repair complete. Choose an input to begin.";
+            }
+            else
+            {
+                JobStatusText.Text =
+                    result.WasAlreadyReady
+                    && artifactResult.DownloadedCount == 0
+                    && smokeResult.WasAlreadyReady
+                    ? "Choose an input to begin."
+                    : "First-run setup complete. Choose an input to begin.";
+            }
         }
         catch (OperationCanceledException)
             when (_bootstrapCancellationSource.IsCancellationRequested)
@@ -116,15 +158,22 @@ public partial class MainWindow : Window
             {
                 JobProgressBar.Value = 0;
                 JobStatusText.Text =
-                    "Setup paused. Restart TabVision to resume; verified downloads were kept.";
+                    $"{(repair ? "Repair" : "Setup")} paused. Restart TabVision to resume; "
+                    + "verified downloads were kept.";
             }
         }
         catch (Exception exception)
         {
             JobProgressBar.Value = 0;
             JobStatusText.Text =
-                $"Setup failed: {exception.Message} Restart TabVision to resume; "
+                $"{(repair ? "Repair" : "Setup")} failed: {exception.Message} "
+                + "Restart TabVision to resume; "
                 + "verified downloads were kept.";
+        }
+        finally
+        {
+            _bootstrapRunning = false;
+            SetJobRunning(isRunning: false);
         }
     }
 
@@ -411,6 +460,8 @@ public partial class MainWindow : Window
     {
         ChooseVideoButton.IsEnabled = _bootstrapReady && !isRunning;
         OptionsPanel.IsEnabled = _bootstrapReady && !isRunning;
+        RepairBootstrapMenuItem.IsEnabled =
+            _bootstrapPayloads is not null && !_bootstrapRunning && !isRunning;
         TranscribeButton.IsEnabled =
             _bootstrapReady && !isRunning && _selectedInput is not null;
         ExportButton.IsEnabled =

@@ -113,7 +113,10 @@ in Python. D2 is out of scope until the web editor stabilizes.
   atomic stage markers, the pip cache, verified artifacts, and digest-keyed
   partials survive; retries re-extract an unmarked partial runtime, skip every
   verified file, and range-resume only the interrupted artifact.
-- [ ] Add Settings > Repair / Re-download using the same bootstrap workflow.
+- [x] Add Settings > Repair / Re-download using the same bootstrap workflow.
+  Result: the menu action invalidates only Python/smoke completion markers,
+  then reuses the first-run progress path to reinstall the lock, hash-check all
+  artifacts, download only missing/corrupt files, and rerun the smoke test.
 - [ ] Verify normal transcription performs no network access after bootstrap.
 - [ ] **D1.5 gate:** on a clean Windows 11 VM with no Python installed, install,
   complete first-run download, disable networking, and successfully transcribe;
@@ -309,3 +312,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   proved the completed destination was reused without network access and only
   the seven-byte partial was range-resumed. Clean Release build: 0
   warnings/errors; all 48 tests passed. No dependency was added.
+- 2026-07-22: D1.5 Settings repair completed. Added a dependency-free Settings
+  menu with Repair / Re-download, refactored startup and repair through the same
+  bootstrap method, and disabled repair during setup or a transcription job.
+  Repair removes only the Python-environment and smoke completion markers;
+  runtime extraction state, pip cache, verified models, and partial downloads
+  remain reusable while every artifact is hash-checked. A focused idempotency
+  test proved those preservation boundaries. Clean Release build: 0
+  warnings/errors; all 49 tests passed. No dependency was added.

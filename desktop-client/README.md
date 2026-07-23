@@ -50,3 +50,6 @@ values are recorded in `installer/payloads.json`; the build cache lives under
 If first-run setup fails or the app closes, launch TabVision again. Completed
 Python/runtime stages, verified model files, partial downloads, and the pip
 cache remain in app-local storage and are validated or resumed on the retry.
+After setup, **Settings → Repair / Re-download** runs the same workflow again:
+it reinstalls the locked Python packages, revalidates every model, downloads
+only missing or corrupt files, and reruns the bundled transcription smoke test.

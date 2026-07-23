@@ -18,9 +18,30 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock FontSize="28"
-                   FontWeight="SemiBold"
-                   Text="TabVision" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock FontSize="28"
+                       FontWeight="SemiBold"
+                       Text="TabVision" />
+            <Menu Grid.Column="1"
+                  VerticalAlignment="Center"
+                  Background="Transparent">
+                <MenuItem Padding="10,6"
+                          AutomationProperties.Name="Settings"
+                          Header="_Settings">
+                    <MenuItem x:Name="RepairBootstrapMenuItem"
+                              AutomationProperties.Name="Repair or re-download setup files"
+                              Click="RepairBootstrapMenuItem_Click"
+                              Header="_Repair / Re-download"
+                              IsEnabled="False"
+                              ToolTip="Revalidate setup and download only missing or corrupt files." />
+                </MenuItem>
+            </Menu>
+        </Grid>
         <TextBlock Grid.Row="1"
                    Margin="0,6,0,24"
                    Foreground="#666666"

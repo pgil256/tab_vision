@@ -3245,3 +3245,26 @@ warnings/errors and all 48 tests passed.
 stage independently idempotent, so recovery needs no fragile global journal and
 never deletes useful cache state. Cancellation stops active child processes and
 network streams while leaving their retry-safe local bytes intact.
+
+---
+
+## 2026-07-22 - D1.5 repair resets health, not downloaded state
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Expose the planned Settings repair action without creating a
+second installer path or forcing users to download gigabytes that already pass
+their pinned integrity checks.
+**Branch taken:** Settings > Repair / Re-download deletes only the fingerprinted
+Python-environment and pipeline-smoke completion markers, then invokes the same
+bootstrap method used at first launch. It retains the completed CPython runtime,
+pip cache, verified artifact destinations, and digest-keyed partial downloads;
+the existing pip install, artifact hash verification, and smoke gate decide what
+must actually be repaired or fetched.
+**Evidence:** The WPF Release build had 0 warnings/errors and all 49 tests
+passed. A focused repair test called preparation twice and proved both health
+markers were absent while the runtime marker, cached wheel, verified model, and
+partial artifact remained byte-present.
+**Reasoning:** Completion markers are claims about current health and should be
+re-earned during repair. Content-addressed cache and verified downloads are
+evidence, not disposable state; preserving them makes repair fast while the
+same validators still replace anything missing or corrupt.
