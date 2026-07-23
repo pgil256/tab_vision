@@ -344,3 +344,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   attempted. The gate can resume once an existing clean Windows 11 VM is made
   accessible to this session, or the user explicitly coordinates an elevated
   VM/Sandbox setup.
+- 2026-07-22: A second D1.5 gate attempt confirmed the infrastructure blocker
+  is unchanged. The Windows 11 Pro 10.0.26200 session still has a non-elevated
+  token; `WindowsSandbox.exe`, `VBoxManage`, and `vmrun` remain unavailable;
+  `Get-VM` is still denied; and even reading the Sandbox feature state requires
+  elevation. No clean guest could be established, so installation, first-run
+  download, network disablement, and transcription were not started. The gate
+  remains unchecked and needs the same user-coordinated VM access described
+  above.
