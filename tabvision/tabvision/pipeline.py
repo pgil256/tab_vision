@@ -231,6 +231,32 @@ def run_pipeline_with_artifacts(
     audio_events = audio.transcribe(demuxed.wav, demuxed.sample_rate, session)
     logger.info("audio backend produced %d events", len(audio_events))
 
+    # Inharmonicity evidence runs *before* the corpus prior so the two combine
+    # as a product of experts inside apply_pitch_position_prior — the same
+    # order the gates measured. The channel abstains on any note it cannot
+    # measure, so this is a no-op wherever the physics is unreadable.
+    if policy.resolved_string_evidence != "none":
+        from tabvision.fusion.inharmonicity import attach_inharmonicity_evidence
+        from tabvision.fusion.string_physics import load_string_evidence
+
+        evidence = load_string_evidence(policy.resolved_string_evidence)
+        audio_events, tally = attach_inharmonicity_evidence(
+            audio_events,
+            demuxed.wav,
+            demuxed.sample_rate,
+            evidence.model,
+            cfg,
+            weight=evidence.weight,
+            min_r2=evidence.min_r2,
+            sigma=evidence.sigma,
+        )
+        logger.info(
+            "attached string evidence %s to %d/%d events",
+            policy.resolved_string_evidence,
+            tally["applied"],
+            tally["events"],
+        )
+
     if policy.resolved_position_prior != "none":
         prior = load_pitch_position_prior(policy.resolved_position_prior, cfg=cfg)
         audio_events = apply_pitch_position_prior(audio_events, prior, cfg)

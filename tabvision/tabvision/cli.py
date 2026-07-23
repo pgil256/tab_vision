@@ -214,12 +214,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--string-evidence",
-        choices=["auto", "none", "guitarset-timbre-v1"],
+        choices=["auto", "none", "guitarset-timbre-v1", "acoustic-physics-v1"],
         default="auto",
         help=(
-            "timbral string classifier evidence. 'auto' uses a registered "
-            "gate-passed model in its validated domain, otherwise degrades to "
-            "neutral evidence; 'none' disables it."
+            "per-note string evidence. 'auto' uses a registered gate-passed "
+            "model in its validated domain, otherwise degrades to neutral "
+            "evidence; 'none' disables it. 'acoustic-physics-v1' applies "
+            "inharmonicity evidence derived from string physics — it passed "
+            "development OOF (+0.0443) and the player-05 confirmation "
+            "(+0.0780, solo +0.1396) but is opt-in pending a promotion "
+            "decision, and abstains outside clean steel-string acoustic."
         ),
     )
     t.add_argument(

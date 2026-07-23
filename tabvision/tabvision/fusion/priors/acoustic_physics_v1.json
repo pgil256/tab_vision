@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "name": "acoustic-physics-v1",
+  "artifact_kind": "string_evidence",
+  "method": "inharmonicity",
+  "log_b0": {
+    "0": -9.37554823567043,
+    "1": -9.959592717036914,
+    "2": -10.547332576047996,
+    "3": -11.203142784124873,
+    "4": -9.702962291486394,
+    "5": -10.860513361983406
+  },
+  "fret_exponent": 1.0,
+  "open_b": {
+    "0": 8.47717476086592e-05,
+    "1": 4.7271985198382126e-05,
+    "2": 2.6263443254195967e-05,
+    "3": 1.3631288479322797e-05,
+    "4": 6.110222409882888e-05,
+    "5": 1.9201668877910776e-05
+  },
+  "decode": {
+    "weight": 1.0,
+    "min_r2": 0.5,
+    "sigma": 0.35
+  },
+  "physics": {
+    "relation": "B = pi^3 * E * d_core^4 / (256 * mu * L^4 * f^2)",
+    "fret_law": "B(s, n) = B0_s * 2^(n/6), derived from L_n = L*2^(-n/12)",
+    "scale_length_in": 25.4,
+    "youngs_modulus_pa": 200000000000.0,
+    "string_set": [
+      {
+        "name": "E2",
+        "gauge_in": 0.053,
+        "core_diameter_in": 0.018,
+        "unit_weight_lb_per_in": 0.00059427,
+        "wound": true,
+        "open_midi": 40
+      },
+      {
+        "name": "A2",
+        "gauge_in": 0.042,
+        "core_diameter_in": 0.016,
+        "unit_weight_lb_per_in": 0.00037339,
+        "wound": true,
+        "open_midi": 45
+      },
+      {
+        "name": "D3",
+        "gauge_in": 0.032,
+        "core_diameter_in": 0.014,
+        "unit_weight_lb_per_in": 0.0002211,
+        "wound": true,
+        "open_midi": 50
+      },
+      {
+        "name": "G3",
+        "gauge_in": 0.024,
+        "core_diameter_in": 0.012,
+        "unit_weight_lb_per_in": 0.00012905,
+        "wound": true,
+        "open_midi": 55
+      },
+      {
+        "name": "B3",
+        "gauge_in": 0.016,
+        "core_diameter_in": 0.016,
+        "unit_weight_lb_per_in": 5.732e-05,
+        "wound": false,
+        "open_midi": 59
+      },
+      {
+        "name": "E4",
+        "gauge_in": 0.012,
+        "core_diameter_in": 0.012,
+        "unit_weight_lb_per_in": 3.239e-05,
+        "wound": false,
+        "open_midi": 64
+      }
+    ]
+  },
+  "domain": {
+    "instrument": "acoustic",
+    "tone": "clean",
+    "tuning": "standard",
+    "capo": 0,
+    "note": "Steel-string only. Nylon is ~65x less inharmonic (E ~3 GPa vs ~200 GPa) and needs its own table; the channel abstains outside this domain via stiffness_model_for_session."
+  }
+}

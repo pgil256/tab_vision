@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "string_evidence",
+  "artifact_version": "acoustic-physics-v1",
+  "name": "acoustic-physics-v1",
+  "artifact_file": "acoustic_physics_v1.json",
+  "artifact_sha256": "026444965b88c44b19bc4c1710e852626d1dcd670488317b33c8a593778f859d",
+  "registered": true,
+  "compatible_position_prior": null,
+  "compatible_sequence_prior": null,
+  "mode": "all",
+  "dataset": "none \u2014 specification-derived, not fitted",
+  "dataset_reference": "Stiff-string theory; typical light-gauge phosphor-bronze acoustic set",
+  "license": "n/a (computed from published string specifications)",
+  "construction_command": "python -m scripts.eval.build_acoustic_physics_v1",
+  "parameters": {
+    "weight": 1.0,
+    "min_r2": 0.5,
+    "sigma": 0.35
+  },
+  "gate": {
+    "report": "docs/EVAL_REPORTS/q6_player05_confirm_2026-07-22.md",
+    "comparison": "inharmonicity evidence vs baseline, frozen config",
+    "development": {
+      "report": "docs/EVAL_REPORTS/q6_full_dev_2026-07-22.md",
+      "clips": 300,
+      "mean_delta": 0.0443,
+      "lower_95": 0.0339,
+      "upper_95": 0.0555
+    },
+    "held_out": {
+      "player": "05",
+      "clips": 60,
+      "mean_delta": 0.078,
+      "lower_95": 0.0502,
+      "upper_95": 0.1078,
+      "solo_mean_delta": 0.1396,
+      "comp_mean_delta": 0.0164
+    },
+    "decision": "passed development OOF and player-05 confirmation"
+  }
+}

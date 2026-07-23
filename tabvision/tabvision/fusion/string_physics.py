@@ -35,10 +35,13 @@ with an independently fitted one — see
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from tabvision.errors import ConfigurationError
+from tabvision.fusion.artifact_registry import load_artifact_manifest
 from tabvision.fusion.inharmonicity import StringStiffnessModel
 from tabvision.types import GuitarConfig, SessionConfig
 
@@ -137,6 +140,9 @@ __all__ = [
     "StringSpec",
     "inharmonicity_coefficient",
     "open_frequency_hz",
+    "REGISTERED_TABLE",
+    "StringEvidenceConfig",
+    "load_string_evidence",
     "reference_stiffness_model",
     "stiffness_model_for_session",
 ]
@@ -186,3 +192,43 @@ def stiffness_model_for_session(
     if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
         return None
     return reference_stiffness_model()
+
+
+REGISTERED_TABLE = "acoustic-physics-v1"
+"""The registered artifact carrying the gate-passed table and decode config."""
+
+
+@dataclass(frozen=True)
+class StringEvidenceConfig:
+    """A registered stiffness table plus the decode settings it was gated at."""
+
+    model: StringStiffnessModel
+    weight: float
+    min_r2: float
+    sigma: float
+
+
+def load_string_evidence(name: str = REGISTERED_TABLE) -> StringEvidenceConfig:
+    """Load a registered ``string_evidence`` artifact, hash-verified.
+
+    The decode settings travel with the table because they were frozen before
+    the full-dev run; loading them from the artifact rather than from module
+    defaults means a later change to the defaults cannot silently alter what
+    a registered artifact does.
+    """
+    manifest = load_artifact_manifest(name, expected_kind="string_evidence")
+    payload = json.loads(manifest.artifact_path.read_text(encoding="utf-8"))
+    if payload.get("method") != "inharmonicity":
+        raise ConfigurationError(
+            f"string evidence {name!r} uses unsupported method {payload.get('method')!r}"
+        )
+    table = {int(k): float(v) for k, v in payload["log_b0"].items()}
+    decode = payload["decode"]
+    return StringEvidenceConfig(
+        model=StringStiffnessModel(
+            log_b0=table, fret_exponent=float(payload.get("fret_exponent", 1.0))
+        ),
+        weight=float(decode["weight"]),
+        min_r2=float(decode["min_r2"]),
+        sigma=float(decode["sigma"]),
+    )
