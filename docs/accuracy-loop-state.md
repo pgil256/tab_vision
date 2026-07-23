@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/n2-nylon  (post-program N2)
+current_branch: accuracy/n3-ranker  (post-program N3)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -726,11 +726,20 @@ validate against — and classical is single-line-heavy, exactly where the
 method is strongest. This also converts the GAPS cross-domain gate from
 "satisfied by abstention" into a real measurement. ~1 week.
 
-**N3 — Re-scope Q8 on the physics channel.** The review-ranker died because it
-wanted Q3's posteriors. The inharmonicity fit produces exactly what it lacked:
-a per-note confidence (`r²`) and a physically-grounded margin between
-candidate strings. Target: beat the shipped 38.76% wrong-position reduction
-@60 s. Reported separately from automatic Tab F1. Days.
+**N3 — entry probe PASS (2026-07-23).** The physics "doubt" score — the
+probability the posterior assigns the decoder's chosen string, low = physics
+doubts it — is a strong wrong-position detector: **AUC 0.7515 isolated /
+0.6964 fired** vs the decoder margin's 0.55-0.59, on the 27.4% of ambiguous
+notes physics fires on. Physics hard-argmax accuracy is only 0.29 here (the
+hard ambiguous core, soft σ=0.35 posterior) but its *doubt calibration* is
+strong — that's the review signal. Build slice next: add
+`physics_prob_decoder` + `r²` + a fired indicator to the Phase 6 MLP, retrain
+player-held, re-run the replay vs the shipped **38.76% wrong-reduction @60 s**
+(the ship metric, separate from automatic Tab F1).
+See `n3_physics_review_probe_2026-07-23.md`. Original framing:
+The review-ranker died because it wanted Q3's posteriors. The inharmonicity
+fit produces exactly what it lacked: a per-note confidence (`r²`) and a
+physically-grounded margin between candidate strings.
 
 **N4 — Per-instrument calibration for real use.** `calibrate_from_ritual`
 (18 notes, three frets × six strings, fits `B0` *and* the fret exponent) is
