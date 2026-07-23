@@ -104,7 +104,13 @@ CLASSICAL_SCALE_LENGTH_IN = 25.6
 """650 mm, the standard classical scale."""
 
 
-# Classical normal-tension set. The three trebles (G3, B3, E4) are plain nylon
+# Classical normal-tension set. BANKED NEGATIVE (N2, 2026-07-23): applied to
+# GAPS clean-12 it did not improve Tab F1 (strict +0.0009 at 1% coverage,
+# partial_aware -0.0153), most likely because the wound-bass rows below are
+# too rough. Kept, tested and reachable by direct call so a future session
+# with manufacturer bass specs can retry via scripts/eval/n2_nylon_gaps.py;
+# NOT wired into stiffness_model_for_session, which still abstains on
+# classical. The three trebles (G3, B3, E4) are plain nylon
 # monofilament: their linear mass is computed from NYLON_DENSITY and gauge, so
 # those rows are first-principles. The three basses (E2, A2, D3) are a nylon
 # multifilament floss core under metal winding — the winding mass is essential
@@ -231,9 +237,11 @@ def stiffness_model_for_session(
 
     Everything else returns ``None`` and the channel contributes nothing:
 
-    * **classical** — nylon, see :data:`NYLON_YOUNGS_MODULUS_PA`. The physics
-      applies perfectly well to nylon, but it needs a nylon table and none
-      exists here; the steel one would be wrong by far more than the effect.
+    * **classical** — nylon, see :data:`NYLON_YOUNGS_MODULUS_PA`. A nylon
+      table exists (:func:`classical_stiffness_model`) but N2 measured it as no
+      help on GAPS (strict +0.0009 at 1% coverage; partial_aware -0.0153), so
+      classical keeps abstaining and this stays a banked negative
+      (`n2_nylon_gaps_2026-07-23.md`). The steel table is never used here.
     * **electric** — different string sets and scale lengths, and outside the
       v1 acoustic scope entirely.
     * **capo or non-standard tuning** — the speaking length and tension both
@@ -243,15 +251,13 @@ def stiffness_model_for_session(
     then satisfied by construction rather than by measurement.
     """
     cfg = cfg or GuitarConfig()
-    if session.tone != "clean" or cfg.capo != 0:
+    if session.instrument != "acoustic" or session.tone != "clean":
+        return None
+    if cfg.capo != 0:
         return None
     if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
         return None
-    if session.instrument == "acoustic":
-        return reference_stiffness_model()
-    if session.instrument == "classical":
-        return classical_stiffness_model()
-    return None
+    return reference_stiffness_model()
 
 
 REGISTERED_TABLE = "acoustic-physics-v1"

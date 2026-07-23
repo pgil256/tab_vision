@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/n1-latency  (post-program N1)
+current_branch: accuracy/n2-nylon  (post-program N2)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -719,7 +719,7 @@ calibrated soft weight so marginal fits contribute proportionally instead of
 nothing. Doubling coverage roughly doubles the gain. Days, `$0`, and it reuses
 the shipped module.
 
-**N2 — A nylon table for classical.** The channel abstains on classical
+**N2 — DONE (2026-07-23): BANKED NEGATIVE.** GAPS clean-12: strict +0.0009 at 1% coverage (classical is near-fully polyphonic), partial_aware -0.0153 (rough wound-bass rows, exposed by the only mode that gets coverage). Classical keeps abstaining; machinery kept for retry when manufacturer bass specs appear. See `n2_nylon_gaps_2026-07-23.md`. Original text:** The channel abstains on classical
 entirely because no nylon table exists. Nylon's `E` (~3 GPa vs steel's ~200)
 is published, the machinery is identical, and GAPS is already on disk to
 validate against — and classical is single-line-heavy, exactly where the

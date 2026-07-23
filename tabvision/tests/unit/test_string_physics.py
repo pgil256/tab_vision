@@ -142,14 +142,12 @@ def test_steel_table_applies_to_clean_steel_acoustic() -> None:
     assert sorted(model.log_b0) == [0, 1, 2, 3, 4, 5]
 
 
-def test_classical_sessions_no_longer_get_the_steel_table() -> None:
-    # Before N2 the channel abstained on classical (nylon is ~65x less
-    # inharmonic, so the steel table would be wrong by far more than the
-    # decision margin). N2 gave it a nylon table, so it now returns a model —
-    # but it must never be the steel one.
-    model = stiffness_model_for_session(SessionConfig(instrument="classical"))
-    assert model is not None
-    assert model.log_b0 != reference_stiffness_model().log_b0
+def test_classical_sessions_abstain() -> None:
+    # N2 built a nylon table but measured it as no help on GAPS, so classical
+    # keeps abstaining by construction (which is what makes the GAPS gate free
+    # for the steel artifact). The nylon model is reachable only by direct
+    # call — see classical_stiffness_model and its own tests.
+    assert stiffness_model_for_session(SessionConfig(instrument="classical")) is None
 
 
 def test_electric_and_distorted_sessions_get_no_table() -> None:
@@ -185,16 +183,18 @@ def test_out_of_domain_sessions_are_bit_identical_to_baseline() -> None:
     assert tally["applied"] == 0
 
 
-def test_classical_session_gets_the_nylon_table() -> None:
+def test_nylon_table_exists_but_is_not_routed() -> None:
+    # The table is a banked negative: built and correct, but not wired into
+    # session routing (which abstains on classical). A future session calls
+    # classical_stiffness_model() directly to retry.
     from tabvision.fusion.string_physics import (
         CLASSICAL_NYLON_SET,
         classical_stiffness_model,
     )
 
-    model = stiffness_model_for_session(SessionConfig(instrument="classical"))
-    assert model is not None
-    assert model.log_b0 == classical_stiffness_model().log_b0
     assert len(CLASSICAL_NYLON_SET) == 6
+    assert len(classical_stiffness_model().log_b0) == 6
+    assert stiffness_model_for_session(SessionConfig(instrument="classical")) is None
 
 
 def test_steel_and_nylon_tables_are_distinct() -> None:
@@ -228,9 +228,9 @@ def test_nylon_treble_mass_is_derived_from_density_not_fitted() -> None:
     assert ratio == pytest.approx((g3.gauge_in / e4.gauge_in) ** 2, rel=1e-6)
 
 
-def test_electric_and_capo_still_abstain_after_widening() -> None:
+def test_electric_and_capo_abstain() -> None:
     assert stiffness_model_for_session(SessionConfig(instrument="electric")) is None
     assert (
-        stiffness_model_for_session(SessionConfig(instrument="classical"), GuitarConfig(capo=2))
+        stiffness_model_for_session(SessionConfig(instrument="acoustic"), GuitarConfig(capo=2))
         is None
     )

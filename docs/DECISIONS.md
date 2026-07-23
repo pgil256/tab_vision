@@ -3810,3 +3810,47 @@ gate is the player-05 confirmation, which is user-gated exactly as v1's was.
 **Reasoning:** the original claim was plausible from reading the code and
 false in practice; leaving it in the record would have deterred a future
 session from a change that is in fact free. Cost to check: two measurements.
+
+---
+
+## 2026-07-23 — N2: nylon table for classical is a banked negative
+
+**Phase:** Post-program item N2 (nylon table for classical, proposed in the
+program summary)
+**Decision tree:** does a specification-derived nylon table, applied to
+classical audio, improve Tab F1 and thereby convert the GAPS cross-domain gate
+from abstention into a real measurement?
+**Branch taken:** **NO — banked negative; classical keeps abstaining.** GAPS
+clean-12, classical routing (gaps-v1 + gaps-seq-v1, gaps checkpoint), three
+arms on one transcription: baseline 0.7733; **strict +0.0009 [-0.0004,
++0.0023] at 1.04% coverage** (classical is near-fully polyphonic, so strict
+isolation finds almost nothing); **partial_aware -0.0153 [-0.0472, +0.0151]
+at 19.04% coverage** (negative point estimate, CI spanning zero; big per-clip
+regressions 294_BSswc -0.148, 118_VD1wc -0.068 against gains 212_y41wc +0.090).
+Onset F1 0.9510 bit-identical.
+**Why, and predicted:** the nylon table split honestly — three plain-nylon
+trebles are first-principles (mass from density + gauge), but the three wound
+basses are documented approximations (floss core, ill-defined effective
+bending core, unit weight from typical tension). `B ~ d_core^4`, so the bass
+rows are rough. Classical uses the basses heavily and partial-aware admits
+exactly the overlapped bass notes whose entries are roughest, so the mode that
+finally gets coverage is the one that most exposes the weakest rows. The
+missing ingredient is manufacturer bass data, not physics — the steel table
+already showed the method works when specs are good.
+**What ships:** nothing. `stiffness_model_for_session` routing was reverted to
+abstain on classical, restoring the "abstain by construction" invariant that
+makes the GAPS gate free for the steel artifact (guarded by
+`test_out_of_domain_sessions_are_bit_identical_to_baseline`). The machinery —
+`classical_stiffness_model`, `CLASSICAL_NYLON_SET`, the per-string modulus
+field on `StringSpec`, `scripts/eval/n2_nylon_gaps.py` — is kept, tested, and
+reachable by direct call so a future session with real bass core diameters can
+retry without redoing the trebles or harness.
+**Evidence:** `docs/EVAL_REPORTS/n2_nylon_gaps_2026-07-23.md` (+ `.json`);
+`tabvision/tabvision/fusion/string_physics.py`;
+`tabvision/scripts/eval/n2_nylon_gaps.py`;
+`tabvision/tests/unit/test_string_physics.py`. 950 unit tests pass; ruff and
+mypy clean. `auto` unchanged, nothing registered.
+**Reasoning:** the negative is legible (rough bass rows, exposed by the only
+mode that gets classical coverage) and the sign is not in doubt, so it is
+banked rather than iterated. Keeping the machinery makes the retry cheap the
+day the missing spec data appears.
