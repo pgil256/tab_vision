@@ -18,6 +18,9 @@ $payloadManifestPath = Join-Path $desktopRoot "installer\payloads.json"
 $installerScriptPath = Join-Path $desktopRoot "installer\TabVision.iss"
 $requirementsPath = Join-Path $desktopRoot "bootstrap\requirements.lock"
 $weightsManifestPath = Join-Path $desktopRoot "bootstrap\weights.manifest.json"
+$smokeFixturePath = Join-Path $desktopRoot "bootstrap\smoke\test_a440_5s.mp4"
+$smokeGoldenPath = Join-Path $desktopRoot "bootstrap\smoke\expected.tab"
+$smokeReadmePath = Join-Path $desktopRoot "bootstrap\smoke\README.md"
 
 if ([string]::IsNullOrWhiteSpace($ArtifactsDirectory)) {
     $ArtifactsDirectory = Join-Path $desktopRoot "artifacts"
@@ -33,6 +36,7 @@ $publishDirectory = Join-Path $bundleDirectory "app"
 $bootstrapDirectory = Join-Path $bundleDirectory "bootstrap"
 $installerOutputDirectory = Join-Path $ArtifactsDirectory "installer"
 $logDirectory = Join-Path $ArtifactsDirectory "logs"
+$ffmpegExtractDirectory = Join-Path $ArtifactsDirectory "ffmpeg-extract"
 
 function Reset-BuildDirectory {
     param([Parameter(Mandatory)][string]$Path)
@@ -158,7 +162,10 @@ foreach ($requiredPath in @(
     $payloadManifestPath,
     $installerScriptPath,
     $requirementsPath,
-    $weightsManifestPath
+    $weightsManifestPath,
+    $smokeFixturePath,
+    $smokeGoldenPath,
+    $smokeReadmePath
 )) {
     if (-not (Test-Path -LiteralPath $requiredPath)) {
         throw "Required installer input is missing: $requiredPath"
@@ -170,6 +177,7 @@ New-Item -ItemType Directory -Path $ArtifactsDirectory -Force | Out-Null
 Reset-BuildDirectory -Path $bundleDirectory
 Reset-BuildDirectory -Path $installerOutputDirectory
 Reset-BuildDirectory -Path $logDirectory
+Reset-BuildDirectory -Path $ffmpegExtractDirectory
 New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $bootstrapDirectory -Force | Out-Null
 
@@ -198,13 +206,39 @@ Copy-Item -LiteralPath $requirementsPath -Destination (Join-Path $bootstrapDirec
 Copy-Item -LiteralPath $weightsManifestPath -Destination (Join-Path $bootstrapDirectory "weights.manifest.json")
 Copy-Item -LiteralPath $payloadManifestPath -Destination (Join-Path $bootstrapDirectory "payloads.json")
 
+$ffmpegPayload = $payloadManifest.payloads | Where-Object { $_.id -eq "ffmpeg_shared" }
+if ($null -eq $ffmpegPayload) {
+    throw "The installer payload manifest has no ffmpeg_shared entry."
+}
+Expand-Archive -LiteralPath $payloadFiles.ffmpeg_shared -DestinationPath $ffmpegExtractDirectory
+$ffmpegSourceDirectory = Join-Path $ffmpegExtractDirectory $ffmpegPayload.archive_root
+$ffmpegBundleDirectory = Join-Path $bootstrapDirectory "ffmpeg"
+New-Item -ItemType Directory -Path $ffmpegBundleDirectory -Force | Out-Null
+foreach ($file in $ffmpegPayload.extracted_files) {
+    $relativePath = $file.path.Replace("/", "\")
+    $sourcePath = Join-Path $ffmpegSourceDirectory $relativePath
+    Assert-FileDigest -Path $sourcePath -ExpectedSha256 $file.sha256 -ExpectedSize $file.size_bytes
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $ffmpegBundleDirectory (Split-Path -Leaf $relativePath))
+}
+
+$smokeBundleDirectory = Join-Path $bootstrapDirectory "smoke"
+New-Item -ItemType Directory -Path $smokeBundleDirectory -Force | Out-Null
+Copy-Item -LiteralPath $smokeFixturePath -Destination (Join-Path $smokeBundleDirectory "test_a440_5s.mp4")
+Copy-Item -LiteralPath $smokeGoldenPath -Destination (Join-Path $smokeBundleDirectory "expected.tab")
+Copy-Item -LiteralPath $smokeReadmePath -Destination (Join-Path $smokeBundleDirectory "README.md")
+
 $bundleInputs = @(
     @{ id = "desktop_app"; path = Join-Path $publishDirectory "TabVision.Desktop.exe" },
     @{ id = "cpython_embed"; path = Join-Path $bootstrapDirectory "python-embed.zip" },
     @{ id = "pip_zipapp"; path = Join-Path $bootstrapDirectory "pip.pyz" },
     @{ id = "requirements_lock"; path = Join-Path $bootstrapDirectory "requirements.lock" },
-    @{ id = "weights_manifest"; path = Join-Path $bootstrapDirectory "weights.manifest.json" }
+    @{ id = "weights_manifest"; path = Join-Path $bootstrapDirectory "weights.manifest.json" },
+    @{ id = "smoke_fixture"; path = Join-Path $smokeBundleDirectory "test_a440_5s.mp4" },
+    @{ id = "smoke_golden"; path = Join-Path $smokeBundleDirectory "expected.tab" }
 )
+$bundleInputs += Get-ChildItem -LiteralPath $ffmpegBundleDirectory -File | ForEach-Object {
+    @{ id = "ffmpeg_$($_.BaseName)"; path = $_.FullName }
+}
 $bundleFiles = foreach ($item in $bundleInputs) {
     $file = Get-Item -LiteralPath $item.path
     [ordered]@{

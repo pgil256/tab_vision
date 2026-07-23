@@ -17,7 +17,11 @@ public sealed class PythonEnvironmentBootstrapperTests
             Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.PythonEmbedArchive),
             Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.PipZipApp),
             Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.RequirementsLock),
-            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.WeightsManifest)
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.WeightsManifest),
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.FfmpegExecutable),
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.FfprobeExecutable),
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.SmokeInput),
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.SmokeGolden)
         );
 
         var installed = await bootstrapper.InstallAsync(
@@ -108,12 +112,26 @@ public sealed class PythonEnvironmentBootstrapperTests
             File.WriteAllText(requirements, "alpha==1.0\nbeta==2.0\n");
             var weightsManifest = Path.Combine(payloadDirectory, "weights.manifest.json");
             File.WriteAllText(weightsManifest, "{}");
+            var toolsDirectory = Path.Combine(payloadDirectory, "ffmpeg");
+            Directory.CreateDirectory(toolsDirectory);
+            var ffmpeg = Path.Combine(toolsDirectory, "ffmpeg.exe");
+            var ffprobe = Path.Combine(toolsDirectory, "ffprobe.exe");
+            File.WriteAllText(ffmpeg, "fixture ffmpeg");
+            File.WriteAllText(ffprobe, "fixture ffprobe");
+            var smokeInput = Path.Combine(payloadDirectory, "smoke.mp4");
+            var smokeGolden = Path.Combine(payloadDirectory, "smoke.tab");
+            File.WriteAllText(smokeInput, "fixture input");
+            File.WriteAllText(smokeGolden, "fixture golden");
 
             Payloads = new BootstrapPayloadPaths(
                 pythonArchive,
                 pipZipApp,
                 requirements,
-                weightsManifest
+                weightsManifest,
+                ffmpeg,
+                ffprobe,
+                smokeInput,
+                smokeGolden
             );
             Layout = PythonEnvironmentLayout.FromTabVisionDataRoot(Path.Combine(Root, "app-data"));
         }

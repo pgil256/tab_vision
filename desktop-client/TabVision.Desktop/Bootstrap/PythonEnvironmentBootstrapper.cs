@@ -161,7 +161,11 @@ public sealed class PythonEnvironmentBootstrapper
             Path.GetFullPath(payloads.PythonEmbedArchive),
             Path.GetFullPath(payloads.PipZipApp),
             Path.GetFullPath(payloads.RequirementsLock),
-            Path.GetFullPath(payloads.WeightsManifest)
+            Path.GetFullPath(payloads.WeightsManifest),
+            Path.GetFullPath(payloads.FfmpegExecutable),
+            Path.GetFullPath(payloads.FfprobeExecutable),
+            Path.GetFullPath(payloads.SmokeInput),
+            Path.GetFullPath(payloads.SmokeGolden)
         );
 
     private static async Task EnsureRuntimeAsync(

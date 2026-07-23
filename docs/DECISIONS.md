@@ -3192,3 +3192,30 @@ The clean WPF build had 0 warnings/errors and all 43 tests passed.
 while matching Hugging Face's snapshot/ref layout preserves the pinned Python
 package's repository-based lookup without allowing runtime cache files to leak
 into the user's global profile.
+
+---
+
+## 2026-07-22 - D1.5 gates bootstrap health on a pinned synthetic transcription
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Prove that the installed Python environment, external demux
+tools, high-resolution model, CLI contract, and renderer work together before
+enabling the desktop shell, without bundling private or licensed evaluation
+media.
+**Branch taken:** Bundle a five-second loop of the repository's synthetic A440
+fixture and its exact pinned-CLI ASCII output. Run `highres` audio-only with
+preflight and learned priors disabled, compare all output bytes, and write a
+fingerprinted success marker only after the comparison passes. Bundle the
+previously approved BtbN `win64-lgpl-shared` FFmpeg/ffprobe build, pin its
+archive and every redistributed file, place its directory first on the sidecar
+`PATH`, and include its LGPL license beside the replaceable shared libraries.
+**Evidence:** Two direct runs produced the same 222-byte SHA-256
+`6f31038967923c6525e28ece6bad766be44acbe6f709a18cbd65c754ad259ce3`.
+The final installed app passed in 24.218 seconds, then skipped the smoke on the
+next launch without rewriting its marker. All 10 FFmpeg files matched their
+pins; the clean WPF build had 0 warnings/errors and all 46 tests passed.
+**Reasoning:** The synthetic tone is safe to redistribute and deliberately
+removes camera/preflight variability. Although the guitar-specific model emits
+zero notes for this out-of-domain tone, the run still exercises real media
+demux, checkpoint loading, CPU inference, fusion, machine output, and rendering;
+artifact integrity is independently enforced before the smoke starts.

@@ -145,6 +145,7 @@ checkout and from a fresh `.[dev]` install.
 | Python 3.11 | PSF | ✅ | TBD: confirm v0 actually uses 3.11 (Phase 0 inventory task) |
 | numpy | BSD-3-Clause | ✅ | |
 | ffmpeg-python | Apache-2.0 | ✅ | Wrapper; the underlying `ffmpeg` binary is LGPL/GPL depending on build, used as a shell-out only |
+| FFmpeg shared Windows runtime (BtbN `N-125716-g1b1f602699`) | LGPL v3 shared build | ✅ verified 2026-07-22 | Desktop installer only. Exact `win64-lgpl-shared` archive, byte size, SHA-256, and all redistributed file hashes are pinned in `desktop-client/installer/payloads.json`. The unmodified shared DLL build remains replaceable beside `ffmpeg.exe`/`ffprobe.exe`, and its upstream `LICENSE.txt` is bundled verbatim. |
 | opencv-python | Apache-2.0 | ✅ | |
 | structlog | Apache-2.0 / MIT | ✅ | |
 | pydantic | MIT | ✅ | |

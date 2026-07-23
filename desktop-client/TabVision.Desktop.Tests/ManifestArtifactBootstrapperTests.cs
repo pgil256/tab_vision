@@ -196,12 +196,17 @@ public sealed class ManifestArtifactBootstrapperTests
 
         var environment = BootstrapRuntimeEnvironment.Create(
             fixture.Layout,
-            fixture.CreateManifest(artifact)
+            fixture.CreateManifest(artifact),
+            Path.Combine(fixture.Root, "runtime-tools")
         );
 
         Assert.Equal(fixture.Layout.HuggingFaceHome, environment["HF_HOME"]);
         Assert.Equal(fixture.Layout.TabVisionDataRoot, environment["TABVISION_DATA_ROOT"]);
         Assert.Equal("1", environment["HF_HUB_OFFLINE"]);
+        Assert.StartsWith(
+            Path.GetFullPath(Path.Combine(fixture.Root, "runtime-tools")),
+            environment["PATH"]
+        );
         Assert.Equal(
             Path.Combine(fixture.Layout.AppDataDirectory, "models", "hand.task"),
             environment["TABVISION_MEDIAPIPE_HAND_MODEL"]

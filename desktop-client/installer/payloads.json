@@ -22,6 +22,70 @@
       "bundle_path": "bootstrap/pip.pyz"
     },
     {
+      "id": "ffmpeg_shared",
+      "role": "bundle",
+      "version": "N-125716-g1b1f602699",
+      "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-07-22-13-36/ffmpeg-N-125716-g1b1f602699-win64-lgpl-shared.zip",
+      "sha256": "04d3def4406324e479ab7cb9abe8e9472c103e5be26298aa876ed93074b39386",
+      "size_bytes": 67053838,
+      "cache_filename": "ffmpeg-N-125716-g1b1f602699-win64-lgpl-shared.zip",
+      "archive_root": "ffmpeg-N-125716-g1b1f602699-win64-lgpl-shared",
+      "bundle_path": "bootstrap/ffmpeg",
+      "license": "LGPL-3.0-or-later",
+      "extracted_files": [
+        {
+          "path": "bin/avcodec-63.dll",
+          "size_bytes": 71208960,
+          "sha256": "c915f673c7e6fc6d9920534f5e68a747b2818cf586caee10b64f126c92380a8c"
+        },
+        {
+          "path": "bin/avdevice-63.dll",
+          "size_bytes": 3700224,
+          "sha256": "642d000d2f37b4d2c4bd0f9f93695e8e432717f2c75ce51b1ffa642098df3227"
+        },
+        {
+          "path": "bin/avfilter-12.dll",
+          "size_bytes": 29841408,
+          "sha256": "64e490bf7012bb63a79008d182abdb6aa9181f4d2613874b7e766c5b5b91846d"
+        },
+        {
+          "path": "bin/avformat-63.dll",
+          "size_bytes": 22125056,
+          "sha256": "525667995af9ecc037f8f764b8437b86c545097616bb8f7192ea5e169cf8dc1d"
+        },
+        {
+          "path": "bin/avutil-61.dll",
+          "size_bytes": 2947072,
+          "sha256": "2d18103a64de144dd040b28fa4db5affbf6174812d4f155b92f2d1bcc12b753e"
+        },
+        {
+          "path": "bin/ffmpeg.exe",
+          "size_bytes": 547840,
+          "sha256": "b8ba7ca0482090d1572079ac46f62c8c44a922e1d6dee9f218a2883172f05294"
+        },
+        {
+          "path": "bin/ffprobe.exe",
+          "size_bytes": 229376,
+          "sha256": "076ee1bc4a3c5591232ece35f73fb10f10a6dcaaa8f35814960990c6432a16bf"
+        },
+        {
+          "path": "bin/swresample-7.dll",
+          "size_bytes": 724480,
+          "sha256": "7e143c2407dd6ca1a4982b2f0da4f67d44bb0e79760647fea50b7b16c9d47af5"
+        },
+        {
+          "path": "bin/swscale-10.dll",
+          "size_bytes": 2503168,
+          "sha256": "cd2a6b3d721bbce4e6113b9de7c9f333bec314add9ed8ac3c7c7704b4beafd89"
+        },
+        {
+          "path": "LICENSE.txt",
+          "size_bytes": 7651,
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768"
+        }
+      ]
+    },
+    {
       "id": "inno_setup",
       "role": "build_tool",
       "version": "7.0.2",

@@ -33,8 +33,10 @@ dotnet test TabVision.Desktop.sln --no-build
 ## Build the installer
 
 The installer build pins and verifies the CPython 3.11 embeddable package,
-`pip.pyz`, and the Inno Setup compiler before producing a self-contained
-`win-x64` bundle. Run from this directory:
+`pip.pyz`, the LGPL shared FFmpeg runtime, and the Inno Setup compiler before
+producing a self-contained `win-x64` bundle. First-run health also requires the
+bundled five-second synthetic fixture to match its checked-in ASCII golden.
+Run from this directory:
 
 ```powershell
 .\scripts\Build-Installer.ps1

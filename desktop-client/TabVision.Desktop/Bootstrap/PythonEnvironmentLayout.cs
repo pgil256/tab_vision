@@ -25,6 +25,12 @@ public sealed record PythonEnvironmentLayout(
 
     public string InstallLog => Path.Combine(StateDirectory, "python-environment-install.log");
 
+    public string SmokeReadyMarker => Path.Combine(StateDirectory, "bootstrap-smoke-ready.json");
+
+    public string SmokeOutput => Path.Combine(StateDirectory, "bootstrap-smoke-output.tab");
+
+    public string SmokeLog => Path.Combine(StateDirectory, "bootstrap-smoke.log");
+
     public string PythonSitePackages => Path.Combine(RootDirectory, "Lib", "site-packages");
 
     public string HuggingFaceHome => Path.Combine(AppDataDirectory, "huggingface");

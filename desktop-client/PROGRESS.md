@@ -103,8 +103,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   (211,853,452 bytes) passed size/hash verification; a real 1 MiB partial
   resumed, offline Hugging Face lookup resolved both checkpoints, and a repeat
   launch reused every verified file without rewriting it.
-- [ ] Run the bundled 5 s fixture smoke transcription and compare its output
-  to the checked-in golden before declaring bootstrap healthy.
+- [x] Run the bundled 5 s fixture smoke transcription and compare its output
+  to the checked-in golden before declaring bootstrap healthy. Result: the
+  installed pinned CLI ran real high-resolution inference on the 5.000 s
+  synthetic fixture and matched all 222 golden bytes; only then did it write
+  a fingerprinted health marker, which the next launch reused.
 - [ ] Make failed/interrupted bootstrap resumable without discarding verified
   downloads.
 - [ ] Add Settings > Repair / Re-download using the same bootstrap workflow.
@@ -280,3 +283,18 @@ in Python. D2 is out of scope until the web editor stabilizes.
   rewrote no artifacts and left no partials. Clean desktop build: 0
   warnings/errors; all 43 tests passed. The final rebuilt 63,929,289-byte
   installer has SHA-256 `10ad9ade...468ee`. No NuGet dependency was added.
+- 2026-07-22: D1.5 bootstrap smoke verification completed. Added a bundled
+  5.000 s / 122,080-byte synthetic A440 fixture and 222-byte ASCII golden, plus
+  the previously user-approved BtbN `N-125716-g1b1f602699` LGPL shared FFmpeg
+  runtime required by the pinned demuxer. The 67,053,838-byte archive and all
+  10 redistributed files are size/hash-pinned; its license ships beside the
+  replaceable DLLs. First launch now runs the real `highres` CPU pipeline with
+  machine progress, compares output bytes, logs failures, and writes a marker
+  fingerprinting the lock, weights manifest, tools, fixture, and golden only
+  after success. Two direct pinned-CLI runs were byte-identical at SHA-256
+  `6f310389...259ce3` (57.263 s cold / 21.018 s warm). A real installed-app run
+  passed in 24.218 s and the next launch skipped it without rewriting the
+  marker. Clean desktop build: 0 warnings/errors; all 46 tests passed. The
+  105,207,001-byte installer has SHA-256 `2335ef9f...745ca`; silent install,
+  17-file bundle audit, startup, and clean uninstall passed. No NuGet or Python
+  dependency was added.

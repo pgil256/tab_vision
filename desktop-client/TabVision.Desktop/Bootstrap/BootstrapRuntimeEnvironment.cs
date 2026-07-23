@@ -1,21 +1,31 @@
+using System.IO;
+
 namespace TabVision.Desktop.Bootstrap;
 
 public static class BootstrapRuntimeEnvironment
 {
     public static IReadOnlyDictionary<string, string?> Create(
         PythonEnvironmentLayout layout,
-        WeightsManifest manifest
+        WeightsManifest manifest,
+        string runtimeToolsDirectory
     )
     {
         ArgumentNullException.ThrowIfNull(layout);
         ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentException.ThrowIfNullOrWhiteSpace(runtimeToolsDirectory);
         var resolver = new ArtifactDestinationResolver(layout);
+        var toolsDirectory = Path.GetFullPath(runtimeToolsDirectory);
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
         {
             ["PYTHONNOUSERSITE"] = "1",
             ["PYTHONUTF8"] = "1",
             ["HF_HOME"] = layout.HuggingFaceHome,
             ["TABVISION_DATA_ROOT"] = layout.TabVisionDataRoot,
+            ["PATH"] = string.Join(
+                Path.PathSeparator,
+                toolsDirectory,
+                Environment.GetEnvironmentVariable("PATH") ?? string.Empty
+            ),
         };
         if (manifest.OfflineAfterBootstrap)
         {

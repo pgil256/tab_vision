@@ -48,18 +48,19 @@ public partial class MainWindow : Window
 
         try
         {
+            var layout = PythonEnvironmentLayout.Default;
             var progress = new Progress<PythonBootstrapProgress>(value =>
                 ShowBootstrapProgress(
                     value with
                     {
-                        Percentage = value.Percentage * 70 / 100,
+                        Percentage = value.Percentage * 55 / 100,
                     }
                 )
             );
             var bootstrapper = new PythonEnvironmentBootstrapper();
             var result = await bootstrapper.InstallAsync(
                 payloads,
-                PythonEnvironmentLayout.Default,
+                layout,
                 progress
             );
             var manifest = await WeightsManifest.LoadAsync(payloads.WeightsManifest);
@@ -69,23 +70,38 @@ public partial class MainWindow : Window
             };
             var artifactProgress = new Progress<ArtifactBootstrapProgress>(value =>
             {
-                JobProgressBar.Value = 70 + value.Percentage * 30 / 100;
+                JobProgressBar.Value = 55 + value.Percentage * 35 / 100;
                 JobStatusText.Text = value.Message;
             });
             var artifactResult = await new ManifestArtifactBootstrapper(httpClient).InstallAsync(
                 manifest,
-                PythonEnvironmentLayout.Default,
+                layout,
                 artifactProgress
             );
             _sidecarEnvironment = BootstrapRuntimeEnvironment.Create(
-                PythonEnvironmentLayout.Default,
-                manifest
+                layout,
+                manifest,
+                payloads.RuntimeToolsDirectory
+            );
+            var smokeProgress = new Progress<BootstrapSmokeProgress>(value =>
+            {
+                JobProgressBar.Value = value.Percentage;
+                JobStatusText.Text = value.Message;
+            });
+            var smokeResult = await new BootstrapSmokeVerifier().VerifyAsync(
+                payloads,
+                layout,
+                _sidecarEnvironment,
+                smokeProgress
             );
 
             _bootstrapReady = true;
             SetJobRunning(isRunning: false);
             JobProgressBar.Value = 100;
-            JobStatusText.Text = result.WasAlreadyReady && artifactResult.DownloadedCount == 0
+            JobStatusText.Text =
+                result.WasAlreadyReady
+                && artifactResult.DownloadedCount == 0
+                && smokeResult.WasAlreadyReady
                 ? "Choose an input to begin."
                 : "First-run setup complete. Choose an input to begin.";
         }
