@@ -98,8 +98,11 @@ in Python. D2 is out of scope until the web editor stabilizes.
   existing UI, and installs the 97-package `--no-deps` closure. A payload-hash
   ready marker skips completed work, while an app-local pip cache resumes failed
   runs; a real install and `pip check` passed without Git.
-- [ ] Download every manifest artifact with resume support, verify SHA-256,
-  and keep `HF_HOME` inside the app data directory.
+- [x] Download every manifest artifact with resume support, verify SHA-256,
+  and keep `HF_HOME` inside the app data directory. Result: all 9 artifacts
+  (211,853,452 bytes) passed size/hash verification; a real 1 MiB partial
+  resumed, offline Hugging Face lookup resolved both checkpoints, and a repeat
+  launch reused every verified file without rewriting it.
 - [ ] Run the bundled 5 s fixture smoke transcription and compare its output
   to the checked-in golden before declaring bootstrap healthy.
 - [ ] Make failed/interrupted bootstrap resumable without discarding verified
@@ -266,3 +269,14 @@ in Python. D2 is out of scope until the web editor stabilizes.
   matched the final lock in a 471-file silent install, and the installed app
   stayed running through its startup smoke before clean uninstall. No NuGet
   dependency was added.
+- 2026-07-22: D1.5 manifest artifact installation completed. The WPF first-run
+  path now reads and validates the bundled manifest, confines `HF_HOME`, the
+  TabVision data root, MediaPipe, and YOLO paths under local app data, and uses
+  BCL HTTP Range requests plus persistent `.part` files for resumption. Files
+  are promoted only after exact byte-size and SHA-256 verification; valid
+  destinations are reused. A real installed-app run resumed a seeded 1 MiB
+  checkpoint partial and verified all 9 artifacts / 211,853,452 bytes. Both
+  high-resolution checkpoints resolved with `HF_HUB_OFFLINE=1`; a repeat run
+  rewrote no artifacts and left no partials. Clean desktop build: 0
+  warnings/errors; all 43 tests passed. The final rebuilt 63,929,289-byte
+  installer has SHA-256 `10ad9ade...468ee`. No NuGet dependency was added.

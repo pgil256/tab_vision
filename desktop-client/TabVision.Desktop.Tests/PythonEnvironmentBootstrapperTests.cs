@@ -16,7 +16,8 @@ public sealed class PythonEnvironmentBootstrapperTests
         var relativePayloads = new BootstrapPayloadPaths(
             Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.PythonEmbedArchive),
             Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.PipZipApp),
-            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.RequirementsLock)
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.RequirementsLock),
+            Path.GetRelativePath(Environment.CurrentDirectory, fixture.Payloads.WeightsManifest)
         );
 
         var installed = await bootstrapper.InstallAsync(
@@ -105,8 +106,15 @@ public sealed class PythonEnvironmentBootstrapperTests
             File.WriteAllText(pipZipApp, "fixture pip");
             var requirements = Path.Combine(payloadDirectory, "requirements.lock");
             File.WriteAllText(requirements, "alpha==1.0\nbeta==2.0\n");
+            var weightsManifest = Path.Combine(payloadDirectory, "weights.manifest.json");
+            File.WriteAllText(weightsManifest, "{}");
 
-            Payloads = new BootstrapPayloadPaths(pythonArchive, pipZipApp, requirements);
+            Payloads = new BootstrapPayloadPaths(
+                pythonArchive,
+                pipZipApp,
+                requirements,
+                weightsManifest
+            );
             Layout = PythonEnvironmentLayout.FromTabVisionDataRoot(Path.Combine(Root, "app-data"));
         }
 

@@ -3169,3 +3169,26 @@ tool while preserving the installed command path the shell already resolves.
 Content fingerprints make completion trustworthy; idempotent pip plus its cache
 make interruption cheap. Standard `DLLs` placement is required because pip
 removes the runtime root from isolated builds, otherwise hiding `_socket.pyd`.
+
+---
+
+## 2026-07-22 - D1.5 installs artifacts directly into verified app-local caches
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Populate every manifest destination with resumable downloads
+while preserving the pinned Python backends' cache and environment contracts.
+**Branch taken:** Use the .NET BCL HTTP client with persistent, digest-keyed
+`.part` files and Range requests; restart safely if a server ignores Range.
+Require exact byte size and SHA-256 before atomically replacing a destination,
+and skip destinations that already verify. Put Hugging Face snapshots and
+`refs/main` under app-local `HF_HOME`; pass the manifest's runtime model paths
+and app-local `TABVISION_DATA_ROOT` to every sidecar job. Add no NuGet package.
+**Evidence:** A real installed-app run resumed a seeded 1 MiB checkpoint
+partial and verified all 9 manifest artifacts (211,853,452 bytes). With
+`HF_HUB_OFFLINE=1`, `hf_hub_download` resolved both checkpoint paths from the
+new cache. A repeat launch rewrote none of the 9 files and left no partials.
+The clean WPF build had 0 warnings/errors and all 43 tests passed.
+**Reasoning:** Direct manifest URLs make retry and integrity behavior explicit,
+while matching Hugging Face's snapshot/ref layout preserves the pinned Python
+package's repository-based lookup without allowing runtime cache files to leak
+into the user's global profile.

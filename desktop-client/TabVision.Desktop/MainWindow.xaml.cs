@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using Microsoft.Win32;
 using TabVision.Desktop.Bootstrap;
@@ -13,6 +14,12 @@ public partial class MainWindow : Window
     private TranscriptionOptions? _completedOptions;
     private bool _bootstrapReady = true;
     private bool _bootstrapStarted;
+    private IReadOnlyDictionary<string, string?> _sidecarEnvironment =
+        new Dictionary<string, string?>
+        {
+            ["PYTHONNOUSERSITE"] = "1",
+            ["PYTHONUTF8"] = "1",
+        };
 
     public MainWindow()
     {
@@ -41,20 +48,46 @@ public partial class MainWindow : Window
 
         try
         {
-            var progress = new Progress<PythonBootstrapProgress>(ShowBootstrapProgress);
+            var progress = new Progress<PythonBootstrapProgress>(value =>
+                ShowBootstrapProgress(
+                    value with
+                    {
+                        Percentage = value.Percentage * 70 / 100,
+                    }
+                )
+            );
             var bootstrapper = new PythonEnvironmentBootstrapper();
             var result = await bootstrapper.InstallAsync(
                 payloads,
                 PythonEnvironmentLayout.Default,
                 progress
             );
+            var manifest = await WeightsManifest.LoadAsync(payloads.WeightsManifest);
+            using var httpClient = new HttpClient
+            {
+                Timeout = Timeout.InfiniteTimeSpan,
+            };
+            var artifactProgress = new Progress<ArtifactBootstrapProgress>(value =>
+            {
+                JobProgressBar.Value = 70 + value.Percentage * 30 / 100;
+                JobStatusText.Text = value.Message;
+            });
+            var artifactResult = await new ManifestArtifactBootstrapper(httpClient).InstallAsync(
+                manifest,
+                PythonEnvironmentLayout.Default,
+                artifactProgress
+            );
+            _sidecarEnvironment = BootstrapRuntimeEnvironment.Create(
+                PythonEnvironmentLayout.Default,
+                manifest
+            );
 
             _bootstrapReady = true;
             SetJobRunning(isRunning: false);
             JobProgressBar.Value = 100;
-            JobStatusText.Text = result.WasAlreadyReady
+            JobStatusText.Text = result.WasAlreadyReady && artifactResult.DownloadedCount == 0
                 ? "Choose an input to begin."
-                : "Python setup complete. Choose an input to begin.";
+                : "First-run setup complete. Choose an input to begin.";
         }
         catch (Exception exception)
         {
@@ -261,11 +294,7 @@ public partial class MainWindow : Window
             sidecarExecutable,
             arguments,
             workingDirectory: Path.GetDirectoryName(sidecarExecutable),
-            environment: new Dictionary<string, string?>
-            {
-                ["PYTHONNOUSERSITE"] = "1",
-                ["PYTHONUTF8"] = "1",
-            },
+            environment: _sidecarEnvironment,
             standardErrorLineProgress: lineProgress
         );
     }

@@ -160,7 +160,8 @@ public sealed class PythonEnvironmentBootstrapper
         new(
             Path.GetFullPath(payloads.PythonEmbedArchive),
             Path.GetFullPath(payloads.PipZipApp),
-            Path.GetFullPath(payloads.RequirementsLock)
+            Path.GetFullPath(payloads.RequirementsLock),
+            Path.GetFullPath(payloads.WeightsManifest)
         );
 
     private static async Task EnsureRuntimeAsync(

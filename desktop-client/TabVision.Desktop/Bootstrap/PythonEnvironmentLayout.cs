@@ -3,6 +3,7 @@ using System.IO;
 namespace TabVision.Desktop.Bootstrap;
 
 public sealed record PythonEnvironmentLayout(
+    string AppDataDirectory,
     string RootDirectory,
     string PipCacheDirectory,
     string StateDirectory
@@ -24,6 +25,18 @@ public sealed record PythonEnvironmentLayout(
 
     public string InstallLog => Path.Combine(StateDirectory, "python-environment-install.log");
 
+    public string PythonSitePackages => Path.Combine(RootDirectory, "Lib", "site-packages");
+
+    public string HuggingFaceHome => Path.Combine(AppDataDirectory, "huggingface");
+
+    public string TabVisionDataRoot => Path.Combine(AppDataDirectory, "data");
+
+    public string ArtifactCacheDirectory => Path.Combine(
+        AppDataDirectory,
+        "bootstrap-cache",
+        "artifacts"
+    );
+
     public static PythonEnvironmentLayout Default
     {
         get
@@ -38,10 +51,12 @@ public sealed record PythonEnvironmentLayout(
     public static PythonEnvironmentLayout FromTabVisionDataRoot(string tabVisionDataRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tabVisionDataRoot);
+        var appDataDirectory = Path.GetFullPath(tabVisionDataRoot);
         return new PythonEnvironmentLayout(
-            Path.Combine(tabVisionDataRoot, "python"),
-            Path.Combine(tabVisionDataRoot, "bootstrap-cache", "pip"),
-            Path.Combine(tabVisionDataRoot, "bootstrap")
+            appDataDirectory,
+            Path.Combine(appDataDirectory, "python"),
+            Path.Combine(appDataDirectory, "bootstrap-cache", "pip"),
+            Path.Combine(appDataDirectory, "bootstrap")
         );
     }
 }
