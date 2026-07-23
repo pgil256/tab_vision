@@ -334,3 +334,13 @@ in Python. D2 is out of scope until the web editor stabilizes.
   47.181 s with 8 progress lines, 0 outbound DNS/TCP/UDP attempts, and a
   487-byte output at SHA-256 `22c337d7...0370`. Clean Release build: 0
   warnings/errors; all 49 tests passed. No dependency was added.
+- 2026-07-22: The D1.5 clean-VM gate remains unchecked because this automation
+  session has no accessible clean Windows 11 guest. The host is Windows 11 Pro
+  10.0.26200 build 26200; `WindowsSandbox.exe`, VirtualBox, and VMware are
+  absent. Hyper-V services are running, but the non-elevated session is denied
+  both VM inventory access and the Hyper-V data directory; Windows feature
+  inspection also requires elevation. Creating/enabling a guest would be a
+  host-level change that can require UAC and a reboot, so no such change was
+  attempted. The gate can resume once an existing clean Windows 11 VM is made
+  accessible to this session, or the user explicitly coordinates an elevated
+  VM/Sandbox setup.
