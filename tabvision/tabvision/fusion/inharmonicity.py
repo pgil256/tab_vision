@@ -63,6 +63,24 @@ MIN_PARTIALS = 4
 DEFAULT_MIN_R2 = 0.50
 DEFAULT_SIGMA = 0.35
 DEFAULT_WEIGHT = 0.5
+MIN_CLEAN_PARTIALS = 4
+"""Surviving partials required when a note lost some to a collision.
+
+A contaminated note is fitted on whatever partials remain, so the fit can be
+supported by as few as ``MIN_PARTIALS`` points and is correspondingly easier
+to satisfy by accident. Demanding more *surviving* evidence is the per-note,
+generalizable way to separate a usable overlapped measurement from a lucky
+one — as opposed to splitting on playing tier, which would be selection on
+the evaluation set.
+"""
+
+SEPARATION_FACTOR = 3.0
+"""Partial separability guard, in units of ``1/window_seconds``.
+
+A Hann-windowed peak has a main lobe ~4/T wide, so two partials closer than
+roughly that are one blob and the louder wins. 3/T is a slightly permissive
+choice, validated rather than assumed (see the N1 coverage report).
+"""
 MIN_NOTES_PER_STRING = 8
 """Below this, a string re-uses the shared offset instead of its own median.
 
@@ -282,6 +300,8 @@ def _find_partials(
     b_guess: float,
     sr: int,
     noise_floor: float,
+    blocked_hz: Sequence[float] = (),
+    min_separation_hz: float = 0.0,
 ) -> tuple[list[float], list[float]]:
     """Locate partials around the stiff-string prediction for ``b_guess``.
 
@@ -289,6 +309,12 @@ def _find_partials(
     tolerance widens faster than partials separate, and by k~10 the window
     swallows its neighbour — the fit then locks onto the wrong peaks and
     reports a confidently biased answer.
+
+    ``blocked_hz`` lists frequencies belonging to *other* notes sounding at
+    the same time. A partial within ``min_separation_hz`` of one is dropped
+    rather than measured, because the two are unresolvable and the peak would
+    report the louder note. Dropping the contaminated partials instead of the
+    whole note is what lets an overlapped note still be fitted.
     """
     ks: list[float] = []
     measured: list[float] = []
@@ -301,12 +327,20 @@ def _find_partials(
         high = int((predicted + tolerance) / freqs_per_bin) + 1
         if low < 1 or high >= len(spectrum):
             break
+        if any(abs(predicted - other) < min_separation_hz for other in blocked_hz):
+            continue
         band = spectrum[low:high]
         peak = int(np.argmax(band))
         if float(band[peak]) <= noise_floor:
             continue
+        refined = _parabolic_peak(spectrum, low + peak) * freqs_per_bin
+        # Re-check the located peak, not just the predicted centre: a strong
+        # interferer inside the search window would otherwise be measured as
+        # this note's partial.
+        if any(abs(refined - other) < min_separation_hz for other in blocked_hz):
+            continue
         ks.append(float(k))
-        measured.append(_parabolic_peak(spectrum, low + peak) * freqs_per_bin)
+        measured.append(refined)
     return ks, measured
 
 
@@ -329,7 +363,12 @@ def _fit(ks: Sequence[float], measured: Sequence[float]) -> tuple[float, float, 
 
 
 def estimate_inharmonicity(
-    segment: np.ndarray, sr: int, nominal_f0: float
+    segment: np.ndarray,
+    sr: int,
+    nominal_f0: float,
+    *,
+    blocked_hz: Sequence[float] = (),
+    min_separation_hz: float = 0.0,
 ) -> InharmonicityFit | None:
     """Fit ``B`` for one note segment, or ``None`` if it is not measurable."""
     if segment.size < int(MIN_WINDOW_S * sr):
@@ -352,7 +391,16 @@ def estimate_inharmonicity(
     # fitted B actually predicts, which matters at high k where the stiffness
     # shift exceeds the search window.
     for _ in range(2):
-        ks, measured = _find_partials(spectrum, freqs_per_bin, nominal_f0, guess, sr, noise_floor)
+        ks, measured = _find_partials(
+            spectrum,
+            freqs_per_bin,
+            nominal_f0,
+            guess,
+            sr,
+            noise_floor,
+            blocked_hz,
+            min_separation_hz,
+        )
         fitted = _fit(ks, measured)
         if fitted is None:
             return None
@@ -398,6 +446,28 @@ def inharmonicity_matrix(
     return matrix / total
 
 
+def _harmonic_frequencies(pitch_midi: int, count: int = MAX_PARTIALS) -> list[float]:
+    """Approximate partial frequencies of an interfering note.
+
+    The harmonic series is close enough for a collision test: ``B`` shifts a
+    partial by well under the resolution limit that makes two partials
+    unresolvable in the first place.
+    """
+    f0 = 440.0 * 2 ** ((pitch_midi - 69) / 12.0)
+    return [k * f0 for k in range(1, count + 1)]
+
+
+def _overlapping(
+    events: Sequence[AudioEvent], index: int, start: float, end: float
+) -> list[AudioEvent]:
+    """Events other than ``index`` sounding during ``[start, end]``."""
+    return [
+        other
+        for position, other in enumerate(events)
+        if position != index and other.onset_s < end and other.offset_s > start
+    ]
+
+
 def _isolated_flags(events: Sequence[AudioEvent]) -> list[bool]:
     """True where no other event sounds during this note's analysis window.
 
@@ -429,16 +499,27 @@ def attach_inharmonicity_evidence(
     weight: float = DEFAULT_WEIGHT,
     min_r2: float = DEFAULT_MIN_R2,
     sigma: float = DEFAULT_SIGMA,
+    isolation: str = "strict",
+    min_clean_partials: int = MIN_CLEAN_PARTIALS,
 ) -> tuple[list[AudioEvent], dict[str, int]]:
     """Fold inharmonicity evidence into each event's ``fret_prior``.
 
     Returns the rewritten events and a coverage tally. Events that are not
     isolated, are unambiguous, or whose fit is below ``min_r2`` are returned
     untouched — the channel abstains rather than guessing.
+
+    ``isolation`` selects how neighbours are handled. ``"strict"`` requires a
+    note to sound alone, which the N1 diagnostic measured as **88% of all lost
+    coverage**. ``"partial_aware"`` instead drops only the partials a
+    simultaneous note actually collides with and fits the rest, so an
+    overlapped note is still measured whenever enough of its harmonic series
+    survives.
     """
     cfg = cfg or GuitarConfig()
     if weight < 0.0:
         raise ValueError("weight must be non-negative")
+    if isolation not in {"strict", "partial_aware"}:
+        raise ValueError(f"unknown isolation mode: {isolation!r}")
     if model is None:
         # No table describes this instrument's strings — see
         # ``string_physics.stiffness_model_for_session``. Returning the stream
@@ -453,8 +534,8 @@ def attach_inharmonicity_evidence(
 
     tally = {"events": len(ordered), "isolated": 0, "fitted": 0, "applied": 0}
     out: list[AudioEvent] = []
-    for event, is_isolated in zip(ordered, isolated, strict=True):
-        if not is_isolated or weight == 0.0:
+    for index, (event, is_isolated) in enumerate(zip(ordered, isolated, strict=True)):
+        if weight == 0.0 or (isolation == "strict" and not is_isolated):
             out.append(event)
             continue
         tally["isolated"] += 1
@@ -468,7 +549,27 @@ def attach_inharmonicity_evidence(
             out.append(event)
             continue
         nominal = 440.0 * 2 ** ((event.pitch_midi - 69) / 12.0)
-        fit = estimate_inharmonicity(audio[start:stop], sr, nominal)
+        blocked: list[float] = []
+        separation = 0.0
+        if isolation == "partial_aware" and not is_isolated:
+            window_s = (stop - start) / sr
+            separation = SEPARATION_FACTOR / max(window_s, 1e-6)
+            for other in _overlapping(
+                ordered, index, event.onset_s + SKIP_ATTACK_S, event.onset_s + duration
+            ):
+                blocked.extend(_harmonic_frequencies(other.pitch_midi))
+        fit = estimate_inharmonicity(
+            audio[start:stop],
+            sr,
+            nominal,
+            blocked_hz=blocked,
+            min_separation_hz=separation,
+        )
+        if fit is not None and blocked and fit.partials < min_clean_partials:
+            # Contaminated and thinly supported: abstain rather than trust a
+            # fit resting on a handful of surviving partials.
+            out.append(event)
+            continue
         if fit is None or fit.r2 < min_r2:
             out.append(event)
             continue

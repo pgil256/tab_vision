@@ -141,3 +141,72 @@ def test_negative_weight_is_rejected() -> None:
 def test_sigma_must_be_positive() -> None:
     with pytest.raises(ValueError):
         inharmonicity_matrix(64, GuitarConfig(), math.log(1e-4), _model(), sigma=0.0)
+
+
+def _overlapping_pair() -> list[AudioEvent]:
+    """Two notes sounding together — neither is isolated."""
+    return [_event(0.0, 64), _event(0.05, 59)]
+
+
+def test_strict_mode_is_the_shipped_v1_behaviour() -> None:
+    # v1 froze `strict`, and its gates are only valid if this stays a no-op
+    # on overlapped notes.
+    events = _overlapping_pair()
+    out, tally = attach_inharmonicity_evidence(
+        events, _stiff_string(330.0, 1e-4), SR, _model(), isolation="strict"
+    )
+    assert tally["applied"] == 0
+    assert out == events
+
+
+def test_partial_aware_attempts_overlapped_notes() -> None:
+    # The whole point of N1: an overlapped note is no longer discarded
+    # unheard, it is fitted on whatever partials survive.
+    events = _overlapping_pair()
+    _out, tally = attach_inharmonicity_evidence(
+        events,
+        _stiff_string(330.0, 1e-4),
+        SR,
+        _model(),
+        isolation="partial_aware",
+        min_r2=0.0,
+        min_clean_partials=1,
+    )
+    assert tally["isolated"] == len(events)  # both now reach the fit stage
+
+
+def test_min_clean_partials_gates_contaminated_fits() -> None:
+    # Demanding more surviving partials than a contaminated note can supply
+    # must make it abstain rather than trust a thin fit.
+    events = _overlapping_pair()
+    _out, tally = attach_inharmonicity_evidence(
+        events,
+        _stiff_string(330.0, 1e-4),
+        SR,
+        _model(),
+        isolation="partial_aware",
+        min_r2=0.0,
+        min_clean_partials=99,
+    )
+    assert tally["applied"] == 0
+
+
+def test_unknown_isolation_mode_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        attach_inharmonicity_evidence(
+            [_event(0.0, 64)], _stiff_string(330.0, 1e-4), SR, _model(), isolation="nonsense"
+        )
+
+
+def test_blocked_partials_are_skipped_by_the_estimator() -> None:
+    # A blocked band must reduce the partial count rather than be measured.
+    clean = estimate_inharmonicity(_stiff_string(110.0, 1e-4), SR, 110.0)
+    blocked = estimate_inharmonicity(
+        _stiff_string(110.0, 1e-4),
+        SR,
+        110.0,
+        blocked_hz=[220.0, 330.0],
+        min_separation_hz=25.0,
+    )
+    assert clean is not None and blocked is not None
+    assert blocked.partials < clean.partials
