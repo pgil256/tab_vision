@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-23
-current_branch: accuracy/n3-ranker  (post-program N3)
+current_branch: accuracy/n3-ranker-build  (post-program N3 build)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -730,13 +730,17 @@ method is strongest. This also converts the GAPS cross-domain gate from
 probability the posterior assigns the decoder's chosen string, low = physics
 doubts it — is a strong wrong-position detector: **AUC 0.7515 isolated /
 0.6964 fired** vs the decoder margin's 0.55-0.59, on the 27.4% of ambiguous
-notes physics fires on. Physics hard-argmax accuracy is only 0.29 here (the
-hard ambiguous core, soft σ=0.35 posterior) but its *doubt calibration* is
-strong — that's the review signal. Build slice next: add
-`physics_prob_decoder` + `r²` + a fired indicator to the Phase 6 MLP, retrain
-player-held, re-run the replay vs the shipped **38.76% wrong-reduction @60 s**
-(the ship metric, separate from automatic Tab F1).
-See `n3_physics_review_probe_2026-07-23.md`. Original framing:
+notes physics fires on. **BUILD DONE (2026-07-23): physics is worth adding.**
+A self-contained ranker on the exact Phase 6 protocol gains
+**+0.0514 wrong-reduction @60 s** (decoder 0.3286 → +physics 0.3800) and
+**+0.076 AUC** (0.6273 → 0.7031) from 3 physics features; the 4+3-feature
+ranker (AUC 0.7031) nearly matches Phase 6's full 10-feature 0.7127, so
+physics substitutes for much of the timbre machinery. Biggest relative gain at
+the tightest budget (+50% @10 s). **The exact 38.76% comparison stays blocked**
+— `PHASE1_NOTES` (the cache's row provenance) is missing, so add
+`physics_prob_decoder` + `r²` + fired to the Phase 6 features when that is
+regenerated. See `n3_ranker_build_2026-07-23.md`.
+Original framing:
 The review-ranker died because it wanted Q3's posteriors. The inharmonicity
 fit produces exactly what it lacked: a per-note confidence (`r²`) and a
 physically-grounded margin between candidate strings.

@@ -3904,3 +3904,48 @@ automatic Tab F1.
 the pending auto decisions, so N3 is safe to pursue; the probe cost ~2 min and
 converts "physics might help the ranker" into a measured, complementary
 AUC 0.75 signal, which is the evidence the retrain needs.
+
+---
+
+## 2026-07-23 — N3 build: physics is worth adding to the review ranker
+
+**Phase:** Post-program item N3 (assisted review ranker), build slice
+**Decision tree:** convert the entry probe's AUC-0.75 signal into the ship
+metric — wrong-reduction @60 s vs the shipped 38.76%.
+**Branch taken:** **the exact 38.76% comparison is blocked; the marginal
+value of physics is measured instead and is clearly positive.** The Phase 6
+feature cache is keyed to PHASE1_NOTES (a re-decode stage not on disk, not
+cheaply regenerable), three of its ten features come from the Phase 4 timbre
+model, and its 35,959-row order does not match the phase0 lattice (43,080 rows
+across splits; event-id SHA differs), so the cache cannot be aligned to fresh
+physics measurements. A self-contained ranker over the phase0 dev-OOF rows,
+using the exact Phase 6 protocol (player-held nested OOF, Platt, 2 s/note
+replay, gold-in-top-3 correctable), compares a 4-feature decoder arm against
+the same + 3 physics features.
+**Result:** decoder AUC 0.6273 / reduction@60s 0.3286; **+physics AUC 0.7031 /
+reduction@60s 0.3800 — delta +0.0758 AUC, +0.0514 @60s (+15.6% relative)**.
+The relative gain is largest at the tightest budget (+50% at 10 s: 0.0573 ->
+0.0857), where ranking matters most. Physics fires on 26.9% of notes.
+**Two findings:** (1) physics is a worthwhile ranker feature — positive at
+every budget, consistent with the entry probe, moving the whole-set metric by
++5 pp on 27% coverage because its covered notes are disproportionately the
+ones the decoder margin cannot rank; (2) physics substitutes for much of the
+timbre machinery — the 4-decoder + 3-physics ranker (AUC 0.7031) is within
+0.01 of Phase 6's full ten-feature 0.7127, which needed the timbre model,
+posteriors, context-disagreement and segment-inconsistency features.
+**Honest limits:** NOT the 38.76% comparison (weaker 4-feature baseline; the
++physics 0.3800 is coincidentally near the shipped 0.3876, not comparable);
+whether physics clears the 0.50 replay gate the full ranker missed is
+unmeasured (needs PHASE1_NOTES); GuitarSet dev only; player-05 untouched
+(assisted metric, separate from automatic Tab F1).
+**Recommendation:** add physics_prob_decoder (+ r2, fired) to the Phase 6
+features when its row provenance is regenerated — the feature is justified.
+**Evidence:** `docs/EVAL_REPORTS/n3_ranker_build_2026-07-23.md` (+ `.json`);
+`tabvision/scripts/eval/n3_ranker_build.py`;
+`tabvision/tests/unit/test_n3_ranker_build.py` (5 tests).
+962 unit tests pass; ruff and mypy clean. No pipeline change, nothing
+registered.
+**Reasoning:** the ship-metric comparison was blocked by missing provenance,
+but the marginal-value measurement under a fixed protocol answers the real
+question — is physics worth adding — decisively yes, and it does so cheaply
+(reusing the cached events and the review_queue architecture).
