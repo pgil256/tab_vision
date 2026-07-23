@@ -3501,3 +3501,48 @@ unvalidated on real audio; the physics table does not depend on it.
 full-dev OOF gate with pre-frozen config, and the decomposition rules out
 leakage as the explanation at 52k-event scale. Everything short of player-05
 is now done, and player-05 is deliberately not opened without the user.
+
+---
+
+## 2026-07-22 — Q7 entry probe: capo-covariant prior mechanism validated
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3) — capo/tuning coverage
+**Decision tree:** probe-before-build — does the capo-covariant fret shift
+recover the position-prior lift that capo>0 sessions currently discard
+(`resolve_inference_policy` routes them to `priors=none`)?
+**Branch taken:** **entry gate PASS, Q7 continues (not shipped).** Label-level
+on GuitarSet dev gold, LOPO priors, ~51k ambiguous notes per capo. Top-1
+assignment accuracy: `covariant` flat at **0.596** across capo 0/2/4/7;
+`none-lowfret` (what capo sessions get today, priors off) flat at **0.438**;
+`naive` (capo-0 prior applied without the shift) degrades monotonically
+0.596 → 0.555 → 0.468 → 0.437. Capo-0 anchor `covariant == naive == 0.5960`
+exactly (shift is a no-op there).
+**What is and isn't proven.** The `covariant` flatness is **partly by
+construction** — shifting gold and prior lookup together maps the capo-C
+fretboard onto capo-0, so it reproduces capo-0 quality by design; this
+confirms the transform is correct (index arithmetic + relative-fretboard
+equivalence) but is not independent evidence. The genuinely empirical results
+are (a) the **routing gap**: today's 0.438 vs the covariant 0.596, a
+conditional **+0.158** on the same order as §4.3's cited +22 pp; and (b)
+**naive degradation** proving the shift is necessary, not cosmetic — by capo 7
+the capo-ignorant prior is no better than none.
+**Untestable here:** covariance assumes real capo playing follows the capo-0
+relative-fret distribution. GuitarSet has no capo audio, so this is applied
+to relabelled capo-0 gold; the +0.158 is conditional on that assumption. The
+probe's 0.596 anchor is position-prior-alone top-1, below Q2's full-decode
+0.6548 (no Viterbi/sequence/playability here).
+**Next slice (deliberately deferred under the one-slice timebox):** build
+preflight capo/tuning detection; wire the covariant transform behind an
+explicit flag with `auto` unchanged; validate on **pitch-shifted audio**
+(GuitarSet +2/+4/+7 semitones, capo-shifted labels) as real Tab F1 through
+`fuse()` — the test the label probe cannot substitute for and the one that
+decides shipping. It re-transcribes audio, so it is a multi-hour run.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_covariant_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q7_capo_covariant_probe.py`;
+`tabvision/tests/unit/test_q7_capo_covariant.py` (4 tests).
+921 unit tests pass; ruff clean. No pipeline code, `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** §4.3 rates this "0 on GuitarSet, large in real use" — the
+acceptance metric (player-05, all capo-0) cannot see it, so the probe's value
+is confirming the mechanism and sizing the gap before any build. Both are
+done; the real Tab-F1 validation on pitch-shifted audio is the next slice.

@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q6-full-dev
+current_branch: accuracy/q7-capo-preflight
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -11,10 +11,10 @@ current_branch: accuracy/q6-full-dev
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
 | Q6 | Inharmonicity study | **FULL-DEV GATE PASSED** | 300 clips frozen config: **+0.0443** [+0.0339, +0.0555]; solo +0.0860; +1248 correct / -1248 wrong_position, all else 0 | **player-05 confirmation (user-gated)** | user proceed |
-| Q7 | Capo/tuning preflight | open | — | design synthetic-capo eval | — |
+| Q7 | Capo/tuning preflight | **in-progress** | entry probe PASS: covariant 0.596 flat vs today's 0.438 (**+0.158** conditional); naive degrades 0.596→0.437 | build preflight + wire flag + pitch-shifted-audio Tab F1 | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q6 integrated and measured; promotion is a user call (see Questions). Topmost open unblocked item otherwise = Q7 (capo/tuning preflight).**
+**Q6 awaits the user's player-05 call. Q7 entry probe passed; its build slice (pitch-shifted-audio Tab F1) is next. Q8 orphaned.**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -367,6 +367,37 @@ longer chosen on the reported set.
 - **Honest cost:** 129 improved, 146 unchanged, **25 regressed** — a mean
   improvement, not strict Pareto. Coverage 8.3% of detections, ~all solo.
 
+## Q7 entry probe — capo-covariant prior PASSES (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q7_capo_covariant_2026-07-22.md` (+ `.json`).
+Probe: `scripts/eval/q7_capo_covariant_probe.py` (label-level, no audio).
+
+Today capo>0 routes to `priors=none`, discarding the prior lift. §4.3's fix:
+shift the fret axis by the capo. Top-1 assignment on ~51k ambiguous dev
+notes:
+
+| capo | covariant | naive | none-lowfret (today) |
+|---:|---:|---:|---:|
+| 0 | 0.5960 | 0.5960 | 0.4378 |
+| 4 | 0.5959 | 0.4681 | 0.4377 |
+| 7 | 0.5951 | 0.4366 | 0.4366 |
+
+- **Transform correct:** capo-0 `covariant == naive`; covariant flat across
+  capo. Flatness is **partly by construction** (shifting gold + lookup
+  together maps capo-C onto capo-0) — confirms the arithmetic, not
+  independent evidence.
+- **Gap is real:** today 0.438 vs covariant 0.596 = **+0.158** conditional
+  (same order as §4.3's +22 pp). Anchor 0.596 is position-prior-alone
+  (below Q2's full-decode 0.6548 — no Viterbi/seq/playability here).
+- **Shift is necessary:** naive degrades 0.596→0.437 by capo 7 — no better
+  than no prior. Not tautological.
+- **Untestable here:** assumes real capo playing follows capo-0 relative-fret
+  conventions; GuitarSet has no capo audio.
+
+**Next slice:** preflight capo/tuning detection + wire covariant behind a
+flag + validate on pitch-shifted audio (real Tab F1, multi-hour). That is the
+shipping gate; the label probe cannot substitute for it.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -431,6 +462,11 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q7 — entry probe **PASS**: capo-covariant transform correct
+  (covariant 0.596 flat vs today's 0.438, +0.158 conditional); naive
+  degrades 0.596→0.437 so the shift is necessary. By-construction caveat
+  stated; real gate = pitch-shifted-audio Tab F1 (next slice).
+  `q7_capo_covariant_2026-07-22.md`.
 - 2026-07-22 — Q6 — **FULL-DEV GATE PASSED**: 300 clips, frozen config,
   **+0.0443** [+0.0339, +0.0555] (solo +0.0860, comp +0.0026); +1248 correct
   / -1248 wrong_position, all other buckets exactly 0; onset/pitch
