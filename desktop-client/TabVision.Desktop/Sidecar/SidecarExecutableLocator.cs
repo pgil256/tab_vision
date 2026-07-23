@@ -1,4 +1,5 @@
 using System.IO;
+using TabVision.Desktop.Bootstrap;
 
 namespace TabVision.Desktop.Sidecar;
 
@@ -47,12 +48,6 @@ public static class SidecarExecutableLocator
     {
         yield return Path.Combine(AppContext.BaseDirectory, "python", "Scripts", "tabvision.exe");
         yield return Path.Combine(AppContext.BaseDirectory, "runtime", "Scripts", "tabvision.exe");
-        yield return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TabVision",
-            "python",
-            "Scripts",
-            "tabvision.exe"
-        );
+        yield return PythonEnvironmentLayout.Default.TabVisionExecutable;
     }
 }

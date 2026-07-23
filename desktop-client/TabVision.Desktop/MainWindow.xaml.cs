@@ -471,8 +471,7 @@ public partial class MainWindow : Window
     private static string CreateJobOutputPath()
     {
         var jobDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "TabVision",
+            PythonEnvironmentLayout.Default.AppDataDirectory,
             "jobs",
             Guid.NewGuid().ToString("N")
         );

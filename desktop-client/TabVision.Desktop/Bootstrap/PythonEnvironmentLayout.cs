@@ -9,6 +9,8 @@ public sealed record PythonEnvironmentLayout(
     string StateDirectory
 )
 {
+    public const string DataRootEnvironmentVariable = "TABVISION_DESKTOP_DATA_ROOT";
+
     public string PythonExecutable => Path.Combine(RootDirectory, "python.exe");
 
     public string PythonStandardLibrary => Path.Combine(RootDirectory, "python311.zip");
@@ -52,8 +54,25 @@ public sealed record PythonEnvironmentLayout(
             var localAppData = Environment.GetFolderPath(
                 Environment.SpecialFolder.LocalApplicationData
             );
-            return FromTabVisionDataRoot(Path.Combine(localAppData, "TabVision"));
+            return FromConfiguredOrLocalAppData(
+                Environment.GetEnvironmentVariable(DataRootEnvironmentVariable),
+                localAppData
+            );
         }
+    }
+
+    public static PythonEnvironmentLayout FromConfiguredOrLocalAppData(
+        string? configuredDataRoot,
+        string localAppDataDirectory
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(configuredDataRoot))
+        {
+            return FromTabVisionDataRoot(configuredDataRoot);
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(localAppDataDirectory);
+        return FromTabVisionDataRoot(Path.Combine(localAppDataDirectory, "TabVision"));
     }
 
     public static PythonEnvironmentLayout FromTabVisionDataRoot(string tabVisionDataRoot)

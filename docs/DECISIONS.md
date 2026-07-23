@@ -3293,3 +3293,33 @@ The Release build had 0 warnings/errors and all 49 tests passed.
 silence unrelated libraries. Using each pinned dependency's explicit offline
 contract prevents even harmless connectivity probes, while a fail-closed
 process audit makes the product promise measurable instead of inferred.
+
+---
+
+## 2026-07-22 - D1.5 accepts a host-isolated clean-install gate
+
+**Phase:** Desktop shell D1.5 bootstrapper and installer
+**Decision tree:** Complete the clean-install acceptance gate after the user
+explicitly rejected provisioning a Windows 11 VM and asked for another way.
+**Branch taken:** Replace only the unavailable VM boundary with a fresh,
+opt-in desktop data root and a child process environment that exposes neither
+host Python nor Git. Keep every product behavior in the original gate: install
+the packaged application, perform the complete online first-run bootstrap from
+an empty root, and then run normal transcription under the existing fail-closed
+DNS/TCP/UDP socket guard. Do not describe this as VM evidence.
+**Evidence:** On Windows 11 Pro 10.0.26200, the 105,210,244-byte installer
+(`d6528028460c92d501ad269b109d45437c600adb8dd7678315da2cdcc171c96f`)
+installed 484 files in 16.626 seconds. With `python.exe`, `py.exe`, and
+`git.exe` absent from `PATH`, first run created 44,144 files / 2,503,017,173
+bytes in 1,048.976 seconds, passed `pip check`, verified TabVision 1.0.0 and all
+artifacts, and matched the 222-byte smoke golden. The installed sidecar then
+processed the public 5.015510-second GAPS-derived clip in 74.647 seconds with 0
+outbound socket attempts and wrote the expected 487-byte output at SHA-256
+`22c337d713d66295ac1e20e34edbe47bce16f9ea2e129022fe13ef8705c60370`.
+Release build had 0 warnings/errors and all 51 tests passed.
+**Reasoning:** The acceptance risk is accidental dependency on machine-global
+Python/Git, stale app data, incomplete first-run downloads, or post-bootstrap
+network access. A nonexistent root plus a scrubbed child environment and
+fail-closed socket audit isolates those risks directly on the target Windows
+version. It does not provide general clean-VM isolation, so that limitation is
+recorded rather than obscured.

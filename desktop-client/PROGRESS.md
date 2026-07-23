@@ -121,9 +121,12 @@ in Python. D2 is out of scope until the web editor stabilizes.
   Result: the exact installed sidecar completed a normal acoustic/clean/mixed,
   `auto` audio+video job under a process-level outbound socket guard with 0 DNS,
   TCP, or UDP attempts; 487 output bytes matched SHA-256 `22c337d7...0370`.
-- [ ] **D1.5 gate:** on a clean Windows 11 VM with no Python installed, install,
-  complete first-run download, disable networking, and successfully transcribe;
-  record VM version and measured result here.
+- [x] **D1.5 gate (user-approved host-isolated substitute):** install into a
+  fresh program/data root, launch with no Python or Git on `PATH`, complete the
+  real first-run download, then successfully transcribe under a fail-closed
+  outbound socket guard. Result: PASS on Windows 11 Pro 10.0.26200; the fresh
+  bootstrap took 1,048.976 s, and guarded normal transcription took 74.647 s
+  with 0 outbound attempts and output SHA-256 `22c337d7...0370`.
 
 ## Run log
 
@@ -352,3 +355,20 @@ in Python. D2 is out of scope until the web editor stabilizes.
   download, network disablement, and transcription were not started. The gate
   remains unchecked and needs the same user-coordinated VM access described
   above.
+- 2026-07-22: After the user explicitly rejected a VM requirement, the D1.5
+  gate passed through a host-isolated substitute that exercises the same
+  product boundaries without reusing the existing profile. Added an opt-in
+  `TABVISION_DESKTOP_DATA_ROOT` override and used a previously nonexistent
+  data root with a child `PATH` containing Windows system directories only;
+  `python.exe`, `py.exe`, and `git.exe` were absent. The exact
+  105,210,244-byte installer (SHA-256 `d6528028...c96f`) silently installed 484
+  files in 16.626 s. Real first run produced 44,144 files / 2,503,017,173 bytes
+  in 1,048.976 s, passed `pip check`, reported TabVision 1.0.0, downloaded and
+  verified all artifacts, and matched the 222-byte smoke golden at SHA-256
+  `6f310389...259ce3`. A normal acoustic/clean/mixed `auto` audio+video job on
+  the 396,988-byte public GAPS-derived clip then ran from that installed
+  environment under the fail-closed socket guard: 74.647 s, 8 progress lines,
+  0 outbound DNS/TCP/UDP attempts, and 487 output bytes at SHA-256
+  `22c337d7...0370`. Clean Release build: 0 warnings/errors; all 51 tests
+  passed. No dependency was added. D1.5 is complete; D2 remains blocked until
+  the web editor stabilizes.
