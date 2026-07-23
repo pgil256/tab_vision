@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-22
-current_branch: accuracy/q7-capo-preflight
+current_branch: accuracy/q6-player05-confirm
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,11 +10,11 @@ current_branch: accuracy/q7-capo-preflight
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **FULL-DEV GATE PASSED** | 300 clips frozen config: **+0.0443** [+0.0339, +0.0555]; solo +0.0860; +1248 correct / -1248 wrong_position, all else 0 | **player-05 confirmation (user-gated)** | user proceed |
+| Q6 | Inharmonicity study | **ALL GATES PASSED** | player-05 sealed: **+0.0780** [+0.0502, +0.1078]; solo 0.5503→**0.6899**; agg 0.6340→**0.7119**; +367/-367 one-for-one | **user call: register + `auto` routing** | user decision |
 | Q7 | Capo/tuning preflight | **in-progress** | entry probe PASS: covariant 0.596 flat vs today's 0.438 (**+0.158** conditional); naive degrades 0.596→0.437 | build preflight + wire flag + pitch-shifted-audio Tab F1 | — |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
-**Q6 awaits the user's player-05 call. Q7 entry probe passed; its build slice (pitch-shifted-audio Tab F1) is next. Q8 orphaned.**
+**Q6 has passed every gate including player-05; registration + `auto` routing is a user call. Q7 entry probe passed; its build slice (pitch-shifted-audio Tab F1) is the next loop item. Q8 orphaned.**
 
 ## Q1 — closed 2026-07-21 (bounded negative)
 
@@ -398,6 +398,38 @@ notes:
 flag + validate on pitch-shifted audio (real Tab F1, multi-hour). That is the
 shipping gate; the label probe cannot substitute for it.
 
+## Q6 player-05 sealed confirmation — PASS (2026-07-22)
+
+Report: `docs/EVAL_REPORTS/q6_player05_confirm_2026-07-22.md` (+ `.json`).
+Runner: `scripts/eval/q6_player05_confirm.py` (config frozen in source).
+
+60 sealed clips, frozen config (weight 1.0 / min_r2 0.50 / raw physics
+table), registered `guitarset-v1` prior (excludes player 05 by manifest).
+
+| metric | baseline | with channel | Δ [lo-95, hi-95] |
+|---|---:|---:|---|
+| **aggregate** | 0.6340 | **0.7119** | **+0.0780 [+0.0502, +0.1078]** |
+| **solo** | 0.5503 | **0.6899** | **+0.1396 [+0.0985, +0.1806]** |
+| comp | 0.7176 | 0.7340 | +0.0164 [+0.0000, +0.0458] |
+| onset / pitch | 0.9473 / 0.9386 | unchanged | bit-identical |
+
+**Gate lo-95 > 0: PASS.** Solo gains 25% relative on the tier SPEC §1.4.1 is
+weakest on and where every other lever failed (Q2 moved solo +0.0112).
+
+- **Harness validated:** baseline reproduces the shipped production numbers
+  to 4 decimals (solo 0.5503, comp 0.7176, agg 0.6340 vs CLAUDE.md's
+  0.5503 / 0.7175 / 0.6339). The delta is against the real production decode.
+- **Decomposition one-for-one (3rd time):** +367 correct / −367
+  wrong_position, other four buckets **exactly 0** across 8,709 detections.
+- 30 improved / 28 flat / **2 regressed** (3.3%, below dev's 8.3%).
+- **Hold-out > dev** (+0.0780 vs +0.0443) — opposite of overfitting, but the
+  CIs overlap (dev hi +0.0555 vs p05 lo +0.0502), so **not significant**;
+  player 05 is simply cleaner (baseline 0.6340 vs 0.6031) with 9.6% vs 8.3%
+  coverage.
+
+**Every offline gate in the program is now passed.** What remains is product
+decisions, not evidence: registration and `auto` routing.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -462,6 +494,10 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-22 — Q6 — **player-05 sealed confirmation PASS**: agg 0.6340→0.7119
+  (**+0.0780** [+0.0502, +0.1078]), solo 0.5503→0.6899 (+0.1396); +367/−367
+  one-for-one, onset/pitch bit-identical; baseline reproduces shipped numbers
+  to 4dp. All offline gates passed. `q6_player05_confirm_2026-07-22.md`.
 - 2026-07-22 — Q7 — entry probe **PASS**: capo-covariant transform correct
   (covariant 0.596 flat vs today's 0.438, +0.158 conditional); naive
   degrades 0.596→0.437 so the shift is necessary. By-construction caveat

@@ -3546,3 +3546,53 @@ registered, player-05 never read.
 acceptance metric (player-05, all capo-0) cannot see it, so the probe's value
 is confirming the mechanism and sizing the gap before any build. Both are
 done; the real Tab-F1 validation on pitch-shifted audio is the next slice.
+
+---
+
+## 2026-07-22 — Q6 player-05 sealed confirmation: PASS (+0.0780)
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), final gate
+**Decision tree:** player-05 is opened only after config freeze AND explicit
+user proceed; confirmation passes on lower-95 CI > 0.
+**Branch taken:** **PASS.** 60 sealed clips, weight 1.0 / min_r2 0.50 / raw
+physics table — the identical frozen values from the full-dev run, nothing
+tuned. Position prior is the registered `guitarset-v1` (excludes player 05
+per manifest); the stiffness table is specification-derived and depends on no
+player. **Tab F1 0.6340 -> 0.7119, delta +0.0780 [+0.0502, +0.1078]**; solo
+**0.5503 -> 0.6899 (+0.1396 [+0.0985, +0.1806])**, comp 0.7176 -> 0.7340
+(+0.0164 [+0.0000, +0.0458]); onset F1 0.9473 and pitch F1 0.9386
+bit-identical.
+**Baseline validates the harness:** the pre-evidence numbers reproduce the
+shipped production result to four decimals — solo 0.5503 (shipped 0.5503),
+comp 0.7176 (0.7175), aggregate 0.6340 (0.6339). The delta is therefore
+measured against the real production decode, not a reconstruction.
+**Decomposition, one-for-one again:** correct 5,594 -> 5,961 (+367),
+wrong_position_same_pitch 2,300 -> 1,933 (-367), and pitch_off, timing_only,
+missed_onset, extra_detection **each move by exactly 0** across 8,709
+detections. Third consecutive run with this signature, now on untouched data.
+30 clips improved, 28 unchanged, 2 regressed (3.3%, below dev's 8.3%).
+**Consistency, stated honestly:** the hold-out point estimate (+0.0780)
+exceeds dev (+0.0443) — the opposite of the overfitting direction. The
+intervals overlap (dev upper +0.0555 vs player-05 lower +0.0502), so this is
+**not** a significant difference; the honest reading is "consistent with dev,
+at the optimistic end." Player 05 is a cleaner player (baseline 0.6340 vs
+dev 0.6031) with marginally higher coverage (9.6% vs 8.3%), which accounts
+for the gap without anything more interesting.
+**Scope limits unchanged:** still GuitarSet, still similar steel-string
+acoustics — behaviour on a materially different guitar is argued from physics,
+not measured. The domain guard means classical, electric, capo and alternate
+tunings get nothing by construction. Comp barely moves, so strum-heavy input
+sees far less. The calibration take remains unvalidated on real plucks.
+**Evidence:** `docs/EVAL_REPORTS/q6_player05_confirm_2026-07-22.md`
+(+ `.json`); `tabvision/scripts/eval/q6_player05_confirm.py` (config frozen in
+source). `auto` unchanged, nothing registered.
+**Open, user-gated:** (1) register the channel as a `string_evidence`
+artifact with manifest + gate provenance, or leave unregistered; (2) `auto`
+routing — default-on within its gated clean-steel-acoustic domain, or opt-in
+behind `TABVISION_STRING_EVIDENCE`. Promotion into `auto` is a user decision
+per SPEC §0.8; this iteration changed no default.
+**Reasoning:** every offline gate in the accuracy program is now passed —
+classification, transfer to detected notes, portability without a dataset,
+cross-domain safety by construction, full-dev OOF, and the sealed hold-out.
+The remaining questions are product decisions about defaults, not evidence
+questions.
