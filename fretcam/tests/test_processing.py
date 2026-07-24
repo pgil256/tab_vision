@@ -4,7 +4,13 @@ import cv2
 import numpy as np
 import pytest
 
-from fretcam.detection import FrameDetection, FretTick, HandPoint, StageLatency
+from fretcam.detection import (
+    FrameDetection,
+    FretTick,
+    HandPoint,
+    HandSearchHint,
+    StageLatency,
+)
 from fretcam.position import EstimatorConfig, PositionEstimator
 from fretcam.processing import HudFrameProcessor, PositionCalibration
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
@@ -25,9 +31,11 @@ class FakeChain:
         self.composite_available = composite_available
         self.reset_count = 0
         self.player_handedness = "right"
+        self.timestamps: list[float] = []
 
     def process_frame(self, frame: np.ndarray, *, timestamp_s: float) -> FrameDetection:
         self.frame_shape = frame.shape
+        self.timestamps.append(timestamp_s)
         return FrameDetection(
             timestamp_s=timestamp_s,
             detector_ran=True,
@@ -176,6 +184,44 @@ def test_processor_caps_inference_frame_while_preserving_aspect_ratio() -> None:
 
     assert result["frame"] == {"width": 640, "height": 360}
     assert chain.frame_shape == (360, 640, 3)
+
+
+def test_processor_injects_exact_trace_timestamp_and_forwards_search_hint() -> None:
+    class HintAwareChain(FakeChain):
+        def __init__(self) -> None:
+            super().__init__()
+            self.hints: list[HandSearchHint] = []
+
+        def set_hand_search_hint(self, hint: HandSearchHint) -> None:
+            self.hints.append(hint)
+
+    chain = HintAwareChain()
+    processor = HudFrameProcessor(
+        chain=chain,  # type: ignore[arg-type]
+        estimator=PositionEstimator(
+            EstimatorConfig(acquisition_duration_s=0.0, shift_duration_s=0.0)
+        ),
+    )
+
+    try:
+        result = processor.process_jpeg(_jpeg(), timestamp_s=123.456)
+    finally:
+        processor.close()
+
+    assert result["detection"]["timestamp_s"] == pytest.approx(123.456)  # type: ignore[index]
+    assert chain.timestamps == [pytest.approx(123.456)]
+    assert len(chain.hints) == 1
+    assert chain.hints[0].position_state == "locked"
+    assert chain.hints[0].hand_visible
+
+
+def test_processor_rejects_non_finite_injected_timestamp() -> None:
+    processor = HudFrameProcessor(chain=FakeChain())  # type: ignore[arg-type]
+    try:
+        with pytest.raises(ValueError, match="timestamp_s"):
+            processor.process_jpeg(_jpeg(), timestamp_s=float("nan"))
+    finally:
+        processor.close()
 
 
 def test_session_reset_starts_a_new_mediapipe_video_stream() -> None:

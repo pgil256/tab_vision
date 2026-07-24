@@ -63,6 +63,20 @@ def test_initial_lock_uses_elapsed_time_not_a_fixed_frame_count() -> None:
     assert first_fast_lock.timestamp_s == pytest.approx(8 / 30.0)
 
 
+def test_replaced_initial_candidate_does_not_poison_stable_acquisition() -> None:
+    estimator = PositionEstimator()
+    estimates = _feed(
+        estimator,
+        [6.38, 6.40, 6.55, 6.55, 6.55, 6.55],
+        confidence=0.28,
+    )
+
+    assert all(estimate.position is None for estimate in estimates[:5])
+    assert estimates[-1].state == "locked"
+    assert estimates[-1].position == 7
+    assert estimates[-1].confidence == pytest.approx(0.28)
+
+
 def test_brief_single_frame_gaps_do_not_restart_acquisition() -> None:
     estimates = _feed(
         PositionEstimator(),
@@ -80,7 +94,7 @@ def test_boundary_jitter_does_not_flap_the_locked_position() -> None:
     estimates = _feed(
         estimator,
         [4.98, 5.03, 4.96, 5.04, 4.99, 5.02] * 3,
-        start=1.0,
+        start=0.5,
     )
 
     assert all(estimate.state == "locked" for estimate in estimates)
@@ -95,7 +109,7 @@ def test_sub_fret_projection_drift_does_not_change_a_held_position() -> None:
     estimates = _feed(
         estimator,
         [2.41, 2.46, 2.58, 2.63, 2.78, 2.87, 2.64],
-        start=1.0,
+        start=0.5,
     )
 
     assert all(estimate.state == "locked" for estimate in estimates)
@@ -223,6 +237,21 @@ def test_dropouts_hold_then_lose_and_reacquire() -> None:
     assert [estimate.state for estimate in reacquired[:3]] == ["acquiring"] * 3
     assert reacquired[3].state == "locked"
     assert reacquired[3].position == 7
+
+
+def test_same_position_after_a_long_evidence_gap_must_restabilize() -> None:
+    estimator = PositionEstimator()
+    _feed(estimator, [5.0] * 5)
+    held = _feed(estimator, [None] * 3, start=0.5)
+
+    reacquired = _feed(estimator, [5.0] * 4, start=0.8)
+
+    assert held[-1].state == "holding"
+    assert [estimate.state for estimate in reacquired[:3]] == ["acquiring"] * 3
+    assert all(estimate.position is None for estimate in reacquired[:3])
+    assert reacquired[0].reason == "evidence_gap"
+    assert reacquired[3].state == "locked"
+    assert reacquired[3].position == 5
 
 
 def test_low_confidence_observation_abstains_and_explains_why() -> None:

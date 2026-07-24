@@ -75,6 +75,26 @@ def _observation(
     )
 
 
+def _similarity_points(
+    points: np.ndarray,
+    *,
+    scale: float = 1.0,
+    angle_deg: float = 0.0,
+    dx: float = 0.0,
+    dy: float = 0.0,
+) -> np.ndarray:
+    source = np.asarray(points, dtype=np.float64)
+    center = np.mean(source[[0, 5, 9, 13, 17]], axis=0)
+    angle = np.radians(angle_deg)
+    rotation = np.asarray(
+        (
+            (np.cos(angle), -np.sin(angle)),
+            (np.sin(angle), np.cos(angle)),
+        )
+    )
+    return (source - center) @ rotation.T * scale + center + (dx, dy)
+
+
 def test_video_mode_clock_supplies_strict_millisecond_timestamps() -> None:
     clock = VideoModeTimestampClock()
 
@@ -464,3 +484,262 @@ def test_track_update_and_video_clock_reject_non_finite_or_old_time() -> None:
         )
     with pytest.raises(ValueError, match="finite"):
         tracker.next_video_timestamp_ms(float("nan"))
+
+
+def test_whole_hand_pose_accepts_coherent_rotation_scale_and_translation() -> None:
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(use_optical_flow=False)
+    )
+    first = tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    transformed_points = _similarity_points(
+        _hand_points(),
+        scale=1.25,
+        angle_deg=45.0,
+        dx=24.0,
+        dy=-8.0,
+    )
+    transformed = tracker.update(
+        _frame(),
+        timestamp_s=0.05,
+        observation=_observation(points=transformed_points),
+    )
+
+    assert first is not None
+    assert transformed is not None
+    assert transformed.detector_observation_accepted
+    assert transformed.pose.detector_observed
+    assert not transformed.pose.predicted
+    assert transformed.pose.continuity > 0.55
+    assert transformed.pose.quality > 0.4
+    assert transformed.landmarks_xy[8, 0] > first.landmarks_xy[8, 0]
+
+
+def test_pose_identity_scores_matching_proportions_above_wrong_same_center_hand() -> (
+    None
+):
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(use_optical_flow=False)
+    )
+    tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    matching = _observation(points=_similarity_points(_hand_points(), dx=5.0))
+    wrong = _hand_points(dx=5.0)
+    for indices in (FINGER_LANDMARKS["ring"], FINGER_LANDMARKS["pinky"]):
+        mcp = wrong[indices[0]].copy()
+        wrong[np.asarray(indices[1:])] = mcp + 1.8 * (
+            wrong[np.asarray(indices[1:])] - mcp
+        )
+
+    matching_score = tracker.match_observation(matching, timestamp_s=0.05)
+    wrong_score = tracker.match_observation(
+        _observation(points=wrong),
+        timestamp_s=0.05,
+    )
+
+    assert matching_score > 0.8
+    assert matching_score > wrong_score + 0.08
+
+
+def test_identity_gate_outlives_pose_prediction_at_locked_refresh_cadence() -> None:
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(
+            use_optical_flow=False,
+            max_occlusion_s=0.18,
+            max_identity_gap_s=0.35,
+        )
+    )
+    tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    incompatible = _observation(
+        points=_similarity_points(_hand_points(), angle_deg=170.0)
+    )
+
+    score, hard_reject = tracker.match_observation_details(
+        incompatible,
+        timestamp_s=0.20,
+    )
+    rejected = tracker.update(
+        _frame(),
+        timestamp_s=0.20,
+        observation=incompatible,
+    )
+    reacquired = tracker.update(
+        _frame(),
+        timestamp_s=0.21,
+        observation=_observation(dx=5.0),
+    )
+
+    assert score == 0.0
+    assert hard_reject
+    assert rejected is None
+    assert reacquired is not None
+    assert reacquired.detector_observation_accepted
+    assert reacquired.pose.continuity > 0.8
+
+
+def test_missing_finger_flow_uses_palm_pose_without_becoming_contact_evidence() -> None:
+    def missing_index_tip(
+        _previous: np.ndarray,
+        _current: np.ndarray,
+        points: np.ndarray,
+    ) -> OpticalFlowResult:
+        status = np.ones(len(points), dtype=bool)
+        status[FINGER_LANDMARKS["index"][-1]] = False
+        return OpticalFlowResult(
+            points_xy=points + np.asarray((12.0, 3.0)),
+            status=status,
+            error_px=np.zeros(len(points), dtype=np.float64),
+        )
+
+    tracker = TemporalHandLandmarkTracker(optical_flow=missing_index_tip)
+    first = tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    propagated = tracker.update(
+        _frame(10),
+        timestamp_s=0.05,
+        observation=None,
+    )
+
+    assert first is not None
+    assert propagated is not None
+    assert propagated.used_optical_flow
+    assert propagated.landmarks_xy[8, 0] > first.landmarks_xy[8, 0]
+    assert propagated.finger_quality["index"].source == "held"
+    assert (
+        propagated.finger_quality["index"].quality
+        < tracker.config.pose_prediction_quality_cap + 1e-9
+    )
+    assert propagated.finger_quality["middle"].source == "optical_flow"
+
+
+def test_pose_prediction_bridges_complete_blur_but_cannot_supply_contact_quality() -> (
+    None
+):
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(
+            use_optical_flow=False,
+            max_occlusion_s=0.18,
+        )
+    )
+    tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    moving = tracker.update(
+        _frame(),
+        timestamp_s=0.05,
+        observation=_observation(dx=20.0),
+    )
+    predicted = tracker.update(
+        _frame(),
+        timestamp_s=0.10,
+        observation=None,
+    )
+    expired = tracker.update(
+        _frame(),
+        timestamp_s=0.231,
+        observation=None,
+    )
+
+    assert moving is not None
+    assert predicted is not None
+    assert predicted.pose.predicted
+    assert predicted.pose.source == "pose_predicted"
+    assert predicted.pose.quality <= tracker.config.pose_prediction_quality_cap
+    assert predicted.landmarks_xy[8, 0] > moving.landmarks_xy[8, 0]
+    assert max(predicted.fretting_finger_quality.values()) < 0.15
+    assert expired is None
+
+
+def test_resolution_change_rescales_pose_without_identity_loss() -> None:
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(use_optical_flow=False)
+    )
+    first = tracker.update(
+        np.zeros((240, 320, 3), dtype=np.uint8),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    resized = tracker.update(
+        np.zeros((480, 640, 3), dtype=np.uint8),
+        timestamp_s=0.05,
+        observation=_observation(points=_hand_points() * 2.0),
+    )
+
+    assert first is not None
+    assert resized is not None
+    assert resized.detector_observation_accepted
+    assert resized.pose.continuity > 0.8
+    assert resized.landmarks_xy[8] == pytest.approx(first.landmarks_xy[8] * 2.0)
+
+
+def test_positive_angular_velocity_predicts_in_the_same_direction() -> None:
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(use_optical_flow=False)
+    )
+    tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    moving = tracker.update(
+        _frame(),
+        timestamp_s=0.10,
+        observation=_observation(
+            points=_similarity_points(_hand_points(), angle_deg=20.0)
+        ),
+    )
+    predicted = tracker.update(
+        _frame(),
+        timestamp_s=0.15,
+        observation=None,
+    )
+
+    assert moving is not None
+    assert predicted is not None
+    assert predicted.pose.predicted
+    angular_delta = (
+        predicted.pose.orientation_rad - moving.pose.orientation_rad + np.pi
+    ) % (2.0 * np.pi) - np.pi
+    assert angular_delta > 0.0
+
+
+def test_thumb_only_detector_frame_is_not_an_accepted_hand_update() -> None:
+    tracker = TemporalHandLandmarkTracker(
+        TemporalHandTrackerConfig(use_optical_flow=False)
+    )
+    initial = tracker.update(
+        _frame(),
+        timestamp_s=0.0,
+        observation=_observation(),
+    )
+    joint_quality = np.zeros(21, dtype=np.float64)
+    joint_quality[np.asarray((0, 1, 2, 3, 4), dtype=np.int64)] = 1.0
+    thumb_only = tracker.update(
+        _frame(),
+        timestamp_s=0.05,
+        observation=_observation(
+            dx=40.0,
+            joint_quality=joint_quality,
+        ),
+    )
+
+    assert initial is not None
+    assert thumb_only is not None
+    assert not thumb_only.detector_observation_accepted
+    assert not thumb_only.pose.detector_observed
+    assert thumb_only.landmarks_xy[0] == pytest.approx(initial.landmarks_xy[0])

@@ -6,7 +6,12 @@ localhost WebSocket. The local server returns neck/fret geometry, hand points,
 a stable Roman-numeral position, confidence, and grounded framing guidance for
 the browser to draw over the camera preview.
 
-Nothing is recorded or persisted by the server.
+Normal camera use is memory-only: nothing is recorded or persisted. The
+browser also includes explicitly enabled **Local accuracy tools**. Those tools
+can retain a bounded exact-packet trace or two-second failure window in memory,
+then save it locally only after a second explicit action. Saved packages are
+private troubleshooting material and are never accepted as training,
+evaluation, threshold-tuning, or release evidence.
 
 ## Run
 
@@ -43,6 +48,14 @@ visible, hovering, and pressing fingers; uses distal finger-pad and barre
 geometry; and abstains when the finger, board-freshness, or temporal evidence
 does not agree.
 
+The hand detector runs adaptively: acquisition, shifts, and low-quality
+tracking use a faster refresh, while a healthy lock uses a slower refresh plus
+optical flow. A whole-hand pose layer constrains palm orientation, scale,
+finger proportions, and identity. It preserves low-confidence continuity
+through at most 180 ms of blur without allowing pose-only prediction to become
+finger-contact evidence. Identity memory spans the healthy 5 Hz detector
+interval even after predicted landmarks expire.
+
 ## Verify
 
 ```powershell
@@ -53,6 +66,7 @@ does not agree.
 .venv\Scripts\python -m fretcam.benchmark_hud
 .venv\Scripts\python -m fretcam.position_benchmark --split dev
 .venv\Scripts\python -m fretcam.live_position_benchmark --list-conditions
+.venv\Scripts\fretcam-trace-compare <saved-trace-directory>
 ```
 
 The original benchmark retains F1's echo-only transport harness and round-trips
@@ -101,6 +115,43 @@ The implementation and final development-only accuracy evidence for
 neck-guided acquisition, temporal landmarks, physical contacts, upper-neck
 geometry, and two-point calibration are summarized in
 [docs/accuracy-phase-2.md](docs/accuracy-phase-2.md).
+The follow-up exact-trace, whole-hand pose, adaptive scheduling, and explicit
+failure-marker work is summarized in
+[docs/accuracy-phase-3.md](docs/accuracy-phase-3.md).
+
+## Optional local accuracy tools
+
+Open **Local accuracy tools** below the live HUD. Both tools reset to off after
+every reload, reconnect, camera restart, or disconnect.
+
+- **Exact comparison trace:** select **Start exact comparison trace** to begin
+  a clean, bounded in-memory capture. Select **Save exact comparison trace** to
+  write at most 10 seconds / 120 exact JPEG packets / 24 MB under
+  `~/.tabvision/cache/fretcam_diagnostics/traces/`. When a bound is reached,
+  the clean prefix freezes and later packets are ignored. Cancel or disconnect
+  to discard the unsaved bytes.
+- **Failure marker:** enable the rolling two-second buffer, choose the expected
+  Position I-XII (or unknown), check the fingers actually pressing, and select
+  **Save marked failure locally**. It writes at most 24 exact packets / 6 MB
+  under `~/.tabvision/cache/fretcam_diagnostics/failures/`.
+
+Every package contains generated relative paths, exact packet hashes,
+timestamps, inference dimensions, and the live detector/solver decisions. It
+contains no camera identifier. Failure packages are deliberately rejected by
+the trace comparator and by the public/local evaluation workflows.
+
+Compare a saved trace against a fresh offline run, frame by frame:
+
+```powershell
+fretcam-trace-compare `
+  "$HOME\.tabvision\cache\fretcam_diagnostics\traces\<trace-id>" `
+  --output-json "$HOME\.tabvision\cache\fretcam_artifacts\trace-comparison.json"
+```
+
+The report identifies position, blocker, geometry, board-detector, hand-search,
+adaptive-schedule, and pose-prediction differences. It excludes volatile
+latency from equality and exposes asynchronous detector divergence instead of
+claiming bit-identical execution.
 
 ## Optional local finger-evaluation set
 

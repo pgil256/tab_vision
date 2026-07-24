@@ -9,10 +9,14 @@ registered, annotated, scored, used for threshold tuning, used for training,
 or used as release evidence. Participant permission does not create an
 exception to this repository rule.
 
-The workflow is intentionally separate from the live browser:
+The workflow is intentionally separate from the live browser and its optional
+diagnostics-only **Local accuracy tools**:
 
-- It does not open a camera, record video, save browser frames, or extract
-  still images.
+- This evaluation workflow does not open a camera, record video, save browser
+  frames, or extract still images.
+- Explicitly saved live trace/failure packages are private troubleshooting
+  artifacts. This evaluator rejects them; they cannot be registered,
+  annotated, scored, tuned against, trained on, or used as release evidence.
 - It registers only public-licensed or synthetic video already placed under
   the dataset's `media/` directory.
 - The default root is

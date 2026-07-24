@@ -82,6 +82,7 @@ class FakeLiveProcessor:
         self.closed = False
         self.reset_count = 0
         self.controls: list[dict[str, object]] = []
+        self.timestamps: list[float | None] = []
         self.factors = ConfidenceFactors(
             board=0.9,
             freshness=1.0,
@@ -102,8 +103,14 @@ class FakeLiveProcessor:
     def reset(self) -> None:
         self.reset_count += 1
 
-    def process_jpeg(self, payload: bytes) -> dict[str, object]:
+    def process_jpeg(
+        self,
+        payload: bytes,
+        *,
+        timestamp_s: float | None = None,
+    ) -> dict[str, object]:
         assert payload.startswith(b"\xff\xd8")
+        self.timestamps.append(timestamp_s)
         return {
             "type": "hud",
             "version": 2,
@@ -276,6 +283,9 @@ def test_live_runner_uses_real_websocket_and_preserves_response_factors(
     assert processor.warmed
     assert processor.reset_count == 1
     assert processor.controls == [{"type": "settings", "player_handedness": "right"}]
+    assert len(processor.timestamps) == 2
+    assert all(timestamp is not None for timestamp in processor.timestamps)
+    assert processor.timestamps == sorted(processor.timestamps)
     assert processor.closed
 
     summary = summarize_results(payload)

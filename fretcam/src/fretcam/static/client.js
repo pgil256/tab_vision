@@ -35,6 +35,14 @@ const factorLandmarks = document.querySelector("#factor-landmarks");
 const factorOnNeck = document.querySelector("#factor-on-neck");
 const factorAgreement = document.querySelector("#factor-agreement");
 const factorTemporal = document.querySelector("#factor-temporal");
+const traceToggleButton = document.querySelector("#trace-toggle");
+const traceCancelButton = document.querySelector("#trace-cancel");
+const failureBufferToggle = document.querySelector("#failure-buffer");
+const failurePosition = document.querySelector("#failure-position");
+const failureFingers = document.querySelector("#failure-fingers");
+const failureNote = document.querySelector("#failure-note");
+const markFailureButton = document.querySelector("#mark-failure");
+const captureStatus = document.querySelector("#capture-status");
 
 const INFERENCE_PRESETS = [
   { maxWidth: 640, maxHeight: 480, quality: 0.72 },
@@ -61,6 +69,11 @@ let diagnosticSamples = [];
 let sessionStartedAt = performance.now();
 let sessionGeneration = 0;
 let liveControlsEnabled = false;
+let traceActive = false;
+let failureBufferActive = false;
+let captureFrameSequence = 0;
+let traceStartPending = false;
+let failureTogglePrevious = null;
 
 function setConnection(label, state) {
   connection.textContent = label;
@@ -69,12 +82,29 @@ function setConnection(label, state) {
 
 function setLiveControls(enabled) {
   liveControlsEnabled = enabled;
-  calibrateButton.disabled = !enabled;
-  calibrateTwoPointButton.disabled = !enabled;
+  const inferenceControlsEnabled = enabled && !traceActive;
+  handednessSelect.disabled = traceActive;
+  calibrateButton.disabled = !inferenceControlsEnabled;
+  calibrateTwoPointButton.disabled = !inferenceControlsEnabled;
   continueCalibrationButton.disabled = true;
-  calibrationUpperPosition.disabled = !enabled;
-  resetCalibrationButton.disabled = !enabled;
+  calibrationUpperPosition.disabled = !inferenceControlsEnabled;
+  resetCalibrationButton.disabled = !inferenceControlsEnabled;
   exportDiagnosticsButton.disabled = !enabled;
+  setCaptureControls(enabled);
+}
+
+function setCaptureControls(enabled) {
+  traceToggleButton.disabled = !enabled;
+  traceCancelButton.disabled = !enabled || !traceActive;
+  failureBufferToggle.disabled = !enabled;
+  const failureReady = enabled && failureBufferActive;
+  failurePosition.disabled = !failureReady;
+  failureFingers.disabled = !failureReady;
+  failureNote.disabled = !failureReady;
+  markFailureButton.disabled = !failureReady;
+  traceToggleButton.textContent = traceActive
+    ? "Save exact comparison trace"
+    : "Start exact comparison trace";
 }
 
 function updateCalibrationControls(calibration) {
@@ -91,10 +121,11 @@ function updateCalibrationControls(calibration) {
     ? `Hold Position ${activeTarget}... (${calibration.samples})`
     : `Calibrate I + ${upper === 9 ? "IX" : "V"}`;
   continueCalibrationButton.disabled = (
-    !liveControlsEnabled || calibration.status !== "awaiting_second"
+    !liveControlsEnabled || traceActive || calibration.status !== "awaiting_second"
   );
   calibrationUpperPosition.disabled = (
     !liveControlsEnabled
+    || traceActive
     || (isTwoPoint && ["collecting", "awaiting_second"].includes(calibration.status))
   );
 }
@@ -148,7 +179,7 @@ function nextFrame() {
     return;
   }
 
-  captureInferenceFrame();
+  const inferenceSize = captureInferenceFrame();
   encodeInProgress = true;
   const encodeGeneration = sessionGeneration;
   const encodeSocket = socket;
@@ -165,7 +196,23 @@ function nextFrame() {
     frameInFlight = true;
     sentAt = performance.now();
     frameSizeLabel.textContent = `${(blob.size / 1024).toFixed(1)} KB`;
-    encodeSocket.send(blob);
+    if (traceActive || failureBufferActive) {
+      captureFrameSequence += 1;
+      encodeSocket.send(blob);
+      encodeSocket.send(JSON.stringify({
+        type: "frame_context",
+        sequence: captureFrameSequence,
+        session_offset_ms: sentAt - sessionStartedAt,
+        source_width: video.videoWidth || inferenceSize.width,
+        source_height: video.videoHeight || inferenceSize.height,
+        inference_width: inferenceSize.width,
+        inference_height: inferenceSize.height,
+        jpeg_quality: preset.quality,
+        payload_bytes: blob.size,
+      }));
+    } else {
+      encodeSocket.send(blob);
+    }
   }, "image/jpeg", preset.quality);
 }
 
@@ -388,6 +435,17 @@ function recordDiagnostics(payload, e2eMs) {
       temporal_agreement: position.temporal_agreement,
       reason: position.reason,
       hand_source: detection.hand_source || "none",
+      hand_search_source: detection.hand_search_source || "none",
+      hand_schedule_mode: detection.hand_schedule_mode || "default",
+      hand_detector_interval_ms: detection.hand_detector_interval_ms || 0,
+      hand_detector_calls: detection.hand_detector_calls || 0,
+      hand_search_attempts: detection.hand_search_attempts || [],
+      hand_refresh_reason: detection.hand_refresh_reason || "unknown",
+      detector_result_consumed: Boolean(detection.detector_result_consumed),
+      detector_result_accepted: Boolean(detection.detector_result_accepted),
+      hand_pose_quality: detection.hand_pose_quality || 0,
+      hand_pose_continuity: detection.hand_pose_continuity || 0,
+      hand_pose_predicted: Boolean(detection.hand_pose_predicted),
     },
     confidence: {
       board: factors.board || 0,
@@ -413,6 +471,31 @@ function recordDiagnostics(payload, e2eMs) {
   if (diagnosticSamples.length > MAX_DIAGNOSTIC_SAMPLES) diagnosticSamples.shift();
 }
 
+function handleCaptureControl(payload) {
+  const capture = payload.capture;
+  if (capture) {
+    traceActive = Boolean(capture.trace_enabled);
+    failureBufferActive = Boolean(capture.failure_enabled);
+    traceStartPending = false;
+    failureTogglePrevious = null;
+    failureBufferToggle.checked = failureBufferActive;
+    setLiveControls(liveControlsEnabled);
+  }
+  if (payload.status === "trace_started") {
+    captureStatus.textContent = "Exact packets are buffered in memory. Select Save to write this trace locally.";
+  } else if (payload.status === "trace_saved") {
+    captureStatus.textContent = `Comparison trace saved locally: ${payload.package_id}`;
+  } else if (payload.status === "trace_cancelled") {
+    captureStatus.textContent = "Trace cancelled. Its in-memory frames were discarded.";
+  } else if (payload.status === "failure_buffer_enabled") {
+    captureStatus.textContent = "A rolling 2-second window is in memory. Nothing has been saved.";
+  } else if (payload.status === "failure_buffer_disabled") {
+    captureStatus.textContent = "Failure buffer disabled. Its in-memory frames were discarded.";
+  } else if (payload.status === "failure_saved") {
+    captureStatus.textContent = `Marked failure saved locally: ${payload.package_id}`;
+  }
+}
+
 function handleSocketMessage(rawPayload) {
   let payload;
   try {
@@ -423,17 +506,43 @@ function handleSocketMessage(rawPayload) {
     return;
   }
   if (payload.type === "error") {
+    if (payload.scope === "capture") {
+      if (payload.capture) {
+        handleCaptureControl(payload);
+      } else {
+        if (traceStartPending) traceActive = false;
+        traceStartPending = false;
+        if (failureTogglePrevious !== null) {
+          failureBufferActive = failureTogglePrevious;
+          failureBufferToggle.checked = failureBufferActive;
+        }
+        failureTogglePrevious = null;
+        setLiveControls(liveControlsEnabled);
+      }
+      captureStatus.textContent = `Local accuracy tool: ${payload.message || "request rejected"}`;
+      return;
+    }
     frameInFlight = false;
     fail(payload.message || "Frame processing failed.");
     return;
   }
   if (payload.type === "control") {
     updateCalibrationControls(payload.calibration);
+    handleCaptureControl(payload);
     return;
   }
   if (payload.type !== "hud") return;
 
   const e2eMs = performance.now() - sentAt;
+  if (payload.capture_warning) {
+    traceActive = false;
+    failureBufferActive = false;
+    traceStartPending = false;
+    failureTogglePrevious = null;
+    failureBufferToggle.checked = false;
+    setLiveControls(liveControlsEnabled);
+    captureStatus.textContent = `Local capture stopped: ${payload.capture_warning}`;
+  }
   adaptPerformance(payload.server_ms, e2eMs);
   lastHud = payload;
   drawHud(payload);
@@ -470,6 +579,12 @@ function connectSocket() {
     if (socket !== ws) return;
     socket = null;
     frameInFlight = false;
+    traceActive = false;
+    failureBufferActive = false;
+    traceStartPending = false;
+    failureTogglePrevious = null;
+    failureBufferToggle.checked = false;
+    captureStatus.textContent = "Local capture stopped; unsaved frames were discarded.";
     setLiveControls(false);
     if (stream && !intentionalClose) fail("WebSocket closed. Stop and restart the camera to reconnect.");
     else setConnection("idle", "idle");
@@ -536,6 +651,11 @@ async function start() {
     positionStatus.textContent = "Acquiring...";
     positionDetail.textContent = "Keep the full neck and fretting hand visible.";
     diagnosticSamples = [];
+    traceActive = false;
+    failureBufferActive = false;
+    failureBufferToggle.checked = false;
+    captureFrameSequence = 0;
+    captureStatus.textContent = "Nothing is being retained or saved.";
     sessionStartedAt = performance.now();
     connectSocket();
     nextFrame();
@@ -569,6 +689,13 @@ function stop() {
   frameSizeLabel.textContent = "—";
   context.clearRect(0, 0, canvas.width, canvas.height);
   resetLiveReadouts();
+  traceActive = false;
+  failureBufferActive = false;
+  traceStartPending = false;
+  failureTogglePrevious = null;
+  failureBufferToggle.checked = false;
+  captureFrameSequence = 0;
+  captureStatus.textContent = "Nothing is being retained or saved.";
   setLiveControls(false);
   setConnection("idle", "idle");
   lastHud = null;
@@ -647,6 +774,41 @@ calibrationUpperPosition.addEventListener("change", () => {
 });
 resetCalibrationButton.addEventListener("click", () => sendControl({ type: "reset_calibration" }));
 exportDiagnosticsButton.addEventListener("click", exportDiagnostics);
+traceToggleButton.addEventListener("click", () => {
+  if (traceActive) {
+    sendControl({ type: "trace_save", confirm_save: true });
+    return;
+  }
+  traceActive = true;
+  traceStartPending = true;
+  setLiveControls(liveControlsEnabled);
+  captureStatus.textContent = "Starting a clean in-memory comparison trace...";
+  sendControl({ type: "trace_start" });
+});
+traceCancelButton.addEventListener("click", () => sendControl({ type: "trace_cancel" }));
+failureBufferToggle.addEventListener("change", () => {
+  failureTogglePrevious = failureBufferActive;
+  failureBufferActive = failureBufferToggle.checked;
+  setCaptureControls(liveControlsEnabled);
+  sendControl({
+    type: "failure_buffer",
+    enabled: failureBufferToggle.checked,
+  });
+});
+markFailureButton.addEventListener("click", () => {
+  const selectedPosition = Number.parseInt(failurePosition.value, 10);
+  const pressingFingers = [...failureFingers.querySelectorAll("input:checked")]
+    .map((input) => input.value);
+  sendControl({
+    type: "failure_mark",
+    confirm_save: true,
+    expectation: {
+      position: Number.isFinite(selectedPosition) ? selectedPosition : "unknown",
+      pressing_fingers: pressingFingers,
+      note: failureNote.value,
+    },
+  });
+});
 video.addEventListener("resize", syncCanvasSize);
 navigator.mediaDevices?.addEventListener?.("devicechange", () => {
   const current = cameraSelect.value;

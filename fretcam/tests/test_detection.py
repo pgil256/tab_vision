@@ -11,7 +11,9 @@ import numpy as np
 from fretcam.detection import (
     DetectionChain,
     HandObservation,
+    HandSearchHint,
     MediaPipeHandExtractor,
+    _extract_candidates,
     _fret_cell_from_canonical_x,
     _fret_wire_xs,
     _hand_overlaps_neck,
@@ -68,6 +70,28 @@ class SelectableFakeHandExtractor(FakeHandExtractor):
 
     def set_player_handedness(self, value: str) -> None:
         self.player_handedness = value
+
+
+class InternalTypeErrorExtractor:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def extract_candidates(
+        self,
+        _frame: np.ndarray,
+        *,
+        timestamp_s: float,
+        use_video: bool,
+    ) -> tuple[HandObservation, ...]:
+        del timestamp_s, use_video
+        self.calls += 1
+        raise TypeError("internal inference failure")
+
+    def extract(self, _frame: np.ndarray) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
 
 
 def _hand() -> HandSample:
@@ -302,6 +326,18 @@ def _fixed_geometry_calibrator(
 
 
 class DetectionChainTest(unittest.TestCase):
+    def test_extractor_internal_type_error_is_not_retried(self) -> None:
+        extractor = InternalTypeErrorExtractor()
+
+        with self.assertRaisesRegex(TypeError, "internal inference failure"):
+            _extract_candidates(
+                extractor,
+                np.zeros((20, 20, 3), dtype=np.uint8),
+                timestamp_s=1.0,
+            )
+
+        self.assertEqual(extractor.calls, 1)
+
     def test_detector_runs_at_two_hz_while_hand_runs_every_frame(self) -> None:
         detector = FakeDetector()
         hands = FakeHandExtractor(_hand())
@@ -563,9 +599,10 @@ class DetectionChainTest(unittest.TestCase):
                 return OBBPredictions()
 
         detector = BlockingDetector()
+        hands = FakeHandExtractor(None)
         chain = DetectionChain(
             detector=detector,
-            hand_extractor=FakeHandExtractor(None),
+            hand_extractor=hands,
             calibrator=_missing_calibrator,
             background_detector=True,
         )
@@ -580,6 +617,9 @@ class DetectionChainTest(unittest.TestCase):
             self.assertFalse(response.neck_locked)
             self.assertTrue(detector.started.wait(timeout=1.0))
             self.assertEqual(detector.calls, 1)
+            self.assertEqual(hands.calls, 0)
+            self.assertFalse(response.hand_detector_ran)
+            self.assertEqual(response.hand_search_source, "board_pending")
 
             detector.release.set()
             self.assertTrue(detector.finished.wait(timeout=1.0))
@@ -588,6 +628,7 @@ class DetectionChainTest(unittest.TestCase):
             # A rejected completed job keeps its retry timestamp; it does not
             # trigger a synchronous second YOLO pass in the consuming frame.
             self.assertEqual(detector.calls, 1)
+            self.assertEqual(hands.calls, 0)
         finally:
             detector.release.set()
             caller.shutdown(wait=True, cancel_futures=True)
@@ -693,6 +734,49 @@ class DetectionChainTest(unittest.TestCase):
         self.assertGreaterEqual(hands.shapes[3][1], hands.shapes[2][1])
         self.assertTrue(result.hand_points)
 
+    def test_acquired_search_never_exceeds_two_hand_detector_calls(self) -> None:
+        hands = SelectableFakeHandExtractor(None)
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=hands,
+            calibrator=_calibrator,
+            crop_hand=True,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain._last_hand_bounds = (40.0, 40.0, 140.0, 180.0)
+        chain._last_hand_timestamp_s = 0.0
+        chain._last_full_hand_video_s = 0.0
+
+        first_miss = chain.process_frame(frame, timestamp_s=0.1)
+        chain._last_hand_timestamp_s = 0.1
+        second_miss = chain.process_frame(frame, timestamp_s=0.2)
+
+        self.assertEqual(first_miss.hand_detector_calls, 2)
+        self.assertEqual(second_miss.hand_detector_calls, 2)
+        self.assertEqual(
+            second_miss.hand_search_attempts,
+            ("last_hand_crop", "neck_crop"),
+        )
+        self.assertEqual(second_miss.hand_search_source, "full_recovery_pending")
+        self.assertEqual(hands.calls, 5)
+
+    def test_chain_rescales_crop_and_stillness_state_with_inference_size(self) -> None:
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+        )
+        chain._last_hand_frame_shape = (240, 320)
+        chain._last_hand_bounds = (10.0, 20.0, 110.0, 220.0)
+        chain._last_finger_tips = {"index": (80.0, 100.0)}
+
+        chain._rescale_hand_state_for_frame((480, 640, 3))
+
+        self.assertEqual(chain._last_hand_bounds, (20.0, 40.0, 220.0, 440.0))
+        self.assertEqual(chain._last_finger_tips["index"], (160.0, 200.0))
+        self.assertEqual(chain._last_hand_frame_shape, (480, 640))
+
     def test_neck_search_starts_immediately_then_alternates_full_frame(self) -> None:
         class AcquireOnFullFrame:
             def __init__(self) -> None:
@@ -765,6 +849,73 @@ class DetectionChainTest(unittest.TestCase):
 
         self.assertTrue(result.hand_points)
         self.assertLess(max(point.x for point in result.hand_points), 100.0)
+
+    def test_locked_cadence_pose_vetoes_wrong_hand_before_candidate_scoring(
+        self,
+    ) -> None:
+        matching = _landmark_observation()
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(matching),
+            calibrator=_calibrator,
+            crop_hand=False,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+
+        wrong_points = np.asarray(matching.landmarks_xy, dtype=np.float64).copy()
+        for name in ("ring", "pinky"):
+            indices = {
+                "ring": (13, 14, 15, 16),
+                "pinky": (17, 18, 19, 20),
+            }[name]
+            mcp = wrong_points[indices[0]].copy()
+            wrong_points[np.asarray(indices[1:])] = mcp + 0.1 * (
+                wrong_points[np.asarray(indices[1:])] - mcp
+            )
+        wrong = HandObservation(
+            hand=HandSample(
+                wrist_xy=matching.hand.wrist_xy,
+                wrist_z=matching.hand.wrist_z,
+                is_left_hand=matching.hand.is_left_hand,
+                confidence=0.99,
+                fingers=matching.hand.fingers,
+            ),
+            finger_axes_xy=matching.finger_axes_xy,
+            finger_quality={name: 1.0 for name in matching.finger_quality},
+            handedness_label="Right",
+            handedness_score=0.99,
+            landmarks_xy=tuple(
+                (float(point[0]), float(point[1])) for point in wrong_points
+            ),
+            landmarks_z=matching.landmarks_z,
+            joint_quality=matching.joint_quality,
+        )
+        lower_confidence_match = HandObservation(
+            hand=HandSample(
+                wrist_xy=matching.hand.wrist_xy,
+                wrist_z=matching.hand.wrist_z,
+                is_left_hand=matching.hand.is_left_hand,
+                confidence=0.45,
+                fingers=matching.hand.fingers,
+            ),
+            finger_axes_xy=matching.finger_axes_xy,
+            finger_quality={name: 0.45 for name in matching.finger_quality},
+            handedness_label="Left",
+            handedness_score=0.1,
+            landmarks_xy=matching.landmarks_xy,
+            landmarks_z=matching.landmarks_z,
+            joint_quality=matching.joint_quality,
+        )
+        homography, _ = _calibrator(OBBPredictions(), GuitarConfig())
+
+        selected = chain._select_neck_hand(
+            (wrong, lower_confidence_match),
+            homography,
+            timestamp_s=0.20,
+        )
+
+        self.assertIs(selected, lower_confidence_match)
 
     def test_temporal_landmarks_survive_a_brief_detector_miss(self) -> None:
         class OneDetection:
@@ -893,7 +1044,136 @@ class DetectionChainTest(unittest.TestCase):
 
         self.assertEqual(hands.timestamps, [10.0, 10.02, 10.12])
         self.assertEqual(results[2].hand_source, "temporal_detector")
+        self.assertEqual(results[2].hand_refresh_reason, "clock_reset")
         self.assertTrue(results[2].hand_points)
+
+    def test_hand_detector_schedule_adapts_without_losing_deadline_phase(
+        self,
+    ) -> None:
+        hands = TimestampedLandmarkExtractor()
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=hands,
+            calibrator=_calibrator,
+            crop_hand=False,
+            hand_detector_hz=10.0,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+
+        first = chain.process_frame(frame, timestamp_s=0.0)
+        chain.set_hand_search_hint(
+            HandSearchHint(
+                position_state="acquiring",
+                position_reason="acquiring",
+                observation_confidence=0.8,
+                landmark_quality=0.8,
+                blockers=(),
+                hand_visible=True,
+                pose_quality=0.8,
+            )
+        )
+        before_active_deadline = chain.process_frame(frame, timestamp_s=0.05)
+        active = chain.process_frame(frame, timestamp_s=0.07)
+        chain.set_hand_search_hint(
+            HandSearchHint(
+                position_state="locked",
+                position_reason="locked",
+                observation_confidence=0.8,
+                landmark_quality=0.8,
+                blockers=(),
+                hand_visible=True,
+                pose_quality=0.8,
+            )
+        )
+        before_locked_deadline = chain.process_frame(frame, timestamp_s=0.20)
+        locked = chain.process_frame(frame, timestamp_s=0.27)
+        chain.set_hand_search_hint(
+            HandSearchHint(
+                position_state="shifting",
+                position_reason="change_point",
+                observation_confidence=0.8,
+                landmark_quality=0.8,
+                blockers=(),
+                hand_visible=True,
+                pose_quality=0.8,
+            )
+        )
+        shifted = chain.process_frame(frame, timestamp_s=0.28)
+
+        self.assertTrue(first.hand_detector_ran)
+        self.assertFalse(before_active_deadline.hand_detector_ran)
+        self.assertTrue(active.hand_detector_ran)
+        self.assertEqual(active.hand_schedule_mode, "acquiring")
+        self.assertAlmostEqual(active.hand_detector_interval_ms, 66.667, places=3)
+        self.assertFalse(before_locked_deadline.hand_detector_ran)
+        self.assertTrue(locked.hand_detector_ran)
+        self.assertEqual(locked.hand_schedule_mode, "locked")
+        self.assertEqual(locked.hand_detector_interval_ms, 200.0)
+        self.assertTrue(shifted.hand_detector_ran)
+        self.assertEqual(shifted.hand_schedule_mode, "shifting")
+        self.assertEqual(shifted.hand_refresh_reason, "position_shift")
+        self.assertEqual(hands.timestamps, [0.0, 0.07, 0.27, 0.28])
+
+    def test_low_quality_hint_immediately_widens_to_full_neck_search(self) -> None:
+        hands = SelectableFakeHandExtractor(_hand())
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=hands,
+            calibrator=_calibrator,
+            crop_hand=True,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.1)
+        narrow_shape = hands.shapes[-1]
+        chain.set_hand_search_hint(
+            HandSearchHint(
+                position_state="holding",
+                position_reason="low_confidence",
+                observation_confidence=0.1,
+                landmark_quality=0.2,
+                blockers=("no_hand",),
+                hand_visible=False,
+                pose_quality=0.2,
+            )
+        )
+        recovered = chain.process_frame(frame, timestamp_s=0.11)
+
+        self.assertTrue(recovered.hand_detector_ran)
+        self.assertEqual(recovered.hand_schedule_mode, "recovering")
+        self.assertEqual(recovered.hand_refresh_reason, "quality_drop")
+        self.assertEqual(recovered.hand_search_source, "neck_recovery")
+        self.assertGreaterEqual(hands.shapes[-1][0], narrow_shape[0])
+        self.assertGreaterEqual(hands.shapes[-1][1], narrow_shape[1])
+
+    def test_finger_conflict_alone_does_not_force_a_wide_refresh(self) -> None:
+        hands = TimestampedLandmarkExtractor()
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=hands,
+            calibrator=_calibrator,
+            crop_hand=False,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+
+        chain.set_hand_search_hint(
+            HandSearchHint(
+                position_state="locked",
+                position_reason="low_confidence",
+                observation_confidence=0.4,
+                landmark_quality=0.8,
+                blockers=("finger_conflict",),
+                hand_visible=True,
+                pose_quality=0.8,
+            )
+        )
+        result = chain.process_frame(frame, timestamp_s=0.05)
+
+        self.assertFalse(result.hand_detector_ran)
+        self.assertEqual(result.hand_schedule_mode, "locked")
+        self.assertEqual(hands.timestamps, [0.0])
 
     def test_session_calibration_changes_contacts_and_fret_ticks(self) -> None:
         hand = _position_hand(5)
@@ -1381,6 +1661,7 @@ class MultiFingerPositionSolverTest(unittest.TestCase):
         *,
         homography: Homography | None = None,
         finger_axes_xy: dict[str, tuple[tuple[float, float], ...]] | None = None,
+        finger_quality: dict[str, float] | None = None,
         freshness: float = 1.0,
         geometry_stability: float = 1.0,
     ):
@@ -1393,6 +1674,7 @@ class MultiFingerPositionSolverTest(unittest.TestCase):
             self.centers,
             anchor,
             finger_axes_xy=finger_axes_xy,
+            finger_quality=finger_quality,
             freshness=freshness,
             geometry_stability=geometry_stability,
         )
@@ -1676,6 +1958,21 @@ class MultiFingerPositionSolverTest(unittest.TestCase):
         self.assertEqual(moving_index.motion_score, 0.0)
         self.assertLess(moving_index.pressing_score, steady_index.pressing_score)
         self.assertLess(moving_index.weight, steady_index.weight)
+
+    def test_pose_only_quality_cannot_become_contact_evidence(self) -> None:
+        hand = _position_hand(5)
+        quality = {name: 0.149 for name in ("index", "middle", "ring", "pinky")}
+
+        position, contacts, factors = self._solve(
+            hand,
+            finger_quality=quality,
+        )
+
+        self.assertIsNone(position)
+        self.assertTrue(all(not contact.visible for contact in contacts))
+        self.assertTrue(all(not contact.pressing for contact in contacts))
+        self.assertEqual(factors.combined, 0.0)
+        self.assertIn("too_few_contacts", factors.blockers)
 
     def test_lone_barre_abstains_when_the_detected_hand_is_boundary_clipped(
         self,

@@ -1,5 +1,5 @@
 # FretCam-loop state
-last_updated: 2026-07-23
+last_updated: 2026-07-24
 current_branch: codex/fretcam-accuracy-phase-2
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
@@ -21,19 +21,22 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | L1 | live test 1 (Pat: A1+A4) | accepted for now (informal) | Pat: "Im telling you its fine for now."; no formal numeric A4 claim | no further action unless Pat reopens it | — |
 | F5 | accuracy/performance/product overhaul | passed | 106 tests; dev precision 76/80; coverage 71/161; stable false locks 0/161; negative displays 0/120 | preserve and run L2 only if Pat reopens formal acceptance | — |
 | F5b | neck/landmark/contact/upper-neck accuracy phase | passed | 172 tests + 5 subtests; dev precision 77/77; coverage 72/161; stable false locks 0/161; negative displays 0/120 | preserve; do not open held-out split | — |
+| F5c | exact trace + pose identity + adaptive search + failure marker | passed | 223 tests + 5 subtests; dev precision 67/67; coverage 67/161; stable false locks 0/161; negative displays 0/120 | preserve diagnostics privacy; do not open held-out split | — |
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | blocked | F7 positive; target >38.76% @60 s (assisted) | after L2 pass, synthesize and STOP before integration | L2 pass |
 
-**Live checkpoint.** F5b is complete. The accepted dev-only frozen benchmark
-reached displayed precision 77/77 (1.000), stable coverage 72/161 (0.447),
-stable false locks 0/161, and negative-control displays 0/120. This improves
-both precision and coverage over the F5 checkpoint while retaining new
-Position-V and Position-VII detections. The source-disjoint test split was not
-opened during F5b. The rendered local-browser check found meaningful content,
-the expected live/calibration controls, no error overlay, and no console
-errors; handedness, mirroring, and Position V/IX control interactions passed.
+**Live checkpoint.** F5c is complete. The final dev-only frozen benchmark
+reached displayed precision 67/67 (1.000), stable coverage 67/161 (0.416),
+stable false locks 0/161, and negative-control displays 0/120. The small
+coverage reduction from F5b is intentional abstention after a long evidence
+gap; it removed four stale Position-II displays during a labeled shift. The
+source-disjoint test split was not opened during F5c. A real WebSocket replay
+of the longer Position-I sequence displayed 34/34 correctly with no false
+lock at 10.001 effective FPS and 60.0 ms median end-to-end. The rendered
+local-browser check found the expected live HUD and
+opt-in accuracy tools, no error overlay, and no console warnings or errors.
 
 Pat's live observation is positive and accepted for now. The final direction
 was: "Im telling you its fine for now." No numeric FPS/E2E value is inferred,
@@ -69,6 +72,17 @@ unless Pat reopens the gate.
   was supplied, so the formal L1 status remains open.
 
 ## Iteration log (newest first)
+- 2026-07-24 — F5c passed — added explicit bounded exact-packet traces with
+  validated offline frame comparison, robust whole-hand pose/identity
+  tracking, estimator-driven 15/5 Hz hand-search scheduling with at most two
+  detector calls per frame, and a private two-second failure marker carrying
+  expected position/fingers. Long-gap reacquisition now prevents stale labels,
+  while initial candidate replacement no longer poisons a later stable lock.
+  The final dev-only result is 67/67 displayed precision, 67/161 stable
+  coverage, 0/161 stable false locks, and 0/120 negative displays. Two hundred
+  twenty-three tests plus five parameterized subtests, Ruff, JavaScript syntax,
+  exact-trace integrity checks, real-WebSocket replay, and rendered-browser
+  verification passed; the held-out split remained closed.
 - 2026-07-23 — F5b passed — added immediate neck-guided all-hand acquisition,
   timestamped VIDEO-mode refreshes with per-joint optical flow/One Euro
   tracking, physical finger-pad/hover/press/barre evidence, independently

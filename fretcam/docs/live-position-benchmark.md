@@ -31,6 +31,13 @@ observations, not playback speed. Transport output includes effective FPS,
 end-to-end/server latency, and scheduling lag so an overloaded condition is
 visible rather than silently treated as an accuracy result.
 
+The detector decisions in each prediction reflect the same adaptive feedback
+used by the browser. Acquiring, shifting, and recovery states may request a
+15 Hz hand refresh; a healthy lock backs off to 5 Hz while optical flow carries
+intervening landmarks. Reports preserve the actual detector-call count,
+ordered search attempts, accepted/consumed asynchronous results, pose quality,
+and selected search source.
+
 List the exact conditions without loading models or media:
 
 ```powershell
@@ -78,6 +85,33 @@ Custom dimensions use space-separated values:
 one-factor suite. With all defaults that is 648 paced conditions, so list or
 narrow the dimensions first.
 
+## Reproduce one exact browser trace
+
+For a difference that occurs only in the live browser, open **Local accuracy
+tools** and select **Start exact comparison trace**. The clean, non-rolling
+prefix stops accepting new packets after 10 seconds, 120 exact JPEGs, or
+24 MB. Select **Save exact comparison trace** to make the second explicit
+local-save decision.
+
+Replay and compare that package without opening a camera:
+
+```powershell
+fretcam-trace-compare `
+  "$HOME\.tabvision\cache\fretcam_diagnostics\traces\<trace-id>" `
+  --output-json "$HOME\.tabvision\cache\fretcam_artifacts\trace-comparison.json"
+```
+
+The command validates every packet hash, byte count, sequence, JPEG dimension,
+and browser context field before inference. It compares nonvolatile HUD,
+position, confidence, blocker, contact, geometry, hand-search, adaptive
+schedule, and pose fields. Latency is reported by the normal live benchmark
+and is intentionally excluded from exact equality.
+
+The two-second **failure buffer** is a different private troubleshooting
+package. It can include the user's expected position, pressed fingers, and an
+optional note, but it cannot be loaded by the trace comparator or either
+evaluation workflow.
+
 ## Evaluation hygiene
 
 - Keep rule and threshold choices on `--split dev`.
@@ -86,6 +120,9 @@ narrow the dimensions first.
 - JSON results belong under
   `~/.tabvision/cache/fretcam_artifacts/`; do not commit them.
 - The runner rejects manifests that are not marked public GAPS evidence.
+- Browser diagnostic traces and marked-failure packages are private
+  troubleshooting material, never benchmark, tuning, training, or release
+  evidence.
 - A blocker count is per frame and blockers can co-occur, so blocker rows do
   not sum to the frame population.
 - Geometry freshness is reported separately from solver blockers. In

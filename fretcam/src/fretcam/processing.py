@@ -13,9 +13,9 @@ from typing import Protocol
 import cv2
 import numpy as np
 
-from fretcam.detection import DetectionChain, FrameDetection
+from fretcam.detection import DetectionChain, FrameDetection, HandSearchHint
 from fretcam.guidance import assess_guidance
-from fretcam.position import PositionEstimator
+from fretcam.position import PositionEstimate, PositionEstimator
 
 
 class FrameProcessor(Protocol):
@@ -23,7 +23,12 @@ class FrameProcessor(Protocol):
 
     def reset(self) -> None: ...
 
-    def process_jpeg(self, payload: bytes) -> dict[str, object]: ...
+    def process_jpeg(
+        self,
+        payload: bytes,
+        *,
+        timestamp_s: float | None = None,
+    ) -> dict[str, object]: ...
 
     def handle_control(self, message: dict[str, object]) -> dict[str, object]: ...
 
@@ -31,6 +36,22 @@ class FrameProcessor(Protocol):
 
 
 FrameProcessorFactory = Callable[[], FrameProcessor]
+
+
+def build_hand_search_hint(
+    detection: FrameDetection,
+    estimate: PositionEstimate,
+) -> HandSearchHint:
+    """Build the shared cadence feedback used by live and direct replay paths."""
+    return HandSearchHint(
+        position_state=estimate.state,
+        position_reason=estimate.reason,
+        observation_confidence=estimate.observation_confidence,
+        landmark_quality=detection.confidence_factors.landmark_quality,
+        blockers=tuple(detection.confidence_factors.blockers),
+        hand_visible=bool(detection.hand_points),
+        pose_quality=detection.hand_pose_quality,
+    )
 
 
 @dataclass(frozen=True)
@@ -400,11 +421,21 @@ class HudFrameProcessor:
                 }
             raise ValueError("unknown control message")
 
-    def process_jpeg(self, payload: bytes) -> dict[str, object]:
+    def process_jpeg(
+        self,
+        payload: bytes,
+        *,
+        timestamp_s: float | None = None,
+    ) -> dict[str, object]:
         with self._lock:
-            return self._process_jpeg_locked(payload)
+            return self._process_jpeg_locked(payload, timestamp_s=timestamp_s)
 
-    def _process_jpeg_locked(self, payload: bytes) -> dict[str, object]:
+    def _process_jpeg_locked(
+        self,
+        payload: bytes,
+        *,
+        timestamp_s: float | None,
+    ) -> dict[str, object]:
         started = time.perf_counter()
         encoded = np.frombuffer(payload, dtype=np.uint8)
         frame = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
@@ -412,8 +443,15 @@ class HudFrameProcessor:
             raise ValueError("payload is not a decodable colour JPEG")
         frame = self._fit_frame(frame)
 
-        timestamp_s = time.monotonic()
-        detection = self.chain.process_frame(frame, timestamp_s=timestamp_s)
+        processor_timestamp_s = (
+            time.monotonic() if timestamp_s is None else float(timestamp_s)
+        )
+        if not math.isfinite(processor_timestamp_s):
+            raise ValueError("timestamp_s must be finite")
+        detection = self.chain.process_frame(
+            frame,
+            timestamp_s=processor_timestamp_s,
+        )
         observation, confidence = self._position_observation(detection)
         calibration_observation = observation
         calibration_confidence = confidence
@@ -439,7 +477,7 @@ class HudFrameProcessor:
             calibration_observation,
             confidence=calibration_confidence,
             geometry_status=detection.geometry_status,
-            timestamp_s=timestamp_s,
+            timestamp_s=processor_timestamp_s,
         )
         if calibration_completed:
             self.estimator.reset()
@@ -461,6 +499,9 @@ class HudFrameProcessor:
             vision_confidence=confidence,
             timestamp_s=detection.timestamp_s,
         )
+        hint_setter = getattr(self.chain, "set_hand_search_hint", None)
+        if hint_setter is not None:
+            hint_setter(build_hand_search_hint(detection, estimate))
         height, width = frame.shape[:2]
         guidance = assess_guidance(
             detection,

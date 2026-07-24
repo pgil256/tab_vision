@@ -16,6 +16,7 @@ import numpy as np
 
 from fretcam.detection import DetectionChain, FrameDetection
 from fretcam.position import PositionEstimate, PositionEstimator
+from fretcam.processing import build_hand_search_hint
 
 DEFAULT_CLIP = "031_vpswc"
 
@@ -163,6 +164,7 @@ def render_position_replay(
                     vision_confidence=observation_confidence,
                     timestamp_s=float(timestamp_s),
                 )
+                chain.set_hand_search_hint(build_hand_search_hint(detection, estimate))
                 estimator_ms.append((time.perf_counter() - started) * 1000.0)
                 state_counts[estimate.state] += 1
                 if estimate.position is not None:

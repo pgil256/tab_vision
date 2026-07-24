@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 fretcam = "fretcam.cli:main"
 fretcam-local-eval = "fretcam.local_eval:main"
+fretcam-trace-compare = "fretcam.live_trace:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

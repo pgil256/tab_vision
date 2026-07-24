@@ -24,7 +24,7 @@
         <canvas id="inference" width="640" height="480" hidden aria-hidden="true"></canvas>
         <div id="empty-state">
           <strong>Camera is off</strong>
-          <span>Frames stay on this computer and are never saved.</span>
+          <span>Frames are not saved unless you explicitly use Local accuracy tools.</span>
         </div>
       </section>
 
@@ -95,6 +95,57 @@
           <span>Temporal <strong id="factor-temporal">—</strong></span>
         </div>
         <p id="calibration-status">Optional Position-I calibration is idle.</p>
+      </details>
+
+      <details id="local-accuracy-tools">
+        <summary>Local accuracy tools <span>off by default</span></summary>
+        <p>
+          Normal camera use saves no images. These tools keep a short, bounded
+          window in memory only after you enable one. A second click is required
+          to save it locally. Saved packages are private troubleshooting material,
+          never training, evaluation, tuning, or release evidence.
+        </p>
+        <div class="capture-actions">
+          <button id="trace-toggle" class="secondary" type="button" disabled>Start exact comparison trace</button>
+          <button id="trace-cancel" class="secondary" type="button" disabled>Cancel trace</button>
+          <label class="check-control capture-enable">
+            <input id="failure-buffer" type="checkbox" disabled />
+            <span>Enable 2-second failure buffer</span>
+          </label>
+        </div>
+        <div class="failure-form" aria-label="Mark a local detection failure">
+          <label>
+            <span>Correct hand position</span>
+            <select id="failure-position" disabled>
+              <option value="">Unknown / no position</option>
+              <option value="1">Position I</option>
+              <option value="2">Position II</option>
+              <option value="3">Position III</option>
+              <option value="4">Position IV</option>
+              <option value="5">Position V</option>
+              <option value="6">Position VI</option>
+              <option value="7">Position VII</option>
+              <option value="8">Position VIII</option>
+              <option value="9">Position IX</option>
+              <option value="10">Position X</option>
+              <option value="11">Position XI</option>
+              <option value="12">Position XII</option>
+            </select>
+          </label>
+          <fieldset id="failure-fingers" disabled>
+            <legend>Fingers actually pressing</legend>
+            <label><input type="checkbox" value="index" /> Index</label>
+            <label><input type="checkbox" value="middle" /> Middle</label>
+            <label><input type="checkbox" value="ring" /> Ring</label>
+            <label><input type="checkbox" value="pinky" /> Pinky</label>
+          </fieldset>
+          <label>
+            <span>Optional note</span>
+            <input id="failure-note" type="text" maxlength="240" disabled placeholder="What looked wrong?" />
+          </label>
+          <button id="mark-failure" class="secondary" type="button" disabled>Save marked failure locally</button>
+        </div>
+        <p id="capture-status" role="status">Nothing is being retained or saved.</p>
       </details>
 
       <section class="controls">

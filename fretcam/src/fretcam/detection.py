@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import math
 import time
 from collections.abc import Callable
@@ -74,6 +75,9 @@ HAND_SEARCH_UPSCALE_MIN_LONG_EDGE = 512
 HAND_SEARCH_UPSCALE_MAX_SCALE = 2.5
 GEOMETRY_REFINE_INTERVAL_S = 0.20
 FULL_HAND_VIDEO_REFRESH_INTERVAL_S = 0.50
+LOCKED_HAND_DETECTOR_HZ = 5.0
+ACTIVE_HAND_DETECTOR_HZ = 15.0
+LOW_HAND_TRACKING_QUALITY = 0.35
 DETECTOR_REFRESH_MAX_RMS_FRACTION = 0.06
 DETECTOR_REFRESH_MAX_CORNER_FRACTION = 0.10
 LIVE_FRET_AXIS_MIN_FRET_SUPPORT = 0.12
@@ -126,6 +130,12 @@ class HandObservation:
     landmarks_z: tuple[float, ...] = ()
     joint_quality: tuple[float, ...] = ()
     finger_stillness: dict[str, float] = field(default_factory=dict)
+    pose_quality: float = 0.0
+    pose_continuity: float = 0.0
+    pose_identity_score: float = 0.0
+    pose_residual_fraction: float = 1.0
+    pose_predicted: bool = False
+    detector_observation_accepted: bool = False
 
     @property
     def index_axis_xy(self) -> tuple[Point, ...]:
@@ -136,6 +146,19 @@ class HandExtractor(Protocol):
     def extract(self, frame: np.ndarray) -> HandObservation | HandSample | None: ...
 
     def close(self) -> None: ...
+
+
+@dataclass(frozen=True)
+class HandSearchHint:
+    """One-frame-delayed estimator feedback for adaptive hand acquisition."""
+
+    position_state: str
+    position_reason: str
+    observation_confidence: float
+    landmark_quality: float
+    blockers: tuple[str, ...]
+    hand_visible: bool
+    pose_quality: float = 0.0
 
 
 class MediaPipeHandExtractor:
@@ -528,6 +551,24 @@ class FrameDetection:
     body_joint_x: float | None = None
     boundary_support: float = 0.0
     body_joint_fret: int | None = None
+    detector_requested: bool = False
+    detector_pending: bool = False
+    hand_detector_ran: bool = False
+    hand_schedule_mode: str = "default"
+    hand_detector_interval_ms: float = 100.0
+    hand_refresh_reason: str = "deadline"
+    hand_search_source: str = "none"
+    hand_tracking_quality: float = 0.0
+    hand_pose_quality: float = 0.0
+    hand_pose_continuity: float = 0.0
+    hand_pose_identity_score: float = 0.0
+    hand_pose_residual_fraction: float = 1.0
+    hand_pose_predicted: bool = False
+    hand_detector_calls: int = 0
+    hand_search_attempts: tuple[str, ...] = ()
+    detector_result_consumed: bool = False
+    detector_result_accepted: bool = False
+    detector_request_timestamp_s: float | None = None
 
     def as_dict(self) -> dict[str, object]:
         """JSON-ready representation for replay now and the WebSocket later."""
@@ -1237,7 +1278,8 @@ def compute_finger_contacts(
         pressing_threshold = (
             0.55 if name == "index" and barre else 0.72 if barre else 0.30
         )
-        pressing = pressing_score >= pressing_threshold
+        visible = quality >= 0.15
+        pressing = visible and pressing_score >= pressing_threshold
         weight = (
             FINGER_BASE_WEIGHTS[name]
             * float(np.clip(hand.confidence, 0.0, 1.0))
@@ -1260,7 +1302,7 @@ def compute_finger_contacts(
                 pressing_score=float(np.clip(pressing_score, 0.0, 1.0)),
                 barre=barre,
                 string=string,
-                visible=quality >= 0.15,
+                visible=visible,
                 pressing=pressing,
                 quality=quality,
                 contact_source=contact_source,
@@ -1721,6 +1763,12 @@ def _translate_hand_observation(
             ),
             joint_quality=observation.joint_quality,
             finger_stillness=dict(observation.finger_stillness),
+            pose_quality=observation.pose_quality,
+            pose_continuity=observation.pose_continuity,
+            pose_identity_score=observation.pose_identity_score,
+            pose_residual_fraction=observation.pose_residual_fraction,
+            pose_predicted=observation.pose_predicted,
+            detector_observation_accepted=observation.detector_observation_accepted,
         )
     return _translate_hand_sample(
         observation,
@@ -1741,23 +1789,54 @@ def _extract_candidates(
 ) -> tuple[HandObservation | HandSample, ...]:
     candidate_extractor = getattr(extractor, "extract_candidates", None)
     if candidate_extractor is not None:
-        try:
-            candidates = candidate_extractor(
-                frame,
+        candidates = candidate_extractor(
+            frame,
+            **_supported_extractor_kwargs(
+                candidate_extractor,
                 timestamp_s=timestamp_s,
                 use_video=use_video,
-            )
-        except TypeError:
-            try:
-                candidates = candidate_extractor(frame, timestamp_s=timestamp_s)
-            except TypeError:
-                candidates = candidate_extractor(frame)
+            ),
+        )
         return tuple(candidate for candidate in candidates if candidate is not None)
-    try:
-        observation = extractor.extract(frame, timestamp_s=timestamp_s)  # type: ignore[call-arg]
-    except TypeError:
-        observation = extractor.extract(frame)
+    extract = extractor.extract
+    observation = extract(
+        frame,
+        **_supported_extractor_kwargs(
+            extract,
+            timestamp_s=timestamp_s,
+        ),
+    )
     return () if observation is None else (observation,)
+
+
+def _supported_extractor_kwargs(
+    function: Callable[..., object],
+    **values: object,
+) -> dict[str, object]:
+    """Select supported keywords without retrying an inference-side TypeError."""
+    try:
+        parameters = inspect.signature(function).parameters
+    except (TypeError, ValueError):
+        # Opaque callables get one attempt with the current full protocol.
+        # Retrying a TypeError could repeat expensive inference and conceal the
+        # extractor's actual failure.
+        return dict(values)
+    accepts_keywords = any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters.values()
+    )
+    if accepts_keywords:
+        return dict(values)
+    return {
+        name: value
+        for name, value in values.items()
+        if name in parameters
+        and parameters[name].kind
+        in {
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        }
+    }
 
 
 def _hand_sample(
@@ -1797,6 +1876,12 @@ def _map_candidate_from_crop(
             landmarks_z=translated.landmarks_z,
             joint_quality=translated.joint_quality,
             finger_stillness=dict(translated.finger_stillness),
+            pose_quality=translated.pose_quality,
+            pose_continuity=translated.pose_continuity,
+            pose_identity_score=translated.pose_identity_score,
+            pose_residual_fraction=translated.pose_residual_fraction,
+            pose_predicted=translated.pose_predicted,
+            detector_observation_accepted=translated.detector_observation_accepted,
         )
     return translated
 
@@ -1859,16 +1944,22 @@ def _tracked_hand_observation(
         for name in FRETTING_FINGERS
         if name in tracked.finger_quality
     }
-    if "optical_flow" in source_values:
+    if tracked.pose.predicted:
+        source = "temporal_pose_predicted"
+    elif "optical_flow" in source_values:
         source = "temporal_optical_flow"
     elif source_values & {"held", "held_rejected"}:
         source = "temporal_held"
     else:
         source = "temporal_detector"
-    confidence = math.sqrt(
+    # Landmark quality already contributes to pose quality, so multiplying all
+    # three here would count the same weak joint evidence twice. Pose remains a
+    # hard identity/geometry gate and a separate scheduler diagnostic; contact
+    # admission is independently protected by per-finger quality.
+    confidence = (
         max(0.0, float(template.hand.confidence))
         * max(0.0, float(tracked.hand_quality))
-    )
+    ) ** 0.5
     hand = HandSample(
         wrist_xy=(float(wrist_xy[0]), float(wrist_xy[1])),
         wrist_z=wrist_z,
@@ -1893,6 +1984,12 @@ def _tracked_hand_observation(
         landmarks_z=tuple(float(value) for value in tracked.landmarks_z),
         joint_quality=tuple(float(value) for value in tracked.joint_quality),
         finger_stillness=dict(template.finger_stillness),
+        pose_quality=tracked.pose.quality,
+        pose_continuity=tracked.pose.continuity,
+        pose_identity_score=tracked.pose.identity_score,
+        pose_residual_fraction=tracked.pose.residual_fraction,
+        pose_predicted=tracked.pose.predicted,
+        detector_observation_accepted=tracked.detector_observation_accepted,
     )
 
 
@@ -2049,10 +2146,11 @@ class DetectionChain:
         self.guitar_config = guitar_config or GuitarConfig()
         self.detector_interval_s = 1.0 / detector_hz
         self.hand_detector_interval_s = 1.0 / hand_detector_hz
-        self._hand_detector_interval_ns = max(
+        self._base_hand_detector_interval_ns = max(
             1,
             round(1_000_000_000.0 / hand_detector_hz),
         )
+        self._hand_detector_interval_ns = self._base_hand_detector_interval_ns
         self.min_lock_confidence = min_lock_confidence
         self.calibrator = calibrator
         self.background_detector = background_detector
@@ -2093,9 +2191,21 @@ class DetectionChain:
         self._last_hand_detection_s: float | None = None
         self._next_hand_detection_ns: int | None = None
         self._last_hand_frame_ns: int | None = None
+        self._last_hand_frame_shape: tuple[int, int] | None = None
         self._last_full_hand_video_s: float | None = None
         self._last_finger_tips: dict[str, Point] = {}
         self._last_finger_motion_s: float | None = None
+        self._hand_schedule_mode = "default"
+        self._force_hand_detection = False
+        self._force_neck_search = False
+        self._hand_refresh_reason = "bootstrap"
+        self._last_hand_tracking_quality = 0.0
+        self._last_hand_pose_quality = 0.0
+        self._last_hint_recovery = False
+        self._frame_hand_detector_calls = 0
+        self._frame_hand_search_attempts: list[str] = []
+        self._board_detector_pending_for_hand = False
+        self._last_detector_request_s: float | None = None
 
     def reset(self) -> None:
         """Clear all source state, including the MediaPipe runtime."""
@@ -2146,9 +2256,22 @@ class DetectionChain:
         self._last_hand_detection_s = None
         self._next_hand_detection_ns = None
         self._last_hand_frame_ns = None
+        self._last_hand_frame_shape = None
         self._last_full_hand_video_s = None
         self._last_finger_tips = {}
         self._last_finger_motion_s = None
+        self._hand_schedule_mode = "default"
+        self._hand_detector_interval_ns = self._base_hand_detector_interval_ns
+        self._force_hand_detection = False
+        self._force_neck_search = False
+        self._hand_refresh_reason = "bootstrap"
+        self._last_hand_tracking_quality = 0.0
+        self._last_hand_pose_quality = 0.0
+        self._last_hint_recovery = False
+        self._frame_hand_detector_calls = 0
+        self._frame_hand_search_attempts = []
+        self._board_detector_pending_for_hand = False
+        self._last_detector_request_s = None
         self.hand_tracker.reset()
         self.board_tracker.reset()
 
@@ -2220,7 +2343,107 @@ class DetectionChain:
             self._last_full_hand_video_s = None
             self._last_finger_tips = {}
             self._last_finger_motion_s = None
+            self._hand_schedule_mode = "acquiring"
+            self._set_hand_schedule_interval(
+                round(1_000_000_000.0 / ACTIVE_HAND_DETECTOR_HZ)
+            )
+            self._force_hand_detection = True
+            self._force_neck_search = True
+            self._hand_refresh_reason = "settings_changed"
+            self._last_hand_tracking_quality = 0.0
+            self._last_hand_pose_quality = 0.0
+            self._last_hint_recovery = True
             self.hand_tracker.reset()
+
+    def set_hand_search_hint(self, hint: HandSearchHint) -> None:
+        """Adapt MediaPipe cadence and crop breadth from the previous estimate."""
+        with self._lock:
+            acquisition_blockers = {"no_hand", "off_neck"}
+            blocker_recovery = bool(acquisition_blockers.intersection(hint.blockers))
+            pose_low = 0.0 < hint.pose_quality < LOW_HAND_TRACKING_QUALITY
+            landmark_low = (
+                hint.hand_visible and hint.landmark_quality < LOW_HAND_TRACKING_QUALITY
+            )
+            recovery = bool(
+                not hint.hand_visible
+                or blocker_recovery
+                or landmark_low
+                or pose_low
+                or hint.position_state in {"holding", "lost"}
+            )
+            if hint.position_state == "shifting":
+                mode = "shifting"
+                interval_ns = round(1_000_000_000.0 / ACTIVE_HAND_DETECTOR_HZ)
+            elif recovery:
+                mode = "recovering"
+                interval_ns = round(1_000_000_000.0 / ACTIVE_HAND_DETECTOR_HZ)
+            elif hint.position_state == "locked":
+                mode = "locked"
+                interval_ns = round(1_000_000_000.0 / LOCKED_HAND_DETECTOR_HZ)
+            else:
+                mode = "acquiring"
+                interval_ns = round(1_000_000_000.0 / ACTIVE_HAND_DETECTOR_HZ)
+
+            previous_mode = self._hand_schedule_mode
+            self._hand_schedule_mode = mode
+            self._set_hand_schedule_interval(interval_ns)
+            newly_unstable = recovery and not self._last_hint_recovery
+            entered_active_mode = mode in {"shifting", "recovering"} and (
+                previous_mode != mode
+            )
+            if newly_unstable or entered_active_mode:
+                self._force_hand_detection = True
+                self._force_neck_search = True
+                self._hand_refresh_reason = (
+                    "quality_drop" if newly_unstable else "position_shift"
+                )
+            self._last_hint_recovery = recovery
+
+    def _set_hand_schedule_interval(self, interval_ns: int) -> None:
+        new_interval = max(1, int(interval_ns))
+        old_interval = self._hand_detector_interval_ns
+        if new_interval == old_interval:
+            return
+        self._hand_detector_interval_ns = new_interval
+        if self._last_hand_detection_s is None:
+            self._next_hand_detection_ns = None
+            return
+        candidate = round(self._last_hand_detection_s * 1_000_000_000.0) + new_interval
+        if self._next_hand_detection_ns is None:
+            self._next_hand_detection_ns = candidate
+        elif new_interval < old_interval:
+            self._next_hand_detection_ns = min(
+                self._next_hand_detection_ns,
+                candidate,
+            )
+        else:
+            self._next_hand_detection_ns = max(
+                self._next_hand_detection_ns,
+                candidate,
+            )
+
+    def _rescale_hand_state_for_frame(self, frame_shape: tuple[int, ...]) -> None:
+        """Keep chain-level crop and stillness state aligned across size changes."""
+        height, width = frame_shape[:2]
+        previous = self._last_hand_frame_shape
+        if previous is not None and previous != (height, width):
+            old_height, old_width = previous
+            if old_height > 0 and old_width > 0 and height > 0 and width > 0:
+                scale_x = width / old_width
+                scale_y = height / old_height
+                if self._last_hand_bounds is not None:
+                    left, top, right, bottom = self._last_hand_bounds
+                    self._last_hand_bounds = (
+                        left * scale_x,
+                        top * scale_y,
+                        right * scale_x,
+                        bottom * scale_y,
+                    )
+                self._last_finger_tips = {
+                    name: (point[0] * scale_x, point[1] * scale_y)
+                    for name, point in self._last_finger_tips.items()
+                }
+        self._last_hand_frame_shape = (height, width)
 
     def close(self) -> None:
         with self._lock:
@@ -2265,24 +2488,32 @@ class DetectionChain:
         if not math.isfinite(now_s):
             raise ValueError("timestamp_s must be finite")
 
+        self._rescale_hand_state_for_frame(frame.shape)
         total_started = time.perf_counter()
         snapshot = self.board_tracker.advance(frame, timestamp_s=now_s)
         detector_ms = 0.0
         homography_ms = 0.0
         detector_ran = False
+        detector_requested = False
+        detector_result_consumed = False
+        detector_result_accepted = False
 
         if self.background_detector:
             result = self._consume_future(wait=False)
-            if result is not None and result.generation == self._generation:
-                applied = self._apply_detector_result(result, frame, now_s)
-                detector_ran = applied
-                detector_ms = result.detector_ms
-                homography_ms = result.homography_ms
-                if applied:
-                    self._last_detection_s = now_s
+            if result is not None:
+                detector_result_consumed = True
+                if result.generation == self._generation:
+                    applied = self._apply_detector_result(result, frame, now_s)
+                    detector_ran = applied
+                    detector_result_accepted = applied
+                    detector_ms = result.detector_ms
+                    homography_ms = result.homography_ms
+                    if applied:
+                        self._last_detection_s = now_s
             snapshot = self.board_tracker.snapshot(now_s)
             if self._should_detect(now_s, snapshot) and self._detector_future is None:
                 assert self._executor is not None
+                detector_requested = True
                 self._detector_future = self._executor.submit(
                     self._run_detector_job,
                     frame.copy(),
@@ -2290,12 +2521,17 @@ class DetectionChain:
                     self._generation,
                 )
                 self._last_detection_s = now_s
+                self._last_detector_request_s = now_s
         elif self._should_detect(now_s, snapshot):
+            detector_requested = True
             result = self._run_detector_job(frame.copy(), now_s, self._generation)
+            detector_result_consumed = True
             detector_ran = self._apply_detector_result(result, frame, now_s)
+            detector_result_accepted = detector_ran
             detector_ms = result.detector_ms
             homography_ms = result.homography_ms
             self._last_detection_s = now_s
+            self._last_detector_request_s = now_s
 
         snapshot = self.board_tracker.snapshot(now_s)
         homography = snapshot.homography
@@ -2309,6 +2545,11 @@ class DetectionChain:
             homography_ms += (time.perf_counter() - refinement_started) * 1000.0
 
         hand_started = time.perf_counter()
+        self._frame_hand_detector_calls = 0
+        self._frame_hand_search_attempts = []
+        self._board_detector_pending_for_hand = self._detector_future is not None
+        previous_hand_tracking_quality = self._last_hand_tracking_quality
+        previous_hand_pose_quality = self._last_hand_pose_quality
         now_ns = round(now_s * 1_000_000_000.0)
         hand_clock_reset = (
             self._last_hand_frame_ns is not None and now_ns <= self._last_hand_frame_ns
@@ -2320,19 +2561,31 @@ class DetectionChain:
             self._next_hand_detection_ns = None
             self._last_finger_tips = {}
             self._last_finger_motion_s = None
-        should_update_hand = (
-            self._last_tracking_template is None
+            self._hand_refresh_reason = "clock_reset"
+        should_update_hand = locked and (
+            self._force_hand_detection
             or self._next_hand_detection_ns is None
             or now_ns >= self._next_hand_detection_ns
         )
         if should_update_hand:
-            scheduled_deadline_ns = self._next_hand_detection_ns
+            forced_refresh = self._force_hand_detection
+            scheduled_deadline_ns = (
+                None if forced_refresh else self._next_hand_detection_ns
+            )
+            if forced_refresh:
+                self._force_hand_detection = False
+            elif self._next_hand_detection_ns is None and not hand_clock_reset:
+                self._hand_refresh_reason = "bootstrap"
+            else:
+                if not hand_clock_reset:
+                    self._hand_refresh_reason = "deadline"
             extracted_hand = self._extract_hand(
                 frame,
                 homography,
                 locked,
                 timestamp_s=now_s,
             )
+            hand_search_source = self._last_hand_source
             self._last_hand_detection_s = now_s
             if scheduled_deadline_ns is None or now_ns < scheduled_deadline_ns:
                 self._next_hand_detection_ns = now_ns + self._hand_detector_interval_ns
@@ -2346,6 +2599,8 @@ class DetectionChain:
                 )
         else:
             extracted_hand = None
+            hand_search_source = "board_pending" if not locked else "temporal_only"
+            self._hand_refresh_reason = "board_pending" if not locked else "not_due"
         extracted_hand = self._apply_temporal_hand_tracking(
             frame,
             extracted_hand,
@@ -2363,11 +2618,25 @@ class DetectionChain:
             finger_axes_xy = extracted_hand.finger_axes_xy
             finger_quality = extracted_hand.finger_quality
             finger_stillness = extracted_hand.finger_stillness
+            hand_tracking_quality = float(extracted_hand.hand.confidence)
+            pose_quality = extracted_hand.pose_quality
+            pose_continuity = extracted_hand.pose_continuity
+            pose_identity_score = extracted_hand.pose_identity_score
+            pose_residual_fraction = extracted_hand.pose_residual_fraction
+            pose_predicted = extracted_hand.pose_predicted
         else:
             hand = extracted_hand
             finger_axes_xy = {}
             finger_quality = {}
             finger_stillness = {}
+            hand_tracking_quality = (
+                float(extracted_hand.confidence) if extracted_hand is not None else 0.0
+            )
+            pose_quality = 0.0
+            pose_continuity = 0.0
+            pose_identity_score = 0.0
+            pose_residual_fraction = 1.0
+            pose_predicted = False
         hand_source = (
             extracted_hand.source
             if isinstance(extracted_hand, HandObservation)
@@ -2375,6 +2644,31 @@ class DetectionChain:
             if extracted_hand is not None
             else "none"
         )
+        self._last_hand_tracking_quality = hand_tracking_quality
+        self._last_hand_pose_quality = pose_quality
+        if should_update_hand and (
+            (
+                extracted_hand is None
+                and previous_hand_tracking_quality >= LOW_HAND_TRACKING_QUALITY
+            )
+            or (
+                isinstance(extracted_hand, HandObservation)
+                and (
+                    (
+                        previous_hand_tracking_quality >= LOW_HAND_TRACKING_QUALITY
+                        and hand_tracking_quality < LOW_HAND_TRACKING_QUALITY
+                    )
+                    or (
+                        previous_hand_pose_quality >= LOW_HAND_TRACKING_QUALITY
+                        and 0.0 < pose_quality < LOW_HAND_TRACKING_QUALITY
+                    )
+                )
+            )
+        ):
+            self._force_hand_detection = True
+            self._force_neck_search = locked
+            if self._hand_refresh_reason not in {"quality_drop", "position_shift"}:
+                self._hand_refresh_reason = "detector_miss"
 
         anchor_started = time.perf_counter()
         if not _hand_overlaps_neck(hand, homography):
@@ -2508,6 +2802,27 @@ class DetectionChain:
                 if self._geometry_refinement is None
                 else self._geometry_refinement.body_joint_fret
             ),
+            detector_requested=detector_requested,
+            detector_pending=self._detector_future is not None,
+            hand_detector_ran=self._frame_hand_detector_calls > 0,
+            hand_schedule_mode=self._hand_schedule_mode,
+            hand_detector_interval_ms=round(
+                self._hand_detector_interval_ns / 1_000_000.0,
+                3,
+            ),
+            hand_refresh_reason=self._hand_refresh_reason,
+            hand_search_source=hand_search_source,
+            hand_tracking_quality=hand_tracking_quality,
+            hand_pose_quality=pose_quality,
+            hand_pose_continuity=pose_continuity,
+            hand_pose_identity_score=pose_identity_score,
+            hand_pose_residual_fraction=pose_residual_fraction,
+            hand_pose_predicted=pose_predicted,
+            hand_detector_calls=self._frame_hand_detector_calls,
+            hand_search_attempts=tuple(self._frame_hand_search_attempts),
+            detector_result_consumed=detector_result_consumed,
+            detector_result_accepted=detector_result_accepted,
+            detector_request_timestamp_s=self._last_detector_request_s,
         )
 
     def _refined_homography(
@@ -2704,6 +3019,7 @@ class DetectionChain:
     ) -> HandObservation | HandSample | None:
         """Smooth raw MediaPipe joints and bridge very short detector gaps."""
         detector_observation: LandmarkObservation | None = None
+        candidate_template: HandObservation | None = None
         if isinstance(extracted, HandObservation):
             if (
                 len(extracted.landmarks_xy) == 21
@@ -2726,7 +3042,7 @@ class DetectionChain:
                     ),
                     is_left_hand=extracted.hand.is_left_hand,
                 )
-                self._last_tracking_template = extracted
+                candidate_template = extracted
             else:
                 self.hand_tracker.reset()
                 self._last_tracking_template = None
@@ -2761,6 +3077,8 @@ class DetectionChain:
                 self._last_finger_tips = {}
                 self._last_finger_motion_s = None
             return None
+        if tracked.detector_observation_accepted and candidate_template is not None:
+            self._last_tracking_template = candidate_template
         assert self._last_tracking_template is not None
         return _tracked_hand_observation(
             tracked,
@@ -2811,6 +3129,12 @@ class DetectionChain:
             landmarks_z=observation.landmarks_z,
             joint_quality=observation.joint_quality,
             finger_stillness=stillness,
+            pose_quality=observation.pose_quality,
+            pose_continuity=observation.pose_continuity,
+            pose_identity_score=observation.pose_identity_score,
+            pose_residual_fraction=observation.pose_residual_fraction,
+            pose_predicted=observation.pose_predicted,
+            detector_observation_accepted=observation.detector_observation_accepted,
         )
 
     def _extract_hand(
@@ -2824,6 +3148,7 @@ class DetectionChain:
         self._last_hand_source = "full"
         if self._force_full_hand_frame:
             self._force_full_hand_frame = False
+            self._force_neck_search = False
             self._last_full_hand_video_s = timestamp_s
             candidates = self._extract_hand_candidates(
                 frame,
@@ -2831,8 +3156,13 @@ class DetectionChain:
                 crop_rect=None,
                 source="full",
             )
-            return self._select_neck_hand(candidates, homography)
+            return self._select_neck_hand(
+                candidates,
+                homography,
+                timestamp_s=timestamp_s,
+            )
         if not self.crop_hand or not locked:
+            self._force_neck_search = False
             self._last_full_hand_video_s = timestamp_s
             candidates = self._extract_hand_candidates(
                 frame,
@@ -2840,17 +3170,50 @@ class DetectionChain:
                 crop_rect=None,
                 source="full",
             )
-            return self._select_neck_hand(candidates, homography)
+            return self._select_neck_hand(
+                candidates,
+                homography,
+                timestamp_s=timestamp_s,
+            )
 
         neck_quad = _neck_quad(homography)
+        if self._force_neck_search:
+            self._force_neck_search = False
+            neck_crop = _hand_crop_rect(frame, neck_quad)
+            if neck_crop is None:
+                self._force_full_hand_frame = True
+                self._force_hand_detection = True
+                self._last_hand_source = "full_recovery_pending"
+                return None
+            candidates = self._extract_hand_candidates(
+                frame,
+                timestamp_s=timestamp_s,
+                crop_rect=neck_crop,
+                source="neck_recovery",
+            )
+            selected = self._select_neck_hand(
+                candidates,
+                homography,
+                timestamp_s=timestamp_s,
+            )
+            self._last_hand_source = "neck_recovery"
+            if selected is None:
+                self._force_full_hand_frame = True
+                self._force_hand_detection = True
+            else:
+                self._roi_misses = 0
+            return selected
+
         if self._last_hand_bounds is not None:
             full_video_candidates: tuple[HandObservation | HandSample, ...] = ()
-            if (
+            full_refresh_ran = False
+            if not self._board_detector_pending_for_hand and (
                 self._last_full_hand_video_s is None
                 or timestamp_s < self._last_full_hand_video_s
                 or timestamp_s - self._last_full_hand_video_s
                 >= FULL_HAND_VIDEO_REFRESH_INTERVAL_S
             ):
+                full_refresh_ran = True
                 full_video_candidates = self._extract_hand_candidates(
                     frame,
                     timestamp_s=timestamp_s,
@@ -2863,32 +3226,45 @@ class DetectionChain:
                 self._last_hand_bounds,
                 neck_quad,
             )
+            narrow_candidates: tuple[HandObservation | HandSample, ...] = ()
             if narrow is not None:
-                candidates = self._extract_hand_candidates(
+                narrow_candidates = self._extract_hand_candidates(
                     frame,
                     timestamp_s=timestamp_s,
                     crop_rect=narrow,
                     source="last_hand_crop",
                 )
+            if full_refresh_ran:
                 selected = self._select_neck_hand(
-                    candidates + full_video_candidates,
+                    full_video_candidates + narrow_candidates,
                     homography,
+                    timestamp_s=timestamp_s,
                 )
                 if selected is not None:
+                    selected_from_narrow = any(
+                        selected is candidate for candidate in narrow_candidates
+                    )
                     self._last_hand_source = (
-                        selected.source
-                        if isinstance(selected, HandObservation)
-                        else "last_hand_crop"
+                        "last_hand_crop"
+                        if selected_from_narrow
+                        else "full_video_refresh"
                     )
                     self._roi_misses = 0
                     return selected
-            elif full_video_candidates:
+                # A scheduled identity refresh plus one tight fallback already
+                # used this frame's two-call budget. Widen on the next frame.
+                self._force_neck_search = True
+                self._force_hand_detection = True
+                self._last_hand_source = "neck_recovery_pending"
+                return None
+            if narrow_candidates:
                 selected = self._select_neck_hand(
-                    full_video_candidates,
+                    narrow_candidates,
                     homography,
+                    timestamp_s=timestamp_s,
                 )
                 if selected is not None:
-                    self._last_hand_source = "full_video_refresh"
+                    self._last_hand_source = "last_hand_crop"
                     self._roi_misses = 0
                     return selected
 
@@ -2902,7 +3278,11 @@ class DetectionChain:
                     crop_rect=neck_crop,
                     source="neck_crop",
                 )
-                selected = self._select_neck_hand(candidates, homography)
+                selected = self._select_neck_hand(
+                    candidates,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
                 if selected is not None:
                     self._last_hand_source = "neck_crop"
                     self._roi_misses = 0
@@ -2916,7 +3296,11 @@ class DetectionChain:
                     source="full_reacquire",
                 )
                 self._last_full_hand_video_s = timestamp_s
-                selected = self._select_neck_hand(candidates, homography)
+                selected = self._select_neck_hand(
+                    candidates,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
                 if selected is not None:
                     self._last_hand_source = "full_reacquire"
                 return selected
@@ -2925,17 +3309,10 @@ class DetectionChain:
             if self._roi_misses < 2:
                 return None
             self._roi_misses = 0
-            candidates = self._extract_hand_candidates(
-                frame,
-                timestamp_s=timestamp_s,
-                crop_rect=None,
-                source="full_reacquire",
-            )
-            self._last_full_hand_video_s = timestamp_s
-            selected = self._select_neck_hand(candidates, homography)
-            if selected is not None:
-                self._last_hand_source = "full_reacquire"
-            return selected
+            self._force_full_hand_frame = True
+            self._force_hand_detection = True
+            self._last_hand_source = "full_recovery_pending"
+            return None
 
         # Bootstrap from board geometry instead of waiting for a successful
         # full-frame hand. Alternate an upscaled full-neck search with the full
@@ -2952,7 +3329,11 @@ class DetectionChain:
         )
         if crop_rect is None:
             self._last_full_hand_video_s = timestamp_s
-        selected = self._select_neck_hand(candidates, homography)
+        selected = self._select_neck_hand(
+            candidates,
+            homography,
+            timestamp_s=timestamp_s,
+        )
         if selected is not None:
             self._last_hand_source = source
             self._roi_misses = 0
@@ -2968,6 +3349,14 @@ class DetectionChain:
         crop_rect: tuple[int, int, int, int] | None,
         source: str,
     ) -> tuple[HandObservation | HandSample, ...]:
+        if self._frame_hand_detector_calls >= 2:
+            self._force_full_hand_frame = True
+            self._force_hand_detection = True
+            self._last_hand_source = "full_recovery_pending"
+            return ()
+        self._frame_hand_detector_calls += 1
+        self._frame_hand_search_attempts.append(source)
+        self._last_hand_source = source
         if crop_rect is None:
             return _extract_candidates(
                 self.hand_extractor,
@@ -2999,6 +3388,8 @@ class DetectionChain:
         self,
         candidates: tuple[HandObservation | HandSample, ...],
         homography: Homography,
+        *,
+        timestamp_s: float | None = None,
     ) -> HandObservation | HandSample | None:
         """Choose the most neck-consistent hand before using handedness."""
         if not candidates or homography.confidence <= 0.0:
@@ -3049,14 +3440,53 @@ class DetectionChain:
                 continuity = math.exp(-0.5 * (distance / (0.25 * neck_scale)) ** 2)
             quality = float(hand.confidence)
             handedness_bonus = 0.0
+            pose_identity = 0.5
             if isinstance(candidate, HandObservation):
                 if candidate.finger_quality:
                     quality = 0.5 * quality + 0.5 * float(
                         np.mean(tuple(candidate.finger_quality.values()))
                     )
+                if (
+                    len(candidate.landmarks_xy) == 21
+                    and len(candidate.landmarks_z) == 21
+                    and len(candidate.joint_quality) == 21
+                ):
+                    pose_identity, pose_hard_reject = (
+                        self.hand_tracker.match_observation_details(
+                            LandmarkObservation(
+                                landmarks_xy=np.asarray(
+                                    candidate.landmarks_xy,
+                                    dtype=np.float64,
+                                ),
+                                landmarks_z=np.asarray(
+                                    candidate.landmarks_z,
+                                    dtype=np.float64,
+                                ),
+                                confidence=float(
+                                    np.clip(candidate.hand.confidence, 0.0, 1.0)
+                                ),
+                                joint_quality=np.asarray(
+                                    candidate.joint_quality,
+                                    dtype=np.float64,
+                                ),
+                                is_left_hand=candidate.hand.is_left_hand,
+                            ),
+                            timestamp_s=(
+                                time.monotonic() if timestamp_s is None else timestamp_s
+                            ),
+                            frame_shape=self._last_hand_frame_shape,
+                        )
+                    )
+                    if pose_hard_reject:
+                        continue
                 if candidate.handedness_label == wanted_label:
-                    handedness_bonus = 0.08 * candidate.handedness_score
-            score = 0.55 * overlap + 0.25 * quality + 0.20 * continuity
+                    handedness_bonus = 0.05 * candidate.handedness_score
+            score = (
+                0.50 * overlap
+                + 0.18 * quality
+                + 0.12 * continuity
+                + 0.20 * pose_identity
+            )
             score += handedness_bonus
             scored.append((score, -index, candidate))
         if not scored:

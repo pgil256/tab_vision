@@ -199,7 +199,8 @@ button.secondary {
 button.secondary:hover { background: #202a22; }
 button:disabled { opacity: 0.46; cursor: not-allowed; }
 
-#diagnostics {
+#diagnostics,
+#local-accuracy-tools {
   margin: 12px 0;
   padding: 14px 16px;
   border: 1px solid #292e2a;
@@ -208,11 +209,89 @@ button:disabled { opacity: 0.46; cursor: not-allowed; }
   color: #939a93;
 }
 
-#diagnostics summary {
+#diagnostics summary,
+#local-accuracy-tools summary {
   cursor: pointer;
   color: #d5dad4;
   font-weight: 700;
 }
+
+#local-accuracy-tools summary span {
+  margin-left: 6px;
+  color: #7f887f;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+#local-accuracy-tools > p {
+  margin: 12px 0 0;
+  color: #8f978f;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.capture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+
+.capture-enable {
+  display: flex;
+  color: #c1c8c1;
+  font-size: 0.8rem;
+}
+
+.failure-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(250px, 1.4fr);
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #2c342e;
+  border-radius: 10px;
+  background: #111512;
+}
+
+.failure-form > label {
+  display: grid;
+  gap: 7px;
+  color: #858b84;
+  font-size: 0.76rem;
+}
+
+.failure-form select,
+.failure-form input[type="text"] {
+  width: 100%;
+  border: 1px solid #3a413b;
+  border-radius: 9px;
+  padding: 9px 11px;
+  background: #0d110e;
+  color: #eef2ed;
+}
+
+.failure-form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0;
+  border: 1px solid #333b35;
+  border-radius: 9px;
+  color: #bcc4bd;
+  font-size: 0.76rem;
+}
+
+.failure-form fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.failure-form fieldset input { accent-color: #69ee8e; }
+.failure-form button { align-self: end; justify-self: start; }
+#capture-status { color: #aeb8af; }
 
 #lock-reason,
 #calibration-status { margin: 12px 0 0; font-size: 0.84rem; }
@@ -259,6 +338,7 @@ button:hover { background: #ecffed; }
   .settings { grid-template-columns: 1fr; }
   .button-row { grid-column: 1; }
   .factor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .failure-form { grid-template-columns: 1fr; }
   .controls { align-items: center; }
   #status { max-width: 55%; }
 }

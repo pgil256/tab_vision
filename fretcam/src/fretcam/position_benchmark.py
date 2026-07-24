@@ -16,6 +16,7 @@ import cv2
 
 from fretcam.detection import ConfidenceFactors, DetectionChain
 from fretcam.position import PositionEstimator
+from fretcam.processing import build_hand_search_hint
 
 Split = Literal["dev", "test"]
 LabelState = Literal["stable", "shifting", "dropout", "invalid"]
@@ -336,6 +337,9 @@ def run_inference(
                         index_fret=position_observation,
                         vision_confidence=observation_confidence,
                         timestamp_s=timestamp_s,
+                    )
+                    chain.set_hand_search_hint(
+                        build_hand_search_hint(detection, estimate)
                     )
                     predictions.append(
                         FramePrediction(

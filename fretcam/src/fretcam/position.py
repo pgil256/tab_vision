@@ -21,6 +21,7 @@ class EstimatorConfig:
     agreement_sample_hold_s: float = 0.50
     dropout_hold_s: float = 0.50
     evidence_gap_tolerance_s: float = 0.12
+    reacquisition_gap_s: float = 0.25
     boundary_slack_fret: float = 0.4
     max_single_frame_jump_fret: float = 10.0
     jump_confirmation_s: float = 0.08
@@ -42,6 +43,15 @@ class EstimatorConfig:
             raise ValueError("dropout_hold_s must be non-negative")
         if not 0.0 <= self.evidence_gap_tolerance_s <= self.dropout_hold_s:
             raise ValueError("evidence_gap_tolerance_s must be within the dropout hold")
+        if not (
+            self.evidence_gap_tolerance_s
+            <= self.reacquisition_gap_s
+            <= self.dropout_hold_s
+        ):
+            raise ValueError(
+                "reacquisition_gap_s must be between evidence tolerance and "
+                "the dropout hold"
+            )
         if not 0.0 <= self.boundary_slack_fret < 0.5:
             raise ValueError("boundary_slack_fret must be in [0, 0.5)")
         if self.max_single_frame_jump_fret <= 0.0:
@@ -131,6 +141,7 @@ class PositionEstimator:
         self._suspected_jump_fret: float | None = None
         self._suspected_jump_since_s: float | None = None
         self._transition_active = False
+        self._reacquiring_after_gap = False
 
     def update(
         self,
@@ -218,8 +229,38 @@ class PositionEstimator:
         self._append_history(timestamp, candidate)
         previous: int | None = None
         stable_for_s = self._advance_pending(candidate, timestamp)
+        if (
+            self._stable_position is None
+            and stable_for_s == 0.0
+            and len(self._history) > 1
+        ):
+            # Before the first lock, a replacement candidate starts its own
+            # acquisition interval. Retaining votes for the abandoned
+            # candidate can otherwise suppress a new candidate even after it
+            # has satisfied the full elapsed-time stability requirement.
+            latest = self._history[-1]
+            self._history.clear()
+            self._history.append(latest)
         candidate_agreement = self._temporal_agreement(candidate)
         candidate_confidence = confidence * candidate_agreement
+        evidence_gap_s = (
+            math.inf
+            if previous_motion_s is None
+            else max(0.0, timestamp - previous_motion_s)
+        )
+        if (
+            self._stable_position is not None
+            and candidate == self._stable_position
+            and evidence_gap_s > self.config.reacquisition_gap_s
+        ):
+            self._reacquiring_after_gap = True
+        elif candidate != self._stable_position:
+            self._reacquiring_after_gap = False
+        reacquiring_after_gap = bool(
+            self._reacquiring_after_gap
+            and self._stable_position is not None
+            and candidate == self._stable_position
+        )
         reason = "insufficient_stability"
         if self._stable_position is None:
             stable_enough = stable_for_s >= self.config.acquisition_duration_s
@@ -228,6 +269,7 @@ class PositionEstimator:
                 self._stable_position = candidate
                 self._clear_pending()
                 self._transition_active = False
+                self._reacquiring_after_gap = False
                 state: PositionState = "locked"
                 stable_for_s = self.config.acquisition_duration_s
             else:
@@ -235,16 +277,33 @@ class PositionEstimator:
                 if stable_enough:
                     reason = "temporal_disagreement"
         elif candidate == self._stable_position and not moving:
-            self._clear_pending()
-            stable_for_s = self.config.shift_duration_s
-            if candidate_confidence >= self.config.min_vision_confidence:
+            stable_enough = (
+                stable_for_s >= self.config.acquisition_duration_s
+                if reacquiring_after_gap
+                else True
+            )
+            if (
+                stable_enough
+                and candidate_confidence >= self.config.min_vision_confidence
+            ):
+                self._clear_pending()
+                self._reacquiring_after_gap = False
+                stable_for_s = (
+                    self.config.acquisition_duration_s
+                    if reacquiring_after_gap
+                    else self.config.shift_duration_s
+                )
                 self._transition_active = False
                 state = "locked"
             else:
                 self._transition_active = True
                 previous = self._stable_position
                 state = "acquiring"
-                reason = "temporal_disagreement"
+                reason = (
+                    "evidence_gap"
+                    if reacquiring_after_gap and not stable_enough
+                    else "temporal_disagreement"
+                )
         else:
             previous = self._stable_position
             self._transition_active = True
@@ -254,6 +313,7 @@ class PositionEstimator:
                 self._stable_position = candidate
                 self._clear_pending()
                 self._transition_active = False
+                self._reacquiring_after_gap = False
                 state = "locked"
                 stable_for_s = self.config.shift_duration_s
             else:
@@ -465,6 +525,7 @@ class PositionEstimator:
             self._last_accepted_s = None
             self._last_valid_s = None
             self._transition_active = False
+            self._reacquiring_after_gap = False
             previous = None
             state: PositionState = "acquiring"
             agreement = 0.0
@@ -561,6 +622,7 @@ class PositionEstimator:
         self._last_accepted_s = None
         self._last_valid_s = None
         self._transition_active = False
+        self._reacquiring_after_gap = False
         self._clear_pending()
         return self._estimate(
             timestamp_s,
