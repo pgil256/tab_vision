@@ -3,7 +3,7 @@
     TabVision Studio — one command to record a guitar take and get tabs.
 
 .DESCRIPTION
-    Boots the local v1 transcription backend (Flask, highres audio backend,
+    Boots the local v1 transcription backend (Flask, promoted highres ensemble,
     audio-only with domain-aware automatic string/fret priors) and the
     in-browser record/upload UI (Vite), waits for both to come up, and opens
     the studio in your default browser.
@@ -18,8 +18,9 @@
     'backend' / 'frontend' are used by the child windows this script spawns.
 
 .PARAMETER AudioBackend
-    Audio transcription backend: 'highres' (default, accurate, torch) or
-    'basicpitch' (needs TensorFlow + basic-pitch installed in the venv).
+    Audio transcription backend: 'highres-ensemble' (default, most accurate
+    promoted clean-acoustic backend), 'highres', 'highres-fl', or 'basicpitch'
+    (needs TensorFlow + basic-pitch installed in the venv).
 
 .PARAMETER NoBrowser
     Start the servers but do not open a browser window.
@@ -29,15 +30,15 @@
     Launch everything and open the studio.
 
 .EXAMPLE
-    .\studio.ps1 -AudioBackend highres
+    .\studio.ps1 -AudioBackend highres-ensemble
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('all', 'backend', 'frontend')]
     [string]$Role = 'all',
 
-    [ValidateSet('highres', 'highres-fl', 'basicpitch')]
-    [string]$AudioBackend = 'highres',
+    [ValidateSet('highres-ensemble', 'highres', 'highres-fl', 'basicpitch')]
+    [string]$AudioBackend = 'highres-ensemble',
 
     [switch]$NoBrowser
 )
@@ -90,7 +91,7 @@ if ($Role -eq 'backend') {
     $env:TABVISION_VIDEO_ENABLED  = 'false'      # v1 ships audio-only
 
     Write-Host "TabVision backend  : $BackendUrl  (pipeline=v1, audio=$AudioBackend)" -ForegroundColor Green
-    Write-Host 'First highres run downloads the model once; later runs are faster.' -ForegroundColor DarkGray
+    Write-Host 'The first ensemble run may download its checkpoints; later runs are faster.' -ForegroundColor DarkGray
     Set-Location $ServerDir
     & $VenvPy run.py
     exit $LASTEXITCODE
