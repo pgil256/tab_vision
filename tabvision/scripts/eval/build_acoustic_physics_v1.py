@@ -5,11 +5,14 @@ configuration as a hash-verified registry artifact, so the exact numbers that
 cleared full-dev OOF and the player-05 confirmation are reproducible rather
 than recomputed at import time.
 
-Unlike every other artifact in this registry the payload is **not fitted to a
-dataset** — it is computed from published string specifications
-(:mod:`tabvision.fusion.string_physics`), so GuitarSet is a *test* of it, not
-its source. The provenance block records the specification inputs so the table
-can be rebuilt or re-derived for a different string set or scale length.
+The base table is computed from published string specifications
+(:mod:`tabvision.fusion.string_physics`), then shifted by a uniform
+``LEVEL_CORRECTION`` in log-B. The correction compensates for the table's
+systematic under-prediction of B, measured three independent ways: Q6's
+leave-one-player-out residual (median -0.566), N5's offset sweep (monotonic
+to +0.60), and N4's hex-pickup direct measurement (median +0.780, response
+turning over between +0.60 and +0.78). The two studies agree on the
++0.60 arm's effect to 0.0002 Tab F1.
 
 The decode configuration (weight, ``min_r2``, ``sigma``) lives in the artifact
 deliberately: it was frozen before the full-dev run and must not drift, so it
@@ -21,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from dataclasses import asdict
 from pathlib import Path
 
@@ -28,8 +32,8 @@ from tabvision.fusion.inharmonicity import DEFAULT_MIN_R2, DEFAULT_SIGMA
 from tabvision.fusion.string_physics import (
     ACOUSTIC_LIGHT_SET,
     DEFAULT_SCALE_LENGTH_IN,
+    LEVEL_CORRECTION_LOG_B,
     STEEL_YOUNGS_MODULUS_PA,
-    inharmonicity_coefficient,
     reference_stiffness_model,
 )
 
@@ -45,17 +49,19 @@ def _lf(text: str) -> bytes:
 
 def build_artifact() -> dict[str, object]:
     model = reference_stiffness_model()
+    corrected_log_b0 = {
+        str(index): value + LEVEL_CORRECTION_LOG_B
+        for index, value in sorted(model.log_b0.items())
+    }
     return {
         "schema_version": 1,
         "name": NAME,
         "artifact_kind": "string_evidence",
         "method": "inharmonicity",
-        "log_b0": {str(index): value for index, value in sorted(model.log_b0.items())},
+        "log_b0": corrected_log_b0,
         "fret_exponent": model.fret_exponent,
-        "open_b": {
-            str(index): inharmonicity_coefficient(spec)
-            for index, spec in enumerate(ACOUSTIC_LIGHT_SET)
-        },
+        "level_correction_log_b": LEVEL_CORRECTION_LOG_B,
+        "open_b": {k: math.exp(v) for k, v in corrected_log_b0.items()},
         "decode": {
             "weight": GATE_WEIGHT,
             "min_r2": DEFAULT_MIN_R2,
@@ -94,9 +100,10 @@ def build_manifest(artifact_file: str, sha256: str) -> dict[str, object]:
         "compatible_position_prior": None,
         "compatible_sequence_prior": None,
         "mode": "all",
-        "dataset": "none — specification-derived, not fitted",
+        "dataset": "specification-derived, level-corrected by +0.60 log-B",
         "dataset_reference": (
-            "Stiff-string theory; typical light-gauge phosphor-bronze acoustic set"
+            "Stiff-string theory; typical light-gauge phosphor-bronze acoustic set; "
+            "level correction from Q6/N4/N5 measurement convergence"
         ),
         "license": "n/a (computed from published string specifications)",
         "construction_command": "python -m scripts.eval.build_acoustic_physics_v1",

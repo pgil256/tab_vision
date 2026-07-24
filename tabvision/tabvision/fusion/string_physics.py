@@ -203,6 +203,7 @@ __all__ = [
     "StringSpec",
     "inharmonicity_coefficient",
     "open_frequency_hz",
+    "LEVEL_CORRECTION_LOG_B",
     "REGISTERED_TABLE",
     "StringEvidenceConfig",
     "load_string_evidence",
@@ -262,6 +263,15 @@ def stiffness_model_for_session(
 
 REGISTERED_TABLE = "acoustic-physics-v1"
 """The registered artifact carrying the gate-passed table and decode config."""
+
+LEVEL_CORRECTION_LOG_B = 0.60
+"""Uniform offset applied to the specification-derived log-B₀ table.
+
+The spec-derived table systematically under-predicts B. Measured three
+independent ways: Q6 LOPO residual (median −0.566 on 300 clips), N5 offset
+sweep (monotonic gain to +0.60, +0.0160 Tab F1), N4 hex-pickup direct
+measurement (median +0.780, response turning over between +0.60 and +0.78).
+"""
 
 
 @dataclass(frozen=True)

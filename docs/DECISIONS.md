@@ -4102,3 +4102,37 @@ measurement answered a bigger question than the one asked: it priced
 per-instrument calibration against the simpler alternative and found the
 simpler alternative wins, which converts an open-ended build into a closed
 negative plus a concrete, user-gated proposal.
+
+## 2026-07-24 — level-correct acoustic-physics-v1 by +0.60 log-B
+**Phase:** post-program, accuracy loop decision #4
+**Decision:** apply a uniform +0.60 log-B offset to the registered
+`acoustic-physics-v1` artifact. User-authorized.
+**Alternatives:** +0.40 (conservative, +0.0131), no correction (status quo),
+per-instrument calibration ritual (closed negative by N4).
+**Result:** the spec-derived table systematically under-predicts B. The error
+was measured three independent ways: Q6's leave-one-player-out residual (median
+−0.566 on 300 clips), N5's perturbation sweep (monotonic gain to +0.60,
++0.0160 Tab F1), and N4's hex-pickup direct measurement (median +0.780,
+response turning over between +0.60 and +0.78). The two evaluations of the
++0.60 arm agree to 0.0002 Tab F1 (N5: +0.0162, N4: +0.0160). The correction
+adds +0.60 to all six `log_b0` values in the artifact JSON, multiplying each
+`open_b` by exp(0.60) ≈ 1.822. The fret exponent stays at 1.0. The artifact
+hash changes; the manifest, build script, and test updated accordingly.
+**Cross-domain gate:** satisfied by proof — `stiffness_model_for_session`
+abstains outside clean acoustic, standard tuning, capo 0, so GAPS classical
+clips never see the correction.
+**In-distribution concern:** the +0.60 constant was located on GuitarSet dev
+clips (in-domain for the `guitarset-v1` position prior). It is in-distribution
+tuning in a way the original specification-derived table was not. Three
+independent measurement paths converging on the same direction and approximate
+magnitude mitigate this concern but do not eliminate it. No cross-domain
+acoustic steel-string dataset exists in the repo to test against.
+**Evidence:** N4 (`n4_ritual_validation_2026-07-24.md`), N5
+(`n5_table_mismatch_2026-07-24.md`), Q6
+(`q6_full_dev_2026-07-22.md`, `q6_player05_confirm_2026-07-22.md`).
+**Reasoning:** three independent measurements of the same systematic error
+converging on the same direction and approximate magnitude, with the cheapest
+correction (+0.60 uniform constant) outperforming every more sophisticated
+alternative (per-instrument ritual, per-string calibration, global median of
+ritual offsets). The largest remaining single lever for Tab F1 improvement
+within the existing physics channel.

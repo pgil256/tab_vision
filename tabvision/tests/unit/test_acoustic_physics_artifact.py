@@ -15,6 +15,7 @@ from tabvision.errors import ConfigurationError
 from tabvision.fusion.artifact_registry import load_artifact_manifest
 from tabvision.fusion.inference_policy import resolve_inference_policy
 from tabvision.fusion.string_physics import (
+    LEVEL_CORRECTION_LOG_B,
     REGISTERED_TABLE,
     load_string_evidence,
     reference_stiffness_model,
@@ -35,12 +36,12 @@ def test_artifact_is_registered_and_hash_verified() -> None:
     assert manifest.sha256
 
 
-def test_artifact_table_matches_the_physics_module() -> None:
+def test_artifact_table_is_spec_derived_plus_level_correction() -> None:
     loaded = load_string_evidence().model
     computed = reference_stiffness_model()
     assert loaded.log_b0.keys() == computed.log_b0.keys()
     for string, value in computed.log_b0.items():
-        assert loaded.log_b0[string] == pytest.approx(value)
+        assert loaded.log_b0[string] == pytest.approx(value + LEVEL_CORRECTION_LOG_B)
     assert loaded.fret_exponent == pytest.approx(computed.fret_exponent)
 
 
