@@ -1,0 +1,32 @@
+{
+  "capos": {
+    "0": {
+      "ambiguous_notes": 51017,
+      "covariant": 0.595977811317796,
+      "naive": 0.595977811317796,
+      "none_uniform": 0.2653360644491052,
+      "none_lowfret": 0.4378344473410824
+    },
+    "2": {
+      "ambiguous_notes": 51017,
+      "covariant": 0.595977811317796,
+      "naive": 0.5551678852147324,
+      "none_uniform": 0.27319945639035353,
+      "none_lowfret": 0.4378344473410824
+    },
+    "4": {
+      "ambiguous_notes": 51004,
+      "covariant": 0.5958748333464042,
+      "naive": 0.4681397537448043,
+      "none_uniform": 0.2849828771599613,
+      "none_lowfret": 0.4376911614775312
+    },
+    "7": {
+      "ambiguous_notes": 50880,
+      "covariant": 0.595125786163522,
+      "naive": 0.4365566037735849,
+      "none_uniform": 0.3117662473794549,
+      "none_lowfret": 0.4365566037735849
+    }
+  }
+}

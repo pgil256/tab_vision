@@ -1,0 +1,107 @@
+{
+  "clips": [
+    "00_BN1-129-Eb_comp",
+    "00_Jazz2-187-F#_comp",
+    "01_BN1-129-Eb_comp",
+    "01_Jazz2-187-F#_comp",
+    "02_BN1-129-Eb_comp",
+    "02_Jazz2-187-F#_comp",
+    "03_BN1-129-Eb_comp",
+    "03_Jazz2-187-F#_comp",
+    "04_BN1-129-Eb_comp",
+    "04_Jazz2-187-F#_comp",
+    "00_BN1-129-Eb_solo",
+    "00_Jazz2-187-F#_solo",
+    "01_BN1-129-Eb_solo",
+    "01_Jazz2-187-F#_solo",
+    "02_BN1-129-Eb_solo",
+    "02_Jazz2-187-F#_solo",
+    "03_BN1-129-Eb_solo",
+    "03_Jazz2-187-F#_solo",
+    "04_BN1-129-Eb_solo",
+    "04_Jazz2-187-F#_solo"
+  ],
+  "gold_measurements": 6771,
+  "sweeps": [
+    {
+      "min_r2": 0.0,
+      "detected_events": 2105,
+      "eligible_isolated_ambiguous": 346,
+      "fit_succeeded": 314,
+      "scored_vs_gold": 308,
+      "share_of_detected_scored": 0.14631828978622327,
+      "accuracy": 0.8214285714285714,
+      "count_prior_control": 0.6623376623376623,
+      "per_mode": {
+        "solo": {
+          "n": 305,
+          "accuracy": 0.819672131147541
+        },
+        "comp": {
+          "n": 3,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.5,
+      "detected_events": 2105,
+      "eligible_isolated_ambiguous": 346,
+      "fit_succeeded": 213,
+      "scored_vs_gold": 211,
+      "share_of_detected_scored": 0.1002375296912114,
+      "accuracy": 0.9241706161137441,
+      "count_prior_control": 0.6540284360189573,
+      "per_mode": {
+        "solo": {
+          "n": 208,
+          "accuracy": 0.9230769230769231
+        },
+        "comp": {
+          "n": 3,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.7,
+      "detected_events": 2105,
+      "eligible_isolated_ambiguous": 346,
+      "fit_succeeded": 173,
+      "scored_vs_gold": 172,
+      "share_of_detected_scored": 0.0817102137767221,
+      "accuracy": 0.9651162790697675,
+      "count_prior_control": 0.6511627906976745,
+      "per_mode": {
+        "solo": {
+          "n": 169,
+          "accuracy": 0.9644970414201184
+        },
+        "comp": {
+          "n": 3,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.9,
+      "detected_events": 2105,
+      "eligible_isolated_ambiguous": 346,
+      "fit_succeeded": 102,
+      "scored_vs_gold": 102,
+      "share_of_detected_scored": 0.048456057007125894,
+      "accuracy": 0.9803921568627451,
+      "count_prior_control": 0.6176470588235294,
+      "per_mode": {
+        "solo": {
+          "n": 101,
+          "accuracy": 0.9801980198019802
+        },
+        "comp": {
+          "n": 1,
+          "accuracy": 1.0
+        }
+      }
+    }
+  ]
+}

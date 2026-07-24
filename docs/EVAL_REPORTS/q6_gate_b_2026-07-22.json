@@ -1,0 +1,163 @@
+{
+  "measurements": 6771,
+  "ambiguous_share": 0.9744498596957614,
+  "median_partials": 10.0,
+  "median_r2": 0.7024655713257502,
+  "sweeps": [
+    {
+      "min_r2": 0.0,
+      "notes_scored": 6771,
+      "coverage": 1.0,
+      "count_prior_baseline": 0.6612021857923497,
+      "accuracy_all": 0.8143553389455028,
+      "ambiguous_notes": 6598,
+      "accuracy_ambiguous": 0.8094877235525917,
+      "per_mode": {
+        "solo": {
+          "n": 6374,
+          "accuracy": 0.8198933165986821
+        },
+        "comp": {
+          "n": 397,
+          "accuracy": 0.72544080604534
+        }
+      }
+    },
+    {
+      "min_r2": 0.5,
+      "notes_scored": 4510,
+      "coverage": 0.6660759119775513,
+      "count_prior_baseline": 0.651219512195122,
+      "accuracy_all": 0.9219512195121952,
+      "ambiguous_notes": 4399,
+      "accuracy_ambiguous": 0.9199818140486474,
+      "per_mode": {
+        "solo": {
+          "n": 4349,
+          "accuracy": 0.9215911703839963
+        },
+        "comp": {
+          "n": 161,
+          "accuracy": 0.9316770186335404
+        }
+      }
+    },
+    {
+      "min_r2": 0.7,
+      "notes_scored": 3396,
+      "coverage": 0.5015507310589278,
+      "count_prior_baseline": 0.664605418138987,
+      "accuracy_all": 0.9587750294464076,
+      "ambiguous_notes": 3332,
+      "accuracy_ambiguous": 0.957983193277311,
+      "per_mode": {
+        "solo": {
+          "n": 3282,
+          "accuracy": 0.9588665447897623
+        },
+        "comp": {
+          "n": 114,
+          "accuracy": 0.956140350877193
+        }
+      }
+    },
+    {
+      "min_r2": 0.8,
+      "notes_scored": 2807,
+      "coverage": 0.4145621030866932,
+      "count_prior_baseline": 0.6704666904168151,
+      "accuracy_all": 0.9764873530459566,
+      "ambiguous_notes": 2768,
+      "accuracy_ambiguous": 0.9761560693641619,
+      "per_mode": {
+        "solo": {
+          "n": 2725,
+          "accuracy": 0.9761467889908257
+        },
+        "comp": {
+          "n": 82,
+          "accuracy": 0.9878048780487805
+        }
+      }
+    },
+    {
+      "min_r2": 0.9,
+      "notes_scored": 1969,
+      "coverage": 0.2907989957170285,
+      "count_prior_baseline": 0.7318435754189944,
+      "accuracy_all": 0.9898425596749619,
+      "ambiguous_notes": 1962,
+      "accuracy_ambiguous": 0.9898063200815495,
+      "per_mode": {
+        "solo": {
+          "n": 1935,
+          "accuracy": 0.9896640826873385
+        },
+        "comp": {
+          "n": 34,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.95,
+      "notes_scored": 1233,
+      "coverage": 0.18210013291980506,
+      "count_prior_baseline": 0.7469586374695864,
+      "accuracy_all": 0.9983779399837794,
+      "ambiguous_notes": 1233,
+      "accuracy_ambiguous": 0.9983779399837794,
+      "per_mode": {
+        "solo": {
+          "n": 1215,
+          "accuracy": 0.9983539094650206
+        },
+        "comp": {
+          "n": 18,
+          "accuracy": 1.0
+        }
+      }
+    },
+    {
+      "min_r2": 0.99,
+      "notes_scored": 254,
+      "coverage": 0.037512922758824396,
+      "count_prior_baseline": 0.7755905511811023,
+      "accuracy_all": 1.0,
+      "ambiguous_notes": 254,
+      "accuracy_ambiguous": 1.0,
+      "per_mode": {
+        "solo": {
+          "n": 252,
+          "accuracy": 1.0
+        },
+        "comp": {
+          "n": 2,
+          "accuracy": 1.0
+        }
+      }
+    }
+  ],
+  "best": {
+    "min_r2": 0.95,
+    "notes_scored": 1233,
+    "coverage": 0.18210013291980506,
+    "count_prior_baseline": 0.7469586374695864,
+    "accuracy_all": 0.9983779399837794,
+    "ambiguous_notes": 1233,
+    "accuracy_ambiguous": 0.9983779399837794,
+    "per_mode": {
+      "solo": {
+        "n": 1215,
+        "accuracy": 0.9983539094650206
+      },
+      "comp": {
+        "n": 18,
+        "accuracy": 1.0
+      }
+    }
+  },
+  "source": "mono",
+  "gate": 0.7,
+  "gate_pass": true
+}

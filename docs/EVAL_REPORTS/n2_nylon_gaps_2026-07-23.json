@@ -1,0 +1,167 @@
+{
+  "clips": 12,
+  "coverage": {
+    "strict": {
+      "events": 10837,
+      "isolated": 1122,
+      "fitted": 113,
+      "applied": 113
+    },
+    "partial_aware": {
+      "events": 10837,
+      "isolated": 10837,
+      "fitted": 2112,
+      "applied": 2063
+    }
+  },
+  "arms": {
+    "baseline": {
+      "tab_f1": 0.773265948380487,
+      "delta": 0.0,
+      "lo95": 0.0,
+      "hi95": 0.0,
+      "onset_f1": 0.9509863402187606,
+      "pitch_f1": 0.9400334599995303,
+      "decomposition": {
+        "correct": 7901,
+        "wrong_position_same_pitch": 1927,
+        "pitch_off": 392,
+        "timing_only": 49,
+        "missed_onset": 586,
+        "extra_detection": 550
+      },
+      "regressions": []
+    },
+    "strict": {
+      "tab_f1": 0.7741807139854086,
+      "delta": 0.0009147656049214766,
+      "lo95": -0.00040622359981306216,
+      "hi95": 0.0022518901119932674,
+      "onset_f1": 0.9509863402187606,
+      "pitch_f1": 0.9400334599995303,
+      "decomposition": {
+        "correct": 7910,
+        "wrong_position_same_pitch": 1918,
+        "pitch_off": 392,
+        "timing_only": 49,
+        "missed_onset": 586,
+        "extra_detection": 550
+      },
+      "regressions": [
+        "063_bV1wc",
+        "142_GD1wc"
+      ]
+    },
+    "partial_aware": {
+      "tab_f1": 0.7580037088809565,
+      "delta": -0.015262239499530697,
+      "lo95": -0.04716517303686193,
+      "hi95": 0.015131399105772016,
+      "onset_f1": 0.9509863402187606,
+      "pitch_f1": 0.9400334599995303,
+      "decomposition": {
+        "correct": 7835,
+        "wrong_position_same_pitch": 1993,
+        "pitch_off": 392,
+        "timing_only": 49,
+        "missed_onset": 586,
+        "extra_detection": 550
+      },
+      "regressions": [
+        "031_vpswc",
+        "043_bc1wc",
+        "063_bV1wc",
+        "118_VD1wc",
+        "179_pM1wc",
+        "294_BSswc",
+        "341_1M1wc"
+      ]
+    }
+  },
+  "per_clip": [
+    {
+      "clip": "027_Zpswc",
+      "gold": 1607,
+      "baseline": 0.6777221526908636,
+      "strict": 0.6795994993742178,
+      "partial_aware": 0.7133917396745932
+    },
+    {
+      "clip": "031_vpswc",
+      "gold": 887,
+      "baseline": 0.826651609260305,
+      "strict": 0.826651609260305,
+      "partial_aware": 0.8198757763975156
+    },
+    {
+      "clip": "043_bc1wc",
+      "gold": 1401,
+      "baseline": 0.7471590909090908,
+      "strict": 0.7471590909090908,
+      "partial_aware": 0.7194602272727273
+    },
+    {
+      "clip": "063_bV1wc",
+      "gold": 841,
+      "baseline": 0.6694610778443113,
+      "strict": 0.665868263473054,
+      "partial_aware": 0.6251497005988024
+    },
+    {
+      "clip": "104_xf1wc",
+      "gold": 422,
+      "baseline": 0.7168458781362006,
+      "strict": 0.7216248506571087,
+      "partial_aware": 0.7240143369175628
+    },
+    {
+      "clip": "118_VD1wc",
+      "gold": 788,
+      "baseline": 0.8598365807668132,
+      "strict": 0.8598365807668132,
+      "partial_aware": 0.7919547454431176
+    },
+    {
+      "clip": "142_GD1wc",
+      "gold": 701,
+      "baseline": 0.8314121037463977,
+      "strict": 0.829971181556196,
+      "partial_aware": 0.8342939481268011
+    },
+    {
+      "clip": "179_pM1wc",
+      "gold": 515,
+      "baseline": 0.8532555879494654,
+      "strict": 0.8571428571428571,
+      "partial_aware": 0.8377065111758989
+    },
+    {
+      "clip": "212_y41wc",
+      "gold": 946,
+      "baseline": 0.6911379129522811,
+      "strict": 0.6953329837441007,
+      "partial_aware": 0.7813319349764027
+    },
+    {
+      "clip": "235_Ny1wc",
+      "gold": 1582,
+      "baseline": 0.6278625954198473,
+      "strict": 0.6291348600508906,
+      "partial_aware": 0.6278625954198473
+    },
+    {
+      "clip": "294_BSswc",
+      "gold": 474,
+      "baseline": 0.8952380952380953,
+      "strict": 0.8952380952380953,
+      "partial_aware": 0.747089947089947
+    },
+    {
+      "clip": "341_1M1wc",
+      "gold": 691,
+      "baseline": 0.8826086956521739,
+      "strict": 0.8826086956521739,
+      "partial_aware": 0.8739130434782609
+    }
+  ]
+}

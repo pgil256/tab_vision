@@ -32,11 +32,13 @@ def test_auto_uses_global_pair_for_supported_acoustic_styles(style: str) -> None
     policy = _resolve(session=SessionConfig(style=style))
     assert policy.resolved_position_prior == "guitarset-v1"
     assert policy.resolved_sequence_prior == "guitarset-seq-v1"
-    assert policy.resolved_string_evidence == "none"
+    # Default-on since 2026-07-24 (was "none" while the channel was opt-in).
+    assert policy.resolved_string_evidence == "acoustic-physics-v1"
     assert policy.resolved_assignment_decoder == "baseline"
     assert {item.name for item in policy.artifacts} == {
         "guitarset-v1",
         "guitarset-seq-v1",
+        "acoustic-physics-v1",
     }
 
 
