@@ -1,10 +1,13 @@
 """Tests for the registered acoustic-physics-v1 string-evidence artifact.
 
-Two things matter here. The artifact must carry the *gate-passed* decode
+Three things matter here. The artifact must carry the *gate-passed* decode
 config rather than inheriting module defaults — otherwise editing a default
-would silently change what a registered, hash-verified artifact does. And
-registering it must not alter `auto`: promotion into the default path is a
-separate decision, and this asserts the code has not pre-empted it.
+would silently change what a registered, hash-verified artifact does. `auto`
+must resolve to it inside the gated domain and abstain outside (default-on
+since 2026-07-24, player-05 +0.1006 [+0.0615, +0.1416]). And the table must
+stay the untouched derivation: a level correction that helped in-distribution
+was refuted on held-out data, so the tests pin the shipped numbers against
+re-introduction.
 """
 
 from __future__ import annotations
@@ -72,9 +75,59 @@ def test_artifact_carries_the_gate_passed_decode_config() -> None:
     assert config.isolation == "partial_aware"
 
 
-def test_auto_still_resolves_to_none() -> None:
-    # Registering the artifact must NOT promote it into the default path.
+@pytest.mark.parametrize("backend", ["highres", "highres-ensemble"])
+def test_auto_resolves_to_the_artifact_in_the_gated_domain(backend: str) -> None:
+    """Default-on, 2026-07-24: player-05 +0.1006 [+0.0615, +0.1416].
+
+    ``highres-ensemble`` is parametrized deliberately — it is the clean-acoustic
+    ``auto`` backend and the one every Q6 gate was measured on, but the domain
+    guard used to require the literal ``"highres"`` and silently excluded it.
+    """
     cfg, session = _acoustic()
+    policy = resolve_inference_policy(
+        requested_position_prior="auto",
+        requested_sequence_prior="auto",
+        requested_string_evidence="auto",
+        cfg=cfg,
+        session=session,
+        audio_backend_name=backend,
+    )
+    assert policy.resolved_string_evidence == REGISTERED_TABLE
+    assert any(a.name == REGISTERED_TABLE for a in policy.artifacts)
+
+
+def test_auto_matches_the_pipelines_own_default_backend() -> None:
+    """Guards the seam that broke: routing and the guard must agree.
+
+    ``audio_backend_for_session`` picks the backend, ``_automatic_timbre_domain``
+    accepts it. They were written apart and drifted; this pins them together so
+    a future backend rename cannot silently disable the channel.
+    """
+    from tabvision.pipeline import audio_backend_for_session
+
+    cfg, session = _acoustic()
+    policy = resolve_inference_policy(
+        requested_position_prior="auto",
+        requested_sequence_prior="auto",
+        requested_string_evidence="auto",
+        cfg=cfg,
+        session=session,
+        audio_backend_name=audio_backend_for_session(session),
+    )
+    assert policy.resolved_string_evidence == REGISTERED_TABLE
+
+
+@pytest.mark.parametrize(
+    "session,cfg",
+    [
+        (SessionConfig(instrument="classical"), GuitarConfig()),
+        (SessionConfig(instrument="electric"), GuitarConfig()),
+        (SessionConfig(), GuitarConfig(capo=3)),
+    ],
+)
+def test_auto_abstains_outside_the_gated_domain(session: SessionConfig, cfg: GuitarConfig) -> None:
+    # Abstention keeps the GAPS classical no-regression result true by
+    # construction rather than by measurement.
     policy = resolve_inference_policy(
         requested_position_prior="auto",
         requested_sequence_prior="auto",
@@ -86,7 +139,21 @@ def test_auto_still_resolves_to_none() -> None:
     assert policy.resolved_string_evidence == "none"
 
 
-def test_explicit_selection_resolves_to_the_artifact() -> None:
+def test_explicit_none_still_disables_the_channel() -> None:
+    cfg, session = _acoustic()
+    policy = resolve_inference_policy(
+        requested_position_prior="auto",
+        requested_sequence_prior="auto",
+        requested_string_evidence="none",
+        cfg=cfg,
+        session=session,
+        audio_backend_name="highres",
+    )
+    assert policy.resolved_string_evidence == "none"
+
+
+@pytest.mark.parametrize("backend", ["highres", "highres-ensemble"])
+def test_explicit_selection_resolves_to_the_artifact(backend: str) -> None:
     cfg, session = _acoustic()
     policy = resolve_inference_policy(
         requested_position_prior="auto",
@@ -94,7 +161,7 @@ def test_explicit_selection_resolves_to_the_artifact() -> None:
         requested_string_evidence=REGISTERED_TABLE,
         cfg=cfg,
         session=session,
-        audio_backend_name="highres",
+        audio_backend_name=backend,
     )
     assert policy.resolved_string_evidence == REGISTERED_TABLE
 

@@ -4171,3 +4171,36 @@ to every string improves position decisions was only ever measured in the
 distribution the constant came from. The held-out test was the right gate and
 it did its job — this is the in-distribution risk the correction's own entry
 flagged, materializing.
+
+## 2026-07-24 — default-on acoustic-physics-v1 for clean steel acoustic
+**Phase:** post-program, accuracy loop decision #1
+**Decision:** `auto` now resolves string evidence to `acoustic-physics-v1` in
+the clean-acoustic / standard-tuning / capo-0 domain. User-authorized.
+**Evidence:** sealed player-05 **+0.1006 [+0.0615, +0.1416]** vs no channel
+(`player05_batched_confirm_2026-07-24.md`); development OOF +0.0443
+[+0.0339, +0.0555]; portability caveat discharged by N5.
+**Prerequisite bug fixed:** `_automatic_timbre_domain` required
+`audio_backend_name == "highres"`, but `audio_backend_for_session` returns
+`highres-ensemble` for clean acoustic (the default since 2026-07-20) and
+**every Q6 gate was measured on the ensemble**. The guard therefore excluded
+the exact backend its own gate used: `--string-evidence acoustic-physics-v1`
+raised `ConfigurationError` on the default path, and the artifact was
+unreachable in its gate configuration. No test caught it because every policy
+test passed the literal `"highres"`. Both backends are now accepted, the new
+tests are parametrized over both, and one test resolves the backend through
+`audio_backend_for_session` so the routing and the guard cannot drift apart
+again.
+**Also shipped:** N1 `partial_aware` isolation, carried in the artifact's
+decode block; `acoustic-physics-v1` added to the license-CI permissive
+default-artifact allowlist (it has no dataset provenance — every number is
+computed from published string specifications).
+**Safety of the default:** the channel abstains per note when the partial
+structure is unreadable and abstains wholesale outside its domain, so enabling
+it fails to "no evidence" rather than "wrong evidence". Classical/electric/capo
+routing is unchanged and the GAPS no-regression result stays true by
+construction. `--string-evidence none` is the rollback.
+947 unit tests pass; ruff and mypy clean.
+**Reasoning:** the channel had cleared every gate it was asked to clear and was
+being held opt-in pending a decision, while a latent domain-guard bug meant the
+opt-in path did not work either. Promoting it and fixing the guard in one
+change keeps the shipped behaviour and the measured behaviour identical.

@@ -65,18 +65,32 @@ import numpy as np
 from scripts.eval.n2_muscriptor_merge import _event_from_json, _score
 from tabvision.eval.bootstrap import bootstrap_ci
 from tabvision.eval.guitarset_audio import load_mono_audio, parse_guitarset_jams
-from tabvision.fusion.inharmonicity import attach_inharmonicity_evidence
+from tabvision.fusion.inharmonicity import StringStiffnessModel, attach_inharmonicity_evidence
 from tabvision.fusion.position_prior import load_pitch_position_prior
-from tabvision.fusion.string_physics import (
-    load_string_evidence,
-    reference_stiffness_model,
-    shipped_stiffness_model,
-)
+from tabvision.fusion.string_physics import load_string_evidence, reference_stiffness_model
 from tabvision.types import GuitarConfig, SessionConfig
 
 HELD_OUT_PLAYER = "05"
 BOOTSTRAP_N = 10_000
 BOOTSTRAP_SEED = 42
+
+LEVEL_CORRECTION_LOG_B = 0.60
+"""The correction under test. Local to this script by design.
+
+It briefly lived in ``string_physics`` as a shipped constant; this run refuted
+it and it was reverted, so the only place it survives is the experiment that
+killed it. Re-running this script reproduces the refutation without
+reintroducing the constant to the library.
+"""
+
+
+def level_corrected(model: StringStiffnessModel) -> StringStiffnessModel:
+    """``model`` shifted by a uniform offset in log-B."""
+    return StringStiffnessModel(
+        log_b0={index: value + LEVEL_CORRECTION_LOG_B for index, value in model.log_b0.items()},
+        fret_exponent=model.fret_exponent,
+    )
+
 
 ARMS = (
     "baseline",
@@ -125,7 +139,7 @@ def main() -> int:
     # this run cannot silently score a different configuration than ships.
     evidence = load_string_evidence()
     raw_model = reference_stiffness_model()
-    shipped_model = shipped_stiffness_model()
+    corrected_model = level_corrected(raw_model)
     prior = load_pitch_position_prior("guitarset-v1")
 
     clips = sorted(
@@ -144,7 +158,7 @@ def main() -> int:
         f"player-05 batched confirm: {len(clips)} clips x {len(ARMS)} arms\n"
         f"  frozen decode: weight={evidence.weight} min_r2={evidence.min_r2} "
         f"sigma={evidence.sigma} (from registered artifact)\n"
-        f"  level correction: {shipped_model.log_b0[0] - raw_model.log_b0[0]:+.2f} log-B\n"
+        f"  level correction: {LEVEL_CORRECTION_LOG_B:+.2f} log-B\n"
         f"  position prior: guitarset-v1 (registered, excludes player 05)",
         flush=True,
     )
@@ -173,7 +187,7 @@ def main() -> int:
         scores["baseline"].append(base_metrics["tab_f1"])
         row["baseline"] = base_metrics["tab_f1"]
 
-        tables = {"raw": raw_model, "corrected": shipped_model}
+        tables = {"raw": raw_model, "corrected": corrected_model}
         for arm, table, isolation in GRID:
             model = tables[table]
             moved, tally = attach_inharmonicity_evidence(
@@ -208,7 +222,7 @@ def main() -> int:
             "sigma": evidence.sigma,
             "source": "registered acoustic-physics-v1 artifact",
         },
-        "level_correction_log_b": shipped_model.log_b0[0] - raw_model.log_b0[0],
+        "level_correction_log_b": LEVEL_CORRECTION_LOG_B,
         "arm_tab_f1": {arm: float(np.mean(scores[arm])) for arm in ARMS},
         "coverage": coverage,
         "comparisons": {},
@@ -228,9 +242,7 @@ def main() -> int:
         ci = bootstrap_ci(deltas, n_bootstrap=BOOTSTRAP_N, seed=BOOTSTRAP_SEED)
         mean = float(deltas.mean())
         if label == "level correction OOD":
-            reading = (
-                "REFUTED" if mean < 0 else ("CONFIRMED" if ci.lower > 0 else "DIRECTIONAL")
-            )
+            reading = "REFUTED" if mean < 0 else ("CONFIRMED" if ci.lower > 0 else "DIRECTIONAL")
         else:
             reading = "PASS" if ci.lower > 0 else "FAIL"
         solo_ci = bootstrap_ci(deltas[solo_mask], n_bootstrap=BOOTSTRAP_N, seed=BOOTSTRAP_SEED)
@@ -249,9 +261,7 @@ def main() -> int:
             "comp_lo95": comp_ci.lower,
             "comp_hi95": comp_ci.upper,
         }
-        print(
-            f"{label:<24}{reference:<18}{mean:+9.4f}{ci.lower:+9.4f}{ci.upper:+9.4f}  {reading}"
-        )
+        print(f"{label:<24}{reference:<18}{mean:+9.4f}{ci.lower:+9.4f}{ci.upper:+9.4f}  {reading}")
 
     print("\ncoverage (applied / fitted / isolated / events):")
     for arm, tally in coverage.items():

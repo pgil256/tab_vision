@@ -9,6 +9,9 @@ from tabvision.errors import ConfigurationError
 from tabvision.fusion.artifact_registry import ArtifactManifest, load_artifact_manifest
 from tabvision.types import DEFAULT_TUNING_MIDI, GuitarConfig, SessionConfig
 
+DEFAULT_STRING_EVIDENCE = "acoustic-physics-v1"
+"""Artifact ``auto`` resolves to inside the gated clean-acoustic domain."""
+
 
 @dataclass(frozen=True)
 class ArtifactIdentity:
@@ -97,8 +100,11 @@ def resolve_inference_policy(
             )
     resolved_sequence = sequence_manifest.name if sequence_manifest else "none"
 
-    # Phase 2 registers the timbral model here. Until then auto is a neutral
-    # fallback, while an explicit unavailable request is a clear error.
+    # The physics channel is on by default in its gated domain (2026-07-24
+    # user decision). It is specification-derived rather than fitted, and it
+    # abstains per note whenever the partial structure is unreadable, so the
+    # failure mode of enabling it is "no evidence", not "wrong evidence".
+    # Held-out player-05: +0.1006 [+0.0615, +0.1416] vs no channel.
     resolved_timbre = "none"
     timbre_manifest: ArtifactManifest | None = None
     if requested_timbre not in {"auto", "none"}:
@@ -106,11 +112,20 @@ def resolve_inference_policy(
         if not _automatic_timbre_domain(cfg, session, audio_backend_name):
             raise ConfigurationError(
                 f"string evidence {requested_timbre!r} requires clean acoustic, "
-                "standard tuning, capo 0, and the highres backend"
+                f"standard tuning, capo 0, and one of {sorted(TIMBRE_BACKENDS)}"
             )
         resolved_timbre = timbre_manifest.name
     elif requested_timbre == "auto":
-        reasons.append("no gate-passed timbral artifact is registered")
+        if _automatic_timbre_domain(cfg, session, audio_backend_name):
+            try:
+                timbre_manifest = load_artifact_manifest(
+                    DEFAULT_STRING_EVIDENCE, expected_kind="string_evidence"
+                )
+                resolved_timbre = timbre_manifest.name
+            except ConfigurationError as exc:
+                reasons.append(f"automatic string evidence unavailable: {exc}")
+        else:
+            reasons.append("session is outside the validated string-evidence domain")
 
     requested_decoder, resolved_decoder, decoder_reason = resolve_assignment_decoder(
         requested_assignment_decoder,
@@ -163,12 +178,27 @@ def _automatic_classical_domain(cfg: GuitarConfig, session: SessionConfig) -> bo
     )
 
 
+TIMBRE_BACKENDS = frozenset({"highres", "highres-ensemble"})
+"""Backends the physics channel is gated on.
+
+``highres-ensemble`` is not optional here: it has been the clean-acoustic
+``auto`` audio backend since the 2026-07-20 personal-posture decision, and
+**every Q6 gate was measured on it** — the full-dev OOF run and both player-05
+confirmations all instantiate ``HighResEnsembleBackend``. This guard formerly
+required the literal ``"highres"``, which excluded the exact backend the gate
+used: an explicit ``--string-evidence acoustic-physics-v1`` raised
+``ConfigurationError`` on the default path, and no test caught it because the
+policy tests all passed ``"highres"``. Both members are clean-acoustic
+checkpoints and the caller has already been narrowed to the acoustic domain.
+"""
+
+
 def _automatic_timbre_domain(
     cfg: GuitarConfig,
     session: SessionConfig,
     audio_backend_name: str,
 ) -> bool:
-    return _automatic_acoustic_domain(cfg, session) and audio_backend_name == "highres"
+    return _automatic_acoustic_domain(cfg, session) and audio_backend_name in TIMBRE_BACKENDS
 
 
 def resolve_assignment_decoder(

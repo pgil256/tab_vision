@@ -131,11 +131,19 @@ tabvision transcribe input.mov --string-evidence none
 
 `auto` is the production default. Explicit `guitarset-v1` /
 `guitarset-seq-v1` force the compatible registered pair for reproducible
-evaluation or rollback; `none` preserves the bare decode. The rejected
-`guitarset-timbre-v1` artifact is not registered, so automatic string evidence
-currently resolves to `none`. `basicpitch` remains available as the lightweight
-CPU baseline (needs the `audio-baseline` extra; Python 3.11 on some platforms —
-see Install).
+evaluation or rollback; `none` preserves the bare decode.
+
+For **clean steel-string acoustic in standard tuning at capo 0**, automatic
+string evidence resolves to `acoustic-physics-v1` — a stiffness table computed
+from published string specifications rather than fitted to any dataset. It
+reads each note's inharmonicity to tell which string a pitch was played on,
+and abstains per note whenever the partial structure is unreadable. On the
+sealed held-out player it is worth **+0.1006 Tab F1 [+0.0615, +0.1416]**.
+Outside that domain (classical, electric, capo, alternate tunings) it abstains
+by construction. `--string-evidence none` disables it.
+
+`basicpitch` remains available as the lightweight CPU baseline (needs the
+`audio-baseline` extra; Python 3.11 on some platforms — see Install).
 
 Server rollback controls:
 
