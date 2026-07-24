@@ -195,37 +195,21 @@ def reference_stiffness_model(
     return StringStiffnessModel(log_b0=table)
 
 
-LEVEL_CORRECTION_LOG_B = 0.60
-"""Uniform offset between the specification-derived table and real strings.
-
-:func:`reference_stiffness_model` systematically under-predicts ``B``. The
-error was measured three independent ways: Q6's leave-one-player-out residual
-(median -0.566 on 300 clips), N5's perturbation sweep (monotonic gain to
-+0.60, +0.0160 Tab F1), and N4's hex-pickup direct measurement (median +0.780,
-with the response turning over between +0.60 and +0.78). The two evaluations
-of the +0.60 arm agree to 0.0002 Tab F1.
-
-Applied by :func:`shipped_stiffness_model`, which is what the registered
-artifact contains. ``reference_stiffness_model`` stays uncorrected because it
-is the *derivation*, and the build script needs it unmodified to add this
-constant exactly once.
-"""
-
-
-def shipped_stiffness_model() -> StringStiffnessModel:
-    """The table TabVision actually scores with: derivation + level correction.
-
-    This is the single definition of the shipped numbers. The registered
-    ``acoustic-physics-v1`` artifact is built from it, and
-    ``test_string_physics.py`` asserts the two stay equal — so an artifact
-    rebuilt from a future edit to either side cannot silently drift from what
-    the evaluation scripts measure.
-    """
-    base = reference_stiffness_model()
-    return StringStiffnessModel(
-        log_b0={index: value + LEVEL_CORRECTION_LOG_B for index, value in base.log_b0.items()},
-        fret_exponent=base.fret_exponent,
-    )
+# A uniform +0.60 log-B level correction was applied here on 2026-07-24 and
+# REVERTED the same day. The level error it corrected is real and measured
+# three ways (Q6's LOPO residual -0.566, N5's perturbation sweep, N4's direct
+# hex measurement +0.780), and correcting it was worth +0.0160 [+0.0088,
+# +0.0233] on GuitarSet dev. On sealed player-05 it measured **-0.0066**
+# [-0.0224, +0.0079] at strict isolation and +0.0012 [-0.0217, +0.0213] at
+# partial-aware — the dev and held-out intervals do not overlap.
+#
+# Why the physically-real error does not yield an accuracy-real correction:
+# N4 measured the per-player offset at +0.514 to +1.092, a spread wider than
+# the correction itself. The level error is genuine but *instrument-specific*,
+# and no single constant serves a population that varied that much — which is
+# also why N4's own per-instrument ritual lost to a fixed constant. Do not
+# re-derive this constant from dev clips; the negative is banked in
+# docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md.
 
 
 __all__ = [
@@ -236,13 +220,11 @@ __all__ = [
     "StringSpec",
     "inharmonicity_coefficient",
     "open_frequency_hz",
-    "LEVEL_CORRECTION_LOG_B",
     "REGISTERED_TABLE",
     "StringEvidenceConfig",
     "load_string_evidence",
     "classical_stiffness_model",
     "reference_stiffness_model",
-    "shipped_stiffness_model",
     "stiffness_model_for_session",
 ]
 
@@ -285,12 +267,10 @@ def stiffness_model_for_session(
     Abstaining is free: the GAPS clean-12 classical no-regression check is
     then satisfied by construction rather than by measurement.
 
-    Returns :func:`shipped_stiffness_model` — the level-corrected table, equal
-    to the registered artifact. It deliberately does *not* return
-    :func:`reference_stiffness_model`: that is the uncorrected derivation, and
-    returning it here would make the evaluation scripts score a table 0.60
-    log-B away from the one the pipeline ships, which is larger than the
-    effect they are measuring.
+    The returned table must stay equal to the registered artifact — the
+    evaluation scripts read this helper while the pipeline loads the artifact,
+    so any drift between them silently scores a different table than ships.
+    ``test_session_table_is_the_registered_artifact`` pins the two together.
     """
     cfg = cfg or GuitarConfig()
     if session.instrument != "acoustic" or session.tone != "clean":
@@ -299,7 +279,7 @@ def stiffness_model_for_session(
         return None
     if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
         return None
-    return shipped_stiffness_model()
+    return reference_stiffness_model()
 
 
 REGISTERED_TABLE = "acoustic-physics-v1"
@@ -314,6 +294,9 @@ class StringEvidenceConfig:
     weight: float
     min_r2: float
     sigma: float
+    isolation: str = "strict"
+    """Neighbour handling the artifact was gated at. Defaults to ``strict``
+    for artifacts built before N1 confirmed ``partial_aware`` (2026-07-24)."""
 
 
 def load_string_evidence(name: str = REGISTERED_TABLE) -> StringEvidenceConfig:
@@ -339,4 +322,5 @@ def load_string_evidence(name: str = REGISTERED_TABLE) -> StringEvidenceConfig:
         weight=float(decode["weight"]),
         min_r2=float(decode["min_r2"]),
         sigma=float(decode["sigma"]),
+        isolation=str(decode.get("isolation", "strict")),
     )

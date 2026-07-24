@@ -1,0 +1,672 @@
+{
+  "held_out_player": "05",
+  "clips": 60,
+  "frozen_decode": {
+    "weight": 1.0,
+    "min_r2": 0.5,
+    "sigma": 0.35,
+    "source": "registered acoustic-physics-v1 artifact"
+  },
+  "level_correction_log_b": 0.5999999999999996,
+  "arm_tab_f1": {
+    "baseline": 0.633962124525772,
+    "raw-strict": 0.7119321675781695,
+    "corrected-strict": 0.7053056650540855,
+    "raw-partial": 0.7345805362306649,
+    "corrected-partial": 0.7357421927734061
+  },
+  "coverage": {
+    "raw-strict": {
+      "events": 8709,
+      "isolated": 1730,
+      "fitted": 839,
+      "applied": 834
+    },
+    "corrected-strict": {
+      "events": 8709,
+      "isolated": 1730,
+      "fitted": 839,
+      "applied": 834
+    },
+    "raw-partial": {
+      "events": 8709,
+      "isolated": 8709,
+      "fitted": 2284,
+      "applied": 2227
+    },
+    "corrected-partial": {
+      "events": 8709,
+      "isolated": 8709,
+      "fitted": 2284,
+      "applied": 2227
+    }
+  },
+  "comparisons": {
+    "gate re-seal (raw)": {
+      "arm": "raw-strict",
+      "reference": "baseline",
+      "delta": 0.07797004305239728,
+      "lo95": 0.05016245857608176,
+      "hi95": 0.10782388439779045,
+      "reading": "PASS",
+      "solo_delta": 0.13955707071645831,
+      "solo_lo95": 0.09851242815866722,
+      "solo_hi95": 0.18058009281575788,
+      "comp_delta": 0.0163830153883363,
+      "comp_lo95": 0.0,
+      "comp_hi95": 0.04576603077667261
+    },
+    "level correction OOD": {
+      "arm": "corrected-strict",
+      "reference": "raw-strict",
+      "delta": -0.0066265025240839475,
+      "lo95": -0.022376474286327254,
+      "hi95": 0.00786793554021837,
+      "reading": "REFUTED",
+      "solo_delta": -0.003436999969109944,
+      "solo_lo95": -0.02791749326815249,
+      "solo_hi95": 0.021775588840004027,
+      "comp_delta": -0.00981600507905795,
+      "comp_lo95": -0.029857992965907805,
+      "comp_hi95": 0.002405498281786955
+    },
+    "level correction | partial": {
+      "arm": "corrected-partial",
+      "reference": "raw-partial",
+      "delta": 0.0011616565427413849,
+      "lo95": -0.021727819056278498,
+      "hi95": 0.021313904259591676,
+      "reading": "FAIL",
+      "solo_delta": 0.011849221339037784,
+      "solo_lo95": -0.018835506049153766,
+      "solo_hi95": 0.04142589397675046,
+      "comp_delta": -0.009525908253555013,
+      "comp_lo95": -0.04405207954211573,
+      "comp_hi95": 0.015376504316780172
+    },
+    "N1 | raw table": {
+      "arm": "raw-partial",
+      "reference": "raw-strict",
+      "delta": 0.022648368652495428,
+      "lo95": 0.002203977871905547,
+      "hi95": 0.04461972023263034,
+      "reading": "PASS",
+      "solo_delta": 0.035846966511933344,
+      "solo_lo95": 0.013347291924970453,
+      "solo_hi95": 0.06652735106298827,
+      "comp_delta": 0.009449770793057498,
+      "comp_lo95": -0.021274176334829746,
+      "comp_hi95": 0.04140138675722933
+    },
+    "N1 | corrected table": {
+      "arm": "corrected-partial",
+      "reference": "corrected-strict",
+      "delta": 0.030436527719320757,
+      "lo95": 0.009315122895464795,
+      "hi95": 0.05310640426925212,
+      "reading": "PASS",
+      "solo_delta": 0.051133187820081076,
+      "solo_lo95": 0.020211586934244435,
+      "solo_hi95": 0.08597610725592698,
+      "comp_delta": 0.009739867618560435,
+      "comp_lo95": -0.016817191174048778,
+      "comp_hi95": 0.03735548086579792
+    },
+    "best vs baseline": {
+      "arm": "raw-partial",
+      "reference": "baseline",
+      "delta": 0.10061841170489272,
+      "lo95": 0.06153426657598996,
+      "hi95": 0.1415904140228867,
+      "reading": "PASS",
+      "solo_delta": 0.17540403722839162,
+      "solo_lo95": 0.12333042820020995,
+      "solo_hi95": 0.22933176765788318,
+      "comp_delta": 0.0258327861813938,
+      "comp_lo95": -0.015769400859125687,
+      "comp_hi95": 0.07550657373300214
+    }
+  },
+  "per_clip": [
+    {
+      "track_id": "05_BN1-129-Eb_comp",
+      "mode": "comp",
+      "baseline": 0.9466666666666667,
+      "raw-strict": 0.9466666666666667,
+      "corrected-strict": 0.9466666666666667,
+      "raw-partial": 0.9333333333333332,
+      "corrected-partial": 0.9333333333333332
+    },
+    {
+      "track_id": "05_BN1-129-Eb_solo",
+      "mode": "solo",
+      "baseline": 0.3333333333333333,
+      "raw-strict": 0.5111111111111111,
+      "corrected-strict": 0.37777777777777777,
+      "raw-partial": 0.6666666666666666,
+      "corrected-partial": 0.711111111111111
+    },
+    {
+      "track_id": "05_BN1-147-Gb_comp",
+      "mode": "comp",
+      "baseline": 0.7731958762886597,
+      "raw-strict": 0.7731958762886597,
+      "corrected-strict": 0.7731958762886597,
+      "raw-partial": 0.6701030927835052,
+      "corrected-partial": 0.7422680412371135
+    },
+    {
+      "track_id": "05_BN1-147-Gb_solo",
+      "mode": "solo",
+      "baseline": 0.2105263157894737,
+      "raw-strict": 0.456140350877193,
+      "corrected-strict": 0.3508771929824561,
+      "raw-partial": 0.8421052631578948,
+      "corrected-partial": 0.5964912280701755
+    },
+    {
+      "track_id": "05_BN2-131-B_comp",
+      "mode": "comp",
+      "baseline": 0.7970297029702971,
+      "raw-strict": 0.7970297029702971,
+      "corrected-strict": 0.7970297029702971,
+      "raw-partial": 0.7821782178217822,
+      "corrected-partial": 0.7821782178217822
+    },
+    {
+      "track_id": "05_BN2-131-B_solo",
+      "mode": "solo",
+      "baseline": 0.5850340136054423,
+      "raw-strict": 0.435374149659864,
+      "corrected-strict": 0.4761904761904762,
+      "raw-partial": 0.435374149659864,
+      "corrected-partial": 0.4761904761904762
+    },
+    {
+      "track_id": "05_BN2-166-Ab_comp",
+      "mode": "comp",
+      "baseline": 0.8563049853372433,
+      "raw-strict": 0.8856304985337242,
+      "corrected-strict": 0.8563049853372433,
+      "raw-partial": 0.8563049853372433,
+      "corrected-partial": 0.8563049853372433
+    },
+    {
+      "track_id": "05_BN2-166-Ab_solo",
+      "mode": "solo",
+      "baseline": 0.7941176470588236,
+      "raw-strict": 0.8088235294117647,
+      "corrected-strict": 0.7794117647058824,
+      "raw-partial": 0.823529411764706,
+      "corrected-partial": 0.7941176470588236
+    },
+    {
+      "track_id": "05_BN3-119-G_comp",
+      "mode": "comp",
+      "baseline": 0.7222222222222222,
+      "raw-strict": 0.7222222222222222,
+      "corrected-strict": 0.7222222222222222,
+      "raw-partial": 0.6944444444444444,
+      "corrected-partial": 0.7111111111111111
+    },
+    {
+      "track_id": "05_BN3-119-G_solo",
+      "mode": "solo",
+      "baseline": 0.6511627906976745,
+      "raw-strict": 0.8372093023255813,
+      "corrected-strict": 0.8372093023255813,
+      "raw-partial": 0.8372093023255813,
+      "corrected-partial": 0.8062015503875968
+    },
+    {
+      "track_id": "05_BN3-154-E_comp",
+      "mode": "comp",
+      "baseline": 0.7391304347826088,
+      "raw-strict": 0.7391304347826088,
+      "corrected-strict": 0.7391304347826088,
+      "raw-partial": 0.6684782608695652,
+      "corrected-partial": 0.6847826086956522
+    },
+    {
+      "track_id": "05_BN3-154-E_solo",
+      "mode": "solo",
+      "baseline": 0.4444444444444445,
+      "raw-strict": 0.4957264957264957,
+      "corrected-strict": 0.5299145299145298,
+      "raw-partial": 0.5641025641025642,
+      "corrected-partial": 0.7863247863247863
+    },
+    {
+      "track_id": "05_Funk1-114-Ab_comp",
+      "mode": "comp",
+      "baseline": 0.8377581120943953,
+      "raw-strict": 0.8377581120943953,
+      "corrected-strict": 0.8377581120943953,
+      "raw-partial": 0.8023598820058997,
+      "corrected-partial": 0.8082595870206489
+    },
+    {
+      "track_id": "05_Funk1-114-Ab_solo",
+      "mode": "solo",
+      "baseline": 0.6495726495726496,
+      "raw-strict": 0.6495726495726496,
+      "corrected-strict": 0.6495726495726496,
+      "raw-partial": 0.6495726495726496,
+      "corrected-partial": 0.6495726495726496
+    },
+    {
+      "track_id": "05_Funk1-97-C_comp",
+      "mode": "comp",
+      "baseline": 0.8319088319088318,
+      "raw-strict": 0.8319088319088318,
+      "corrected-strict": 0.8319088319088318,
+      "raw-partial": 0.8774928774928774,
+      "corrected-partial": 0.8319088319088318
+    },
+    {
+      "track_id": "05_Funk1-97-C_solo",
+      "mode": "solo",
+      "baseline": 0.4247787610619469,
+      "raw-strict": 0.5309734513274337,
+      "corrected-strict": 0.6371681415929203,
+      "raw-partial": 0.584070796460177,
+      "corrected-partial": 0.6902654867256638
+    },
+    {
+      "track_id": "05_Funk2-108-Eb_comp",
+      "mode": "comp",
+      "baseline": 0.7235772357723578,
+      "raw-strict": 0.7235772357723578,
+      "corrected-strict": 0.7235772357723578,
+      "raw-partial": 0.6869918699186991,
+      "corrected-partial": 0.6788617886178863
+    },
+    {
+      "track_id": "05_Funk2-108-Eb_solo",
+      "mode": "solo",
+      "baseline": 0.4516129032258064,
+      "raw-strict": 0.6935483870967742,
+      "corrected-strict": 0.8225806451612904,
+      "raw-partial": 0.7580645161290323,
+      "corrected-partial": 0.8225806451612904
+    },
+    {
+      "track_id": "05_Funk2-119-G_comp",
+      "mode": "comp",
+      "baseline": 0.853932584269663,
+      "raw-strict": 0.853932584269663,
+      "corrected-strict": 0.853932584269663,
+      "raw-partial": 0.8426966292134831,
+      "corrected-partial": 0.8202247191011236
+    },
+    {
+      "track_id": "05_Funk2-119-G_solo",
+      "mode": "solo",
+      "baseline": 0.3794871794871795,
+      "raw-strict": 0.6564102564102564,
+      "corrected-strict": 0.6564102564102564,
+      "raw-partial": 0.6666666666666666,
+      "corrected-partial": 0.7384615384615384
+    },
+    {
+      "track_id": "05_Funk3-112-C#_comp",
+      "mode": "comp",
+      "baseline": 0.8226950354609929,
+      "raw-strict": 0.8226950354609929,
+      "corrected-strict": 0.8226950354609929,
+      "raw-partial": 0.8321513002364066,
+      "corrected-partial": 0.8226950354609929
+    },
+    {
+      "track_id": "05_Funk3-112-C#_solo",
+      "mode": "solo",
+      "baseline": 0.681159420289855,
+      "raw-strict": 0.8115942028985507,
+      "corrected-strict": 0.8260869565217392,
+      "raw-partial": 0.855072463768116,
+      "corrected-partial": 0.8405797101449276
+    },
+    {
+      "track_id": "05_Funk3-98-A_comp",
+      "mode": "comp",
+      "baseline": 0.8011204481792717,
+      "raw-strict": 0.8011204481792717,
+      "corrected-strict": 0.8011204481792717,
+      "raw-partial": 0.8123249299719888,
+      "corrected-partial": 0.8011204481792717
+    },
+    {
+      "track_id": "05_Funk3-98-A_solo",
+      "mode": "solo",
+      "baseline": 0.8461538461538461,
+      "raw-strict": 0.9076923076923076,
+      "corrected-strict": 0.8769230769230769,
+      "raw-partial": 0.9538461538461539,
+      "corrected-partial": 0.8923076923076924
+    },
+    {
+      "track_id": "05_Jazz1-130-D_comp",
+      "mode": "comp",
+      "baseline": 0.7985347985347986,
+      "raw-strict": 0.7985347985347986,
+      "corrected-strict": 0.7985347985347986,
+      "raw-partial": 0.6007326007326006,
+      "corrected-partial": 0.652014652014652
+    },
+    {
+      "track_id": "05_Jazz1-130-D_solo",
+      "mode": "solo",
+      "baseline": 0.711864406779661,
+      "raw-strict": 0.8135593220338982,
+      "corrected-strict": 0.7627118644067795,
+      "raw-partial": 0.8135593220338982,
+      "corrected-partial": 0.7627118644067795
+    },
+    {
+      "track_id": "05_Jazz1-200-B_comp",
+      "mode": "comp",
+      "baseline": 0.48520710059171596,
+      "raw-strict": 0.48520710059171596,
+      "corrected-strict": 0.48520710059171596,
+      "raw-partial": 0.48520710059171596,
+      "corrected-partial": 0.514792899408284
+    },
+    {
+      "track_id": "05_Jazz1-200-B_solo",
+      "mode": "solo",
+      "baseline": 0.37623762376237624,
+      "raw-strict": 0.5544554455445545,
+      "corrected-strict": 0.4752475247524752,
+      "raw-partial": 0.6336633663366336,
+      "corrected-partial": 0.6732673267326733
+    },
+    {
+      "track_id": "05_Jazz2-110-Bb_comp",
+      "mode": "comp",
+      "baseline": 0.8055555555555556,
+      "raw-strict": 0.8055555555555556,
+      "corrected-strict": 0.8055555555555556,
+      "raw-partial": 0.7738095238095238,
+      "corrected-partial": 0.7936507936507936
+    },
+    {
+      "track_id": "05_Jazz2-110-Bb_solo",
+      "mode": "solo",
+      "baseline": 0.6862745098039216,
+      "raw-strict": 0.7450980392156863,
+      "corrected-strict": 0.7156862745098039,
+      "raw-partial": 0.7549019607843138,
+      "corrected-partial": 0.7254901960784315
+    },
+    {
+      "track_id": "05_Jazz2-187-F#_comp",
+      "mode": "comp",
+      "baseline": 0.7590618336886993,
+      "raw-strict": 0.7590618336886993,
+      "corrected-strict": 0.7590618336886993,
+      "raw-partial": 0.6695095948827292,
+      "corrected-partial": 0.6567164179104479
+    },
+    {
+      "track_id": "05_Jazz2-187-F#_solo",
+      "mode": "solo",
+      "baseline": 0.26016260162601623,
+      "raw-strict": 0.5691056910569106,
+      "corrected-strict": 0.43902439024390244,
+      "raw-partial": 0.5691056910569106,
+      "corrected-partial": 0.4878048780487805
+    },
+    {
+      "track_id": "05_Jazz3-137-Eb_comp",
+      "mode": "comp",
+      "baseline": 0.902542372881356,
+      "raw-strict": 0.902542372881356,
+      "corrected-strict": 0.902542372881356,
+      "raw-partial": 0.8347457627118644,
+      "corrected-partial": 0.8559322033898306
+    },
+    {
+      "track_id": "05_Jazz3-137-Eb_solo",
+      "mode": "solo",
+      "baseline": 0.42857142857142855,
+      "raw-strict": 0.7402597402597403,
+      "corrected-strict": 0.8181818181818182,
+      "raw-partial": 0.7272727272727273,
+      "corrected-partial": 0.8181818181818182
+    },
+    {
+      "track_id": "05_Jazz3-150-C_comp",
+      "mode": "comp",
+      "baseline": 0.29024943310657597,
+      "raw-strict": 0.29024943310657597,
+      "corrected-strict": 0.29024943310657597,
+      "raw-partial": 0.5306122448979593,
+      "corrected-partial": 0.45804988662131524
+    },
+    {
+      "track_id": "05_Jazz3-150-C_solo",
+      "mode": "solo",
+      "baseline": 0.7246376811594203,
+      "raw-strict": 0.8695652173913043,
+      "corrected-strict": 0.8405797101449275,
+      "raw-partial": 0.8695652173913043,
+      "corrected-partial": 0.8695652173913043
+    },
+    {
+      "track_id": "05_Rock1-130-A_comp",
+      "mode": "comp",
+      "baseline": 0.36018957345971564,
+      "raw-strict": 0.36018957345971564,
+      "corrected-strict": 0.36018957345971564,
+      "raw-partial": 0.4044233807266983,
+      "corrected-partial": 0.537124802527646
+    },
+    {
+      "track_id": "05_Rock1-130-A_solo",
+      "mode": "solo",
+      "baseline": 0.7107438016528925,
+      "raw-strict": 0.8595041322314049,
+      "corrected-strict": 0.8264462809917356,
+      "raw-partial": 0.8595041322314049,
+      "corrected-partial": 0.8264462809917356
+    },
+    {
+      "track_id": "05_Rock1-90-C#_comp",
+      "mode": "comp",
+      "baseline": 0.9473684210526316,
+      "raw-strict": 0.9473684210526316,
+      "corrected-strict": 0.9473684210526316,
+      "raw-partial": 0.9333333333333332,
+      "corrected-partial": 0.9333333333333332
+    },
+    {
+      "track_id": "05_Rock1-90-C#_solo",
+      "mode": "solo",
+      "baseline": 0.8457711442786069,
+      "raw-strict": 0.9253731343283583,
+      "corrected-strict": 0.8855721393034826,
+      "raw-partial": 0.9253731343283583,
+      "corrected-partial": 0.8855721393034826
+    },
+    {
+      "track_id": "05_Rock2-142-D_comp",
+      "mode": "comp",
+      "baseline": 0.5132743362831858,
+      "raw-strict": 0.5132743362831858,
+      "corrected-strict": 0.5132743362831858,
+      "raw-partial": 0.6128318584070797,
+      "corrected-partial": 0.5907079646017699
+    },
+    {
+      "track_id": "05_Rock2-142-D_solo",
+      "mode": "solo",
+      "baseline": 0.31213872832369943,
+      "raw-strict": 0.39306358381502887,
+      "corrected-strict": 0.48554913294797686,
+      "raw-partial": 0.45086705202312144,
+      "corrected-partial": 0.508670520231214
+    },
+    {
+      "track_id": "05_Rock2-85-F_comp",
+      "mode": "comp",
+      "baseline": 0.6499215070643641,
+      "raw-strict": 0.6499215070643641,
+      "corrected-strict": 0.6499215070643641,
+      "raw-partial": 0.7535321821036107,
+      "corrected-partial": 0.7346938775510204
+    },
+    {
+      "track_id": "05_Rock2-85-F_solo",
+      "mode": "solo",
+      "baseline": 0.7410358565737052,
+      "raw-strict": 0.7888446215139442,
+      "corrected-strict": 0.8127490039840637,
+      "raw-partial": 0.7888446215139442,
+      "corrected-partial": 0.8127490039840637
+    },
+    {
+      "track_id": "05_Rock3-117-Bb_comp",
+      "mode": "comp",
+      "baseline": 0.45721583652618136,
+      "raw-strict": 0.45721583652618136,
+      "corrected-strict": 0.45721583652618136,
+      "raw-partial": 0.6155810983397191,
+      "corrected-partial": 0.5977011494252874
+    },
+    {
+      "track_id": "05_Rock3-117-Bb_solo",
+      "mode": "solo",
+      "baseline": 0.510948905109489,
+      "raw-strict": 0.7445255474452556,
+      "corrected-strict": 0.8759124087591241,
+      "raw-partial": 0.7445255474452556,
+      "corrected-partial": 0.8759124087591241
+    },
+    {
+      "track_id": "05_Rock3-148-C_comp",
+      "mode": "comp",
+      "baseline": 0.8657314629258517,
+      "raw-strict": 0.8657314629258517,
+      "corrected-strict": 0.8657314629258517,
+      "raw-partial": 0.9018036072144289,
+      "corrected-partial": 0.8537074148296594
+    },
+    {
+      "track_id": "05_Rock3-148-C_solo",
+      "mode": "solo",
+      "baseline": 0.639344262295082,
+      "raw-strict": 0.7377049180327869,
+      "corrected-strict": 0.819672131147541,
+      "raw-partial": 0.7868852459016392,
+      "corrected-partial": 0.8524590163934426
+    },
+    {
+      "track_id": "05_SS1-100-C#_comp",
+      "mode": "comp",
+      "baseline": 0.27,
+      "raw-strict": 0.66,
+      "corrected-strict": 0.4,
+      "raw-partial": 0.8,
+      "corrected-partial": 0.4
+    },
+    {
+      "track_id": "05_SS1-100-C#_solo",
+      "mode": "solo",
+      "baseline": 0.8571428571428572,
+      "raw-strict": 0.8253968253968254,
+      "corrected-strict": 0.8571428571428572,
+      "raw-partial": 0.7936507936507938,
+      "corrected-partial": 0.8571428571428572
+    },
+    {
+      "track_id": "05_SS1-68-E_comp",
+      "mode": "comp",
+      "baseline": 0.965034965034965,
+      "raw-strict": 0.965034965034965,
+      "corrected-strict": 0.965034965034965,
+      "raw-partial": 0.881118881118881,
+      "corrected-partial": 0.9440559440559441
+    },
+    {
+      "track_id": "05_SS1-68-E_solo",
+      "mode": "solo",
+      "baseline": 0.2967741935483871,
+      "raw-strict": 0.5161290322580645,
+      "corrected-strict": 0.49032258064516127,
+      "raw-partial": 0.5032258064516129,
+      "corrected-partial": 0.4129032258064516
+    },
+    {
+      "track_id": "05_SS2-107-Ab_comp",
+      "mode": "comp",
+      "baseline": 0.7410714285714286,
+      "raw-strict": 0.7410714285714286,
+      "corrected-strict": 0.7410714285714286,
+      "raw-partial": 0.7723214285714286,
+      "corrected-partial": 0.7366071428571428
+    },
+    {
+      "track_id": "05_SS2-107-Ab_solo",
+      "mode": "solo",
+      "baseline": 0.6551724137931034,
+      "raw-strict": 0.7701149425287356,
+      "corrected-strict": 0.6666666666666666,
+      "raw-partial": 0.7471264367816093,
+      "corrected-partial": 0.7701149425287356
+    },
+    {
+      "track_id": "05_SS2-88-F_comp",
+      "mode": "comp",
+      "baseline": 0.6082474226804124,
+      "raw-strict": 0.6804123711340205,
+      "corrected-strict": 0.634020618556701,
+      "raw-partial": 0.7474226804123711,
+      "corrected-partial": 0.6958762886597938
+    },
+    {
+      "track_id": "05_SS2-88-F_solo",
+      "mode": "solo",
+      "baseline": 0.6137566137566137,
+      "raw-strict": 0.708994708994709,
+      "corrected-strict": 0.708994708994709,
+      "raw-partial": 0.7830687830687831,
+      "corrected-partial": 0.8571428571428571
+    },
+    {
+      "track_id": "05_SS3-84-Bb_comp",
+      "mode": "comp",
+      "baseline": 0.7029478458049887,
+      "raw-strict": 0.7029478458049887,
+      "corrected-strict": 0.7029478458049887,
+      "raw-partial": 0.8526077097505669,
+      "corrected-partial": 0.8888888888888888
+    },
+    {
+      "track_id": "05_SS3-84-Bb_solo",
+      "mode": "solo",
+      "baseline": 0.3859649122807018,
+      "raw-strict": 0.7807017543859649,
+      "corrected-strict": 0.7543859649122807,
+      "raw-partial": 0.8245614035087719,
+      "corrected-partial": 0.7456140350877193
+    },
+    {
+      "track_id": "05_SS3-98-C_comp",
+      "mode": "comp",
+      "baseline": 0.7010309278350515,
+      "raw-strict": 0.7010309278350515,
+      "corrected-strict": 0.7422680412371134,
+      "raw-partial": 0.6752577319587628,
+      "corrected-partial": 0.7010309278350515
+    },
+    {
+      "track_id": "05_SS3-98-C_solo",
+      "mode": "solo",
+      "baseline": 0.3010752688172043,
+      "raw-strict": 0.5591397849462365,
+      "corrected-strict": 0.5376344086021505,
+      "raw-partial": 0.5591397849462365,
+      "corrected-partial": 0.5806451612903226
+    }
+  ]
+}

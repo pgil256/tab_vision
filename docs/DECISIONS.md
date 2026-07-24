@@ -4136,3 +4136,38 @@ correction (+0.60 uniform constant) outperforming every more sophisticated
 alternative (per-instrument ritual, per-string calibration, global median of
 ritual offsets). The largest remaining single lever for Tab F1 improvement
 within the existing physics channel.
+
+## 2026-07-24 — REVERT the +0.60 level correction; ship N1 instead
+**Phase:** post-program, accuracy loop
+**Decision:** revert the uniform +0.60 log-B correction to `acoustic-physics-v1`
+(recorded earlier today) and ship N1 `partial_aware` isolation in its place.
+**Trigger:** the sealed player-05 confirmation the correction's own DECISIONS
+entry said it wanted. Pre-declared reading REFUTED (delta < 0) fired.
+**Result:** on 60 held-out clips the correction measured **-0.0066
+[-0.0224, +0.0079]** at strict isolation and +0.0012 [-0.0217, +0.0213] at
+partial-aware, against **+0.0160 [+0.0088, +0.0233]** on GuitarSet dev. The
+dev and held-out intervals do not overlap. N1 confirmed independently on both
+tables (+0.0226 [+0.0022, +0.0446] on the shipped table), lifting applied notes
+834 -> 2227 of 8709; `isolation` now travels inside the artifact with the other
+gate-passed decode settings. Net player-05 delta vs baseline: +0.0780 -> **+0.1006
+[+0.0615, +0.1416]**, entirely from N1.
+**Harness validation:** the `raw-strict` arm reproduced Q6's held-out block
+figure-for-figure (+0.0780 [+0.0502, +0.1078], solo 0.1396, comp 0.0164).
+**Why the correction failed:** the level error is physically real — measured
+three independent ways — but **instrument-specific**. N4's per-player offsets
+ran +0.514 to +1.092, a spread wider than the correction itself; no single
+constant serves that population, which is the same reason N4's per-instrument
+ritual lost to a fixed constant. That data was in hand and under-weighted.
+**Alternatives rejected:** re-tuning to +0.40 on player-05 — that repeats the
+in-distribution error on the sealed set. The negative is banked; do not
+re-derive this constant from dev clips.
+**Evidence:** `docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md` (+ `.json`);
+`tabvision/scripts/eval/player05_batched_confirm.py`.
+940 unit tests pass; ruff and mypy clean.
+**Reasoning:** three independent measurements of a *physical* quantity were
+treated as support for a *decision-theoretic* correction. They are different
+claims: that B is under-predicted is well established, that adding a constant
+to every string improves position decisions was only ever measured in the
+distribution the constant came from. The held-out test was the right gate and
+it did its job — this is the in-distribution risk the correction's own entry
+flagged, materializing.

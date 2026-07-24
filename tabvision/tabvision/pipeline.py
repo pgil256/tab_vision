@@ -249,6 +249,7 @@ def run_pipeline_with_artifacts(
             weight=evidence.weight,
             min_r2=evidence.min_r2,
             sigma=evidence.sigma,
+            isolation=evidence.isolation,
         )
         logger.info(
             "attached string evidence %s to %d/%d events",

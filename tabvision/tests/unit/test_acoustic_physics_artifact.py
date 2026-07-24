@@ -15,7 +15,6 @@ from tabvision.errors import ConfigurationError
 from tabvision.fusion.artifact_registry import load_artifact_manifest
 from tabvision.fusion.inference_policy import resolve_inference_policy
 from tabvision.fusion.string_physics import (
-    LEVEL_CORRECTION_LOG_B,
     REGISTERED_TABLE,
     load_string_evidence,
     reference_stiffness_model,
@@ -36,13 +35,30 @@ def test_artifact_is_registered_and_hash_verified() -> None:
     assert manifest.sha256
 
 
-def test_artifact_table_is_spec_derived_plus_level_correction() -> None:
+def test_artifact_table_matches_the_physics_module() -> None:
     loaded = load_string_evidence().model
     computed = reference_stiffness_model()
     assert loaded.log_b0.keys() == computed.log_b0.keys()
     for string, value in computed.log_b0.items():
-        assert loaded.log_b0[string] == pytest.approx(value + LEVEL_CORRECTION_LOG_B)
+        assert loaded.log_b0[string] == pytest.approx(value)
     assert loaded.fret_exponent == pytest.approx(computed.fret_exponent)
+
+
+def test_artifact_is_not_level_corrected() -> None:
+    """A +0.60 log-B level correction was tried and reverted on 2026-07-24.
+
+    It gained +0.0160 [+0.0088, +0.0233] on GuitarSet dev and measured -0.0066
+    [-0.0224, +0.0079] on sealed player-05 — non-overlapping intervals. The
+    level error is physically real (N4 measured it directly on hex pickups)
+    but instrument-specific: per-player offsets ran +0.514 to +1.092, wider
+    than the correction itself. This asserts the table is the untouched
+    derivation, so a future session cannot silently reintroduce a shift that
+    only helps in-distribution.
+    """
+    loaded = load_string_evidence().model
+    derived = reference_stiffness_model()
+    for string, value in derived.log_b0.items():
+        assert loaded.log_b0[string] == pytest.approx(value, abs=1e-12)
 
 
 def test_artifact_carries_the_gate_passed_decode_config() -> None:
@@ -51,6 +67,9 @@ def test_artifact_carries_the_gate_passed_decode_config() -> None:
     assert config.weight == pytest.approx(1.0)
     assert config.min_r2 == pytest.approx(0.50)
     assert config.sigma > 0.0
+    # N1, confirmed on sealed player-05 2026-07-24: +0.0226 [+0.0022, +0.0446]
+    # over strict, lifting applied notes 834 -> 2227 of 8709.
+    assert config.isolation == "partial_aware"
 
 
 def test_auto_still_resolves_to_none() -> None:

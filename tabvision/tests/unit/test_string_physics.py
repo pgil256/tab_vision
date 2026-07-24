@@ -22,14 +22,12 @@ from tabvision.fusion.inharmonicity import (
 from tabvision.fusion.string_physics import (
     ACOUSTIC_LIGHT_SET,
     DEFAULT_SCALE_LENGTH_IN,
-    LEVEL_CORRECTION_LOG_B,
     StringSpec,
     classical_stiffness_model,
     inharmonicity_coefficient,
     load_string_evidence,
     open_frequency_hz,
     reference_stiffness_model,
-    shipped_stiffness_model,
     stiffness_model_for_session,
 )
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig
@@ -164,19 +162,16 @@ def test_session_table_is_the_registered_artifact() -> None:
     assert session_model.fret_exponent == pytest.approx(registered.fret_exponent)
 
 
-def test_shipped_table_is_the_derivation_plus_the_level_correction() -> None:
-    """Pins the correction's size and direction, and keeps the two roles apart.
+def test_registered_decode_config_travels_with_the_table() -> None:
+    """Decode settings are gate-passed values, not module defaults.
 
-    ``reference_stiffness_model`` is the derivation and stays uncorrected;
-    ``shipped_stiffness_model`` is what scores. If a future edit collapses the
-    distinction, the build script would apply the correction twice or not at
-    all — and the artifact hash would move without anyone deciding to move it.
+    ``isolation`` joined them once N1 confirmed ``partial_aware`` on sealed
+    player-05, so a change to the module default cannot alter what the
+    registered artifact does.
     """
-    derived = reference_stiffness_model()
-    shipped = shipped_stiffness_model()
-    assert LEVEL_CORRECTION_LOG_B > 0.0, "the table under-predicts B; the fix adds to it"
-    for string, value in derived.log_b0.items():
-        assert shipped.log_b0[string] == pytest.approx(value + LEVEL_CORRECTION_LOG_B)
+    config = load_string_evidence()
+    assert config.isolation == "partial_aware"
+    assert config.weight == pytest.approx(1.0)
 
 
 def test_classical_sessions_abstain() -> None:
@@ -251,7 +246,7 @@ def test_acoustic_still_gets_the_steel_table() -> None:
     # is what let the +0.60 correction diverge from the scored table unnoticed.
     model = stiffness_model_for_session(SessionConfig(instrument="acoustic"))
     assert model is not None
-    assert model.log_b0 == shipped_stiffness_model().log_b0
+    assert model.log_b0 == reference_stiffness_model().log_b0
     nylon = classical_stiffness_model().log_b0
     assert all(abs(model.log_b0[s] - nylon[s]) > 0.05 for s in range(6))
 
