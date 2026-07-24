@@ -22,10 +22,14 @@ from tabvision.fusion.inharmonicity import (
 from tabvision.fusion.string_physics import (
     ACOUSTIC_LIGHT_SET,
     DEFAULT_SCALE_LENGTH_IN,
+    LEVEL_CORRECTION_LOG_B,
     StringSpec,
+    classical_stiffness_model,
     inharmonicity_coefficient,
+    load_string_evidence,
     open_frequency_hz,
     reference_stiffness_model,
+    shipped_stiffness_model,
     stiffness_model_for_session,
 )
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig
@@ -142,6 +146,39 @@ def test_steel_table_applies_to_clean_steel_acoustic() -> None:
     assert sorted(model.log_b0) == [0, 1, 2, 3, 4, 5]
 
 
+def test_session_table_is_the_registered_artifact() -> None:
+    """The scored table and the shipped artifact must never diverge.
+
+    They did once: the +0.60 level correction landed in the artifact while
+    ``stiffness_model_for_session`` still returned the uncorrected derivation,
+    leaving the evaluation scripts scoring a table 0.60 log-B away from the
+    one the pipeline loads — larger than the effect those scripts measure.
+    Nothing failed, because no test compared them. This one does.
+    """
+    session_model = stiffness_model_for_session(_acoustic())
+    registered = load_string_evidence().model
+    assert session_model is not None
+    assert session_model.log_b0.keys() == registered.log_b0.keys()
+    for string, value in registered.log_b0.items():
+        assert session_model.log_b0[string] == pytest.approx(value)
+    assert session_model.fret_exponent == pytest.approx(registered.fret_exponent)
+
+
+def test_shipped_table_is_the_derivation_plus_the_level_correction() -> None:
+    """Pins the correction's size and direction, and keeps the two roles apart.
+
+    ``reference_stiffness_model`` is the derivation and stays uncorrected;
+    ``shipped_stiffness_model`` is what scores. If a future edit collapses the
+    distinction, the build script would apply the correction twice or not at
+    all — and the artifact hash would move without anyone deciding to move it.
+    """
+    derived = reference_stiffness_model()
+    shipped = shipped_stiffness_model()
+    assert LEVEL_CORRECTION_LOG_B > 0.0, "the table under-predicts B; the fix adds to it"
+    for string, value in derived.log_b0.items():
+        assert shipped.log_b0[string] == pytest.approx(value + LEVEL_CORRECTION_LOG_B)
+
+
 def test_classical_sessions_abstain() -> None:
     # N2 built a nylon table but measured it as no help on GAPS, so classical
     # keeps abstaining by construction (which is what makes the GAPS gate free
@@ -208,10 +245,15 @@ def test_steel_and_nylon_tables_are_distinct() -> None:
 
 
 def test_acoustic_still_gets_the_steel_table() -> None:
-    # N2 widened the routing; the steel path must be untouched.
+    # N2 widened the routing; the steel path must be untouched. Anchored on
+    # shipped_stiffness_model, not reference_stiffness_model: the point is
+    # steel-rather-than-nylon, and anchoring it on the uncorrected derivation
+    # is what let the +0.60 correction diverge from the scored table unnoticed.
     model = stiffness_model_for_session(SessionConfig(instrument="acoustic"))
     assert model is not None
-    assert model.log_b0 == reference_stiffness_model().log_b0
+    assert model.log_b0 == shipped_stiffness_model().log_b0
+    nylon = classical_stiffness_model().log_b0
+    assert all(abs(model.log_b0[s] - nylon[s]) > 0.05 for s in range(6))
 
 
 def test_nylon_treble_mass_is_derived_from_density_not_fitted() -> None:

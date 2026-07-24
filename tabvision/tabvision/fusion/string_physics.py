@@ -195,6 +195,39 @@ def reference_stiffness_model(
     return StringStiffnessModel(log_b0=table)
 
 
+LEVEL_CORRECTION_LOG_B = 0.60
+"""Uniform offset between the specification-derived table and real strings.
+
+:func:`reference_stiffness_model` systematically under-predicts ``B``. The
+error was measured three independent ways: Q6's leave-one-player-out residual
+(median -0.566 on 300 clips), N5's perturbation sweep (monotonic gain to
++0.60, +0.0160 Tab F1), and N4's hex-pickup direct measurement (median +0.780,
+with the response turning over between +0.60 and +0.78). The two evaluations
+of the +0.60 arm agree to 0.0002 Tab F1.
+
+Applied by :func:`shipped_stiffness_model`, which is what the registered
+artifact contains. ``reference_stiffness_model`` stays uncorrected because it
+is the *derivation*, and the build script needs it unmodified to add this
+constant exactly once.
+"""
+
+
+def shipped_stiffness_model() -> StringStiffnessModel:
+    """The table TabVision actually scores with: derivation + level correction.
+
+    This is the single definition of the shipped numbers. The registered
+    ``acoustic-physics-v1`` artifact is built from it, and
+    ``test_string_physics.py`` asserts the two stay equal — so an artifact
+    rebuilt from a future edit to either side cannot silently drift from what
+    the evaluation scripts measure.
+    """
+    base = reference_stiffness_model()
+    return StringStiffnessModel(
+        log_b0={index: value + LEVEL_CORRECTION_LOG_B for index, value in base.log_b0.items()},
+        fret_exponent=base.fret_exponent,
+    )
+
+
 __all__ = [
     "ACOUSTIC_LIGHT_SET",
     "CLASSICAL_NYLON_SET",
@@ -209,6 +242,7 @@ __all__ = [
     "load_string_evidence",
     "classical_stiffness_model",
     "reference_stiffness_model",
+    "shipped_stiffness_model",
     "stiffness_model_for_session",
 ]
 
@@ -250,6 +284,13 @@ def stiffness_model_for_session(
 
     Abstaining is free: the GAPS clean-12 classical no-regression check is
     then satisfied by construction rather than by measurement.
+
+    Returns :func:`shipped_stiffness_model` — the level-corrected table, equal
+    to the registered artifact. It deliberately does *not* return
+    :func:`reference_stiffness_model`: that is the uncorrected derivation, and
+    returning it here would make the evaluation scripts score a table 0.60
+    log-B away from the one the pipeline ships, which is larger than the
+    effect they are measuring.
     """
     cfg = cfg or GuitarConfig()
     if session.instrument != "acoustic" or session.tone != "clean":
@@ -258,20 +299,11 @@ def stiffness_model_for_session(
         return None
     if tuple(cfg.tuning_midi) != tuple(spec.open_midi for spec in ACOUSTIC_LIGHT_SET):
         return None
-    return reference_stiffness_model()
+    return shipped_stiffness_model()
 
 
 REGISTERED_TABLE = "acoustic-physics-v1"
 """The registered artifact carrying the gate-passed table and decode config."""
-
-LEVEL_CORRECTION_LOG_B = 0.60
-"""Uniform offset applied to the specification-derived log-B₀ table.
-
-The spec-derived table systematically under-predicts B. Measured three
-independent ways: Q6 LOPO residual (median −0.566 on 300 clips), N5 offset
-sweep (monotonic gain to +0.60, +0.0160 Tab F1), N4 hex-pickup direct
-measurement (median +0.780, response turning over between +0.60 and +0.78).
-"""
 
 
 @dataclass(frozen=True)

@@ -34,7 +34,7 @@ from tabvision.fusion.string_physics import (
     DEFAULT_SCALE_LENGTH_IN,
     LEVEL_CORRECTION_LOG_B,
     STEEL_YOUNGS_MODULUS_PA,
-    reference_stiffness_model,
+    shipped_stiffness_model,
 )
 
 NAME = "acoustic-physics-v1"
@@ -48,11 +48,8 @@ def _lf(text: str) -> bytes:
 
 
 def build_artifact() -> dict[str, object]:
-    model = reference_stiffness_model()
-    corrected_log_b0 = {
-        str(index): value + LEVEL_CORRECTION_LOG_B
-        for index, value in sorted(model.log_b0.items())
-    }
+    model = shipped_stiffness_model()
+    corrected_log_b0 = {str(index): value for index, value in sorted(model.log_b0.items())}
     return {
         "schema_version": 1,
         "name": NAME,
