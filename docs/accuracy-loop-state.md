@@ -1,6 +1,6 @@
 # Accuracy-loop state
-last_updated: 2026-07-23
-current_branch: accuracy/n3-ranker-build  (post-program N3 build)
+last_updated: 2026-07-24
+current_branch: accuracy/n5-table-mismatch  (post-program N5 robustness study)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -10,7 +10,7 @@ current_branch: accuracy/n3-ranker-build  (post-program N3 build)
 | Q3 | S1b-v2 integration | **dropped** | — | — | Q2 closed-negative |
 | Q4 | Second-opinion probes | **dropped** (user, 2026-07-22) | leg-2 gate **derived = 0.528**, 5/5 sign agreement — kept as the standing bench for any future candidate | none — dropped | — |
 | Q5 | Onset snapping | **closed-negative** | best `snap-10ms` **+0.0002** [-0.0009, +0.0016]; wider windows lose on Tab *and* onset; `timing_only` rises 15→41 | none — closed | — |
-| Q6 | Inharmonicity study | **REGISTERED (opt-in)** | player-05 **+0.0780** [+0.0502, +0.1078]; `acoustic-physics-v1` registered + wired; **`auto` still `none`** | **user call: default-on for clean steel acoustic?** | user decision |
+| Q6 | Inharmonicity study | **REGISTERED (opt-in)** | player-05 **+0.0780** [+0.0502, +0.1078]; `acoustic-physics-v1` registered + wired; **`auto` still `none`**; portability caveat **discharged by N5** (2026-07-24, ROBUST) | **user call: default-on for clean steel acoustic?** | user decision |
 | Q7 | Capo/tuning preflight | **transform validated; detection refuted** | covariant **+0.3870** [+0.2818, +0.4906]; capo detection from pitch **1/60** — warn only, no auto-set | **user call: route capo>0 to covariant prior?** (capo stays user-supplied) | user decision |
 | Q8 | Review-ranker upgrade | **unblocked-but-orphaned** | beat 38.76% @60s | needs a posterior source; Q3 dropped, so re-scope or drop | Q3 dropped |
 
@@ -309,9 +309,17 @@ measurable, nothing fitted.
 - The **fret law is derived, not assumed**: `B_n = B0*2^(n/6)` falls out of
   `L_n = L*2^(-n/12)`, `f_n = f*2^(n/12)`.
 - Physics table is low by 0.566 log (0.57x) with 0.249 (1.28x) residual
-  spread. **Level error is harmless** — a shared factor shifts every
+  spread. ~~**Level error is harmless** — a shared factor shifts every
   candidate for a note equally. Only *shape* can flip a decision, and 1.28x
-  sits inside the 1.59-1.78x separation.
+  sits inside the 1.59-1.78x separation.~~ **REFUTED by N5 (2026-07-24):
+  level error is not harmless.** A shared factor shifts every candidate's
+  *prediction*, but the *measurement* does not move with it, so a uniform
+  offset is exactly equivalent to biasing every measured log-B — it changes
+  which candidate is nearest. Measured swing across ±0.60 log-B is **0.049
+  Tab F1**, comparable to the whole channel. The conclusion survived anyway
+  (the curve is flat near the middle and never significantly negative), but
+  the reasoning was wrong, and the 0.566 level error is real lost gain — the
+  offset sweep rises monotonically to +0.60 without turning over.
 - Residual splits by construction: wound -0.53/-0.81/-0.60/-0.71, plain
   -0.15/-0.20. Plain strings' `d_core` is the gauge exactly; wound cores are
   manufacturer-specific and `B ∝ d_core^4`. Fixable once per string set.
@@ -495,6 +503,64 @@ git stores LF, so the registered artifact failed hash verification on a fresh
 checkout — broken for anyone cloning. Now written as the bytes git stores;
 hash stable across a round-trip.
 
+## N5 table-mismatch robustness — ROBUST (2026-07-24)
+
+Report: `docs/EVAL_REPORTS/n5_table_mismatch_2026-07-24.md` (+ `.json`).
+Study: `tabvision/scripts/eval/n5_table_mismatch.py` (+ 10 unit tests).
+DECISIONS.md 2026-07-24.
+
+The question Q6's default-on decision was blocked on: **how wrong can the
+table be before the channel stops helping?** 300 dev clips × 17 arms declared
+in source before the run, frozen config (weight 1.0 / `min_r2` 0.50 /
+sigma 0.35), LOPO prior, bootstrap N=10,000 seed 42, baseline 0.6031.
+
+**Verdict ROBUST** — both legs of the pre-declared criterion, neither
+marginally. All six derived real-guitar arms hold lo-95 > 0; the uniform
+offset band holding lo-95 > 0 spans at least **[−0.40, +0.60] log-B** against
+the ±0.10 required. **Nothing tested anywhere is significantly negative** —
+even a ×1.8 table error returns +0.0120 [−0.0001, +0.0242].
+
+| arm | largest shift | in σ | ΔTab F1 [lo-95, hi-95] |
+|---|---:|---:|---|
+| `set:extra-light` (.010–.047) | 0.365 | 1.04 | +0.0437 [+0.0332, +0.0550] |
+| `set:medium` (.013–.056) | 0.160 | 0.46 | +0.0433 [+0.0333, +0.0541] |
+| `scale:24.75in` | 0.104 | 0.30 | +0.0487 [+0.0382, +0.0599] |
+| `scale:25.6in` | 0.031 | 0.09 | +0.0436 [+0.0330, +0.0549] |
+| **`core:round-0.90`** | 0.421 | 1.20 | **+0.0222 [+0.0105, +0.0342]** |
+| `core:hex-1.10` | 0.381 | 1.09 | +0.0512 [+0.0407, +0.0624] |
+
+- **Scale length is a non-issue** — the whole 24.75–25.6″ span is 0.09–0.30 σ.
+- **Gauge is nearly free and touches only the plain strings** (plain `B ∝ d²`;
+  a wound string's core and total mass move together and largely cancel).
+- **Wound-core construction is the whole risk** — and the one spec
+  manufacturers do not publish.
+- **The gain lives on the wound strings.** Moving only the four wound rows by
+  −0.42 (+0.0222) is indistinguishable from moving all six by the same amount
+  (+0.0217), so the plain trebles contribute almost none of it.
+- **A uniform level error is not harmless** — see the refutation noted in the
+  Q6 portability section above.
+
+**Controls.** The shipped-table arm reproduces Q6's full-dev headline to four
+decimals on all three figures (+0.0443 [+0.0339, +0.0555]) from different code
+on a different day. All 17 arms applied evidence to exactly **4,354** notes —
+the `r²` gate is a property of the measurement, not the table — so arms differ
+only in scoring, never in coverage. The two exact-uniform arms (scale length)
+must reproduce the offset curve and do, to +0.0002 and +0.0005.
+
+**Method worth reusing.** Variants are applied to the registered table as
+*differences*, not rebuilt from scratch — otherwise the wound model's own fit
+residual (up to 0.09 log-B, a quarter of σ) rides along inside every arm and
+reads as a string effect. Null perturbation is asserted bit-exact.
+
+**Limits.** The table was varied, the guitars were not — all 300 clips are
+GuitarSet, so timbre/mic/room portability is still unmeasured. The band is a
+lower bound (the curve is still rising at +0.60). σ = 0.60 arms are diagnostic
+only: wider posterior doubles the gain when the table is badly wrong
+(+0.0120 → +0.0240) and costs a third when it is right (+0.0443 → +0.0300);
+not proposed, since choosing σ here would be tuning on the test. No offset
+default proposed either, for the same reason. Nothing registered, no shipped
+code touched, no default changed. 7.8 CPU-min, `$0`.
+
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
 Second-opinion candidates gate on **both** legs, measured in the same
@@ -559,6 +625,15 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-24 — N5 — table-mismatch robustness **ROBUST**; the Q6 default-on
+  caveat is discharged for the table axis. 300 clips × 17 pre-declared arms,
+  banked replay. Every real-guitar arm lo-95 > 0; offset band ≥ [−0.40,
+  +0.60] log-B vs ±0.10 required; nothing significantly negative anywhere.
+  Wound-core construction is the whole risk (±10% → ∓0.42/+0.38 log-B, worst
+  arm +0.0222); scale length and gauge are noise. **Refuted** the Q6 report's
+  "level error is harmless" (0.049 Tab F1 of swing across ±0.60) and found
+  the gain lives entirely on the wound strings. Shipped-table arm reproduces
+  Q6's full-dev headline to 4 dp. `n5_table_mismatch_2026-07-24.md`.
 - 2026-07-23 — Q7 — capo **detection** slice: pitch-based **refuted**
   (1/60 exact, +1.92 bias); physics route **untestable** on pitch-shifted
   audio (stiffness shift −0.11…+0.14 vs +0.231/+0.462 expected) — test
@@ -701,9 +776,15 @@ the program found, and it needs no new research to fix.
 1. **Default-on the Q6 channel** for clean steel-string acoustic, or keep it
    opt-in behind `--string-evidence acoustic-physics-v1`? Evidence: every
    offline gate passed, one-for-one bucket conversion on all three runs,
-   onset/pitch bit-identical, domain-guarded twice. Caveat: all validation is
-   GuitarSet on similar steel-strings — portability to another guitar is
-   argued from physics, not measured.
+   onset/pitch bit-identical, domain-guarded twice. ~~Caveat: all validation
+   is GuitarSet on similar steel-strings — portability to another guitar is
+   argued from physics, not measured.~~ **Caveat DISCHARGED 2026-07-24 by N5
+   (below): the table axis is now measured, verdict ROBUST.** Across the full
+   range of table error a real steel-string acoustic can produce — gauge,
+   scale length, ±10% wound-core — the channel never becomes harmful, and the
+   worst arm still returns +0.0222 [+0.0105, +0.0342]. Residual caveat is
+   narrower: the *table* was varied, the *guitars* were not, so timbre/mic/room
+   portability is still unmeasured.
 2. **Route capo>0 to the covariant prior** instead of `priors=none`? Worth
    ~+0.37 to a capo user. Note the capo must still be supplied by hand;
    detection is refuted.
@@ -751,6 +832,30 @@ built but unvalidated on real plucks — GuitarSet contains only 1-3 usable
 isolated open notes per player, so it cannot contain the ritual. Needs public
 capo/calibration audio or an explicit exception to the private-recordings ban.
 This is the gap between "works on GuitarSet" and "works on your guitar."
+**N5 (2026-07-24) re-scopes this from insurance to upside, and sharpens the
+target.** Calibration is no longer needed to make the channel *safe* — the
+table survives real mismatch on its own. What it buys is the level term: the
+offset curve rises monotonically to +0.60 log-B without turning over, worth up
+to **+0.016 Tab F1** over the specification-derived table, and Q6's own
+−0.566 residual says the shipped table under-predicts `B` by about that much.
+And the ritual should prioritise the **four wound strings** — moving only
+those reproduces the full six-string effect, so the plain trebles can stay
+approximate. A global offset fitted on GuitarSet is *not* the answer (that is
+in-distribution tuning); per-rig measurement is.
+
+**N5 — DONE (2026-07-24): ROBUST, Q6 caveat discharged.** How wrong can the
+table be before the channel stops helping? 300 dev clips × 17 pre-declared
+arms, frozen config, banked-measurement replay. All six derived real-guitar
+arms hold lo-95 > 0; the uniform-offset band holding lo-95 > 0 spans at least
+[−0.40, +0.60] log-B vs the ±0.10 required; **nothing tested is significantly
+negative**. Scale length is a non-issue (0.09–0.30 σ over 24.75–25.6″), gauge
+touches only the plain strings, **wound-core construction is the whole risk**
+(±10% core = ∓0.42/+0.38 log-B; `core:round-0.90` halves the gain to +0.0222
+[+0.0105, +0.0342]). Two findings: a uniform level error is **not** harmless
+(refutes the Q6 portability report — worth 0.049 Tab F1 of swing across
+±0.60), and the gain lives entirely on the wound strings. Control: the
+shipped-table arm reproduces Q6's full-dev headline to four decimals on all
+three figures. See `n5_table_mismatch_2026-07-24.md`.
 
 **Explicitly not recommended:** more second-opinion merges (the two-leg gate
 kills them cheaply — use the bench first), more context/sequence modelling for
@@ -775,3 +880,14 @@ principle).
   test.
 - **Bank events, replay offline.** Most gates in this program cost seconds
   because inference was cached once and every variant swept against it.
+- **Perturb as a difference, not a rebuild.** When probing sensitivity to a
+  derived artifact, apply the variant as a *delta* to the registered artifact
+  rather than rebuilding it from the derivation. A rebuild folds in the
+  derivation's own fit residual — 0.09 log-B on G3 in N5, a quarter of the
+  channel's σ — which then reads as the effect being measured. Assert the null
+  perturbation is bit-exact. Cost of catching this late: one killed run.
+- **A shared factor is not a no-op when only one side of a comparison moves.**
+  Q6 reasoned that a uniform level error shifts every candidate equally and is
+  therefore harmless; N5 measured 0.049 Tab F1 of swing. The predictions moved
+  and the measurement did not, so the "shared" factor was a bias on the
+  residual. Check which side of the comparison the factor actually enters.

@@ -3949,3 +3949,75 @@ registered.
 but the marginal-value measurement under a fixed protocol answers the real
 question — is physics worth adding — decisively yes, and it does so cheaply
 (reusing the cached events and the review_queue architecture).
+
+---
+
+## 2026-07-24 — N5: physics table survives real-guitar mismatch (Q6 caveat discharged)
+
+**Phase:** Accuracy loop, post-program N5
+**Decision tree:** N5 pre-declared reading — Robust / Conditional / Fragile,
+fixed in the script docstring before any arm ran.
+**Branch taken:** **ROBUST.** Both legs pass. All six derived real-guitar
+arms hold lo-95 > 0, and the uniform-offset band holding lo-95 > 0 spans at
+least [-0.40, +0.60] log-B against the +/-0.10 the criterion required.
+Nothing tested anywhere in the sweep is significantly negative.
+**Context:** Q6 registered `acoustic-physics-v1` opt-in with one stated
+caveat blocking the default-on decision — "portability to another guitar is
+argued from physics, not measured." This measures it. 300 dev clips x 17
+arms, frozen config (weight 1.0 / min_r2 0.50 / sigma 0.35), LOPO prior,
+paired bootstrap N=10,000 seed 42, baseline Tab F1 0.6031.
+**Method:** a note's measured `B` does not depend on the table (the table
+enters only at scoring), so measurements are banked once per clip and every
+variant replays in milliseconds. Alternative sets are *derived* from
+published gauges plus a wound model fitted to the shipped table itself, then
+applied as a **difference** to the registered table so the wound model's own
+fit residual (up to 0.09 log-B, a quarter of sigma) cancels — asserted exact
+to 1e-12. Without that correction the residual would have ridden along inside
+every real-set arm and been read as a string effect.
+**Control:** the shipped-table arm reproduces the Q6 full-dev headline to
+four decimals on all three figures — +0.0443 [+0.0339, +0.0555] — against a
+run made on a different day by different code. Coverage is identical (4,354
+notes) across all 17 arms, since the `r2` gate is a property of the
+measurement, not the table.
+**Result:** scale length is a non-issue (whole 24.75-25.6in span = 0.09-0.30
+sigma, all within noise of shipped). Gauge is nearly free and touches only
+the plain strings (up to 1.04 sigma on plain, <0.05 log-B on wound; both
+gauge arms within noise). **Wound-core construction is the whole risk** — a
++/-10% core error moves the four wound strings by -0.42/+0.38 log-B and
+`core:round-0.90` halves the gain to +0.0222 [+0.0105, +0.0342], still
+CI-positive. It is also the one spec manufacturers do not publish.
+**Two findings:** (1) **a uniform level error is NOT harmless**, refuting the
+Q6 portability report's "only *shape* can flip a decision" — a shared factor
+shifts predictions but not the measurement, so it is equivalent to biasing
+every measured log-B, and it is worth 0.049 Tab F1 of swing across +/-0.60.
+The claim's conclusion survived anyway because the curve is flat near the
+middle and never significantly negative. The curve rises monotonically to
++0.60 without turning over, which — with Q6's measured -0.566 level residual
+and the `core:hex-1.10` arm beating shipped — is three independent lines
+saying the shipped table **under-predicts B**, most likely via wound-core
+geometry. (2) **the gain lives on the wound strings**: moving only the four
+wound rows by -0.42 (+0.0222) is indistinguishable from moving all six by the
+same amount (+0.0217), so the plain trebles contribute almost none of it.
+**Honest limits:** the table was varied, the guitars were not — all 300 clips
+are GuitarSet, so this bounds one axis of portability, not timbre/mic/room.
+The band is a lower bound: the curve is still rising at +0.60. The derived
+sets rest on a four-point wound model, which is why the `core:*` arms exist.
+No cross-domain leg (nothing shipped changed, so no gate triggered). The
+sigma=0.60 arms are diagnostic only — wider posterior doubles the gain when
+the table is badly wrong (+0.0120 -> +0.0240) and costs a third when it is
+right (+0.0443 -> +0.0300); not proposed as a default, since choosing sigma
+on this run would be tuning on the test.
+**No offset default proposed.** Picking the winning offset because it wins on
+these 300 GuitarSet clips is in-distribution tuning; the honest route to the
+scalar is per-rig calibration (`calibrate_from_ritual`, N4).
+**Evidence:** `docs/EVAL_REPORTS/n5_table_mismatch_2026-07-24.md` (+ `.json`);
+`tabvision/scripts/eval/n5_table_mismatch.py`;
+`tabvision/tests/unit/test_n5_table_mismatch.py` (10 tests).
+972 unit tests pass; ruff and mypy clean. No shipped library code touched,
+nothing registered, no default changed.
+**Reasoning:** the Q6 default-on decision rested on an argument where a
+measurement was possible. Perturbing the table across the full range a real
+steel-string acoustic can produce answers the portability question for the
+one axis that matters without needing another dataset, and it does so in
+7.8 CPU-minutes for `$0` because the measurements bank and replay. Promotion
+into the `auto` path remains a SPEC §0.8 user decision and is untouched here.
