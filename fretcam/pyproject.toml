@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tabvision-fretcam"
 version = "0.1.0"
-description = "Quarantined live webcam position-HUD prototype for TabVision"
+description = "Local position HUD and opt-in coarse-position bridge for TabVision"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -32,3 +32,13 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 fretcam = ["schemas/*.json", "static/*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["fretcam", "scripts", "tabvision"]

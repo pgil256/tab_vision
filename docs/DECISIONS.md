@@ -3377,3 +3377,44 @@ and avoids a separate camera/video dependency. The OS-specific target brings
 the Microsoft Windows SDK C#/WinRT projection assemblies into the desktop
 bundle; that official platform interop is justified here as the minimum
 dependency needed to call the native capture API.
+
+---
+
+## 2026-07-24 - FretCam audio bridge ships as an explicit bounded position prior
+
+**Phase:** FretCam M4/F8 integration, experimental opt-in
+**Decision tree:** The user explicitly authorized completing the FretCam/audio
+integration, but the controlled-live L2 measurement and source-disjoint
+real-audio promotion gate are still absent. Integrate without changing §8,
+double-counting the rejected exact-string video posterior, or silently making
+an unaccepted route the default.
+**Branch taken:** Add `--video-backend fretcam` beside the unchanged `legacy`
+rollback. Run FretCam synchronously over demuxed BGR frames on their media
+clock (per-frame best-effort PTS normalized to decoded-audio start), retain
+only confidence-gated `locked`/`holding` position windows, and
+apply them only to ambiguous audio candidates. Select the latest observation
+in the 150 ms lookback ending 30 ms before onset; support exactly
+`{open/capo} ∪ [N-1,N+4]`; cap the confidence-weighted input odds at one nat
+under the validated default decoder weights. Do not run legacy
+`FrameFingering` evidence on this route. Keep `legacy` as the CLI default until
+the missing gates pass.
+**Evidence:** The direct adapter produced 24 stable observations over the first
+six seconds of public `031_vpswc` in 10.63 seconds. A physically valid MIDI 69
+regression changes the wrong high-E-fret-5 choice to B-fret-10 without changing
+pitch or timing, while open-string/no-evidence/strong-audio tests prove the
+guardrails. The production-aligned clean-classical corrected-cache proxy
+enriched 1,800/10,821 assignment-scored notes and moved exact string/fret
+accuracy `0.800111 -> 0.800665` (+6 net; 0.28% relative error reduction), with
+one per-clip regression. The 10,821 denominator excludes 34 of 10,855
+individually playable duplicated/unison chord notes symmetrically from both
+arms. Final suite counts are recorded in the linked report;
+the full suites passed 932 TabVision tests (12 skipped) and 240 FretCam tests
+(one skipped, five subtests). Ruff and mypy passed on the bridge files. Report:
+`docs/EVAL_REPORTS/fretcam_audio_bridge_fixed_policy_2026-07-24.md`.
+**Reasoning:** Playing position supplies the fret-axis information audio lacks
+without pretending to identify a string. Causal selection, explicit
+abstention, open-string support, and a hard odds cap let it break close
+same-pitch ties without becoming a hard veto. The production-aligned proxy is
+directionally positive but too small and heterogeneous for automatic
+promotion, so explicit opt-in is the only branch consistent with both the
+user's integration request and the unpassed acceptance gate.

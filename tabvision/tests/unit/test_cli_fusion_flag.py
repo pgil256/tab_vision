@@ -1,6 +1,7 @@
 """CLI parser smoke for the transcribe-subcommand flags.
 
-Covers ``--fusion-lambda-vision``, ``--no-video``, ``--video-stride``.
+Covers ``--fusion-lambda-vision``, ``--no-video``, ``--video-backend``,
+and ``--video-stride``.
 """
 
 from __future__ import annotations
@@ -60,6 +61,13 @@ def test_lambda_vision_negative_rejected_on_diagnose():
         parser.parse_args(["diagnose", "in.mp4", "--fusion-lambda-vision", "-0.5"])
 
 
+@pytest.mark.parametrize("value", ["nan", "inf", "-inf"])
+def test_lambda_vision_nonfinite_rejected(value: str):
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", value])
+
+
 # ---------- --no-video ----------
 
 
@@ -73,6 +81,39 @@ def test_no_video_flag_sets_true():
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4", "--no-video"])
     assert args.no_video is True
+
+
+# ---------- --video-backend ----------
+
+
+def test_video_backend_defaults_to_legacy_rollback():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.video_backend == "legacy"
+
+
+def test_fretcam_video_backend_is_explicitly_reachable():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--video-backend", "fretcam"])
+    assert args.video_backend == "fretcam"
+
+
+def test_video_backend_rejects_unknown_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video-backend", "guess"])
+
+
+def test_fretcam_video_backend_is_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--video-backend", "fretcam"])
+    assert args.video_backend == "fretcam"
+
+
+def test_video_backend_is_not_exposed_on_check():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["check", "in.mp4", "--video-backend", "fretcam"])
 
 
 # ---------- --video-stride ----------

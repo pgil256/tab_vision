@@ -22,6 +22,7 @@ the design.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import threading
 from collections.abc import Callable, Iterable, Iterator
@@ -33,12 +34,14 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from tabvision.demux import demux
+from tabvision.errors import BackendError
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
 from tabvision.fusion.inference_policy import ResolvedInferencePolicy, resolve_inference_policy
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.playability import set_transition_prior
 from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
+from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.transition_prior import load_transition_prior
 from tabvision.fusion.viterbi import assignment_decoder_context
 from tabvision.types import (
@@ -53,6 +56,7 @@ from tabvision.types import (
     SessionConfig,
     TabEvent,
 )
+from tabvision.video.position import PositionAnalyzer, PositionWindowObservation
 
 if TYPE_CHECKING:
     from tabvision.audio.filters import AudioFilterConfig
@@ -139,6 +143,11 @@ class PipelineArtifacts:
     # Additive (2026-07-20): the backend that actually ran after "auto"
     # routing (e.g. "highres-ensemble"). Empty string on legacy constructors.
     resolved_audio_backend: str = ""
+    # Additive FretCam bridge diagnostics. ``"none"`` means video was disabled
+    # or its soft-optional legacy stack was unavailable.
+    resolved_video_backend: str = "none"
+    position_observation_count: int = 0
+    notes_affected_by_video: int = 0
 
 
 def run_pipeline_with_artifacts(
@@ -149,9 +158,11 @@ def run_pipeline_with_artifacts(
     guitar_backend: GuitarBackend | None = None,
     fretboard_backend: FretboardBackend | None = None,
     hand_backend: HandBackend | None = None,
+    position_analyzer: PositionAnalyzer | None = None,
     lambda_vision: float = 1.0,
     video_stride: int = 3,
     video_enabled: bool = True,
+    video_backend: str = "legacy",
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
@@ -186,9 +197,31 @@ def run_pipeline_with_artifacts(
     stage emit it themselves after this returns. Callback exceptions are
     logged and swallowed — progress reporting must never break a
     transcription. Default ``None`` is a strict no-op.
+
+    ``video_backend="fretcam"`` runs the stabilized FretCam position solver
+    over the demuxer's media timestamps and contributes only its coarse,
+    bounded fret-window evidence. It deliberately does not also run the
+    legacy per-string hand posterior, which would double-count visual
+    evidence. ``"legacy"`` remains the rollback/default until the controlled
+    live acceptance gate is measured.
     """
     cfg = cfg or GuitarConfig()
     session = session or SessionConfig()
+    if video_backend not in {"legacy", "fretcam"}:
+        raise ValueError(f"video_backend must be 'legacy' or 'fretcam', got {video_backend!r}")
+    if position_analyzer is not None and video_backend != "fretcam":
+        raise ValueError("position_analyzer requires video_backend='fretcam'")
+    if isinstance(video_stride, bool) or not isinstance(video_stride, int) or video_stride < 1:
+        raise ValueError(f"video_stride must be a positive integer, got {video_stride!r}")
+    if isinstance(lambda_vision, bool):
+        raise ValueError(f"lambda_vision must be finite and >= 0, got {lambda_vision!r}")
+    try:
+        lambda_vision = float(lambda_vision)
+    except (TypeError, ValueError):
+        raise ValueError(f"lambda_vision must be finite and >= 0, got {lambda_vision!r}") from None
+    if not math.isfinite(lambda_vision) or lambda_vision < 0.0:
+        raise ValueError(f"lambda_vision must be finite and >= 0, got {lambda_vision!r}")
+    resolved_position_analyzer = position_analyzer
 
     def _notify(stage: str) -> None:
         if progress_callback is None:
@@ -205,6 +238,8 @@ def run_pipeline_with_artifacts(
     # Tone toggle: "auto" routes to the backend for the session's instrument
     # (electric → highres-electric, else acoustic highres). Explicit names pass through.
     _notify("model_load")
+    if video_enabled and video_backend == "fretcam" and resolved_position_analyzer is None:
+        resolved_position_analyzer = _make_fretcam_position_analyzer(cfg)
     if audio_backend is None and audio_backend_name == "auto":
         audio_backend_name = audio_backend_for_session(session)
     if audio_backend is not None:
@@ -242,28 +277,64 @@ def run_pipeline_with_artifacts(
 
     fingerings: list[FrameFingering] = []
     neck_anchors: list[TimedNeckAnchor] = []
+    position_observations: list[PositionWindowObservation] = []
+    resolved_video_backend = "none"
     if video_enabled:
         _notify("video_analysis")
         try:
-            video_result = _run_video_stack(
-                demuxed.frame_iterator,
-                stride=video_stride,
-                cfg=cfg,
-                guitar_backend=guitar_backend,
-                fretboard_backend=fretboard_backend,
-                hand_backend=hand_backend,
-            )
-            fingerings = video_result.fingerings
-            neck_anchors = video_result.neck_anchors
-        except _VideoImportError as exc:
-            logger.warning(
-                "video stack unavailable, falling back to audio-only: %s",
-                exc,
-            )
+            if video_backend == "fretcam":
+                if resolved_position_analyzer is None:  # pragma: no cover - guarded above
+                    raise AssertionError("FretCam analyzer was not resolved")
+                position_observations = list(
+                    resolved_position_analyzer.analyze(
+                        demuxed.frame_iterator,
+                        stride=video_stride,
+                    )
+                )
+                resolved_video_backend = "fretcam"
+            else:
+                try:
+                    video_result = _run_video_stack(
+                        demuxed.frame_iterator,
+                        stride=video_stride,
+                        cfg=cfg,
+                        guitar_backend=guitar_backend,
+                        fretboard_backend=fretboard_backend,
+                        hand_backend=hand_backend,
+                    )
+                    fingerings = video_result.fingerings
+                    neck_anchors = video_result.neck_anchors
+                    resolved_video_backend = "legacy"
+                except _VideoImportError as exc:
+                    logger.warning(
+                        "video stack unavailable, falling back to audio-only: %s",
+                        exc,
+                    )
+        finally:
+            _close_frame_iterator(demuxed.frame_iterator)
 
     if lambda_vision > 0.0 and neck_anchors:
         audio_events = apply_neck_anchor_priors(audio_events, neck_anchors, cfg)
         logger.info("attached %d hand-neck anchors as audio fret priors", len(neck_anchors))
+
+    notes_affected_by_video = 0
+    if lambda_vision > 0.0 and position_observations:
+        enriched_audio_events = apply_position_window_priors(
+            audio_events,
+            position_observations,
+            cfg,
+            vision_weight=lambda_vision,
+        )
+        notes_affected_by_video = sum(
+            before is not after
+            for before, after in zip(audio_events, enriched_audio_events, strict=True)
+        )
+        audio_events = enriched_audio_events
+        logger.info(
+            "attached %d stabilized FretCam observations to %d ambiguous audio events",
+            len(position_observations),
+            notes_affected_by_video,
+        )
 
     _notify("decode")
     logger.info(
@@ -287,6 +358,9 @@ def run_pipeline_with_artifacts(
         audio_events=tuple(audio_events),
         policy=policy,
         resolved_audio_backend=resolved_audio_backend_name,
+        resolved_video_backend=resolved_video_backend,
+        position_observation_count=len(position_observations),
+        notes_affected_by_video=notes_affected_by_video,
     )
 
 
@@ -298,9 +372,11 @@ def run_pipeline(
     guitar_backend: GuitarBackend | None = None,
     fretboard_backend: FretboardBackend | None = None,
     hand_backend: HandBackend | None = None,
+    position_analyzer: PositionAnalyzer | None = None,
     lambda_vision: float = 1.0,
     video_stride: int = 3,
     video_enabled: bool = True,
+    video_backend: str = "legacy",
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
@@ -320,9 +396,11 @@ def run_pipeline(
         guitar_backend=guitar_backend,
         fretboard_backend=fretboard_backend,
         hand_backend=hand_backend,
+        position_analyzer=position_analyzer,
         lambda_vision=lambda_vision,
         video_stride=video_stride,
         video_enabled=video_enabled,
+        video_backend=video_backend,
         position_prior=position_prior,
         sequence_prior=sequence_prior,
         string_evidence=string_evidence,
@@ -423,6 +501,17 @@ def _detect_neck_anchor(
         return None
 
 
+def _close_frame_iterator(frames: object) -> None:
+    """Release a demux-owned iterator even when a video analyzer returns early."""
+    close = getattr(frames, "close", None)
+    if not callable(close):
+        return
+    try:
+        close()
+    except Exception as exc:  # noqa: BLE001 - cleanup must not mask decode results
+        logger.debug("frame iterator cleanup failed: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Backend factories — deferred imports so audio-only callers don't pay the
 # vision-extras cost.
@@ -476,6 +565,35 @@ def _make_hand_backend() -> HandBackend:
     except ImportError as exc:
         raise _VideoImportError(f"MediaPipe hand backend import failed: {exc}") from exc
     return MediaPipeHandBackend()
+
+
+def _make_fretcam_position_analyzer(cfg: GuitarConfig) -> PositionAnalyzer:
+    """Construct the separately packaged FretCam batch adapter on demand."""
+    try:
+        from fretcam.tabvision_adapter import FretCamPositionAnalyzer
+    except ModuleNotFoundError as exc:
+        if exc.name == "fretcam":
+            raise BackendError(
+                "FretCam video backend is not installed. Install the repository's "
+                "fretcam package (from tabvision/: pip install -e ../fretcam) or "
+                "select --video-backend legacy."
+            ) from exc
+        if exc.name == "fretcam.tabvision_adapter":
+            raise BackendError(
+                "The installed FretCam package does not include the TabVision "
+                "adapter. Reinstall this repository's sibling fretcam package."
+            ) from exc
+        raise BackendError(
+            f"FretCam dependency {exc.name!r} could not be imported: {exc}. "
+            "Install TabVision's vision extra and run "
+            "`python -m scripts.acquire.models status`."
+        ) from exc
+    except ImportError as exc:
+        raise BackendError(
+            f"FretCam adapter import failed: {exc}. Reinstall the sibling "
+            "fretcam package or select --video-backend legacy."
+        ) from exc
+    return FretCamPositionAnalyzer(cfg)
 
 
 # Re-export AudioEvent / TabEvent for ergonomic ``from tabvision.pipeline import TabEvent``.

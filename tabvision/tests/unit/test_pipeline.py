@@ -6,6 +6,7 @@ video file or model weights are touched.
 
 from __future__ import annotations
 
+import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -13,6 +14,7 @@ import numpy as np
 import pytest
 
 import tabvision.pipeline as pipeline
+from tabvision.errors import BackendError
 from tabvision.types import (
     AudioEvent,
     DemuxResult,
@@ -22,6 +24,7 @@ from tabvision.types import (
     SessionConfig,
 )
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
+from tabvision.video.position import PositionWindowObservation
 
 # ---------- fakes ----------
 
@@ -101,6 +104,19 @@ class _FakeHandBackend:
     def detect_anchor(self, frame, H, cfg):  # noqa: N803 — math name
         self.anchor_calls.append((frame, H, cfg))
         return self.anchor
+
+
+class _FakePositionAnalyzer:
+    name = "fake_fretcam"
+
+    def __init__(self, observations=()):
+        self.observations = list(observations)
+        self.calls: list[tuple[list[tuple[float, np.ndarray]], int]] = []
+
+    def analyze(self, frames, *, stride):
+        materialized = list(frames)
+        self.calls.append((materialized, stride))
+        return list(self.observations)
 
 
 # ---------- tests ----------
@@ -285,6 +301,226 @@ def test_run_pipeline_invokes_video_backends(monkeypatch):
     assert len(guitar.calls) == 3
     assert len(fretboard.calls) == 3
     assert len(hand.calls) == 3
+
+
+def test_fretcam_backend_uses_only_stabilized_position_evidence(monkeypatch):
+    """The FretCam route must not double-count the legacy hand posterior."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=6))
+    captured: dict[str, object] = {}
+
+    def fake_fuse(events, fingerings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        captured["fingerings"] = list(fingerings)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    guitar = _FakeGuitarBackend()
+    fretboard = _FakeFretboardBackend()
+    hand = _FakeHandBackend()
+    analyzer = _FakePositionAnalyzer(
+        [
+            PositionWindowObservation(
+                timestamp_s=0.45,
+                position=10,
+                state="locked",
+                window_frets=(0, 9, 10, 11, 12, 13, 14),
+                confidence=0.9,
+            )
+        ]
+    )
+    result = pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(
+            [
+                AudioEvent(
+                    onset_s=0.5,
+                    offset_s=0.75,
+                    pitch_midi=69,
+                    velocity=0.8,
+                    confidence=0.8,
+                )
+            ]
+        ),
+        guitar_backend=guitar,
+        fretboard_backend=fretboard,
+        hand_backend=hand,
+        position_analyzer=analyzer,
+        video_backend="fretcam",
+        video_stride=2,
+        position_prior="none",
+        sequence_prior="none",
+        string_evidence="none",
+    )
+
+    assert len(analyzer.calls) == 1
+    frames, stride = analyzer.calls[0]
+    assert len(frames) == 6
+    assert [t for t, _frame in frames[:3]] == pytest.approx([0.0, 1 / 30, 2 / 30])
+    assert stride == 2
+    assert guitar.calls == []
+    assert fretboard.calls == []
+    assert hand.calls == []
+    assert captured["fingerings"] == []
+    enriched = captured["events"][0]
+    assert isinstance(enriched, AudioEvent)
+    assert enriched.fret_prior is not None
+    assert float(enriched.fret_prior[:, 14].sum()) > float(enriched.fret_prior[:, 7].sum())
+    assert result.resolved_video_backend == "fretcam"
+    assert result.position_observation_count == 1
+    assert result.notes_affected_by_video == 1
+
+
+def test_fretcam_zero_weight_is_exact_audio_only_prior(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+    captured: dict[str, list[AudioEvent]] = {}
+
+    def fake_fuse(events, fingerings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    original = AudioEvent(
+        onset_s=0.5,
+        offset_s=0.75,
+        pitch_midi=69,
+        velocity=0.8,
+        confidence=0.8,
+    )
+    analyzer = _FakePositionAnalyzer(
+        [
+            PositionWindowObservation(
+                timestamp_s=0.45,
+                position=10,
+                state="locked",
+                window_frets=(0, 9, 10, 11, 12, 13, 14),
+                confidence=1.0,
+            )
+        ]
+    )
+
+    result = pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend([original]),
+        position_analyzer=analyzer,
+        video_backend="fretcam",
+        lambda_vision=0.0,
+        position_prior="none",
+        sequence_prior="none",
+        string_evidence="none",
+    )
+
+    assert captured["events"][0] is original
+    assert result.notes_affected_by_video == 0
+    assert result.position_observation_count == 1
+
+
+def test_fretcam_route_closes_frame_iterator_when_analyzer_returns_early(monkeypatch):
+    closed: list[bool] = []
+
+    def frames():
+        try:
+            yield 0.0, np.zeros((4, 4, 3), dtype=np.uint8)
+            yield 0.1, np.zeros((4, 4, 3), dtype=np.uint8)
+        finally:
+            closed.append(True)
+
+    demuxed = _make_demux_result(n_frames=0)
+    demuxed.frame_iterator = frames()
+    monkeypatch.setattr(pipeline, "demux", lambda _p: demuxed)
+
+    class EarlyAnalyzer:
+        def analyze(self, frame_iterator, *, stride):
+            assert stride == 1
+            next(frame_iterator)
+            return []
+
+    pipeline.run_pipeline(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(),
+        position_analyzer=EarlyAnalyzer(),
+        video_backend="fretcam",
+        video_stride=1,
+        position_prior="none",
+        sequence_prior="none",
+        string_evidence="none",
+    )
+
+    assert closed == [True]
+
+
+def test_fretcam_backend_requires_its_optional_package(monkeypatch):
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=1))
+
+    def unavailable(_cfg):
+        raise BackendError("install FretCam")
+
+    monkeypatch.setattr(pipeline, "_make_fretcam_position_analyzer", unavailable)
+    audio = _FakeAudioBackend()
+    with pytest.raises(BackendError, match="install FretCam"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            audio_backend=audio,
+            video_backend="fretcam",
+        )
+    assert audio.calls == []
+
+
+def test_pipeline_rejects_unknown_video_backend_before_demux(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "demux",
+        lambda _p: pytest.fail("invalid configuration must fail before demux"),
+    )
+    with pytest.raises(ValueError, match="video_backend"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            audio_backend=_FakeAudioBackend(),
+            video_backend="mystery",
+        )
+
+
+@pytest.mark.parametrize("stride", [True, 1.5, 0, -1])
+def test_pipeline_rejects_invalid_video_stride_before_demux(monkeypatch, stride):
+    monkeypatch.setattr(
+        pipeline,
+        "demux",
+        lambda _p: pytest.fail("invalid configuration must fail before demux"),
+    )
+    with pytest.raises(ValueError, match="video_stride"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            audio_backend=_FakeAudioBackend(),
+            video_stride=stride,
+        )
+
+
+@pytest.mark.parametrize("weight", [True, math.nan, math.inf, -math.inf, -0.1])
+def test_pipeline_rejects_invalid_vision_weight_before_demux(monkeypatch, weight):
+    monkeypatch.setattr(
+        pipeline,
+        "demux",
+        lambda _p: pytest.fail("invalid configuration must fail before demux"),
+    )
+    with pytest.raises(ValueError, match="lambda_vision"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            audio_backend=_FakeAudioBackend(),
+            lambda_vision=weight,
+        )
+
+
+def test_position_analyzer_is_not_silently_ignored_on_legacy_route(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "demux",
+        lambda _p: pytest.fail("invalid configuration must fail before demux"),
+    )
+    with pytest.raises(ValueError, match="requires video_backend='fretcam'"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            audio_backend=_FakeAudioBackend(),
+            position_analyzer=_FakePositionAnalyzer(),
+        )
 
 
 def test_run_pipeline_stride_one_runs_every_frame(monkeypatch):

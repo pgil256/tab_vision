@@ -1,7 +1,9 @@
 # FretCam
 
-FretCam is a quarantined local prototype for TabVision's live fretboard and
-playing-position HUD. The browser captures one in-memory JPEG at a time over a
+FretCam is a local prototype for TabVision's live fretboard and
+playing-position HUD. Its bounded coarse-position output is also available to
+the TabVision pipeline as an explicit opt-in; the exact-string video path
+remains quarantined. The browser captures one in-memory JPEG at a time over a
 localhost WebSocket. The local server returns neck/fret geometry, hand points,
 a stable Roman-numeral position, confidence, and grounded framing guidance for
 the browser to draw over the camera preview.
@@ -26,6 +28,42 @@ python -m venv .venv
 The second editable install exposes TabVision's existing vision modules as a
 library without installing its unrelated audio/render extras. FretCam's own
 package declares the pre-approved vision dependencies it uses.
+
+## Use from the TabVision audio pipeline
+
+Install FretCam into TabVision's environment, then select it explicitly:
+
+```powershell
+cd ..\tabvision
+.venv\Scripts\python -m pip install -e ".[vision]"
+.venv\Scripts\python -m pip install --no-deps -e ..\fretcam
+.venv\Scripts\python -m scripts.acquire.models status
+.venv\Scripts\python -m scripts.acquire.models prepare-yolo-dir
+.venv\Scripts\python -m scripts.acquire.models prepare-hand-dir
+.venv\Scripts\tabvision transcribe input.mp4 --video-backend fretcam -o output.tab
+```
+
+The analyzer requires both assets reported by `status`: the trained YOLO-OBB
+checkpoint (normally
+`~/.tabvision/data/models/guitar-yolo-obb-finetuned.pt`, override with
+`TABVISION_GUITAR_YOLO_CHECKPOINT`) and MediaPipe's
+`hand_landmarker.task` (normally `~/.mediapipe/models/hand_landmarker.task`,
+override with `TABVISION_MEDIAPIPE_HAND_MODEL`). The two `prepare-*` commands
+create the destination directories and print the acquisition action.
+
+This `--no-deps` command is intentionally a monorepo, bridge-only install:
+TabVision supplies the shared vision packages, and the batch adapter does not
+need FretCam's FastAPI/uvicorn live-server stack. It is not a standalone
+dependency-resolver-clean FretCam distribution. Use the normal
+`pip install -e .` instructions under **Run** when the browser HUD/server is
+also needed.
+
+This batch route does not start the browser HUD. It runs the same stateful
+detection and position estimator directly over demuxed BGR frames, preserving
+their media timestamps so observations align with audio onsets. Only stable
+`locked`/`holding` position windows are passed to fusion; exact finger/string
+contacts remain excluded. The legacy video backend is the default rollback
+until the controlled-live and held-out promotion gates pass.
 
 Open <http://127.0.0.1:8765>, select **Start camera**, and grant camera
 permission. A rear/environment camera is preferred when the browser exposes
@@ -59,7 +97,13 @@ interval even after predicted landmarks expire.
 ## Verify
 
 ```powershell
-.venv\Scripts\python -m unittest discover -s tests -v
+# From the repository root, using TabVision's dev/vision environment:
+tabvision\.venv\Scripts\python -m pytest -q `
+  fretcam\tests\test_tabvision_adapter.py `
+  fretcam\tests\test_tabvision_bridge_probe.py
+
+# FretCam runtime benchmarks:
+cd fretcam
 .venv\Scripts\python -m fretcam.benchmark --rounds 100
 .venv\Scripts\python -m fretcam.replay_gaps
 .venv\Scripts\python -m fretcam.replay_position

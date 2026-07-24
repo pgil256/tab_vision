@@ -1,9 +1,10 @@
 """Model/dependency readiness helper for the v1 CLI path.
 
 This module is intentionally noninteractive. Public/package-backed models are
-reported through import checks, and the trained YOLO-OBB detector is reported
-through the expected checkpoint path. The YOLO weights are produced by the
-training script rather than downloaded from a public release artifact.
+reported through import checks. The trained YOLO-OBB detector and MediaPipe
+HandLandmarker task are reported through the exact paths used by the video
+backends. The YOLO weights are produced by the training script rather than
+downloaded from a public release artifact.
 """
 
 from __future__ import annotations
@@ -17,6 +18,12 @@ from pathlib import Path
 DEFAULT_DATA_ROOT = Path.home() / ".tabvision" / "data"
 YOLO_CHECKPOINT_ENV = "TABVISION_GUITAR_YOLO_CHECKPOINT"
 YOLO_CHECKPOINT_NAME = "guitar-yolo-obb-finetuned.pt"
+HAND_MODEL_ENV = "TABVISION_MEDIAPIPE_HAND_MODEL"
+HAND_MODEL_NAME = "hand_landmarker.task"
+HAND_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+)
 
 
 @dataclass(frozen=True)
@@ -38,9 +45,17 @@ def yolo_checkpoint_path(root: Path | None = None) -> Path:
     return (root or data_root()) / "models" / YOLO_CHECKPOINT_NAME
 
 
+def hand_model_path() -> Path:
+    env_path = os.environ.get(HAND_MODEL_ENV)
+    if env_path:
+        return Path(env_path)
+    return Path.home() / ".mediapipe" / "models" / HAND_MODEL_NAME
+
+
 def collect_status(root: Path | None = None) -> list[ReadinessItem]:
     root = root or data_root()
     yolo_path = yolo_checkpoint_path(root)
+    hand_path = hand_model_path()
     return [
         _module_item(
             name="basic-pitch audio baseline",
@@ -72,6 +87,15 @@ def collect_status(root: Path | None = None) -> list[ReadinessItem]:
                 f"{YOLO_CHECKPOINT_ENV}=<checkpoint.pt>"
             ),
         ),
+        ReadinessItem(
+            name="mediapipe hand-landmarker model",
+            status="ready" if hand_path.exists() else "missing",
+            detail=str(hand_path),
+            action=(
+                f"Download {HAND_MODEL_URL} to this path, or set "
+                f"{HAND_MODEL_ENV}=<hand_landmarker.task>"
+            ),
+        ),
     ]
 
 
@@ -79,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="acquire-models")
     parser.add_argument(
         "command",
-        choices=["list", "status", "prepare-yolo-dir"],
+        choices=["list", "status", "prepare-yolo-dir", "prepare-hand-dir"],
         help="model/dependency readiness command",
     )
     args = parser.parse_args(argv)
@@ -91,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  render extras — pip extra: .[render]")
         print("  vision dependencies — pip extra: .[vision]")
         print(f"  YOLO-OBB checkpoint — {yolo_checkpoint_path()}")
+        print(f"  MediaPipe hand-landmarker model — {hand_model_path()}")
         return 0
 
     if args.command == "prepare-yolo-dir":
@@ -98,6 +123,14 @@ def main(argv: list[str] | None = None) -> int:
         target.parent.mkdir(parents=True, exist_ok=True)
         print(f"YOLO checkpoint path: {target}")
         print(f"Place the trained checkpoint there, or set {YOLO_CHECKPOINT_ENV}=<checkpoint.pt>.")
+        return 0
+
+    if args.command == "prepare-hand-dir":
+        target = hand_model_path()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        print(f"MediaPipe hand-landmarker model path: {target}")
+        print(f"Download: {HAND_MODEL_URL}")
+        print(f"Or set {HAND_MODEL_ENV}=<hand_landmarker.task>.")
         return 0
 
     if args.command == "status":

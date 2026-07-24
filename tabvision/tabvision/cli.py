@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -115,9 +116,10 @@ def _lambda_vision_arg(value: str) -> float:
     except ValueError:
         msg = f"fusion-lambda-vision must be a number, got {value!r}"
         raise argparse.ArgumentTypeError(msg) from None
-    if lam < 0.0:
+    if not math.isfinite(lam) or lam < 0.0:
         msg = (
-            f"fusion-lambda-vision must be >= 0 (0 disables vision; negative inverts it), got {lam}"
+            "fusion-lambda-vision must be finite and >= 0 "
+            f"(0 disables vision; negative inverts it), got {lam}"
         )
         raise argparse.ArgumentTypeError(msg)
     return lam
@@ -192,7 +194,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "weight on vision evidence in fusion (default 1.0). 0.0 "
             "disables vision entirely (audio-only Viterbi); values >1 "
-            "lean more heavily on the fingertip-to-fret posterior. "
+            "lean more heavily on the legacy fingertip posterior. The "
+            "FretCam input-odds contribution remains capped at the default "
+            "decoder weights so it cannot overwhelm strong audio evidence. "
             "See SPEC §5 / Phase-5 design doc §2."
         ),
     )
@@ -203,6 +207,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "disable the video stack entirely; transcribe audio-only. "
             "Equivalent to --fusion-lambda-vision 0 plus skipping the "
             "guitar / fretboard / hand backends."
+        ),
+    )
+    t.add_argument(
+        "--video-backend",
+        choices=["legacy", "fretcam"],
+        default="legacy",
+        help=(
+            "video analyzer. 'fretcam' uses the stabilized, media-clock-aligned "
+            "playing-position window; 'legacy' (default) is the rollback path "
+            "until FretCam's controlled-live promotion gate passes"
         ),
     )
     t.add_argument(
@@ -351,6 +365,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="disable the video stack for the diagnostic decode",
     )
     d.add_argument(
+        "--video-backend",
+        choices=["legacy", "fretcam"],
+        default="legacy",
+        help="video analyzer used for the diagnostic decode",
+    )
+    d.add_argument(
         "--video-stride",
         type=_video_stride_arg,
         default=3,
@@ -420,6 +440,7 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
         lambda_vision=args.fusion_lambda_vision,
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
+        video_backend=args.video_backend,
         position_prior=args.position_prior,
         sequence_prior=args.sequence_prior,
         string_evidence=args.string_evidence,
@@ -540,6 +561,7 @@ def _cmd_diagnose(args: argparse.Namespace) -> int:
         lambda_vision=args.fusion_lambda_vision,
         video_stride=args.video_stride,
         video_enabled=not args.no_video,
+        video_backend=args.video_backend,
         preflight_enabled=not args.no_preflight,
         audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,

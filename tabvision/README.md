@@ -11,9 +11,10 @@ art; new work lives in this package.
 
 ## Accuracy
 
-v1 is **acoustic, audio-only** by scope — an evidence-based decision, not a
-relaxation (electric was measured and found blocked on a model that does not yet
-exist; the full story is in [`../docs/NARRATIVE.md`](../docs/NARRATIVE.md)).
+The accepted v1 accuracy baseline remains **acoustic and audio-only by
+default**. FretCam is an explicit, bounded video experiment layered onto that
+baseline; its results are reported separately until its promotion gates pass.
+The full scope history is in [`../docs/NARRATIVE.md`](../docs/NARRATIVE.md).
 Measured on the GuitarSet held-out player-05 validation set (60 clips), formal
 acceptance run 2026-06-03
 ([report](../docs/EVAL_REPORTS/v1_acceptance_2026-06-03.md)):
@@ -39,7 +40,13 @@ scope rationale: [`../SPEC.md`](../SPEC.md) §1.4 / §1.4.1.
   0.778 vs the best real video chain's 0.574
   ([A14](../docs/EVAL_REPORTS/a14_video_complementarity_2026-07-06.md),
   [GAPS video-chain](../docs/EVAL_REPORTS/v1_1_gaps_video_chain_2026-06-22.md)).
-  The video stack stays in the repo as measured evidence, not a shipping default.
+  That exact-string video stack stays in the repo as measured evidence, not a
+  shipping default.
+- **FretCam is a separate, explicit coarse-position experiment.** It contributes
+  only a stabilized pre-onset fret window, keeps open strings eligible, and
+  caps its likelihood bonus. Select it with `--video-backend fretcam`; the
+  legacy route remains the default rollback until the controlled-live gate and
+  held-out end-to-end evaluation pass.
 - **A compact timbral string ranker did not generalize.** Five-player OOF
   evaluation scored 0.633 candidate top-1 versus the 0.655 prior-only baseline,
   so no timbral model or paid training ships
@@ -74,6 +81,13 @@ python -m pip install -e '.[render]'          # GP5, MusicXML, MIDI writers
 python -m pip install -e '.[vision]'          # video stack; see license note
 ```
 
+The opt-in FretCam bridge is a sibling package. Install it into the same
+environment after the vision extra:
+
+```bash
+python -m pip install --no-deps -e ../fretcam
+```
+
 On Linux, the Basic Pitch extra currently needs Python 3.11 because its
 TensorFlow dependency does not publish compatible Python 3.12 wheels.
 
@@ -83,6 +97,7 @@ Check optional model/dependency readiness:
 python -m scripts.acquire.models list
 python -m scripts.acquire.models status
 python -m scripts.acquire.models prepare-yolo-dir
+python -m scripts.acquire.models prepare-hand-dir
 ```
 
 ## Quickstart
@@ -97,8 +112,9 @@ tabvision transcribe input.mov --format ascii -o output.tab
 (via `--audio-backend auto`, which routes `--instrument electric` to the
 electric checkpoint) plus domain-aware `--position-prior auto` and
 `--sequence-prior auto`. Clean acoustic, standard-tuning, capo-zero sessions
-use the hash-verified GuitarSet pair; classical, electric, nonstandard-tuning,
-and capo sessions use neutral learned position evidence. The first run
+use the hash-verified GuitarSet pair; clean classical, standard-tuning,
+capo-zero sessions use the hash-verified GAPS pair. Electric, nonstandard
+tuning, and capo sessions use neutral learned position evidence. The first run
 downloads the highres checkpoint once (~37 s); later runs load it from the
 local cache. Requires the `audio-highres` extra (torch).
 
@@ -125,9 +141,20 @@ Useful context flags:
 ```bash
 tabvision transcribe input.mov --instrument electric --tone clean --style mixed --capo 0
 tabvision transcribe input.mov --no-video --format ascii
+tabvision transcribe input.mov --video-backend fretcam --format ascii
 tabvision transcribe input.mov --position-prior none --sequence-prior none --audio-backend basicpitch
 tabvision transcribe input.mov --string-evidence none
 ```
+
+The FretCam route uses per-frame best-effort PTS normalized to decoded-audio
+start (with a monotonic fallback). Only `locked`/`holding` estimates at
+confidence 0.20 or higher are eligible. For an ambiguous pitch, the latest
+estimate in the 150 ms lookback ending 30 ms before onset gives a bounded soft
+bonus to
+`{open/capo} ∪ [position−1, position+4]`; missing or weak evidence is an exact
+no-op. The input-odds bonus is capped at one nat under the default decoder
+weights. It never also runs the legacy per-string hand posterior, avoiding
+visual double-counting.
 
 `auto` is the production default. Explicit `guitarset-v1` /
 `guitarset-seq-v1` force the compatible registered pair for reproducible
@@ -191,7 +218,7 @@ GuitarSet validation, license checks, fresh-install checks, and renderer tests.
 
 The shipping **default** pipeline is intentionally small and **permissive** —
 `highres` audio (MIT), ffmpeg, numpy — and carries **no copyleft**. Because v1
-is audio-only, the default path pulls in **no AGPL code**. Copyleft dependencies
+is audio-only by default, that path pulls in **no AGPL code**. Copyleft dependencies
 live only in **opt-in extras**, enforced by `scripts/check_default_licenses.py`
 (CI fails if one reaches `[project].dependencies`):
 

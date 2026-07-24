@@ -11,11 +11,13 @@ from tabvision.fusion.neck_prior import (
     anchor_position_prior,
     apply_neck_anchor_priors,
 )
+from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.viterbi import fuse
 
 __all__ = [
     "TimedNeckAnchor",
     "anchor_position_prior",
     "apply_neck_anchor_priors",
+    "apply_position_window_priors",
     "fuse",
 ]

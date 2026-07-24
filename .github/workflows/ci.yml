@@ -25,6 +25,9 @@ jobs:
       - name: Install package + dev deps
         run: pip install -e ".[dev]"
 
+      - name: Install FretCam bridge package
+        run: pip install --no-deps -e ../fretcam
+
       - name: Ruff lint
         run: ruff check .
 
@@ -36,3 +39,25 @@ jobs:
 
       - name: Pytest
         run: pytest -v
+
+      - name: FretCam bridge lint + format
+        run: |
+          ruff check --config ../fretcam/pyproject.toml \
+            ../fretcam/src/fretcam/tabvision_adapter.py \
+            ../fretcam/src/fretcam/tabvision_bridge_probe.py \
+            ../fretcam/tests/test_tabvision_adapter.py \
+            ../fretcam/tests/test_tabvision_bridge_probe.py
+          ruff format --config ../fretcam/pyproject.toml --check \
+            ../fretcam/src/fretcam/tabvision_adapter.py \
+            ../fretcam/src/fretcam/tabvision_bridge_probe.py \
+            ../fretcam/tests/test_tabvision_adapter.py \
+            ../fretcam/tests/test_tabvision_bridge_probe.py
+
+      - name: FretCam bridge types + tests
+        run: |
+          mypy \
+            ../fretcam/src/fretcam/tabvision_adapter.py \
+            ../fretcam/src/fretcam/tabvision_bridge_probe.py
+          pytest -q \
+            ../fretcam/tests/test_tabvision_adapter.py \
+            ../fretcam/tests/test_tabvision_bridge_probe.py

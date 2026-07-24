@@ -21,6 +21,7 @@ def write_diagnose_report(
     lambda_vision: float = 1.0,
     video_stride: int = 3,
     video_enabled: bool = True,
+    video_backend: str = "legacy",
     preflight_enabled: bool = True,
     audio_filters: bool | AudioFilterConfig | None = None,
     cfg: GuitarConfig | None = None,
@@ -50,6 +51,7 @@ def write_diagnose_report(
             lambda_vision=lambda_vision,
             video_stride=video_stride,
             video_enabled=video_enabled,
+            video_backend=video_backend,
             audio_filters=audio_filters,
             cfg=cfg,
             session=session,
@@ -69,6 +71,7 @@ def write_diagnose_report(
             cfg=cfg,
             session=session,
             video_enabled=video_enabled,
+            video_backend=video_backend,
         ),
         encoding="utf-8",
     )
@@ -97,24 +100,36 @@ def _run_pipeline_for_report(
     lambda_vision: float,
     video_stride: int,
     video_enabled: bool,
+    video_backend: str,
     audio_filters: bool | AudioFilterConfig | None,
     cfg: GuitarConfig,
     session: SessionConfig,
 ) -> tuple[list[TabEvent], str]:
     try:
-        from tabvision.pipeline import run_pipeline
+        from tabvision.pipeline import run_pipeline_with_artifacts
 
-        events = run_pipeline(
+        result = run_pipeline_with_artifacts(
             input_path,
             audio_backend_name=audio_backend_name,
             lambda_vision=lambda_vision,
             video_stride=video_stride,
             video_enabled=video_enabled,
+            video_backend=video_backend,
             audio_filters=audio_filters,
             cfg=cfg,
             session=session,
         )
-        return list(events), f"Pipeline produced {len(events)} tab events."
+        events = list(result.tab_events)
+        message = (
+            f"Pipeline produced {len(events)} tab events. "
+            f"Resolved video backend: {result.resolved_video_backend}."
+        )
+        if result.resolved_video_backend == "fretcam":
+            message += (
+                f" Accepted position observations: {result.position_observation_count}; "
+                f"audio events affected: {result.notes_affected_by_video}."
+            )
+        return events, message
     except Exception as exc:  # noqa: BLE001 - a diagnostic report is still useful.
         return [], f"Pipeline unavailable: {exc}"
 
@@ -129,21 +144,30 @@ def _render_html(
     cfg: GuitarConfig,
     session: SessionConfig,
     video_enabled: bool,
+    video_backend: str,
 ) -> str:
     ascii_tab = _ascii_tab(tab_events, cfg)
     confidence_rows = "\n".join(_confidence_rows(tab_events)) or (
         "<tr><td colspan='6'>No decoded tab events available.</td></tr>"
     )
-    video_note = (
-        "Video stack enabled; overlay generation is currently represented by "
-        "diagnostic placeholders unless downstream overlay assets are available."
-        if video_enabled
-        else (
+    if video_enabled and video_backend == "fretcam":
+        video_note = (
+            "FretCam stabilized playing-position route requested; when available, "
+            "fusion uses only confidence-gated coarse fret windows. See pipeline "
+            "status above for resolved backend and evidence counts."
+        )
+    elif video_enabled:
+        video_note = (
+            "Legacy video stack enabled; overlay generation is currently "
+            "represented by diagnostic placeholders unless downstream overlay "
+            "assets are available."
+        )
+    else:
+        video_note = (
             "Video stack disabled (audio-only). v1 ships audio-first, so no "
             "fretboard overlay is produced on this path; enable the vision "
             "extra to render one."
         )
-    )
     return f"""<!doctype html>
 <html lang="en">
 <head>

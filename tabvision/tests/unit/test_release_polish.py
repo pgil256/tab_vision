@@ -69,3 +69,14 @@ def test_default_artifact_resolver_tracks_shipped_cli_defaults() -> None:
     # Every resolved default must be on the permissive allowlist.
     for key in resolved.values():
         assert key in module.PERMISSIVE_DEFAULT_ARTIFACTS
+
+
+def test_windows_studio_defaults_to_promoted_ensemble() -> None:
+    """The browser Studio must use the same best clean-acoustic backend as
+    the shipped automatic CLI route unless the user explicitly overrides it."""
+    repo_root = Path(__file__).resolve().parents[3]
+    script = (repo_root / "studio.ps1").read_text()
+
+    assert "[string]$AudioBackend = 'highres-ensemble'" in script
+    assert "[ValidateSet('highres-ensemble', 'highres', 'highres-fl', 'basicpitch')]" in script
+    assert "$env:TABVISION_AUDIO_BACKEND  = $AudioBackend" in script

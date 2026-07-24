@@ -57,8 +57,9 @@ def test_timestamps_monotonic_and_match_fps():
     diffs = np.diff(timestamps)
     assert (diffs > 0).all(), "timestamps must be strictly increasing"
     expected_dt = 1.0 / result.fps
-    # Allow tiny float drift; iterator computes t = i / fps so error is ULP-level.
-    assert np.allclose(diffs, expected_dt, rtol=1e-6, atol=1e-9)
+    # ffprobe renders best-effort PTS to microsecond precision, so a CFR source
+    # can alternate by one microsecond around the exact 1/fps interval.
+    assert np.allclose(diffs, expected_dt, rtol=1e-4, atol=2e-6)
 
 
 def test_total_frames_consistent_with_duration():

@@ -116,6 +116,36 @@ def test_transcribe_default_has_no_progress_output(
     assert captured.err == ""
 
 
+def test_transcribe_forwards_explicit_fretcam_backend(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    input_path = tmp_path / "input.mov"
+    input_path.write_bytes(b"pipeline is injected")
+    output_path = tmp_path / "result.tab"
+    captured: dict[str, object] = {}
+
+    def fake_run_pipeline(*_args, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr("tabvision.pipeline.run_pipeline", fake_run_pipeline)
+
+    rc = main(
+        [
+            "transcribe",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--video-backend",
+            "fretcam",
+            "--no-preflight",
+        ]
+    )
+
+    assert rc == 0
+    assert captured["video_backend"] == "fretcam"
+
+
 def test_transcribe_json_envelope_reports_output_flags_and_timings(
     tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -316,6 +346,7 @@ def test_diagnose_writes_html_report(tmp_path, monkeypatch: pytest.MonkeyPatch) 
         lambda_vision: float,
         video_stride: int,
         video_enabled: bool,
+        video_backend: str,
         preflight_enabled: bool,
         audio_filters,
         cfg,
@@ -323,6 +354,7 @@ def test_diagnose_writes_html_report(tmp_path, monkeypatch: pytest.MonkeyPatch) 
     ) -> Path:
         assert video_path == input_path
         assert output_path_arg == output_path
+        assert video_backend == "legacy"
         # No --audio-filters flag passed → 'auto' → None (backend default kept).
         assert audio_filters is None
         output_path_arg.write_text(
@@ -402,3 +434,53 @@ def test_diagnose_uses_supplied_events_and_grades_confidence(
         assert f'id="{section}"' in html
     assert "conf-low" in html and "conf-high" in html
     assert "caller-supplied" in html
+
+
+def test_diagnose_names_the_fretcam_position_route(tmp_path) -> None:
+    from tabvision.diagnose import write_diagnose_report
+
+    output_path = tmp_path / "fretcam-report.html"
+    write_diagnose_report(
+        tmp_path / "input.mov",
+        output_path,
+        video_enabled=True,
+        video_backend="fretcam",
+        preflight_enabled=False,
+        tab_events=[],
+    )
+
+    assert "FretCam stabilized playing-position route requested" in output_path.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_diagnose_surfaces_fretcam_observation_and_effect_counts(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from tabvision.diagnose import write_diagnose_report
+
+    monkeypatch.setattr(
+        "tabvision.pipeline.run_pipeline_with_artifacts",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            tab_events=(),
+            resolved_video_backend="fretcam",
+            position_observation_count=12,
+            notes_affected_by_video=3,
+        ),
+    )
+    output_path = tmp_path / "fretcam-counts.html"
+
+    write_diagnose_report(
+        tmp_path / "input.mov",
+        output_path,
+        video_enabled=True,
+        video_backend="fretcam",
+        preflight_enabled=False,
+    )
+
+    report = output_path.read_text(encoding="utf-8")
+    assert "Resolved video backend: fretcam" in report
+    assert "Accepted position observations: 12" in report
+    assert "audio events affected: 3" in report
