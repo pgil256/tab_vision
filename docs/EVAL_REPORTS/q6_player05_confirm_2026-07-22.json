@@ -1,0 +1,529 @@
+{
+  "held_out_player": "05",
+  "frozen_config": {
+    "weight": 1.0,
+    "min_r2": 0.5,
+    "table": "physics (raw)"
+  },
+  "position_prior": "guitarset-v1 (registered, excludes player 05)",
+  "clips": 60,
+  "coverage": {
+    "events": 8709,
+    "isolated": 1730,
+    "fitted": 839,
+    "applied": 834
+  },
+  "baseline_tab_f1": 0.633962124525772,
+  "arm_tab_f1": 0.7119321675781695,
+  "delta": 0.07797004305239728,
+  "lo95": 0.05016245857608176,
+  "hi95": 0.10782388439779045,
+  "solo_delta": 0.13955707071645831,
+  "solo_lo95": 0.09851242815866722,
+  "solo_hi95": 0.18058009281575788,
+  "comp_delta": 0.0163830153883363,
+  "comp_lo95": 0.0,
+  "comp_hi95": 0.04576603077667261,
+  "baseline_onset_f1": 0.9472605376149872,
+  "arm_onset_f1": 0.9472605376149872,
+  "baseline_pitch_f1": 0.9385989098426092,
+  "arm_pitch_f1": 0.9385989098426092,
+  "base_decomposition": {
+    "correct": 5594,
+    "wrong_position_same_pitch": 2300,
+    "pitch_off": 273,
+    "timing_only": 80,
+    "missed_onset": 468,
+    "extra_detection": 391
+  },
+  "arm_decomposition": {
+    "correct": 5961,
+    "wrong_position_same_pitch": 1933,
+    "pitch_off": 273,
+    "timing_only": 80,
+    "missed_onset": 468,
+    "extra_detection": 391
+  },
+  "per_clip": [
+    {
+      "track_id": "05_BN1-129-Eb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.9466666666666667,
+      "arm_tab_f1": 0.9466666666666667,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_BN1-129-Eb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.3333333333333333,
+      "arm_tab_f1": 0.5111111111111111,
+      "delta": 0.17777777777777776,
+      "applied": 18
+    },
+    {
+      "track_id": "05_BN1-147-Gb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7731958762886597,
+      "arm_tab_f1": 0.7731958762886597,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_BN1-147-Gb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.2105263157894737,
+      "arm_tab_f1": 0.456140350877193,
+      "delta": 0.2456140350877193,
+      "applied": 7
+    },
+    {
+      "track_id": "05_BN2-131-B_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7970297029702971,
+      "arm_tab_f1": 0.7970297029702971,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_BN2-131-B_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.5850340136054423,
+      "arm_tab_f1": 0.435374149659864,
+      "delta": -0.1496598639455783,
+      "applied": 28
+    },
+    {
+      "track_id": "05_BN2-166-Ab_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8563049853372433,
+      "arm_tab_f1": 0.8856304985337242,
+      "delta": 0.029325513196480912,
+      "applied": 1
+    },
+    {
+      "track_id": "05_BN2-166-Ab_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.7941176470588236,
+      "arm_tab_f1": 0.8088235294117647,
+      "delta": 0.014705882352941124,
+      "applied": 18
+    },
+    {
+      "track_id": "05_BN3-119-G_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7222222222222222,
+      "arm_tab_f1": 0.7222222222222222,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_BN3-119-G_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.6511627906976745,
+      "arm_tab_f1": 0.8372093023255813,
+      "delta": 0.18604651162790686,
+      "applied": 18
+    },
+    {
+      "track_id": "05_BN3-154-E_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7391304347826088,
+      "arm_tab_f1": 0.7391304347826088,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_BN3-154-E_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.4444444444444445,
+      "arm_tab_f1": 0.4957264957264957,
+      "delta": 0.05128205128205121,
+      "applied": 14
+    },
+    {
+      "track_id": "05_Funk1-114-Ab_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8377581120943953,
+      "arm_tab_f1": 0.8377581120943953,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk1-114-Ab_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.6495726495726496,
+      "arm_tab_f1": 0.6495726495726496,
+      "delta": 0.0,
+      "applied": 6
+    },
+    {
+      "track_id": "05_Funk1-97-C_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8319088319088318,
+      "arm_tab_f1": 0.8319088319088318,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk1-97-C_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.4247787610619469,
+      "arm_tab_f1": 0.5309734513274337,
+      "delta": 0.10619469026548678,
+      "applied": 16
+    },
+    {
+      "track_id": "05_Funk2-108-Eb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7235772357723578,
+      "arm_tab_f1": 0.7235772357723578,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk2-108-Eb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.4516129032258064,
+      "arm_tab_f1": 0.6935483870967742,
+      "delta": 0.24193548387096786,
+      "applied": 21
+    },
+    {
+      "track_id": "05_Funk2-119-G_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.853932584269663,
+      "arm_tab_f1": 0.853932584269663,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk2-119-G_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.3794871794871795,
+      "arm_tab_f1": 0.6564102564102564,
+      "delta": 0.2769230769230769,
+      "applied": 37
+    },
+    {
+      "track_id": "05_Funk3-112-C#_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8226950354609929,
+      "arm_tab_f1": 0.8226950354609929,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk3-112-C#_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.681159420289855,
+      "arm_tab_f1": 0.8115942028985507,
+      "delta": 0.13043478260869568,
+      "applied": 27
+    },
+    {
+      "track_id": "05_Funk3-98-A_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8011204481792717,
+      "arm_tab_f1": 0.8011204481792717,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Funk3-98-A_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.8461538461538461,
+      "arm_tab_f1": 0.9076923076923076,
+      "delta": 0.06153846153846143,
+      "applied": 28
+    },
+    {
+      "track_id": "05_Jazz1-130-D_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7985347985347986,
+      "arm_tab_f1": 0.7985347985347986,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Jazz1-130-D_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.711864406779661,
+      "arm_tab_f1": 0.8135593220338982,
+      "delta": 0.10169491525423724,
+      "applied": 21
+    },
+    {
+      "track_id": "05_Jazz1-200-B_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.48520710059171596,
+      "arm_tab_f1": 0.48520710059171596,
+      "delta": 0.0,
+      "applied": 1
+    },
+    {
+      "track_id": "05_Jazz1-200-B_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.37623762376237624,
+      "arm_tab_f1": 0.5544554455445545,
+      "delta": 0.17821782178217827,
+      "applied": 13
+    },
+    {
+      "track_id": "05_Jazz2-110-Bb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8055555555555556,
+      "arm_tab_f1": 0.8055555555555556,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Jazz2-110-Bb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.6862745098039216,
+      "arm_tab_f1": 0.7450980392156863,
+      "delta": 0.05882352941176472,
+      "applied": 25
+    },
+    {
+      "track_id": "05_Jazz2-187-F#_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7590618336886993,
+      "arm_tab_f1": 0.7590618336886993,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Jazz2-187-F#_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.26016260162601623,
+      "arm_tab_f1": 0.5691056910569106,
+      "delta": 0.3089430894308943,
+      "applied": 30
+    },
+    {
+      "track_id": "05_Jazz3-137-Eb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.902542372881356,
+      "arm_tab_f1": 0.902542372881356,
+      "delta": 0.0,
+      "applied": 1
+    },
+    {
+      "track_id": "05_Jazz3-137-Eb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.42857142857142855,
+      "arm_tab_f1": 0.7402597402597403,
+      "delta": 0.31168831168831174,
+      "applied": 40
+    },
+    {
+      "track_id": "05_Jazz3-150-C_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.29024943310657597,
+      "arm_tab_f1": 0.29024943310657597,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Jazz3-150-C_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.7246376811594203,
+      "arm_tab_f1": 0.8695652173913043,
+      "delta": 0.14492753623188404,
+      "applied": 30
+    },
+    {
+      "track_id": "05_Rock1-130-A_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.36018957345971564,
+      "arm_tab_f1": 0.36018957345971564,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock1-130-A_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.7107438016528925,
+      "arm_tab_f1": 0.8595041322314049,
+      "delta": 0.14876033057851235,
+      "applied": 20
+    },
+    {
+      "track_id": "05_Rock1-90-C#_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.9473684210526316,
+      "arm_tab_f1": 0.9473684210526316,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock1-90-C#_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.8457711442786069,
+      "arm_tab_f1": 0.9253731343283583,
+      "delta": 0.07960199004975144,
+      "applied": 30
+    },
+    {
+      "track_id": "05_Rock2-142-D_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.5132743362831858,
+      "arm_tab_f1": 0.5132743362831858,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock2-142-D_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.31213872832369943,
+      "arm_tab_f1": 0.39306358381502887,
+      "delta": 0.08092485549132944,
+      "applied": 32
+    },
+    {
+      "track_id": "05_Rock2-85-F_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.6499215070643641,
+      "arm_tab_f1": 0.6499215070643641,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock2-85-F_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.7410358565737052,
+      "arm_tab_f1": 0.7888446215139442,
+      "delta": 0.047808764940239,
+      "applied": 49
+    },
+    {
+      "track_id": "05_Rock3-117-Bb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.45721583652618136,
+      "arm_tab_f1": 0.45721583652618136,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock3-117-Bb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.510948905109489,
+      "arm_tab_f1": 0.7445255474452556,
+      "delta": 0.23357664233576658,
+      "applied": 44
+    },
+    {
+      "track_id": "05_Rock3-148-C_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.8657314629258517,
+      "arm_tab_f1": 0.8657314629258517,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_Rock3-148-C_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.639344262295082,
+      "arm_tab_f1": 0.7377049180327869,
+      "delta": 0.09836065573770492,
+      "applied": 41
+    },
+    {
+      "track_id": "05_SS1-100-C#_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.27,
+      "arm_tab_f1": 0.66,
+      "delta": 0.39,
+      "applied": 12
+    },
+    {
+      "track_id": "05_SS1-100-C#_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.8571428571428572,
+      "arm_tab_f1": 0.8253968253968254,
+      "delta": -0.031746031746031855,
+      "applied": 15
+    },
+    {
+      "track_id": "05_SS1-68-E_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.965034965034965,
+      "arm_tab_f1": 0.965034965034965,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_SS1-68-E_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.2967741935483871,
+      "arm_tab_f1": 0.5161290322580645,
+      "delta": 0.21935483870967742,
+      "applied": 16
+    },
+    {
+      "track_id": "05_SS2-107-Ab_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7410714285714286,
+      "arm_tab_f1": 0.7410714285714286,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_SS2-107-Ab_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.6551724137931034,
+      "arm_tab_f1": 0.7701149425287356,
+      "delta": 0.11494252873563215,
+      "applied": 32
+    },
+    {
+      "track_id": "05_SS2-88-F_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.6082474226804124,
+      "arm_tab_f1": 0.6804123711340205,
+      "delta": 0.0721649484536081,
+      "applied": 6
+    },
+    {
+      "track_id": "05_SS2-88-F_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.6137566137566137,
+      "arm_tab_f1": 0.708994708994709,
+      "delta": 0.09523809523809523,
+      "applied": 35
+    },
+    {
+      "track_id": "05_SS3-84-Bb_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7029478458049887,
+      "arm_tab_f1": 0.7029478458049887,
+      "delta": 0.0,
+      "applied": 0
+    },
+    {
+      "track_id": "05_SS3-84-Bb_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.3859649122807018,
+      "arm_tab_f1": 0.7807017543859649,
+      "delta": 0.3947368421052631,
+      "applied": 59
+    },
+    {
+      "track_id": "05_SS3-98-C_comp",
+      "mode": "comp",
+      "base_tab_f1": 0.7010309278350515,
+      "arm_tab_f1": 0.7010309278350515,
+      "delta": 0.0,
+      "applied": 4
+    },
+    {
+      "track_id": "05_SS3-98-C_solo",
+      "mode": "solo",
+      "base_tab_f1": 0.3010752688172043,
+      "arm_tab_f1": 0.5591397849462365,
+      "delta": 0.2580645161290322,
+      "applied": 39
+    }
+  ]
+}

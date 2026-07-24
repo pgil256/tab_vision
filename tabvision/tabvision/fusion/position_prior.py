@@ -27,6 +27,47 @@ class PitchPositionPrior:
         return self.by_pitch.get(int(pitch_midi))
 
 
+def capo_covariant_prior(prior: PitchPositionPrior, capo: int) -> PitchPositionPrior:
+    """Re-index a capo-0 position prior for a session with a capo at ``capo``.
+
+    ``resolve_inference_policy`` routes any capo>0 session to ``priors=none``,
+    so the position-prior lift is discarded on exactly the recordings a
+    personal user makes with a capo (ROI deep-dive §4.3). It need not be: a
+    capo shifts the whole fretboard uniformly, so a player's *relative*
+    preferences are unchanged and the capo-0 prior applies once both axes are
+    shifted.
+
+    A note sounding pitch ``P`` on string ``s`` at absolute fret ``f`` under a
+    capo at ``C`` is the same shape as pitch ``P-C`` at fret ``f-C`` without
+    one, hence
+
+        shifted(s, f | P) = capo0(s, f - C | P - C)
+
+    Positions below the capo are unplayable and get zero mass;
+    ``candidate_positions`` already excludes them, so this only makes the
+    prior agree with the candidate set.
+
+    The entry probe (`q7_capo_covariant_probe.py`) measured this against the
+    capo-ignorant alternative: applying the capo-0 prior *without* the shift
+    decays from 0.596 to 0.437 top-1 by capo 7 — no better than no prior at
+    all — so the shift is necessary rather than cosmetic.
+    """
+    if capo < 0:
+        raise ValueError("capo must be non-negative")
+    if capo == 0:
+        return prior
+
+    shifted: dict[int, np.ndarray] = {}
+    for pitch, matrix in prior.by_pitch.items():
+        width = matrix.shape[1]
+        if capo >= width:
+            continue
+        target = np.zeros_like(matrix)
+        target[:, capo:] = matrix[:, : width - capo]
+        shifted[int(pitch) + capo] = target
+    return PitchPositionPrior(by_pitch=shifted)
+
+
 def learn_pitch_position_prior(
     examples: Sequence[TabEvent],
     cfg: GuitarConfig | None = None,
@@ -169,6 +210,7 @@ def load_pitch_position_prior(
 __all__ = [
     "PitchPositionPrior",
     "apply_pitch_position_prior",
+    "capo_covariant_prior",
     "learn_pitch_position_prior",
     "load_pitch_position_prior",
 ]

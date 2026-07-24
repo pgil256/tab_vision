@@ -2819,3 +2819,1388 @@ runtime change in this phase.
 nearly four times the continue gate, and the rescue mass sits exactly where
 the accuracy program's residual errors concentrate (dense comp voicings),
 so the expensive full evaluation is now justified.
+
+---
+
+## 2026-07-21 — Program N2: MuScriptor merge CLOSED — bounded negative
+
+**Phase:** Accuracy-loop item Q1 (ROI deep-dive §3.1), NC second-opinion
+program N-branch — the merge phase that the 2026-07-21 entry gate unlocked
+**Decision tree:** merge-variant filter → full dev eval → player-05.
+Continue only if a variant is non-negative under the shipped decode.
+**Branch taken:** **CLOSE — no admissible merge variant exists.** On 20
+GuitarSet dev clips (10 comp = the entry probe's exact slice, 10 new solo),
+replayed offline through the shipped clean-acoustic decode with a
+leave-one-player-out position prior, all six predeclared variants lose:
+`union` **-0.0541 Tab F1 [-0.0989, -0.0160]** (CI-significant negative);
+best-case `cluster`/`cluster-dur60` **-0.0167 [-0.0480, +0.0090]** with a
+**CI-significant onset F1 regression -0.0195 [-0.0325, -0.0079]** — the
+metric the merge existed to improve. The ordering is monotone in notes
+admitted; the best merge is the empty one. The full 300-clip dev run
+(~6-8 CPU-h) was deliberately **not** spent.
+**Root cause (the number the entry gate cannot see):** complementarity
+counts rescues and charges nothing for false additions. Measured
+**added-note precision is 0.104-0.181** (union → cluster) against a stream
+that decodes at **0.6855 Tab precision**; each correct tab event gained
+costs ≈ 7 (cluster) to ≈ 18 (union) new false detections. `cluster` does not
+even move its predicted bucket (missed_onset 196 → 198) while
+extra_detection goes 102 → 227.
+**Solo coverage (the entry probe's open caveat):** comp reproduces exactly
+at 0.3818 (63/165) via an independent code path; **solo is 0.1481** (12/81),
+2.6× weaker and barely over the 0.10 gate. Pooled 0.3049 (75/246). The
+headline was a comp-mode artifact.
+**No confidence-floor variant is possible:** MuScriptor MIDI carries constant
+velocity 100 and its supported API yields note events with no score field; it
+is an autoregressive token decoder, so per-note confidence would require
+patching a third-party generation loop for uncalibrated token log-probs.
+The §3.1 design prescription "cluster-scoped adds **plus** a per-note
+confidence floor" was therefore only half-implementable, and the half that
+existed fails.
+**Carry-forward (binding on Q4's Basic Pitch / YourMT3+ probes):** the ≥0.10
+complementarity gate is **necessary but not sufficient** — N2 passed it by
+3.8× and still yielded nothing. Second-opinion candidates now gate on both
+legs: (1) P(right | ensemble wrong) ≥ 0.10 and (2) **added-note precision
+≥ 0.5** under the candidate's best admission rule. Leg 2 is free once events
+are banked.
+**Evidence:** `docs/EVAL_REPORTS/n2_muscriptor_merge_pilot_2026-07-21.md`
+(+ `.json`); `tabvision/scripts/eval/n2_muscriptor_merge.py`;
+`tabvision/tests/unit/test_n2_muscriptor_merge.py` (11 tests).
+LICENSES.md MuScriptor row updated to acquired/offline-only; no artifact
+registered, no routing or `auto` change, SPEC untouched.
+**Reasoning:** the mechanism is structural rather than statistical — it holds
+across both playing modes, all six admission rules, and both Tab and onset
+F1 — so more clips would sharpen a number whose sign is not in doubt. House
+rule "banked negatives are wins; do not iterate past a failed gate" applies.
+The banked replay artifacts (20 clips of ensemble events + MuScriptor MIDI)
+stay on disk, so any future admission rule can be tested at zero compute.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2: entry gate re-based off the sealed player-05 slice
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2) — symbolically
+pretrained contextual string assigner, entry-substrate iteration
+**Decision tree:** the deep-dive's stated entry gate is "ambiguous top-1
+≥ +0.05 over 0.6770" against Phase 0's banked lattice.
+**Branch taken:** **the gate is evaluated on the dev-OOF slice, not the
+stated 0.6770.** Reproducing Phase 0 from the banked CSV shows 0.6770 is the
+`held_out_05` number — **player-05**, which the loop opens only after config
+freeze and an explicit user proceed. Tuning a model against it would burn the
+confirmation set. The same +0.05 bar is carried to
+`production_equivalent`/`development_oof`: **ambiguous top-1 ≥ 0.7048**
+(from **0.6548**, n = 35,959). This is also the stronger development target —
+5.0× the notes of the player-05 slice (7,121). Player-05 stays sealed.
+**Substrate verified:** the banked lattice reproduces both Phase 0 headlines
+exactly from disk (held-out 0.6770 top-1 / 0.9986 top-3), with no audio,
+backend, or pipeline — so the probe is pure CSV replay, seconds per sweep.
+It also carries `candidate_path` as `string:fret:cost_delta_from_best`, so
+the probe can score the **real integration shape** (blend model log-prob with
+the decoder's cost, sweep the mixing weight offline) rather than a proxy.
+**What the gate asks for, concretely:** gold is present in the lattice for
+99.72% of ambiguous notes; **84% of misses are gold-at-rank-2** (10,428 of
+12,412), so +0.05 means flipping **1,798 notes — 17% of the rank-2 pile**.
+Solo 0.5908 vs comp 0.6896: the headroom is concentrated in single-line
+material, where audio evidence is information-limited and context is the only
+remaining lever.
+**Corpus:** `scripts/eval/s1b_extract_symbolic.py` extracts per-track note
+*sequences* (34,621 tracks / **34,063,065 notes** / 46.3 MB npz / 279 s),
+delegating the parse to S1a's `_track_events` so the substrate is identical
+to the audited one — and the totals reproduce the S1a audit exactly. 88.7% of
+notes are pitch-ambiguous and 47% of clusters are polyphonic, so the corpus
+is dense in the target decision and carries real voicing grammar. The
+difference from S1a is representation, not scale: S1a marginalized order
+away into per-pitch counts and closed CI-negative; the Phase 0 segment gate
+values the discarded quantity at +0.1446.
+**Evidence:** `docs/EVAL_REPORTS/s1b_entry_substrate_2026-07-22.md`
+(+ `s1b_symbolic_corpus_2026-07-22.json`);
+`tabvision/scripts/eval/s1b_extract_symbolic.py`;
+`tabvision/tests/unit/test_s1b_extract_symbolic.py` (4 tests).
+No artifact registered, no routing or `auto` change, SPEC untouched.
+NC-derived corpus labeled in LICENSES.md.
+**Reasoning:** the deviation is a slice correction, not a weakening — the
++0.05 magnitude is unchanged and the substituted slice is both larger and the
+one house discipline already reserves for development. Catching it before
+training is spent is the point of running the substrate check first.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2: pretrain-only gate FAILS at +0.0302; context proven real
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2) — symbolically
+pretrained contextual string assigner, offline lattice gate
+**Decision tree:** entry gate = ambiguous top-1 ≥ +0.05 over the dev-OOF
+baseline 0.6548 (i.e. ≥ 0.7048) before any pipeline integration.
+**Branch taken:** **FAIL, decisively — and the failure is informative.** A
+413,958-parameter transformer trained on 3.84M notes of the SynthTab
+symbolic corpus, rescoring the banked lattice as an emission term
+(`combined = cost_delta_from_best + λ·(−log p)`), peaks at λ = 4 with
+ambiguous top-1 **0.6850, Δ +0.0302 [+0.0163, +0.0446]** (paired bootstrap
+over tracks, N = 10,000, seed 42). The entire 95% interval lies below the
++0.05 bar, so this is not a sample-size question: at this model scale the
+effect is real and too small.
+**The positive is nonetheless the finding.** The `marginal` control —
+P(string | pitch) counts from the *same* corpus — is negative at every
+λ > 0 and collapses to 0.5419 at λ = ∞, never beating λ = 0. Same corpus,
+same lattice, same blend, same code path: counts hurt, sequence context helps
+CI-significantly. This independently replicates S1a's negative through a
+different mechanism (rescoring, not prior substitution), rules out "the
+corpus is simply informative" as the explanation, and is the **first
+CI-significant positive from a SynthTab-derived artifact** in this repo.
+**Shape of the signal:** the λ sweep is smooth and unimodal; model-only
+(λ = ∞, 0.6496) is *worse* than the decoder, so the model is complementary
+evidence rather than a replacement — exactly the §3.2 emission-term
+integration, meaning a tuned λ ports directly to Q3. Tiers want different λ
+(comp peaks at 4, solo at 8; solo +0.0287, comp +0.0355).
+**Diagnosis of the shortfall:** in-domain val ambiguous accuracy is 0.7679 on
+held-out SynthTab tracks, so the model learned position grammar; most of it
+does not survive transfer to GuitarSet. **Recipe stage 2 was not run** —
+fine-tuning on GuitarSet players 00–04 symbolic, which MIDI-to-Tab measures
+at +4.0 pp alone, would on its face close the gap. The domain story matches
+the repo's own A15/PDMX and S1a lesson: notation-derived transcriptions
+choose positions for readability, players choose for comfort, and that
+disagreement *is* the measured quantity.
+**Evidence:** `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md`
+(+ `s1b_rescore_context_2026-07-22.json`,
+`s1b_rescore_marginal_2026-07-22.json`,
+`s1b_context_training_2026-07-22.json`);
+`tabvision/scripts/eval/{s1b_train_context,s1b_rescore_lattice}.py`;
+`tabvision/tests/unit/{test_s1b_rescore_lattice,test_s1b_context_scorer}.py`.
+Nothing registered, `auto` untouched, SPEC and §8 unchanged; NC inherited
+from SynthTab and labeled in LICENSES.md. Player-05 remains sealed — the
+harness refuses `--split held_out_05` outright.
+**Reasoning:** the house rule is "banked negatives are wins; do not iterate
+past a failed gate hoping it improves." That rule is aimed at open-ended
+tuning, and this gate did fail. But the recipe's second stage is predeclared,
+cheap, and simply unexecuted, and the probe returned a CI-significant
+positive with a control that isolates context as its cause — so whether to
+spend the fine-tune or bank the negative and move to Q4/Q5 is a
+user-authority call, not one to make silently inside the loop. Q2 is
+therefore **paused pending that call**, not closed.
+
+---
+
+## 2026-07-22 — Q2/S1b-v2 CLOSED: full recipe ends at +0.0467 vs a +0.05 bar
+
+**Phase:** Accuracy-loop item Q2 (ROI deep-dive §3.2), recipe stage 2
+**Decision tree:** stage-1 near-miss (+0.0302) left one predeclared,
+unexecuted step — fine-tune on GuitarSet players 00-04 symbolic, priced at
++4.0 pp by MIDI-to-Tab. User instructed running it before banking.
+**Branch taken:** **CLOSE — banked negative.** Under leave-one-player-out
+fine-tuning (each dev player scored only by the fold that never saw it, per
+`_oof_position_prior`), ambiguous top-1 reaches **0.7015, Δ +0.0467
+[+0.0291, +0.0640]** against the **0.7048** gate — short by **0.0033** on the
+point estimate and far short on the lower bound. The fine-tune contributed
+**+0.0165**, under half the published +4.0 pp for the same step. Two
+deductions push the true value lower still: **λ was selected on the reported
+slice** (best of nine values on the same dev-OOF lattice), and no correction
+was applied for that.
+**The finding worth keeping — context helps chords, not single lines:**
+comp **0.6896 → 0.7557 (+0.0661)** but solo **0.5908 → 0.6020 (+0.0112)**, a
+6× asymmetry. Wrong-position is 57.3% of all Tab F1 loss but **77.5% of
+single-line loss**, so the tier that most needs contextual disambiguation
+received almost none of it. The mechanism is legible: a chord voicing
+constrains its own members, which a model trained on millions of voicings
+learns; a single line has no simultaneous constraint and needs hand-position
+continuity across time — which `guitarset-seq-v1` already models, so the
+contextual model largely re-derives evidence the decoder has.
+**Full-program result:** the complete §3.2 recipe was executed — 34.06M-note
+symbolic pretrain, then in-domain fine-tune under proper OOF — and the
+counts control sat at exactly 0.0000 throughout, so context is demonstrably
+real evidence that simply does not concentrate where the loss is. Gold is in
+the lattice for 99.72% of ambiguous notes, so the ceiling was never the
+constraint.
+**Re-opening guidance:** target **single-line** disambiguation specifically
+rather than a general contextual model, and budget a λ-selection protocol
+that does not touch the reported slice. Masked-string conditioning on
+neighbouring strings and autoregressive decoding remain untried, but they are
+a different model, not a tweak — a new probe with its own entry gate.
+**Evidence:** `docs/EVAL_REPORTS/s1b_context_probe_2026-07-22.md` (stage 2
+section) + `s1b_finetune_2026-07-22.json`,
+`s1b_rescore_context_oof_2026-07-22.json`;
+`tabvision/scripts/eval/s1b_finetune_guitarset.py`,
+`s1b_rescore_lattice.py` (`--scorer context-oof`).
+Nothing registered, `auto` untouched, SPEC and §8 unchanged, player-05 never
+read. NC fold checkpoints labeled in LICENSES.md.
+**Reasoning:** the gate was predeclared at +0.05 and is missed on both the
+point estimate and the lower bound, with a known optimistic bias in the
+selection of λ. The remaining levers are either already measured as small
+(per-tier λ — both tiers peak at λ=4) or constitute a different model. House
+rule "banked negatives are wins; do not iterate past a failed gate" applies,
+and the tier asymmetry makes the negative genuinely informative for whatever
+attacks single-line assignment next.
+
+---
+
+## 2026-07-22 — Q4: Basic Pitch blocked on Python 3.12; leg-2 gate derived
+
+**Phase:** Accuracy-loop item Q4 (ROI deep-dive §3.3) — standing
+second-opinion bench
+**Decision tree:** run the two-leg gate on Basic Pitch, then YourMT3+;
+close cheaply on failure.
+**Branch taken (a):** **Basic Pitch is BLOCKED — environment, not evidence.**
+`basic-pitch>=0.3.0` is a declared optional extra (`audio-baseline`),
+Apache-2.0, already in LICENSES.md, so not a new dependency in the
+stop-and-ask sense — but it will not install: this machine has only Python
+3.12, every release 0.3.0-0.4.0 falls back to building numpy from source, and
+that numpy's `setup.py` calls `pkgutil.ImpImporter`, removed in 3.12. The
+`[onnx]` extra fails identically. `pyproject.toml` already warned that the
+verified path is Python 3.11. Installing a second runtime is a system-level
+dependency and stops for the user.
+**Recommendation recorded:** drop Basic Pitch rather than install 3.11. Its
+published GuitarSet zero-shot note F1 is 66.1 against our ensemble's 0.9491
+onset / 0.9403 pitch; MuScriptor is far stronger, cleared leg 1 by 3.8x, and
+still failed leg 2 at 0.181 against a break-even of 0.528. The deep-dive
+prices the whole row at +0.00-+0.02.
+**Branch taken (b) — the substantive result:** the leg-2 threshold invented
+in Q1 ("added-note precision >= 0.5", a judgement call) is now **derived**.
+For a merge admitting `a` notes with real-note fraction `p`, where `alpha` is
+P(rescued note also gets the right string):
+**p > (F1/2) / (alpha·(1 − F1/2) + F1/2)**. The volume `a` cancels — **how
+many notes a rule admits never changes the sign, only the magnitude**, which
+explains why all six N2 variants were negative and the conservative ones
+merely lost less. The bar also rises with the stream's own F1.
+**Calibration:** on the banked N2 pilot (baseline Tab F1 0.6773, measured
+alpha **0.4581** from added-real-notes vs the `correct`-bucket gain), the
+break-even is **0.5278**, and it predicts the sign of all five admitting
+variants — **5/5 agreement**. The guessed 0.5 sits just under it, so no Q1
+verdict changes, but leg 2 is now a computed quantity rather than a round
+number and should be recomputed per candidate as the ensemble improves.
+**Evidence:** `docs/EVAL_REPORTS/q4_second_opinion_bench_2026-07-22.md`
+(+ `q4_breakeven_precision_2026-07-22.json`);
+`tabvision/scripts/eval/q4_second_opinion_probe.py` (the bench, candidate runs
+in its own probe venv so TensorFlow never enters the shared eval venv),
+`q4_breakeven_precision.py`;
+`tabvision/tests/unit/test_q4_breakeven_precision.py` (5 tests).
+Nothing registered, `auto` untouched, SPEC and §8 unchanged.
+**Reasoning:** the blocked probe is worth recording precisely so a future
+session does not re-attempt the install; and the calibration converts the
+bench's decisive leg from intuition into algebra that reproduces every banked
+observation, which is worth more than the Basic Pitch number would have been.
+
+---
+
+## 2026-07-22 — Q5 onset snapping CLOSED: the backend already beats the flux
+
+**Phase:** Accuracy-loop item Q5 (ROI deep-dive §4.2)
+**Decision tree:** prototype pre-fuse onset refinement; ship only on
+lo-95 > 0 Tab F1 **and** no CI-significant onset/pitch regression (this item
+intentionally changes onsets, so the full battery applies).
+**Branch taken:** **CLOSE — banked negative.** On the 20-clip bank with the
+OOF prior, `snap-10ms` is a wash (**+0.0002 Tab F1 [-0.0009, +0.0016]**) and
+every wider window loses monotonically on both Tab and onset F1
+(`snap-50ms`: -0.0047 Tab, -0.0097 onset). The strum-cluster variant adds
+nothing — `strum-20ms` is numerically identical to `snap-20ms`, `strum-30ms`
+slightly worse.
+**Mechanism, from the decomposition — it is the inverse of the intent:**
+`timing_only`, the bucket snapping exists to drain, **rises monotonically
+15 → 41**, while `correct` **falls 1411 → 1384**; `missed_onset` and
+`extra_detection` barely move. Snapping is not converting near-misses into
+hits, it is pushing already-inside-tolerance notes out. The ensemble's onsets
+are **already more accurate than half-wave-rectified STFT flux peaks**: at a
+10 ms window the mean shift is only 5.4 ms, i.e. the flux peak is essentially
+already on the detected onset.
+**Literature reconciliation:** the item came from "Snapping Matters"
+(arXiv 2606.11903, +2.6 note F1, piano), which the deep-dive already hedged
+as directional-not-transferable. Its precondition is a detector whose timing
+is the weak link; at onset F1 0.9325 that does not hold here.
+**Re-open only** with a backend whose onset timing is measurably worse than
+spectral flux, or a materially better onset estimator than STFT flux.
+**Evidence:** `docs/EVAL_REPORTS/q5_onset_snapping_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q5_onset_snapping.py`;
+`tabvision/tests/unit/test_q5_onset_snapping.py` (7 tests).
+Pure pre-fuse event surgery — no pipeline, registry, routing or §8 change.
+**Reasoning:** the negative is unusually clean because the decomposition
+identifies the mechanism rather than just the sign, and it retires a whole
+class of "refine the onsets" ideas: any such method must first beat the
+backend's own timing, which is a higher bar than beating the metric.
+
+---
+
+## 2026-07-22 — Q6: hex download stops for the user; separability precursor PASSES
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1) — inharmonicity as
+per-note string evidence
+**Decision tree:** Gate A = B-estimator string accuracy >= 0.85 on GuitarSet
+hex isolated notes; Gate B = >= 0.70 on mono-mic single-line segments.
+**Branch taken:** **BLOCKED on a dataset download — stop and ask.** Gate A
+needs GuitarSet's hexaphonic partition, which is not on disk: the acquirer
+takes `annotations` + `audio_mic` only and explicitly skips the multi-GB
+hex-pickup + mix partitions. Mono-mic alone is 1.6 GB. Per the loop's stop
+rule, a dataset download is a user decision.
+**Delivered instead — the precursor that decides whether the download is
+worth it.** Using `B(s,n) = B0_s * 2^(n/6)` (stiff string, `B ∝ 1/L²`,
+fretting shortens L by `2^(-n/12)`), the *assumption-free* part of the
+separation between two candidates for one pitch is the fret-difference term.
+On the banked dev-OOF ambiguous notes (n = 35,959): **every** rank-1/rank-2
+pair differs by **>= 4 frets** (99.4% by 4 or 5), i.e. a **1.59-1.78x B ratio
+from length alone**, before any plain-vs-wound B0 difference — which is
+ignored here, making the figures a lower bound. Modelling the decision as
+Gaussian mean separation, lower-bound string accuracy is 0.9956 at 10%
+B-estimation error, 0.9116 at 20%, 0.8175 at 30%: **Gate A is clearable if B
+is estimable to better than roughly 25% relative error.**
+**What it does not establish:** whether B *is* estimable to 25% on real
+audio. That is the whole risk and exactly what the two gates were pointed at.
+Hjerrild & Christensen (ICASSP 2019) report 1.5% string+fret error on
+isolated notes with per-instrument calibration; nothing published survives
+dense polyphony, hence §4.1's single-line scope.
+**Why it matters more after Q2:** Q2 closed with context worth +0.0661 on
+comp but only +0.0112 on solo, while single-line carries 77.5% of
+wrong-position loss. Sequence context is exhausted as a single-line lever;
+inharmonicity is per-note and physical, so it is the remaining evidence
+channel aimed at the tier that still needs one.
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q6_separability_precursor.py`;
+`tabvision/tests/unit/test_q6_separability.py` (5 tests).
+No pipeline code, no download spent, no contract change.
+**Reasoning:** the deep-dive rated this route "high risk"; the precursor
+retires one specific failure mode (candidate degeneracy) cheaply and leaves
+the real one (estimator robustness) squarely where the gates already look, so
+the user can decide on the download with a number rather than a hunch.
+
+---
+
+## 2026-07-22 — Q6 Gates A and B BOTH PASS: inharmonicity is real evidence
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1)
+**Decision tree:** Gate A >= 0.85 string accuracy on GuitarSet hex isolated
+notes; Gate B >= 0.70 on mono-mic single-line. Fail either → banked negative
+like WS4.
+**Branch taken:** **BOTH PASS.** Hex partition acquired over VPN after the
+earlier network block. Dev players 00-04, leave-one-player-out, isolated
+notes only (no other gold note sounding in the analysis window).
+Gate A (hex, 6,917 notes): **0.8950 at 71.9% coverage** (0.8234 unfiltered,
+0.9669 at 27.6%). Gate B (mono mic, 6,771 notes): **0.9200 at 66.6%
+coverage** (0.8095 unfiltered, 0.9898 at 29.1%).
+**The control carries the claim.** The count-prior baseline — most-frequent
+string for that pitch from the same training players — is **flat at ~0.65 in
+every arm**, matching the 0.6548 the production decoder scores on the full
+ambiguous lattice. Inharmonicity beats it by **+0.26 to +0.31 absolute**. So
+this is not "isolated notes are easy". r-squared is a label-free confidence
+signal (fit residual only) and accuracy rises monotonically with it, so the
+estimator can legitimately abstain on notes it cannot fit.
+**Unexpected: the mic beats the pickup.** Gate B was meant to be the hard
+one; at matched thresholds mono-mic equals or exceeds hex (0.9200 vs 0.8950
+at ~70% coverage). Likely instrumentation rather than physics — GuitarSet's
+hexaphonic track is a Roland GK-style divided pickup near the bridge, which
+is band-limited, while B estimation lives entirely in the high partials. A
+full-bandwidth condenser is simply a better instrument for this measurement.
+**Consequence: the hex partition was needed to validate the estimator against
+known string identity, but not for the signal itself — the evidence channel
+can run on the mono mic the pipeline already has.**
+**Scope caveat governing everything:** "isolated" is ~34% of solo notes and
+~1.3% of comp notes. This is a single-line instrument, exactly as §4.1
+scoped it — and that is why it matters, since Q2 closed with context worth
++0.0661 on comp but only +0.0112 on solo while single-line carries 77.5% of
+wrong-position loss.
+**Not yet a Tab F1 number:** this classifies strings on gold notes with known
+onsets. Wiring bounded emission evidence into `fuse()` over *detected* notes
+is a larger step, and the A14/WS4 precedent is that promising per-note
+evidence can still fail to lift the decoder.
+**Estimator validation:** `q6_gate_a.py` is self-tested on synthetic stiff
+strings; that test caught a k^1.5 search-window bug that biased recovered
+f0 by +1.2% and would have been invisible on real audio. The hex
+channel-to-string mapping is asserted empirically (0.9868 on isolated notes;
+a reversed convention scores ~0.01).
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md` (Gates A/B
+section) + `q6_gate_a_2026-07-22.json`, `q6_gate_b_2026-07-22.json`;
+`tabvision/scripts/eval/q6_gate_a.py`;
+`tabvision/tests/unit/test_q6_gate_a.py` (7 tests).
+No pipeline code, nothing registered, `auto` untouched, player-05 never read.
+**Reasoning:** this is the program's first passing gate, and it lands on the
+single tier every other lever has failed to move. Integration is a user
+decision because it is the first item here that would touch `fuse()`.
+
+---
+
+## 2026-07-22 — Q6 detected-notes probe: physics transfers, coverage is solo-only
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), post-gate de-risking
+**Decision tree:** not in the plan — added because Gates A/B scored *gold*
+notes, and the A14 precedent is that per-note evidence which looks strong in
+isolation can still fail the decoder. Offline replay on banked artifacts, so
+inside the loop's remit; no pipeline code.
+**Branch taken:** **the physics transfers; coverage is the binding
+constraint.** On the 20-clip ensemble bank (2,105 detected events), scoring
+the ensemble's *detected* stream with leave-one-player-out B0 calibration
+from other players' gold notes: accuracy **0.9242 at r² >= 0.50** versus
+**0.9200 on gold notes at the same threshold**. Detected onsets (up to 50 ms
+off) and wrong pitches do not degrade the estimate — a shifted window still
+measures the same partial structure, and a wrong pitch mostly fails the fit
+rather than yielding a confident wrong answer. The count-prior control lands
+at 0.654, matching the decoder's own 0.6548 on the ambiguous lattice, so the
+covered notes are not an easy subset.
+**Coverage, the real finding:** of 2,105 detections, 346 (16.4%) are isolated
+*and* pitch-ambiguous, 213 (10.1%) survive the r² >= 0.50 fit. The split is
+**solo n = 208 vs comp n = 3** — strummed material essentially never presents
+an isolated note. This is a single-line instrument in the strictest sense.
+**Estimated worth, assumptions stated:** ambiguous notes are ~70% of
+detections, so 10% of detections is ~14.3% of ambiguous notes; lifting those
+from ~0.654 to 0.924 gives a pooled ambiguous top-1 lift of ~**+0.039**.
+Because coverage is entirely solo, the solo-tier lift is ~**+0.10**
+(solo ambiguous baseline 0.5908, coverage roughly double the pooled share).
+For scale, Q2's full symbolic pretrain + in-domain fine-tune moved solo by
+**+0.0112**. These are upper bounds: they assume hard replacement, whereas
+§4.1 specifies bounded soft evidence, and they ignore cases where the Viterbi
+already agrees.
+**Limits:** 211 scored notes at the useful operating point — directional, not
+a ship gate; comp untouched so aggregate Tab F1 moves far less than the solo
+tier; same-instrument-set calibration untested against a foreign guitar.
+**Evidence:** `docs/EVAL_REPORTS/q6_separability_2026-07-22.md`
+(detected-notes section) + `q6_detected_probe_2026-07-22.json`;
+`tabvision/scripts/eval/q6_detected_probe.py`.
+No pipeline code, nothing registered, `auto` untouched, player-05 never read.
+**Reasoning:** this was the cheap question standing between a passing offline
+gate and a fusion change, and it answers the one that would have sunk the
+integration silently — whether real detections destroy the estimate. They do
+not. What remains is a coverage-shaped expectation: this cannot move
+aggregate Tab F1 much, and should be judged on the single-line tier, which is
+where SPEC §1.4.1 is weakest and where every other lever in this program has
+failed.
+
+---
+
+## 2026-07-22 — Q6 integration: inharmonicity evidence lifts Tab F1 (pilot)
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1) — fusion integration
+**Decision tree:** user instruction "build it in" after Gates A/B passed and
+the detected-notes probe showed transfer. Built as package code behind an
+explicit evidence channel; **`auto` untouched**, nothing registered.
+**Branch taken:** **it works, on a 20-clip pilot.** Folding the channel into
+`fuse()` as a bounded product-of-experts term beside the corpus prior:
+`w=1.0, r²>=0.50` gives **Tab F1 +0.0525 [+0.0208, +0.0888]** and **solo
++0.1050 [+0.0553, +0.1537]**; all four arms are CI-significantly positive.
+**Onset and pitch F1 are bit-identical across every arm** — the channel
+rewrites `fret_prior` only and cannot move a detection, asserted by unit test
+rather than left to luck.
+**The decomposition is a one-for-one conversion:** `correct` 1411 -> 1477
+(+66), `wrong_position_same_pitch` 443 -> 377 (-66), and `pitch_off`,
+`timing_only`, `missed_onset`, `extra_detection` **all exactly unchanged**.
+This is the cleanest bucket result in the program and satisfies §6.3's
+"a gain in the wrong bucket is a red flag" rule about as strictly as
+possible. 66 of 213 covered notes fixed (31%), consistent with the decoder
+already being right on two thirds of them.
+**Prediction check:** the detected-notes probe forecast "~+0.10 on the solo
+tier" from coverage and per-note accuracy alone, before this run. Measured
++0.1050. That is an out-of-sample check on the reasoning, not a fit.
+**Coverage:** 2,105 detections -> 449 isolated -> 213 fitted and applied
+(10.1%). The channel abstains on ~90% of notes and contributes essentially
+nothing on strummed material, by design.
+**What this is not:** 20 clips, so a dev pilot rather than a ship gate — full
+dev OOF, GAPS clean-12 strict no-regression and player-05 have **not** run.
+Weight and r² threshold were chosen on the reported set (four arms, mild
+selection), so +0.0525 is the optimistic end. Most importantly, **calibration
+is GuitarSet-specific**: the stiffness table is fitted from five players on
+similar acoustic guitars, and a user's own instrument needs its own `B0` via
+the per-session EM bootstrap §4.1 sketches and this work does not implement.
+That is the single biggest gap between "works on GuitarSet" and "works on
+your recording."
+**Evidence:** `docs/EVAL_REPORTS/q6_fusion_eval_2026-07-22.md` (+ `.json`);
+`tabvision/tabvision/fusion/inharmonicity.py`;
+`tabvision/scripts/eval/q6_fusion_eval.py`;
+`tabvision/tests/unit/test_inharmonicity_evidence.py` (10 tests).
+901 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** this is the first lever in the program to convert a passing
+offline gate into a CI-significant Tab F1 gain, and the bucket evidence rules
+out leakage as the explanation. Promotion still requires the standard gate
+ladder plus a decision about per-instrument calibration, so the channel stays
+unregistered and off by default until the user says otherwise.
+
+---
+
+## 2026-07-22 — Q6 generalization: self-calibration fails; reference table is load-bearing
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), generalization
+**Decision tree:** user requirement — the channel must work on any acoustic
+guitar, not only instruments resembling GuitarSet's. Hypothesis: since
+``B ∝ 1/L²`` and scale length is shared across strings, a session should be
+able to re-fit ``B0`` from its own audio using first-pass assignments.
+**Branch taken:** **the hypothesis is refuted.** On the 20-clip bank:
+``lopo`` (reference from other players' gold labels) **+0.0525
+[+0.0208, +0.0888]**; ``self-seeded`` (reference table + session refit)
+**+0.0388 [+0.0107, +0.0720]**; ``self-blind`` (single clip, no reference)
+**+0.0000** — abstains everywhere; ``self-pooled`` (~2 min of one player, no
+reference) **-0.0029 [-0.0088, +0.0000]**. Only the arms carrying a reference
+table work.
+**Two causes, both measured.** *Data volume:* the channel needs ~8
+well-fitted isolated notes per string; a 30 s clip yields ~10 across all six,
+and four clips pooled is still not enough. *Bootstrap bias:* where notes do
+exist the labels come from the first decode, which is ~65% right on exactly
+the ambiguous notes at issue. Measured median ``log B0`` shift between
+self-fitted and reference tables is **+0.2975** — ~35% in ``B``, comparable
+to the 1.6-1.8x separation the method relies on — and it is systematic, not
+noise a median absorbs, because decoder errors correlate with string.
+**Bug found and fixed (independent of the outcome):** the first ``self-blind``
+run regressed **-0.0329 [-0.0600, -0.0098]**. Cause was in the evidence
+channel: ``inharmonicity_matrix`` scored a candidate whose string was absent
+from the table at probability **zero**, which is a hard veto rather than
+abstention, so a partially-calibrated table silently forced notes onto
+whichever strings had data. An uncalibrated candidate string now makes the
+channel abstain on that note. This turned -0.0329 into +0.0000 and removes a
+latent hazard from the shipping path that *any* sparse table would have hit.
+**Consequence for shipping:** the physics is instrument-general; the
+calibration is not, and cannot currently be recovered from unlabelled audio.
+Three untested routes, in value order: (1) derive the reference table from
+**string-manufacturer physics** (gauge, core construction, scale length)
+rather than fitting it to GuitarSet, making it genuinely general for standard
+sets and demoting GuitarSet to validation — ``self-seeded``'s +0.0388 shows
+reference-plus-refinement retains most of the benefit; (2) anchor the shared
+offset on **unambiguous notes**, which are label-free ground truth needing no
+decoder; (3) a **six-open-string calibration ritual** — perfectly labelled,
+ten seconds of user effort.
+**Untested and material:** whether the GuitarSet-fitted table transfers to a
+different acoustic guitar at all. No second acoustic dataset exists in the
+repo, so +0.0388 is demonstrated only on instruments resembling the table's
+source.
+**Evidence:** `docs/EVAL_REPORTS/q6_self_calibration_2026-07-22.md`
+(+ `.json`); `tabvision/scripts/eval/q6_self_calibration.py`;
+`tabvision/tabvision/fusion/inharmonicity.py` (`calibrate_from_session`,
+`measure_events`, abstention fix).
+901 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the honest reading is that the pilot's +0.0525 is not yet a
+portable result, and saying so is more useful than shipping a number that
+depends on an unstated instrument assumption. The bug fix is worth the
+iteration on its own.
+
+---
+
+## 2026-07-22 — Q6 portability solved: physics-derived table matches the fitted one
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), portability
+**Decision tree:** user instruction after self-calibration failed — derive the
+stiffness table from published string physics, and add a guided calibration
+take that measures three frets per string rather than six open strings.
+**Branch taken:** **the physics route resolves portability outright.**
+`B = pi^3*E*d_core^4 / (256*mu*L^4*f^2)` from stiff-string theory plus ideal
+tension, with every term published or measurable and nothing fitted. On the
+20-clip bank: **`physics` +0.0502 [+0.0198, +0.0853]** versus the
+GuitarSet-fitted **`lopo` +0.0525 [+0.0208, +0.0888]** — statistically
+indistinguishable — and **`physics+offset` +0.0581 [+0.0203, +0.1052]**,
+slightly better. **GuitarSet is now a test of the table rather than its
+source.**
+**The fret law is derived, not assumed:** `L_n = L*2^(-n/12)` and
+`f_n = f*2^(n/12)` give `B_n = B0*2^(n/6)`, which is exactly what the model
+already used.
+**Why the level error is harmless and shape is what matters:** the physics
+table is low by **0.566 log units** (0.57x) with residual spread **0.249
+(1.28x)** after removing that shared offset. A common factor shifts every
+candidate *for the same note* equally and cannot flip a decision; only
+relative spacing can, and 1.28x sits inside the 1.59-1.78x separation the
+candidates have. The residual splits by construction — wound strings
+-0.53/-0.81/-0.60/-0.71, plain strings -0.15/-0.20 — because a plain string's
+`d_core` is its gauge exactly while a wound core is manufacturer-specific and
+often unpublished, and `B ∝ d_core^4` turns a 10% core error into 46% in `B`.
+That is a specification-data gap fixable once per string set, not per
+instrument.
+**Calibration take implemented** (`calibrate_from_ritual`): the guided
+18-note form — three frets on each of six strings — was chosen over six open
+strings so the **fret exponent is measured rather than assumed**. Labels are
+certain because the application asked for them, so none of the +0.2975
+bootstrap bias applies. `StringStiffnessModel` gained `fret_exponent`.
+**Not validated end to end:** GuitarSet cannot validate the take — usable
+isolated open-string notes are 1-3 per player across all six strings, so the
+dataset essentially never contains the ritual. Validation needs a real
+recording, and using one in that role would make it an eval artifact under
+the SPEC private-recordings ban, so it needs public audio or a deliberate
+exception. Unit tests cover the fit's mathematics (exact `B0` and exponent
+recovery, including a non-ideal 1.35 exponent), not real plucks.
+**Evidence:** `docs/EVAL_REPORTS/q6_physics_table_2026-07-22.md` (+ `.json`,
+`q6_physics_arms_2026-07-22.json`);
+`tabvision/tabvision/fusion/string_physics.py`;
+`calibrate_from_ritual` in `fusion/inharmonicity.py`;
+`tabvision/tests/unit/test_string_physics.py` (11 tests).
+912 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the safe reading is raw `physics` at +0.0502, which requires no
+dataset, no labels and no user interaction — the dataset dependence that made
+the pilot un-shippable is gone. The remaining gates (full-dev OOF, GAPS
+no-regression, player-05) are unchanged, and the calibration take stays an
+unvalidated option for instruments that deviate from standard specs.
+
+---
+
+## 2026-07-22 — Q6 domain guard: the GAPS gate is satisfied by construction
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), cross-domain gate
+**Decision tree:** house rule — anything touching `fuse()` must clear the
+GAPS clean-12 strict per-clip no-regression check before acceptance.
+**Branch taken:** **scope the channel instead of measuring it out of scope.**
+A GAPS run was started and then **stopped**: GAPS is classical guitar, the
+shipped table is derived for steel, and the run would have spent ~2 CPU-hours
+characterising behaviour that should be impossible. The channel now abstains
+wherever no table describes the instrument
+(`string_physics.stiffness_model_for_session`), so classical routing is
+**bit-identical to baseline by construction** and the cross-domain gate is
+satisfied without transcription — asserted by unit test rather than measured.
+**Why nylon is not a near-miss but a category error:** ``B`` is linear in
+Young's modulus, and polyamide is ~3 GPa against steel's ~200 GPa, so a nylon
+treble is roughly **65x less inharmonic** than a steel string of the same
+geometry. Candidate positions separate by only **1.6-1.8x**, so scoring nylon
+against the steel table would be wrong by more than the entire signal the
+channel measures. Classical basses (nylon multifilament core under metal
+winding) differ again. The physics applies fine to nylon; it needs a nylon
+table, and none exists here.
+**The guard also covers two cases that were latent:** capo and non-standard
+tuning. ``B0`` describes the *open* string, and a capo or retune moves both
+speaking length and tension, so the table stops applying — previously it
+would have been used anyway.
+**Structural, not advisory:** `attach_inharmonicity_evidence` now accepts
+`StringStiffnessModel | None` and treats `None` as an explicit no-op
+returning the event stream untouched, so an out-of-domain caller cannot
+apply evidence by omission.
+**Evidence:** `tabvision/tabvision/fusion/string_physics.py`
+(`stiffness_model_for_session`, `NYLON_YOUNGS_MODULUS_PA`);
+`tabvision/tests/unit/test_string_physics.py` (16 tests, including
+`test_out_of_domain_sessions_are_bit_identical_to_baseline` — the GAPS check
+in unit-test form). `scripts/eval/q6_gaps_no_regression.py` is retained: it
+becomes the empirical confirmation the day a nylon table exists.
+917 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** the gate exists to prove classical did not regress. A proof
+that it *cannot* regress is stronger than a measurement that it did not, and
+costs nothing. Prompted by the user's observation that running nylon material
+to validate a steel-string feature was the wrong shape of experiment.
+
+---
+
+## 2026-07-22 — Q6 full-dev OOF: channel PASSES with frozen config
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), full-dev gate
+**Decision tree:** house standard — a fuse()-touching change ships only on
+lower-95 CI > 0 over the full development set, config frozen before the run.
+**Branch taken:** **PASS.** All 300 GuitarSet dev clips (players 00-04),
+weight 1.0 / min_r2 0.50 / raw physics table fixed in source before the run
+(no sweep, no arm selection): **Tab F1 0.6031 -> 0.6474, delta +0.0443
+[+0.0339, +0.0555]** paired bootstrap N=10,000 seed=42. Solo **+0.0860
+[+0.0673, +0.1055]**, comp +0.0026 [-0.0000, +0.0069]. Onset F1 0.9182 and
+pitch F1 0.8951 **bit-identical** to baseline. The figure sits ~0.008 below
+the pilot's tuned +0.0525, the expected direction once the weight is no longer
+chosen on the reported set.
+**Decomposition, one-for-one at scale:** correct 30,708 -> 31,956 (+1,248),
+wrong_position_same_pitch 12,907 -> 11,659 (-1,248), and pitch_off,
+timing_only, missed_onset, extra_detection **each move by exactly 0 across
+52,741 detections**. The §6.3 leakage check passes as strictly as possible —
+the entire gain is in the targeted bucket.
+**Honest cost:** 129 clips improved, 146 unchanged, **25 regressed**. A soft
+evidence term can flip a previously-correct note when confidently wrong; the
+regressions are outnumbered ~5:1 and absorbed by the aggregate CI, but this
+is a mean improvement, not a strict Pareto one. Coverage is 8.3% of
+detections (4,354 applied) and overwhelmingly solo, so aggregate lift on
+strum-heavy input will be much smaller.
+**Evidence:** `docs/EVAL_REPORTS/q6_full_dev_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q6_full_dev.py` (config frozen in source).
+917 unit tests pass; ruff and mypy clean. `auto` unchanged, nothing
+registered, **player-05 never read.**
+**Next, user-gated:** player-05 confirmation is the remaining gate and is a
+user decision — config is now frozen, which is its entry condition. Then a
+registration + auto-routing decision (default-on for clean steel-string
+acoustic, or behind TABVISION_STRING_EVIDENCE). The calibration take is still
+unvalidated on real audio; the physics table does not depend on it.
+**Reasoning:** this is the first lever in the accuracy program to pass a
+full-dev OOF gate with pre-frozen config, and the decomposition rules out
+leakage as the explanation at 52k-event scale. Everything short of player-05
+is now done, and player-05 is deliberately not opened without the user.
+
+---
+
+## 2026-07-22 — Q7 entry probe: capo-covariant prior mechanism validated
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3) — capo/tuning coverage
+**Decision tree:** probe-before-build — does the capo-covariant fret shift
+recover the position-prior lift that capo>0 sessions currently discard
+(`resolve_inference_policy` routes them to `priors=none`)?
+**Branch taken:** **entry gate PASS, Q7 continues (not shipped).** Label-level
+on GuitarSet dev gold, LOPO priors, ~51k ambiguous notes per capo. Top-1
+assignment accuracy: `covariant` flat at **0.596** across capo 0/2/4/7;
+`none-lowfret` (what capo sessions get today, priors off) flat at **0.438**;
+`naive` (capo-0 prior applied without the shift) degrades monotonically
+0.596 → 0.555 → 0.468 → 0.437. Capo-0 anchor `covariant == naive == 0.5960`
+exactly (shift is a no-op there).
+**What is and isn't proven.** The `covariant` flatness is **partly by
+construction** — shifting gold and prior lookup together maps the capo-C
+fretboard onto capo-0, so it reproduces capo-0 quality by design; this
+confirms the transform is correct (index arithmetic + relative-fretboard
+equivalence) but is not independent evidence. The genuinely empirical results
+are (a) the **routing gap**: today's 0.438 vs the covariant 0.596, a
+conditional **+0.158** on the same order as §4.3's cited +22 pp; and (b)
+**naive degradation** proving the shift is necessary, not cosmetic — by capo 7
+the capo-ignorant prior is no better than none.
+**Untestable here:** covariance assumes real capo playing follows the capo-0
+relative-fret distribution. GuitarSet has no capo audio, so this is applied
+to relabelled capo-0 gold; the +0.158 is conditional on that assumption. The
+probe's 0.596 anchor is position-prior-alone top-1, below Q2's full-decode
+0.6548 (no Viterbi/sequence/playability here).
+**Next slice (deliberately deferred under the one-slice timebox):** build
+preflight capo/tuning detection; wire the covariant transform behind an
+explicit flag with `auto` unchanged; validate on **pitch-shifted audio**
+(GuitarSet +2/+4/+7 semitones, capo-shifted labels) as real Tab F1 through
+`fuse()` — the test the label probe cannot substitute for and the one that
+decides shipping. It re-transcribes audio, so it is a multi-hour run.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_covariant_2026-07-22.md` (+ `.json`);
+`tabvision/scripts/eval/q7_capo_covariant_probe.py`;
+`tabvision/tests/unit/test_q7_capo_covariant.py` (4 tests).
+921 unit tests pass; ruff clean. No pipeline code, `auto` unchanged, nothing
+registered, player-05 never read.
+**Reasoning:** §4.3 rates this "0 on GuitarSet, large in real use" — the
+acceptance metric (player-05, all capo-0) cannot see it, so the probe's value
+is confirming the mechanism and sizing the gap before any build. Both are
+done; the real Tab-F1 validation on pitch-shifted audio is the next slice.
+
+---
+
+## 2026-07-22 — Q6 player-05 sealed confirmation: PASS (+0.0780)
+
+**Phase:** Accuracy-loop item Q6 (ROI deep-dive §4.1), final gate
+**Decision tree:** player-05 is opened only after config freeze AND explicit
+user proceed; confirmation passes on lower-95 CI > 0.
+**Branch taken:** **PASS.** 60 sealed clips, weight 1.0 / min_r2 0.50 / raw
+physics table — the identical frozen values from the full-dev run, nothing
+tuned. Position prior is the registered `guitarset-v1` (excludes player 05
+per manifest); the stiffness table is specification-derived and depends on no
+player. **Tab F1 0.6340 -> 0.7119, delta +0.0780 [+0.0502, +0.1078]**; solo
+**0.5503 -> 0.6899 (+0.1396 [+0.0985, +0.1806])**, comp 0.7176 -> 0.7340
+(+0.0164 [+0.0000, +0.0458]); onset F1 0.9473 and pitch F1 0.9386
+bit-identical.
+**Baseline validates the harness:** the pre-evidence numbers reproduce the
+shipped production result to four decimals — solo 0.5503 (shipped 0.5503),
+comp 0.7176 (0.7175), aggregate 0.6340 (0.6339). The delta is therefore
+measured against the real production decode, not a reconstruction.
+**Decomposition, one-for-one again:** correct 5,594 -> 5,961 (+367),
+wrong_position_same_pitch 2,300 -> 1,933 (-367), and pitch_off, timing_only,
+missed_onset, extra_detection **each move by exactly 0** across 8,709
+detections. Third consecutive run with this signature, now on untouched data.
+30 clips improved, 28 unchanged, 2 regressed (3.3%, below dev's 8.3%).
+**Consistency, stated honestly:** the hold-out point estimate (+0.0780)
+exceeds dev (+0.0443) — the opposite of the overfitting direction. The
+intervals overlap (dev upper +0.0555 vs player-05 lower +0.0502), so this is
+**not** a significant difference; the honest reading is "consistent with dev,
+at the optimistic end." Player 05 is a cleaner player (baseline 0.6340 vs
+dev 0.6031) with marginally higher coverage (9.6% vs 8.3%), which accounts
+for the gap without anything more interesting.
+**Scope limits unchanged:** still GuitarSet, still similar steel-string
+acoustics — behaviour on a materially different guitar is argued from physics,
+not measured. The domain guard means classical, electric, capo and alternate
+tunings get nothing by construction. Comp barely moves, so strum-heavy input
+sees far less. The calibration take remains unvalidated on real plucks.
+**Evidence:** `docs/EVAL_REPORTS/q6_player05_confirm_2026-07-22.md`
+(+ `.json`); `tabvision/scripts/eval/q6_player05_confirm.py` (config frozen in
+source). `auto` unchanged, nothing registered.
+**Open, user-gated:** (1) register the channel as a `string_evidence`
+artifact with manifest + gate provenance, or leave unregistered; (2) `auto`
+routing — default-on within its gated clean-steel-acoustic domain, or opt-in
+behind `TABVISION_STRING_EVIDENCE`. Promotion into `auto` is a user decision
+per SPEC §0.8; this iteration changed no default.
+**Reasoning:** every offline gate in the accuracy program is now passed —
+classification, transfer to detected notes, portability without a dataset,
+cross-domain safety by construction, full-dev OOF, and the sealed hold-out.
+The remaining questions are product decisions about defaults, not evidence
+questions.
+
+---
+
+## 2026-07-23 — Q7 build slice: capo-covariant prior validated on audio
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3), build slice
+**Decision tree:** the entry probe validated the transform at label level;
+the shipping gate is real Tab F1 through `fuse()` on synthetic-capo audio.
+**Branch taken:** **transform validated end-to-end; routing change is a user
+decision.** 20 clips pitch-shifted +2/+4 semitones with capo-shifted labels,
+LOPO priors, arms paired on identical shifted audio. Capo-0 control 0.6773.
+Capo 2: today (priors=none) **0.2956**, covariant **0.6827**
+(**+0.3870 [+0.2818, +0.4906]**). Capo 4: today 0.2875, covariant 0.6533
+(+0.3658 [+0.2613, +0.4685]).
+**The genuinely new finding — today's capo routing is a collapse, not a
+shortfall.** §4.3 framed capo sessions as losing the "+22 pp prior lift".
+They actually score **0.2956 against 0.6773**, less than half, with
+`wrong_position_same_pitch` at **1182 of ~1800** decoded notes. Without a
+prior the decoder falls back to a low-fret preference; at capo `C` every
+candidate sits at fret ≥ `C`, that heuristic's assumption breaks, and it
+mispicks systematically. This half of the result depends on **no** synthetic
+modelling assumption — it is simply what a capo user gets today.
+**The recovery is partly by construction, and is stated as such.** The
+synthetic capo relabels capo-0 gold while the covariant prior shifts the
+capo-0 prior identically, so "covariant ≈ capo-0 control" is expected. What
+the run establishes is that the transform is correct and complete
+*end-to-end* — through real transcription, candidate generation, Viterbi and
+metric, with no bug the label probe could hide. It does not establish that
+real capo playing follows capo-0 relative-fret conventions; GuitarSet has no
+capo audio, so that remains assumed.
+**Decomposition one-for-one at both capos:** capo 2 correct 615 → 1382
+(+767) against wrong_position 1182 → 415 (−767); capo 4 +686/−686.
+`pitch_off`, `missed_onset`, `extra_detection` identical across arms.
+**Secondary results.** *Naive is useless and decays with depth:* +0.0617 at
+capo 2, **−0.0007 at capo 4** — matching the entry probe's 0.596 → 0.437 and
+confirming the shift is load-bearing. *The sequence prior contributes nothing
+under a capo, measured not assumed:* `covariant+seq` 0.6766 vs 0.6827 at capo
+2 (slightly worse) and 0.6530 vs 0.6533 at capo 4, because the registered
+`guitarset-seq-v1` uses the `delta_fret` scheme whose absolute fret-region
+conditioning is capo-shifted, so it backs off to the delta backbone. A
+capo-covariant sequence prior is separate, small, and worth only what the seq
+prior contributes at capo 0.
+**Methodology correction made mid-run:** the first attempt used the registered
+`guitarset-v1`, which was trained on players 00-04 — the very players these
+clips come from — so every prior arm scored in-sample and reported +0.45.
+Switching to leave-one-player-out (the Q6 protocol) gave +0.387, the reported
+figure.
+**Limits:** 20 clips / two capos, directional not definitive; pitch-shifting
+costs some transcription accuracy (pitch F1 0.9052 / 0.8874) identically
+across arms, so paired deltas hold but absolute levels are mildly pessimistic;
+a capo mechanically shrinks the candidate set so capo-`C` is not strictly
+comparable to capo-0; zero gold notes exceeded `max_fret`.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_audio_2026-07-23.md` (+ `.json`);
+`tabvision/scripts/eval/q7_capo_audio_eval.py`;
+`capo_covariant_prior` in `fusion/position_prior.py`.
+**Open, user-gated:** the fix is a routing change —
+`resolve_inference_policy` sends capo>0 to `priors=none` today and would
+instead apply `capo_covariant_prior(guitarset-v1, capo)`, worth ~**+0.37 Tab
+F1** to a capo user on this evidence. That is an `auto`-path change per SPEC
+§0.8. Nothing in this iteration altered routing.
+**Reasoning:** the by-construction component is called out rather than
+claimed, but the two independent halves — today's collapse, and the naive
+arm's decay — are real measurements, and together they make the routing
+change the highest-value unclaimed fix in the queue for real-world use.
+
+---
+
+## 2026-07-23 — Q7 capo detection: pitch route refuted, physics route untestable
+
+**Phase:** Accuracy-loop item Q7 (ROI deep-dive §4.3, piece 1 — preflight
+capo/tuning detection)
+**Decision tree:** §4.3 offers "warn or auto-set" once the capo is estimated.
+Which branch is supportable depends on how accurate estimation actually is.
+**Branch taken:** **warn only; auto-set is not supportable.** 60 cases (20
+clips × capo 0/2/4, ground truth by construction). Pitch-based detection:
+**1/60 exact (0.017)**, mean signed error **+1.92** — a systematic
+over-estimate, not noise. Physical upper bound valid **60/60**.
+**The pitch negative is valid and is a first-principles result.** A capo at
+`C` playing a shape produces exactly the pitches of capo 0 playing the same
+music transposed up `C`; the note sets are identical, so pitch content cannot
+separate them, and occupancy heuristics are guessing repertoire rather than
+measuring the instrument. Pitch-shift reproduces pitch content faithfully, so
+this estimator was tested on data that models exactly what it consumes.
+**The physics estimator scored 0.183 and that number must not be quoted.**
+A real capo shortens the string, so `B ∝ 2^(n/6)` predicts median `log B`
+rising **+0.231** at capo 2 and **+0.462** at capo 4. Measured on the
+pitch-shifted audio: **−0.113 / −0.055 / +0.070** at capo 2 and
+**+0.111 / +0.138 / +0.009** at capo 4 — around zero, unrelated to
+prediction. Pitch-shifting scales frequencies uniformly and does **not**
+shorten the string, so the synthetic audio carries capo-0 stiffness with
+capo-`C` pitches: a physically impossible instrument. The detector reading
+capo 0 for 10/20 cases at every true capo is it measuring correctly. **The
+test is invalid, not the method.** A valid test needs real capo recordings or
+resynthesis that models string shortening; neither exists in-repo.
+**Scope of the methodology gap, checked rather than assumed:** synthetic
+pitch-shift is valid for pitch/position evaluation and invalid for
+timbre/physics evaluation. Q7's covariant-prior result therefore **stands**
+(its arms were position priors over pitch content), and the Q6 inharmonicity
+channel is **uncontaminated** (its domain guard makes it abstain at capo>0,
+so it never ran on this audio). Recorded so a future session does not repeat
+the experiment or trust a physics number measured this way.
+**Consequence for §4.3:** preflight reports the physical upper bound — sound
+(60/60) but weak, since a piece avoiding low notes permits a capo it does not
+have — and asks. Auto-setting from pitch would be wrong ~98% of the time.
+**Separate fix, found in this iteration:** `acoustic_physics_v1.json` was
+written with `write_text` (CRLF on Windows) and hashed over those bytes, while
+`.gitattributes` stores the repo as LF — so a fresh checkout produced
+different bytes and `load_artifact_manifest` raised a hash mismatch. The
+registered artifact was broken for anyone cloning the repo; it surfaced only
+because a new worktree could not load it. Fixed by writing the exact bytes git
+stores (`write_bytes`, LF); verified 0 CRLF, hash stable across a git
+round-trip, matching the convention `guitarset_v1.json` already follows.
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_detect_2026-07-23.md` (+ `.json`);
+`tabvision/tabvision/preflight/capo.py`;
+`tabvision/scripts/eval/q7_capo_detect_eval.py`;
+`tabvision/tests/unit/test_capo_detection.py` (5 tests).
+940 unit tests pass; ruff and mypy clean. No routing change.
+**Reasoning:** the honest outcome of this slice is one solid negative, one
+invalidated experiment, and one shipped bug fix. Reporting the 0.183 as the
+physics detector's accuracy would have been the easy and wrong move; the
+stiffness-shift check that exposed it cost minutes and changes the
+conclusion.
+
+---
+
+## 2026-07-23 — N1: partial-aware isolation passes full-dev, +0.0182 over shipped
+
+**Phase:** Post-program item N1 (coverage extension for the Q6 physics
+channel, proposed in the program summary)
+**Decision tree:** coverage bounds the channel's value (8.3% of detections at
+0.92 accuracy); find where it is lost and recover it, gated as v1 was.
+**Branch taken:** **partial-aware isolation adopted as an opt-in mode; full-dev
+gate PASSED, player-05 not run.** The diagnostic corrected the plan first: over
+60 clips / 12,733 events the losses are **not_isolated 87.81%**, low_r2 2.23%,
+too_short 1.19%, and **too_few_partials / fit_failed exactly 0.00%**. Partial
+finding and fitting never fail; the proposed "44% of isolated notes fit"
+framing had conflated unambiguous notes dropped later at the matrix stage.
+Isolation was the whole problem.
+**Change:** a neighbour only ruins the measurement if its partials collide, so
+`partial_aware` drops target partials within `3/T` Hz of an interferer
+harmonic (under a Hann main lobe's `~4/T`, hence genuinely unresolvable) and
+fits the survivors, re-checking the located peak against blocked bands so a
+loud interferer cannot be measured as this note's partial. `strict` stays the
+default and is bit-identical to shipped v1; all 26 pre-existing tests pass.
+**Full dev, 300 clips:** strict +0.0443 [+0.0339, +0.0555]; **pa4 +0.0629
+[+0.0481, +0.0792]**, pa6 +0.0625, pa8 +0.0594. **Head-to-head pa6 − strict =
++0.0182 [+0.0111, +0.0256]**, interval excluding zero. Coverage **8.26% →
+21.69%**, solo **+0.0860 → +0.1139**, onset F1 0.9182 bit-identical in every
+arm. Decomposition still one-for-one: correct +646 against
+wrong_position −646, other four buckets exactly 0.
+**The 20-clip pilot was wrong and is worth recording as such.** It reported
+comp *regressing* (+0.0000 → −0.0347) and I wrote that up as a solo-only
+improvement with a chord-tier cost; on 300 clips comp **improves** (+0.0026 →
++0.0120). It also suggested `min_clean_partials` traded solo against comp
+monotonically, where on the full set pa4 and pa6 are indistinguishable. Both
+were small-sample artifacts — 20 clips detected the coverage change but got
+the sign of a per-tier effect wrong.
+**Recommended arm pa4** — no extra contaminated-note gate beyond the
+estimator's existing `MIN_PARTIALS`, since pa6/pa8 buy nothing measurable and
+a threshold that buys nothing is a parameter to defend for no gain.
+**Gate status:** full-dev PASSED; GAPS cross-domain still satisfied by
+construction (the domain guard is untouched, so the mode never runs on
+classical/electric/capo/alt-tuning); **player-05 NOT run** — v1 was registered
+only after the sealed hold-out confirmed it and v2 should clear the same bar,
+which is user-gated. Nothing registered, `auto` unchanged.
+**Limits:** the threshold was chosen after seeing full-dev, so pa4's +0.0629
+is mildly optimistic (the *decision* does not rest on it — all arms beat
+strict significantly); still GuitarSet; and `_overlapping` is O(n²) per clip,
+fine offline but needing an interval index before it could run inside the
+5-min latency budget.
+**Evidence:** `docs/EVAL_REPORTS/n1_partial_aware_isolation_2026-07-23.md`
+(+ `n1_coverage_diagnostic_2026-07-23.json`,
+`n1_isolation_sweep_2026-07-23.json`, `n1_isolation_fulldev_2026-07-23.json`);
+`tabvision/tabvision/fusion/inharmonicity.py`;
+`tabvision/scripts/eval/{n1_coverage_diagnostic,n1_isolation_sweep}.py`.
+945 unit tests pass; ruff and mypy clean.
+**Reasoning:** the diagnostic paid for itself twice — it redirected the work
+from a lever that did not exist to the one that did, and the full-dev run then
+reversed the pilot's per-tier conclusion. Both corrections are recorded
+because the intermediate write-ups were wrong.
+
+---
+
+## 2026-07-23 — N1 latency claim retracted; partial-aware costs 1.5% of budget
+
+**Phase:** Post-program item N1, follow-up
+**Decision tree:** the N1 write-up asserted partial-aware isolation "needs an
+interval index before this could run inside the 5-min-per-60s latency budget",
+which if true would have made the +0.0182 gain unshippable regardless of
+accuracy. That claim was never measured.
+**Branch taken:** **retracted — the claim is wrong on both counts, and no
+optimisation is warranted.** Measured on the three densest development clips,
+partial-aware costs **4.32-4.45 s per 60 s of audio** against SPEC §1.4's
+**300 s** budget: **~1.5%**. It is ~45x slower than `strict` relatively and
+negligible absolutely.
+**The bottleneck was misattributed.** `strict` rejects non-isolated notes
+before fitting and so runs an FFT on ~19% of events, while `partial_aware`
+fits nearly all of them; the extra spectral work dominates, not the O(n²)
+neighbour search I blamed.
+**The O(n²) is real but not material.** Isolating the scan on synthetic
+events: 0.02 s per 60 s audio at 800 events, 0.08 at 2,000, 0.18 at 5,000,
+0.86 at 10,000 (~20 min of audio). Absolute cost grows quadratically while the
+budget grows linearly, so it does eventually bite — but reaching even 10% of
+budget needs roughly 60,000 events, about two hours of continuously dense
+playing in a single recording.
+**No code changed.** An interval index is premature against 1.5% of budget,
+and touching this path would invalidate the full-dev gate it just passed.
+**Consequence:** partial-aware isolation has no latency blocker. Its remaining
+gate is the player-05 confirmation, which is user-gated exactly as v1's was.
+**Evidence:** latency appendix in
+`docs/EVAL_REPORTS/n1_partial_aware_isolation_2026-07-23.md`.
+**Reasoning:** the original claim was plausible from reading the code and
+false in practice; leaving it in the record would have deterred a future
+session from a change that is in fact free. Cost to check: two measurements.
+
+---
+
+## 2026-07-23 — N2: nylon table for classical is a banked negative
+
+**Phase:** Post-program item N2 (nylon table for classical, proposed in the
+program summary)
+**Decision tree:** does a specification-derived nylon table, applied to
+classical audio, improve Tab F1 and thereby convert the GAPS cross-domain gate
+from abstention into a real measurement?
+**Branch taken:** **NO — banked negative; classical keeps abstaining.** GAPS
+clean-12, classical routing (gaps-v1 + gaps-seq-v1, gaps checkpoint), three
+arms on one transcription: baseline 0.7733; **strict +0.0009 [-0.0004,
++0.0023] at 1.04% coverage** (classical is near-fully polyphonic, so strict
+isolation finds almost nothing); **partial_aware -0.0153 [-0.0472, +0.0151]
+at 19.04% coverage** (negative point estimate, CI spanning zero; big per-clip
+regressions 294_BSswc -0.148, 118_VD1wc -0.068 against gains 212_y41wc +0.090).
+Onset F1 0.9510 bit-identical.
+**Why, and predicted:** the nylon table split honestly — three plain-nylon
+trebles are first-principles (mass from density + gauge), but the three wound
+basses are documented approximations (floss core, ill-defined effective
+bending core, unit weight from typical tension). `B ~ d_core^4`, so the bass
+rows are rough. Classical uses the basses heavily and partial-aware admits
+exactly the overlapped bass notes whose entries are roughest, so the mode that
+finally gets coverage is the one that most exposes the weakest rows. The
+missing ingredient is manufacturer bass data, not physics — the steel table
+already showed the method works when specs are good.
+**What ships:** nothing. `stiffness_model_for_session` routing was reverted to
+abstain on classical, restoring the "abstain by construction" invariant that
+makes the GAPS gate free for the steel artifact (guarded by
+`test_out_of_domain_sessions_are_bit_identical_to_baseline`). The machinery —
+`classical_stiffness_model`, `CLASSICAL_NYLON_SET`, the per-string modulus
+field on `StringSpec`, `scripts/eval/n2_nylon_gaps.py` — is kept, tested, and
+reachable by direct call so a future session with real bass core diameters can
+retry without redoing the trebles or harness.
+**Evidence:** `docs/EVAL_REPORTS/n2_nylon_gaps_2026-07-23.md` (+ `.json`);
+`tabvision/tabvision/fusion/string_physics.py`;
+`tabvision/scripts/eval/n2_nylon_gaps.py`;
+`tabvision/tests/unit/test_string_physics.py`. 950 unit tests pass; ruff and
+mypy clean. `auto` unchanged, nothing registered.
+**Reasoning:** the negative is legible (rough bass rows, exposed by the only
+mode that gets classical coverage) and the sign is not in doubt, so it is
+banked rather than iterated. Keeping the machinery makes the retry cheap the
+day the missing spec data appears.
+
+---
+
+## 2026-07-23 — N3 entry probe: physics is a strong wrong-position doubt signal
+
+**Phase:** Post-program item N3 (re-scope the assisted review ranker onto the
+Q6 physics channel)
+**Decision tree:** probe-before-build — do the physics channel's per-note
+signals carry wrong-position information the Phase 6 ranker lacks, before
+spending a retrain?
+**Branch taken:** **entry gate PASS; build justified but not yet run.** On
+35,227 ambiguous dev-OOF notes (base wrong rate 0.3445, matching Phase 6's
+0.3452), physics fires on 27.4%. The probability the physics posterior assigns
+the decoder's chosen string ("does physics doubt the decoder") is a strong
+wrong-position detector: **AUC 0.6964 on the fired subset and 0.7515 on
+isolated notes**, against the decoder margin's 0.5897 / 0.5540. Agreement
+split corroborates: P(wrong | physics disagrees) 0.3999 vs P(wrong | agrees)
+0.3182 vs base 0.3445.
+**Counterintuitive part resolved:** physics *hard* argmax accuracy on these
+notes is only 0.29 (0.35 isolated), far below Q6's 0.92 — because Q6's number
+was over all notes (mostly unambiguous singletons) while these are the hard
+ambiguous core, and the σ=0.35 posterior is a deliberately soft classifier
+whose *doubt calibration* is strong even though its argmax is noisy. Physics is
+better at "the decoder is probably wrong" than "here is the right string,"
+which is what a review flag needs. Not a bug; the AUC of the continuous doubt
+score is the relevant metric.
+**Honest limits (why entry probe, not win):** coverage is 27.4%, so any ranker
+gain dilutes to the covered fraction; the comparison is against decoder margin
+(one Phase 6 feature), not the full nine-feature MLP (AUC 0.7127), so it shows
+physics beats *that feature* and is complementary, not that it beats the
+ranker; and the naive z-blend underperforms physics-alone on isolated notes
+(0.6901 vs 0.7515), meaning a *learned* combiner is needed — exactly what the
+Phase 6 MLP is, so the integration path is clean and the blend understates it.
+**Bug fixed in passing:** the probe's initial AUC used naive ranks, not
+midranks, so tied scores were mis-scored; corrected to `scipy.stats.rankdata`
+average ranks (the continuous-score result was unaffected — 0.6961 -> 0.6964 —
+but decoder margins have ties).
+**Build slice (next iteration):** add `physics_prob_decoder` + `r2` + a
+fired indicator to the Phase 6 features, retrain the calibrated player-held
+MLP, and re-run the offline replay against the shipped **38.76%
+wrong-reduction @60 s** — the actual N3 ship metric, reported separately from
+automatic Tab F1.
+**Evidence:** `docs/EVAL_REPORTS/n3_physics_review_probe_2026-07-23.md`
+(+ `.json`); `tabvision/scripts/eval/n3_physics_review_probe.py`;
+`tabvision/tests/unit/test_n3_physics_review_probe.py` (7 tests).
+957 unit tests pass; ruff and mypy clean. No pipeline change.
+**Reasoning:** the assisted metric is separate from automatic Tab F1 and from
+the pending auto decisions, so N3 is safe to pursue; the probe cost ~2 min and
+converts "physics might help the ranker" into a measured, complementary
+AUC 0.75 signal, which is the evidence the retrain needs.
+
+---
+
+## 2026-07-23 — N3 build: physics is worth adding to the review ranker
+
+**Phase:** Post-program item N3 (assisted review ranker), build slice
+**Decision tree:** convert the entry probe's AUC-0.75 signal into the ship
+metric — wrong-reduction @60 s vs the shipped 38.76%.
+**Branch taken:** **the exact 38.76% comparison is blocked; the marginal
+value of physics is measured instead and is clearly positive.** The Phase 6
+feature cache is keyed to PHASE1_NOTES (a re-decode stage not on disk, not
+cheaply regenerable), three of its ten features come from the Phase 4 timbre
+model, and its 35,959-row order does not match the phase0 lattice (43,080 rows
+across splits; event-id SHA differs), so the cache cannot be aligned to fresh
+physics measurements. A self-contained ranker over the phase0 dev-OOF rows,
+using the exact Phase 6 protocol (player-held nested OOF, Platt, 2 s/note
+replay, gold-in-top-3 correctable), compares a 4-feature decoder arm against
+the same + 3 physics features.
+**Result:** decoder AUC 0.6273 / reduction@60s 0.3286; **+physics AUC 0.7031 /
+reduction@60s 0.3800 — delta +0.0758 AUC, +0.0514 @60s (+15.6% relative)**.
+The relative gain is largest at the tightest budget (+50% at 10 s: 0.0573 ->
+0.0857), where ranking matters most. Physics fires on 26.9% of notes.
+**Two findings:** (1) physics is a worthwhile ranker feature — positive at
+every budget, consistent with the entry probe, moving the whole-set metric by
++5 pp on 27% coverage because its covered notes are disproportionately the
+ones the decoder margin cannot rank; (2) physics substitutes for much of the
+timbre machinery — the 4-decoder + 3-physics ranker (AUC 0.7031) is within
+0.01 of Phase 6's full ten-feature 0.7127, which needed the timbre model,
+posteriors, context-disagreement and segment-inconsistency features.
+**Honest limits:** NOT the 38.76% comparison (weaker 4-feature baseline; the
++physics 0.3800 is coincidentally near the shipped 0.3876, not comparable);
+whether physics clears the 0.50 replay gate the full ranker missed is
+unmeasured (needs PHASE1_NOTES); GuitarSet dev only; player-05 untouched
+(assisted metric, separate from automatic Tab F1).
+**Recommendation:** add physics_prob_decoder (+ r2, fired) to the Phase 6
+features when its row provenance is regenerated — the feature is justified.
+**Evidence:** `docs/EVAL_REPORTS/n3_ranker_build_2026-07-23.md` (+ `.json`);
+`tabvision/scripts/eval/n3_ranker_build.py`;
+`tabvision/tests/unit/test_n3_ranker_build.py` (5 tests).
+962 unit tests pass; ruff and mypy clean. No pipeline change, nothing
+registered.
+**Reasoning:** the ship-metric comparison was blocked by missing provenance,
+but the marginal-value measurement under a fixed protocol answers the real
+question — is physics worth adding — decisively yes, and it does so cheaply
+(reusing the cached events and the review_queue architecture).
+
+---
+
+## 2026-07-24 — N5: physics table survives real-guitar mismatch (Q6 caveat discharged)
+
+**Phase:** Accuracy loop, post-program N5
+**Decision tree:** N5 pre-declared reading — Robust / Conditional / Fragile,
+fixed in the script docstring before any arm ran.
+**Branch taken:** **ROBUST.** Both legs pass. All six derived real-guitar
+arms hold lo-95 > 0, and the uniform-offset band holding lo-95 > 0 spans at
+least [-0.40, +0.60] log-B against the +/-0.10 the criterion required.
+Nothing tested anywhere in the sweep is significantly negative.
+**Context:** Q6 registered `acoustic-physics-v1` opt-in with one stated
+caveat blocking the default-on decision — "portability to another guitar is
+argued from physics, not measured." This measures it. 300 dev clips x 17
+arms, frozen config (weight 1.0 / min_r2 0.50 / sigma 0.35), LOPO prior,
+paired bootstrap N=10,000 seed 42, baseline Tab F1 0.6031.
+**Method:** a note's measured `B` does not depend on the table (the table
+enters only at scoring), so measurements are banked once per clip and every
+variant replays in milliseconds. Alternative sets are *derived* from
+published gauges plus a wound model fitted to the shipped table itself, then
+applied as a **difference** to the registered table so the wound model's own
+fit residual (up to 0.09 log-B, a quarter of sigma) cancels — asserted exact
+to 1e-12. Without that correction the residual would have ridden along inside
+every real-set arm and been read as a string effect.
+**Control:** the shipped-table arm reproduces the Q6 full-dev headline to
+four decimals on all three figures — +0.0443 [+0.0339, +0.0555] — against a
+run made on a different day by different code. Coverage is identical (4,354
+notes) across all 17 arms, since the `r2` gate is a property of the
+measurement, not the table.
+**Result:** scale length is a non-issue (whole 24.75-25.6in span = 0.09-0.30
+sigma, all within noise of shipped). Gauge is nearly free and touches only
+the plain strings (up to 1.04 sigma on plain, <0.05 log-B on wound; both
+gauge arms within noise). **Wound-core construction is the whole risk** — a
++/-10% core error moves the four wound strings by -0.42/+0.38 log-B and
+`core:round-0.90` halves the gain to +0.0222 [+0.0105, +0.0342], still
+CI-positive. It is also the one spec manufacturers do not publish.
+**Two findings:** (1) **a uniform level error is NOT harmless**, refuting the
+Q6 portability report's "only *shape* can flip a decision" — a shared factor
+shifts predictions but not the measurement, so it is equivalent to biasing
+every measured log-B, and it is worth 0.049 Tab F1 of swing across +/-0.60.
+The claim's conclusion survived anyway because the curve is flat near the
+middle and never significantly negative. The curve rises monotonically to
++0.60 without turning over, which — with Q6's measured -0.566 level residual
+and the `core:hex-1.10` arm beating shipped — is three independent lines
+saying the shipped table **under-predicts B**, most likely via wound-core
+geometry. (2) **the gain lives on the wound strings**: moving only the four
+wound rows by -0.42 (+0.0222) is indistinguishable from moving all six by the
+same amount (+0.0217), so the plain trebles contribute almost none of it.
+**Honest limits:** the table was varied, the guitars were not — all 300 clips
+are GuitarSet, so this bounds one axis of portability, not timbre/mic/room.
+The band is a lower bound: the curve is still rising at +0.60. The derived
+sets rest on a four-point wound model, which is why the `core:*` arms exist.
+No cross-domain leg (nothing shipped changed, so no gate triggered). The
+sigma=0.60 arms are diagnostic only — wider posterior doubles the gain when
+the table is badly wrong (+0.0120 -> +0.0240) and costs a third when it is
+right (+0.0443 -> +0.0300); not proposed as a default, since choosing sigma
+on this run would be tuning on the test.
+**No offset default proposed.** Picking the winning offset because it wins on
+these 300 GuitarSet clips is in-distribution tuning; the honest route to the
+scalar is per-rig calibration (`calibrate_from_ritual`, N4).
+**Evidence:** `docs/EVAL_REPORTS/n5_table_mismatch_2026-07-24.md` (+ `.json`);
+`tabvision/scripts/eval/n5_table_mismatch.py`;
+`tabvision/tests/unit/test_n5_table_mismatch.py` (10 tests).
+972 unit tests pass; ruff and mypy clean. No shipped library code touched,
+nothing registered, no default changed.
+**Reasoning:** the Q6 default-on decision rested on an argument where a
+measurement was possible. Perturbing the table across the full range a real
+steel-string acoustic can produce answers the portability question for the
+one axis that matters without needing another dataset, and it does so in
+7.8 CPU-minutes for `$0` because the measurements bank and replay. Promotion
+into the `auto` path remains a SPEC §0.8 user decision and is untouched here.
+
+---
+
+## 2026-07-24 — N4: calibration ritual validated on real plucks; not worth shipping
+
+**Phase:** Accuracy loop, post-program N4
+**Decision tree:** N4 pre-declared reading — Validated / Partial / Refuted,
+fixed in the script docstring before any arm ran.
+**Branch taken:** **PARTIAL**, and on the shipping question a **banked
+negative**. The exponent recovers (median 0.859; 3/5 players within the
+pre-declared 0.15 of the theoretical 1.0) but `ritual` vs `shipped` is
+**-0.0007 [-0.0081, +0.0061]** — indistinguishable from the shipped table.
+**First, the blocker was wrong.** N4 was recorded as blocked on "GuitarSet
+contains only 1-3 usable isolated open notes per player, so it cannot contain
+the ritual; needs public calibration audio or an exception to the
+private-recordings ban." That constraint binds on the **mono microphone**.
+`calibrate_from_ritual` needs certain (string, fret) labels and a measurable
+`B` — not open or temporally isolated notes. GuitarSet's
+`audio_hex-pickup_debleeded` isolates every string **by construction** and
+JAMS supplies the labels: 18/18 ritual observations over 6/6 strings for three
+of five players (17 and 15 for the others), against the 18 the ritual wants.
+Public data, no download, ban untouched. **The blocker is retired.**
+The channel->string mapping was verified rather than assumed (best-r2 fit per
+note across all six channels is 77% diagonal, with off-diagonal mass on
+*adjacent* channels — pickup bleed, not a permutation), which is why the
+ritual carries a bleed guard.
+**Result, 280 dev clips, frozen config, baseline 0.5974** (deltas vs shipped):
+`ritual` -0.0007 [-0.0081, +0.0061]; `ritual-level` (per-player level only)
++0.0065 [-0.0020, +0.0151]; `global-level` (+0.780, the ritual's median)
++0.0085 [+0.0000, +0.0170]; diagnostic `offset+0.40` +0.0131 [+0.0071,
++0.0194]; diagnostic **`offset+0.60` +0.0160 [+0.0088, +0.0233]**.
+**The ordering is the finding: more calibration is worse.** A fixed constant
+chosen *without* the ritual beats the ritual's global constant, which beats
+its per-player levels, which beat the full per-player fit.
+**Two findings:** (1) **the fret exponent is measurably below the theoretical
+1.0** — 0.859/0.887/0.835/0.378/0.869, five of five below theory, four tightly
+at 0.835-0.887. Q6 made the exponent fittable for exactly this reason ("a real
+fret and fingertip terminate the string differently from the nut"); this is
+its first measurement on real plucks. It does *not* justify changing the
+shipped exponent — the only arm that uses the fitted exponent is the
+worst-performing one. (2) **per-player calibration is real but nearly
+worthless**: player heterogeneity is genuine (player 00 wants no offset while
+01/02 want +0.60), but the **oracle** per-player result (best arm per player,
+chosen on test) is +0.0187 against the best fixed constant's +0.0160 — a
+ceiling of **+0.0027** — while the ritual lands **-0.0095 below** the constant.
+The variance it adds is ~4x the signal it chases. Overshoot cause: the level is
+a median across strings, and 4 of 6 are wound with shifts +0.75..+0.92 vs the
+plain strings' +0.21/+0.34, pulling it to +0.78 when the decision-optimal
+offset is near +0.60; a second candidate is that the ritual measures on the hex
+pickup while scoring measures on the mono mic. Not separated here.
+**Controls.** N5's `offset+0.60` reproduces at +0.0160 here against +0.0162
+there — two independent studies, different clip subsets, agreeing to 0.0002.
+**N5's open limit is closed:** on one substrate +0.40 -> +0.0131, +0.60 ->
++0.0160, +0.78 -> +0.0085, so the uniform-offset response **turns over between
++0.60 and +0.78**, peaking near where Q6's independently measured -0.566 level
+residual said it would.
+**Honest limits:** the oracle is not achievable (chosen on test); the ritual
+runs on hex while scoring runs on mono mic, which plausibly costs it some of
+its shortfall and cannot be separated without a mic-side ritual GuitarSet
+cannot supply; five instruments; three frets per string with one visibly broken
+fit; GuitarSet only, no cross-domain leg.
+**Recommendation:** do not ship a per-instrument ritual — machinery retained,
+shipping question closed negative. **The live lever is the table's level**: a
+uniform +0.60 log-B correction to `acoustic-physics-v1` is worth +0.0160
+[+0.0088, +0.0233], larger than anything the ritual produced and now supported
+by three independent measurements of the same error (Q6's LOPO residual, N5's
+perturbation sweep, this run's direct hex measurement). That is a registered
+artifact on the `auto`-decision path, so it is a **SPEC §0.8 user decision**,
+and it would want a cross-domain gate first.
+**Evidence:** `docs/EVAL_REPORTS/n4_ritual_validation_2026-07-24.md` (+ `.json`);
+`tabvision/scripts/eval/n4_ritual_validation.py`;
+`tabvision/tests/unit/test_n4_ritual_validation.py` (12 tests).
+984 unit tests pass; ruff and mypy clean. No shipped library code touched,
+nothing registered, no default changed. Player 05 untouched.
+**Reasoning:** an item recorded as blocked was worth re-testing because its
+stated cause named a specific constraint, and that constraint turned out to be
+a property of one microphone rather than of the dataset. Once unblocked, the
+measurement answered a bigger question than the one asked: it priced
+per-instrument calibration against the simpler alternative and found the
+simpler alternative wins, which converts an open-ended build into a closed
+negative plus a concrete, user-gated proposal.
+
+## 2026-07-24 — level-correct acoustic-physics-v1 by +0.60 log-B
+**Phase:** post-program, accuracy loop decision #4
+**Decision:** apply a uniform +0.60 log-B offset to the registered
+`acoustic-physics-v1` artifact. User-authorized.
+**Alternatives:** +0.40 (conservative, +0.0131), no correction (status quo),
+per-instrument calibration ritual (closed negative by N4).
+**Result:** the spec-derived table systematically under-predicts B. The error
+was measured three independent ways: Q6's leave-one-player-out residual (median
+−0.566 on 300 clips), N5's perturbation sweep (monotonic gain to +0.60,
++0.0160 Tab F1), and N4's hex-pickup direct measurement (median +0.780,
+response turning over between +0.60 and +0.78). The two evaluations of the
++0.60 arm agree to 0.0002 Tab F1 (N5: +0.0162, N4: +0.0160). The correction
+adds +0.60 to all six `log_b0` values in the artifact JSON, multiplying each
+`open_b` by exp(0.60) ≈ 1.822. The fret exponent stays at 1.0. The artifact
+hash changes; the manifest, build script, and test updated accordingly.
+**Cross-domain gate:** satisfied by proof — `stiffness_model_for_session`
+abstains outside clean acoustic, standard tuning, capo 0, so GAPS classical
+clips never see the correction.
+**In-distribution concern:** the +0.60 constant was located on GuitarSet dev
+clips (in-domain for the `guitarset-v1` position prior). It is in-distribution
+tuning in a way the original specification-derived table was not. Three
+independent measurement paths converging on the same direction and approximate
+magnitude mitigate this concern but do not eliminate it. No cross-domain
+acoustic steel-string dataset exists in the repo to test against.
+**Evidence:** N4 (`n4_ritual_validation_2026-07-24.md`), N5
+(`n5_table_mismatch_2026-07-24.md`), Q6
+(`q6_full_dev_2026-07-22.md`, `q6_player05_confirm_2026-07-22.md`).
+**Reasoning:** three independent measurements of the same systematic error
+converging on the same direction and approximate magnitude, with the cheapest
+correction (+0.60 uniform constant) outperforming every more sophisticated
+alternative (per-instrument ritual, per-string calibration, global median of
+ritual offsets). The largest remaining single lever for Tab F1 improvement
+within the existing physics channel.
+
+## 2026-07-24 — REVERT the +0.60 level correction; ship N1 instead
+**Phase:** post-program, accuracy loop
+**Decision:** revert the uniform +0.60 log-B correction to `acoustic-physics-v1`
+(recorded earlier today) and ship N1 `partial_aware` isolation in its place.
+**Trigger:** the sealed player-05 confirmation the correction's own DECISIONS
+entry said it wanted. Pre-declared reading REFUTED (delta < 0) fired.
+**Result:** on 60 held-out clips the correction measured **-0.0066
+[-0.0224, +0.0079]** at strict isolation and +0.0012 [-0.0217, +0.0213] at
+partial-aware, against **+0.0160 [+0.0088, +0.0233]** on GuitarSet dev. The
+dev and held-out intervals do not overlap. N1 confirmed independently on both
+tables (+0.0226 [+0.0022, +0.0446] on the shipped table), lifting applied notes
+834 -> 2227 of 8709; `isolation` now travels inside the artifact with the other
+gate-passed decode settings. Net player-05 delta vs baseline: +0.0780 -> **+0.1006
+[+0.0615, +0.1416]**, entirely from N1.
+**Harness validation:** the `raw-strict` arm reproduced Q6's held-out block
+figure-for-figure (+0.0780 [+0.0502, +0.1078], solo 0.1396, comp 0.0164).
+**Why the correction failed:** the level error is physically real — measured
+three independent ways — but **instrument-specific**. N4's per-player offsets
+ran +0.514 to +1.092, a spread wider than the correction itself; no single
+constant serves that population, which is the same reason N4's per-instrument
+ritual lost to a fixed constant. That data was in hand and under-weighted.
+**Alternatives rejected:** re-tuning to +0.40 on player-05 — that repeats the
+in-distribution error on the sealed set. The negative is banked; do not
+re-derive this constant from dev clips.
+**Evidence:** `docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md` (+ `.json`);
+`tabvision/scripts/eval/player05_batched_confirm.py`.
+940 unit tests pass; ruff and mypy clean.
+**Reasoning:** three independent measurements of a *physical* quantity were
+treated as support for a *decision-theoretic* correction. They are different
+claims: that B is under-predicted is well established, that adding a constant
+to every string improves position decisions was only ever measured in the
+distribution the constant came from. The held-out test was the right gate and
+it did its job — this is the in-distribution risk the correction's own entry
+flagged, materializing.
+
+## 2026-07-24 — default-on acoustic-physics-v1 for clean steel acoustic
+**Phase:** post-program, accuracy loop decision #1
+**Decision:** `auto` now resolves string evidence to `acoustic-physics-v1` in
+the clean-acoustic / standard-tuning / capo-0 domain. User-authorized.
+**Evidence:** sealed player-05 **+0.1006 [+0.0615, +0.1416]** vs no channel
+(`player05_batched_confirm_2026-07-24.md`); development OOF +0.0443
+[+0.0339, +0.0555]; portability caveat discharged by N5.
+**Prerequisite bug fixed:** `_automatic_timbre_domain` required
+`audio_backend_name == "highres"`, but `audio_backend_for_session` returns
+`highres-ensemble` for clean acoustic (the default since 2026-07-20) and
+**every Q6 gate was measured on the ensemble**. The guard therefore excluded
+the exact backend its own gate used: `--string-evidence acoustic-physics-v1`
+raised `ConfigurationError` on the default path, and the artifact was
+unreachable in its gate configuration. No test caught it because every policy
+test passed the literal `"highres"`. Both backends are now accepted, the new
+tests are parametrized over both, and one test resolves the backend through
+`audio_backend_for_session` so the routing and the guard cannot drift apart
+again.
+**Also shipped:** N1 `partial_aware` isolation, carried in the artifact's
+decode block; `acoustic-physics-v1` added to the license-CI permissive
+default-artifact allowlist (it has no dataset provenance — every number is
+computed from published string specifications).
+**Safety of the default:** the channel abstains per note when the partial
+structure is unreadable and abstains wholesale outside its domain, so enabling
+it fails to "no evidence" rather than "wrong evidence". Classical/electric/capo
+routing is unchanged and the GAPS no-regression result stays true by
+construction. `--string-evidence none` is the rollback.
+947 unit tests pass; ruff and mypy clean.
+**Reasoning:** the channel had cleared every gate it was asked to clear and was
+being held opt-in pending a decision, while a latent domain-guard bug meant the
+opt-in path did not work either. Promoting it and fixing the guard in one
+change keeps the shipped behaviour and the measured behaviour identical.

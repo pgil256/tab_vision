@@ -29,6 +29,7 @@ _MANIFEST_FILES: dict[str, str] = {
     "guitarset-comp-v1": "guitarset_comp_v1.manifest.json",
     "guitarset-comp-seq-v1": "guitarset_comp_seq_v1.manifest.json",
     "context-v1": "context_v1.manifest.json",
+    "acoustic-physics-v1": "acoustic_physics_v1.manifest.json",
 }
 
 

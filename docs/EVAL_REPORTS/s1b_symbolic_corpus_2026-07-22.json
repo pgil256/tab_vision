@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "variant": "all",
+  "source_zip": "all_jams_midi_V2_60000_tracks.zip",
+  "tracks_scanned": 60633,
+  "tracks_eligible": 45868,
+  "tracks_parsed": 34621,
+  "notes": 34063065,
+  "skipped_program": 14765,
+  "skipped_nonstandard_tuning": 11247,
+  "skipped_unreadable": 0,
+  "program_histogram": {
+    "24": 4945,
+    "25": 4372,
+    "26": 1371,
+    "27": 2528,
+    "28": 437,
+    "29": 7137,
+    "30": 13762,
+    "31": 69
+  },
+  "seconds": 279.1,
+  "statistics": {
+    "tracks": 34621,
+    "notes": 34063065,
+    "notes_per_track_median": 708.0,
+    "notes_per_track_p90": 2166.0,
+    "pitch_range": [
+      40,
+      88
+    ],
+    "ambiguous_note_share": 0.8873689141009478,
+    "mean_positions_per_note": 3.4466486794420876,
+    "string_histogram": {
+      "0": 5182564,
+      "1": 8121426,
+      "2": 7563412,
+      "3": 5830776,
+      "4": 4204327,
+      "5": 3160560
+    },
+    "fret_zero_share": 0.1902227530024089,
+    "clusters": 16887427,
+    "polyphonic_cluster_share": 0.47349545907733603,
+    "mean_cluster_size": 2.017066602271619
+  },
+  "output": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\synthtab_all.npz",
+  "output_bytes": 46253269
+}

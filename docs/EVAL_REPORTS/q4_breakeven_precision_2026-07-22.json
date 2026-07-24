@@ -1,0 +1,67 @@
+{
+  "source": "..\\docs\\EVAL_REPORTS\\n2_muscriptor_merge_pilot_2026-07-21.json",
+  "baseline_tab_f1": 0.677284867982025,
+  "measured_alpha_per_variant": {
+    "union": 0.4142857142857143,
+    "union-dur60": 0.4057971014492754,
+    "near80": 0.5925925925925926,
+    "cluster": 0.43902439024390244,
+    "cluster-dur60": 0.43902439024390244
+  },
+  "pooled_alpha": 0.45814483776307746,
+  "breakeven_at_pooled_alpha": 0.5277763853812883,
+  "breakeven_at_alpha_0_65": 0.440639535800545,
+  "variants": [
+    {
+      "variant": "union",
+      "added_notes": 675,
+      "added_precision": 0.1037037037037037,
+      "measured_alpha": 0.4142857142857143,
+      "breakeven_precision": 0.5527651933886402,
+      "predicted_sign": "negative",
+      "observed_tab_f1_delta": -0.05409591408775155,
+      "observed_sign": "negative"
+    },
+    {
+      "variant": "union-dur60",
+      "added_notes": 671,
+      "added_precision": 0.10283159463487332,
+      "measured_alpha": 0.4057971014492754,
+      "breakeven_precision": 0.5578774324845082,
+      "predicted_sign": "negative",
+      "observed_tab_f1_delta": -0.0538202248646939,
+      "observed_sign": "negative"
+    },
+    {
+      "variant": "near80",
+      "added_notes": 326,
+      "added_precision": 0.1656441717791411,
+      "measured_alpha": 0.5925925925925926,
+      "breakeven_precision": 0.4635394050911497,
+      "predicted_sign": "negative",
+      "observed_tab_f1_delta": -0.023407719568378116,
+      "observed_sign": "negative"
+    },
+    {
+      "variant": "cluster",
+      "added_notes": 227,
+      "added_precision": 0.18061674008810572,
+      "measured_alpha": 0.43902439024390244,
+      "breakeven_precision": 0.5383869247394204,
+      "predicted_sign": "negative",
+      "observed_tab_f1_delta": -0.016717823122994933,
+      "observed_sign": "negative"
+    },
+    {
+      "variant": "cluster-dur60",
+      "added_notes": 227,
+      "added_precision": 0.18061674008810572,
+      "measured_alpha": 0.43902439024390244,
+      "breakeven_precision": 0.5383869247394204,
+      "predicted_sign": "negative",
+      "observed_tab_f1_delta": -0.016717823122994933,
+      "observed_sign": "negative"
+    }
+  ],
+  "sign_agreement": "5/5"
+}

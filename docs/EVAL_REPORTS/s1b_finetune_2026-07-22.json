@@ -1,0 +1,295 @@
+{
+  "pretrained": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2.pt",
+  "epochs": 8,
+  "learning_rate": 5e-05,
+  "seed": 42,
+  "protocol": "leave-one-player-out over dev players 00-04; player-05 never read",
+  "folds": {
+    "00": {
+      "history": [
+        {
+          "accuracy": 0.6852805397727273,
+          "ambiguous_accuracy": 0.6722448224852071,
+          "epoch": 0,
+          "train_loss": 0.6804931319079637
+        },
+        {
+          "accuracy": 0.7006392045454546,
+          "ambiguous_accuracy": 0.6882396449704142,
+          "epoch": 1,
+          "train_loss": 0.6139301443008628
+        },
+        {
+          "accuracy": 0.7057883522727273,
+          "ambiguous_accuracy": 0.6936020710059172,
+          "epoch": 2,
+          "train_loss": 0.5802678956839317
+        },
+        {
+          "accuracy": 0.7172407670454546,
+          "ambiguous_accuracy": 0.7055288461538461,
+          "epoch": 3,
+          "train_loss": 0.556997921046626
+        },
+        {
+          "accuracy": 0.7192826704545454,
+          "ambiguous_accuracy": 0.707655325443787,
+          "epoch": 4,
+          "train_loss": 0.5402295487822244
+        },
+        {
+          "accuracy": 0.7252308238636364,
+          "ambiguous_accuracy": 0.7138498520710059,
+          "epoch": 5,
+          "train_loss": 0.5234482114799178
+        },
+        {
+          "accuracy": 0.7277166193181818,
+          "ambiguous_accuracy": 0.7164386094674556,
+          "epoch": 6,
+          "train_loss": 0.5123588075126267
+        },
+        {
+          "accuracy": 0.7280717329545454,
+          "ambiguous_accuracy": 0.7168084319526628,
+          "epoch": 7,
+          "train_loss": 0.5019181400423306
+        }
+      ],
+      "train_windows": 522,
+      "val_windows": 176,
+      "seconds": 45.9,
+      "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2_oof_00.pt",
+      "held_out_player": "00"
+    },
+    "01": {
+      "history": [
+        {
+          "accuracy": 0.6639030612244898,
+          "ambiguous_accuracy": 0.649950182663567,
+          "epoch": 0,
+          "train_loss": 0.6787417701389742
+        },
+        {
+          "accuracy": 0.672406462585034,
+          "ambiguous_accuracy": 0.6588065980294476,
+          "epoch": 1,
+          "train_loss": 0.6107401898681792
+        },
+        {
+          "accuracy": 0.6762329931972789,
+          "ambiguous_accuracy": 0.6627919849440939,
+          "epoch": 2,
+          "train_loss": 0.5712675809752054
+        },
+        {
+          "accuracy": 0.6772959183673469,
+          "ambiguous_accuracy": 0.663899036864829,
+          "epoch": 3,
+          "train_loss": 0.5474135755627212
+        },
+        {
+          "accuracy": 0.6871811224489796,
+          "ambiguous_accuracy": 0.6741946197276653,
+          "epoch": 4,
+          "train_loss": 0.5281229125717807
+        },
+        {
+          "accuracy": 0.6888818027210885,
+          "ambiguous_accuracy": 0.6759659028008413,
+          "epoch": 5,
+          "train_loss": 0.513414798868979
+        },
+        {
+          "accuracy": 0.6903698979591837,
+          "ambiguous_accuracy": 0.6775157754898705,
+          "epoch": 6,
+          "train_loss": 0.5020103126818385
+        },
+        {
+          "accuracy": 0.6883503401360545,
+          "ambiguous_accuracy": 0.6754123768404738,
+          "epoch": 7,
+          "train_loss": 0.4884656530867471
+        }
+      ],
+      "train_windows": 551,
+      "val_windows": 147,
+      "seconds": 36.9,
+      "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2_oof_01.pt",
+      "held_out_player": "01"
+    },
+    "02": {
+      "history": [
+        {
+          "accuracy": 0.7309727822580645,
+          "ambiguous_accuracy": 0.7000561955605508,
+          "epoch": 0,
+          "train_loss": 0.7187932640417943
+        },
+        {
+          "accuracy": 0.7312247983870968,
+          "ambiguous_accuracy": 0.7003371733633043,
+          "epoch": 1,
+          "train_loss": 0.6427970908660091
+        },
+        {
+          "accuracy": 0.7332409274193549,
+          "ambiguous_accuracy": 0.702584995785333,
+          "epoch": 2,
+          "train_loss": 0.6015023485293371
+        },
+        {
+          "accuracy": 0.735383064516129,
+          "ambiguous_accuracy": 0.7049733071087384,
+          "epoch": 3,
+          "train_loss": 0.5773654322590978
+        },
+        {
+          "accuracy": 0.7401713709677419,
+          "ambiguous_accuracy": 0.7103118853610565,
+          "epoch": 4,
+          "train_loss": 0.5577330749209334
+        },
+        {
+          "accuracy": 0.7440776209677419,
+          "ambiguous_accuracy": 0.714667041303737,
+          "epoch": 5,
+          "train_loss": 0.5411172376277139
+        },
+        {
+          "accuracy": 0.7442036290322581,
+          "ambiguous_accuracy": 0.7148075302051138,
+          "epoch": 6,
+          "train_loss": 0.5294921230979082
+        },
+        {
+          "accuracy": 0.7436995967741935,
+          "ambiguous_accuracy": 0.7142455745996066,
+          "epoch": 7,
+          "train_loss": 0.5146248488060688
+        }
+      ],
+      "train_windows": 574,
+      "val_windows": 124,
+      "seconds": 32.6,
+      "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2_oof_02.pt",
+      "held_out_player": "02"
+    },
+    "03": {
+      "history": [
+        {
+          "accuracy": 0.7334710743801653,
+          "ambiguous_accuracy": 0.7238426545357238,
+          "epoch": 0,
+          "train_loss": 0.6998793133365013
+        },
+        {
+          "accuracy": 0.7471590909090909,
+          "ambiguous_accuracy": 0.7380251538667381,
+          "epoch": 1,
+          "train_loss": 0.6335235450875202
+        },
+        {
+          "accuracy": 0.7528409090909091,
+          "ambiguous_accuracy": 0.743912229060744,
+          "epoch": 2,
+          "train_loss": 0.595884637878094
+        },
+        {
+          "accuracy": 0.7631714876033058,
+          "ambiguous_accuracy": 0.7546160021407546,
+          "epoch": 3,
+          "train_loss": 0.56926055632183
+        },
+        {
+          "accuracy": 0.7600723140495868,
+          "ambiguous_accuracy": 0.7514048702167514,
+          "epoch": 4,
+          "train_loss": 0.5472454630109631
+        },
+        {
+          "accuracy": 0.7592975206611571,
+          "ambiguous_accuracy": 0.7506020872357506,
+          "epoch": 5,
+          "train_loss": 0.533635092850781
+        },
+        {
+          "accuracy": 0.7607179752066116,
+          "ambiguous_accuracy": 0.752073856034252,
+          "epoch": 6,
+          "train_loss": 0.5204510053480932
+        },
+        {
+          "accuracy": 0.7631714876033058,
+          "ambiguous_accuracy": 0.7546160021407546,
+          "epoch": 7,
+          "train_loss": 0.5087730820505416
+        }
+      ],
+      "train_windows": 577,
+      "val_windows": 121,
+      "seconds": 29.5,
+      "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2_oof_03.pt",
+      "held_out_player": "03"
+    },
+    "04": {
+      "history": [
+        {
+          "accuracy": 0.6835336538461538,
+          "ambiguous_accuracy": 0.6639427987742594,
+          "epoch": 0,
+          "train_loss": 0.68270386356703
+        },
+        {
+          "accuracy": 0.6979567307692308,
+          "ambiguous_accuracy": 0.6792645556690501,
+          "epoch": 1,
+          "train_loss": 0.6176766073200065
+        },
+        {
+          "accuracy": 0.7074519230769231,
+          "ambiguous_accuracy": 0.6893513789581205,
+          "epoch": 2,
+          "train_loss": 0.5833556450588603
+        },
+        {
+          "accuracy": 0.7094951923076923,
+          "ambiguous_accuracy": 0.691394279877426,
+          "epoch": 3,
+          "train_loss": 0.5598881891075994
+        },
+        {
+          "accuracy": 0.7150240384615385,
+          "ambiguous_accuracy": 0.697267620020429,
+          "epoch": 4,
+          "train_loss": 0.5410258568508525
+        },
+        {
+          "accuracy": 0.7152644230769231,
+          "ambiguous_accuracy": 0.6975229826353422,
+          "epoch": 5,
+          "train_loss": 0.5228312880220548
+        },
+        {
+          "accuracy": 0.7181490384615384,
+          "ambiguous_accuracy": 0.7005873340143003,
+          "epoch": 6,
+          "train_loss": 0.5103317427803093
+        },
+        {
+          "accuracy": 0.7209134615384616,
+          "ambiguous_accuracy": 0.7035240040858018,
+          "epoch": 7,
+          "train_loss": 0.49974342551029904
+        }
+      ],
+      "train_windows": 568,
+      "val_windows": 130,
+      "seconds": 26.4,
+      "checkpoint": "C:\\Users\\patri\\.tabvision\\data\\models\\s1b_symbolic\\context_v2_oof_04.pt",
+      "held_out_player": "04"
+    }
+  },
+  "mean_held_out_ambiguous_accuracy": 0.7129212779238598
+}

@@ -214,12 +214,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--string-evidence",
-        choices=["auto", "none", "guitarset-timbre-v1"],
+        choices=["auto", "none", "guitarset-timbre-v1", "acoustic-physics-v1"],
         default="auto",
         help=(
-            "timbral string classifier evidence. 'auto' uses a registered "
-            "gate-passed model in its validated domain, otherwise degrades to "
-            "neutral evidence; 'none' disables it."
+            "per-note string evidence. 'auto' (default) applies "
+            "'acoustic-physics-v1' to clean steel-string acoustic in standard "
+            "tuning at capo 0, and abstains elsewhere; 'none' disables it. "
+            "The table is derived from published string specifications rather "
+            "than fitted: it reads each note's inharmonicity to identify the "
+            "string, abstaining per note when the partials are unreadable. "
+            "Sealed player-05: +0.1006 Tab F1 [+0.0615, +0.1416]."
         ),
     )
     t.add_argument(

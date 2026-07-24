@@ -1,0 +1,26 @@
+{
+  "notes": 35227,
+  "physics_fired": 9658,
+  "fired_share": 0.2741647032106055,
+  "base_wrong_rate": 0.34445169898089534,
+  "P_wrong_given_physics_disagrees": 0.39988884257329443,
+  "P_wrong_given_physics_agrees": 0.31816334823242587,
+  "disagree_count": 7197,
+  "agree_count": 2461,
+  "physics_string_accuracy_on_fired": 0.29198591840960864,
+  "physics_acc_isolated": 0.35088570735258434,
+  "physics_acc_contaminated": 0.24814881704894348,
+  "isolated_share_of_fired": 0.4266928970801408,
+  "auc_fired": {
+    "decoder_margin": 0.5897285572586894,
+    "physics_prob_decoder": 0.6963727698320616,
+    "combined": 0.6862536476286946
+  },
+  "auc_isolated": {
+    "decoder_margin": 0.5540159918903501,
+    "physics_prob_decoder": 0.7515032145665346,
+    "combined": 0.6900626917562172,
+    "n": 4121
+  },
+  "auc_all_decoder_margin": 0.6138843238479796
+}

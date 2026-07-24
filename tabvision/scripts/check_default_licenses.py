@@ -50,6 +50,14 @@ PERMISSIVE_DEFAULT_ARTIFACTS = {
         " + tabvision/audio/ensemble_v1.json",
         "MIT (checkpoints) + repo license (calibration artifact)",
     ),
+    # Default-on for clean acoustic 2026-07-24 (DECISIONS.md). The only
+    # default artifact with no dataset provenance at all: every number is
+    # computed from published string specifications and stiff-string theory,
+    # so no corpus license attaches to it.
+    "acoustic-physics-v1": (
+        "tabvision/fusion/priors/acoustic_physics_v1.json",
+        "n/a (computed from published string specifications; no dataset)",
+    ),
     "guitarset-v1": (
         "tabvision/fusion/priors/guitarset_v1.json",
         "CC-BY-4.0 (derived count statistics, attribution in LICENSES.md)",
