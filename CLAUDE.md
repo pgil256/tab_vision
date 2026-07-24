@@ -16,6 +16,15 @@ pitch-preserving candidate cycling (C key), shipped at the measured Phase 6
 level (38.76% wrong-position reduction @60s), reported separately from
 automatic Tab F1.
 
+## Desktop shell (planned 2026-07-22)
+
+A WPF (.NET 8) desktop shell over the Python pipeline is planned at
+`docs/plans/2026-07-22-wpf-desktop-shell-plan.md` (small installer,
+first-run weight/env download, viewer→editor phasing). **It is disposable
+by design: the pipeline is a moving target and the shell is expected to be
+rebuilt as TabVision develops.** Keep all transcription/ranking logic in
+Python; the shell must stay thin. See DECISIONS.md 2026-07-22.
+
 ## Project status (2026-05-05)
 
 **TabVision is mid-spec-adoption.** A new canonical specification at

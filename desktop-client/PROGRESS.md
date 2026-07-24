@@ -70,6 +70,12 @@ in Python. D2 is out of scope until the web editor stabilizes.
 - [x] Surface every low-confidence flag from the JSON envelope. Result: the
   completed viewer lists every flag in envelope order with all required fields
   and retained future JSON details; an empty flag array hides the warning panel.
+- [x] Add embedded live camera recording while retaining video upload. Result:
+  native Windows MediaCapture discovers cameras, streams an in-app WPF preview,
+  records camera plus microphone to MP4, and exposes Stop, Retake, and Use video
+  without opening Windows Camera. The project now targets the Windows 10 build
+  19041 API floor through the .NET SDK's Windows targeting pack; no third-party
+  camera stack was added.
 - [x] **D1 correctness gate:** output is byte-identical to direct CLI output
   on three fixture clips. Result: PASS; every direct/desktop pair was 144 bytes
   with output SHA-256 `57229c70081f22a230185373a2455dcbe2de7b09c927fec50f74cbd98f4234e0`.
@@ -372,3 +378,18 @@ in Python. D2 is out of scope until the web editor stabilizes.
   `22c337d7...0370`. Clean Release build: 0 warnings/errors; all 51 tests
   passed. No dependency was added. D1.5 is complete; D2 remains blocked until
   the web editor stabilizes.
+- 2026-07-23: Added first-class live recording after the user rejected the
+  Windows Camera handoff. The embedded panel discovered the integrated camera,
+  rendered live frames, recorded camera plus microphone for 10 seconds,
+  finalized an MP4, and exposed Retake / Use video in a real-device UI check.
+  Upload remains a separate first-class input. The Release build had 0
+  warnings/errors, all 54 tests passed, and a self-contained win-x64 publish
+  succeeded. The only new framework surface is the .NET SDK's official Windows
+  targeting pack/C#/WinRT projection, justified by native MediaCapture access;
+  no third-party camera package was added.
+- 2026-07-23: Fixed the desktop shell opening above a short display's usable
+  area. The window now caps itself to the current Windows work area with a
+  24-pixel margin and makes the full page vertically scrollable. On the
+  reported 1280x720 display (672-pixel work area), the rebuilt window opened at
+  `(230, 12)` with an 820x648 frame, entirely within `(0, 0)-(1280, 672)`.
+  Release build had 0 warnings/errors and all 54 tests passed.

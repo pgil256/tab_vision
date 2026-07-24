@@ -2854,6 +2854,34 @@ probe, pending user direction; it cannot retroactively promote F2.
 
 ---
 
+## 2026-07-22 — WPF desktop shell: thin sidecar wrapper, rebuild expected
+
+**Phase:** Desktop shell D0 (out-of-SPEC client tooling; pipeline phases
+unaffected)
+**Decision tree:** Client architecture for a native Windows desktop version.
+**Branch taken:** WPF (.NET 8) shell over the unmodified Python v1 pipeline as
+a per-job sidecar CLI process. Small installer (~100 MB) that downloads the
+Python env, wheels, and model weights on first run; fully offline after.
+Phased scope: viewer MVP first, editor (review queue + candidate cycling,
+ranked locally) deferred until the web editor's feature set stabilizes. The
+only pipeline change is additive: `--json` result envelope and `--progress`
+stderr lines on the CLI. **Explicitly recorded: the pipeline is a moving
+target and this shell is expected to be rebuilt/reworked as TabVision
+continues to develop — it is disposable by design, with zero transcription
+logic in C#.**
+**Evidence:** `docs/plans/2026-07-22-wpf-desktop-shell-plan.md`; CLI surface
+in `tabvision/tabvision/cli.py` (no machine-readable output today; exit code 2
+on `TabVisionError`).
+**Reasoning:** Any port of the ML stack to .NET (ONNX export, librosa-parity
+preprocessing, MediaPipe bindings) would put accuracy at risk in two languages
+and require full eval-harness reparity, contradicting the project's accuracy
+focus. A thin shell keeps all accuracy-bearing code in Python, costs days
+instead of months, and makes the inevitable rebuild cheap: when CLI flags,
+backends, priors, or editor features change, only UI and the bootstrap
+manifest move.
+
+---
+
 ## 2026-07-22 - FretCam F2b calibrated fret-axis fix passes the unchanged F2 gate
 
 **Phase:** FretCam side quest, explicitly approved F2b geometry correction
@@ -3323,3 +3351,29 @@ network access. A nonexistent root plus a scrubbed child environment and
 fail-closed socket audit isolates those risks directly on the target Windows
 version. It does not provide general clean-VM isolation, so that limitation is
 recorded rather than obscured.
+
+---
+
+## 2026-07-23 - WPF desktop records camera and microphone in-app
+
+**Phase:** Desktop shell D1 input enhancement
+**Decision tree:** Replace the rejected Windows Camera handoff with either a
+third-party capture library, a web-hosted camera surface, or native Windows
+capture embedded in the existing WPF shell.
+**Branch taken:** Target the Windows SDK from .NET 8 with a Windows 10 build
+19041 runtime floor, then use native MediaCapture. A MediaFrameReader copies
+BGRA preview frames into a throttled WPF WriteableBitmap; low-lag recording
+writes camera plus microphone to an app-local MP4. The UI discovers cameras,
+keeps upload available, and provides Start, Stop, Retake, and Use video.
+**Evidence:** A real-device check discovered the integrated camera, rendered
+the live image inside TabVision, recorded camera plus microphone for 10
+seconds, finalized the MP4, and enabled Retake / Use video. The Release build
+had 0 warnings/errors, all 54 tests passed, and the self-contained win-x64
+publish succeeded.
+**Reasoning:** TabVision needs the recording's audio as well as its frames, and
+the user explicitly rejected leaving the app to record. MediaCapture supplies
+both from the operating system, preserves the existing WPF/sidecar boundary,
+and avoids a separate camera/video dependency. The OS-specific target brings
+the Microsoft Windows SDK C#/WinRT projection assemblies into the desktop
+bundle; that official platform interop is justified here as the minimum
+dependency needed to call the native capture API.

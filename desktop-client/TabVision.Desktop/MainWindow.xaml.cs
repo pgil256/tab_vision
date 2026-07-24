@@ -1,8 +1,13 @@
+using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using TabVision.Desktop.Bootstrap;
+using TabVision.Desktop.Media;
 using TabVision.Desktop.Models;
 using TabVision.Desktop.Sidecar;
 
@@ -17,6 +22,15 @@ public partial class MainWindow : Window
     private bool _bootstrapReady = true;
     private bool _bootstrapRunning;
     private bool _bootstrapStarted;
+    private readonly DispatcherTimer _recordingTimer;
+    private EmbeddedCameraSession? _cameraSession;
+    private WriteableBitmap? _cameraPreviewBitmap;
+    private string? _pendingRecordingPath;
+    private DateTimeOffset? _recordingStartedAt;
+    private bool _cameraSelectionChanging;
+    private bool _cameraShutdownRunning;
+    private bool _cameraShutdownComplete;
+    private int _previewUpdateQueued;
     private IReadOnlyDictionary<string, string?> _sidecarEnvironment =
         new Dictionary<string, string?>
         {
@@ -27,8 +41,29 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        FitWindowToWorkArea();
         InitializeTranscriptionOptions();
         InitializeExportFormats();
+        _recordingTimer = new DispatcherTimer(DispatcherPriority.Normal)
+        {
+            Interval = TimeSpan.FromSeconds(1),
+        };
+        _recordingTimer.Tick += RecordingTimer_Tick;
+    }
+
+    private void FitWindowToWorkArea()
+    {
+        const double ScreenMargin = 24;
+        var workArea = SystemParameters.WorkArea;
+        var availableWidth = Math.Max(480, workArea.Width - ScreenMargin);
+        var availableHeight = Math.Max(400, workArea.Height - ScreenMargin);
+
+        MinWidth = Math.Min(MinWidth, availableWidth);
+        MinHeight = Math.Min(MinHeight, availableHeight);
+        MaxWidth = workArea.Width;
+        MaxHeight = workArea.Height;
+        Width = Math.Min(Width, availableWidth);
+        Height = Math.Min(Height, availableHeight);
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -180,11 +215,267 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _bootstrapCancellationSource.Cancel();
+        _recordingTimer.Stop();
+        var cameraSession = _cameraSession;
+        _cameraSession = null;
+        if (cameraSession is not null)
+        {
+            cameraSession.PreviewFrameReady -= CameraSession_PreviewFrameReady;
+            cameraSession.CaptureFailed -= CameraSession_CaptureFailed;
+            _ = cameraSession.DisposeAsync().AsTask();
+        }
+
         base.OnClosed(e);
     }
 
-    private void ChooseVideo_Click(object sender, RoutedEventArgs e)
+    protected override async void OnClosing(CancelEventArgs e)
     {
+        if (!_cameraShutdownComplete && _cameraSession is not null)
+        {
+            e.Cancel = true;
+            if (_cameraShutdownRunning)
+            {
+                return;
+            }
+
+            _cameraShutdownRunning = true;
+            _recordingTimer.Stop();
+            try
+            {
+                await DisposeCameraSessionAsync();
+            }
+            catch
+            {
+                // Closing still proceeds if a disconnected device cannot shut down cleanly.
+            }
+            finally
+            {
+                _cameraShutdownComplete = true;
+                Close();
+            }
+
+            return;
+        }
+
+        base.OnClosing(e);
+    }
+
+    private async void RecordVideo_Click(object sender, RoutedEventArgs e)
+    {
+        if (CameraPanel.Visibility == Visibility.Visible)
+        {
+            await CloseCameraAsync();
+            return;
+        }
+
+        await OpenCameraAsync();
+    }
+
+    private async Task OpenCameraAsync()
+    {
+        CameraPanel.Visibility = Visibility.Visible;
+        OptionsPanel.Visibility = Visibility.Collapsed;
+        JobPanel.Visibility = Visibility.Collapsed;
+        TabViewerPanel.Visibility = Visibility.Collapsed;
+        SidecarErrorPanel.Visibility = Visibility.Collapsed;
+        RecordVideoButton.Content = "Close camera";
+        StartCameraRecordingButton.Content = "Start";
+        CameraPreviewPlaceholder.Text = "Looking for cameras...";
+        CameraPreviewPlaceholder.Visibility = Visibility.Visible;
+        CameraStatusText.Text = "Looking for cameras...";
+        StartCameraRecordingButton.IsEnabled = false;
+        StopCameraRecordingButton.IsEnabled = false;
+        UseCameraRecordingButton.IsEnabled = false;
+        try
+        {
+            var cameras = await EmbeddedCameraSession.DiscoverAsync();
+            _cameraSelectionChanging = true;
+            CameraComboBox.ItemsSource = cameras;
+            CameraComboBox.SelectedIndex = cameras.Count == 0 ? -1 : 0;
+            _cameraSelectionChanging = false;
+            if (cameras.Count == 0)
+            {
+                CameraPreviewPlaceholder.Text = "No camera was found.";
+                CameraStatusText.Text =
+                    "Connect a camera, then close and reopen the recorder. You can still upload a video.";
+                return;
+            }
+
+            await InitializeSelectedCameraAsync();
+        }
+        catch (Exception exception)
+        {
+            ShowCameraError(exception);
+        }
+    }
+
+    private async Task InitializeSelectedCameraAsync()
+    {
+        if (CameraComboBox.SelectedItem is not CameraDeviceDescriptor camera)
+        {
+            return;
+        }
+
+        await DisposeCameraSessionAsync();
+        CameraComboBox.IsEnabled = false;
+        StartCameraRecordingButton.IsEnabled = false;
+        CameraPreviewImage.Source = null;
+        _cameraPreviewBitmap = null;
+        CameraPreviewPlaceholder.Text = "Starting camera...";
+        CameraPreviewPlaceholder.Visibility = Visibility.Visible;
+        CameraStatusText.Text =
+            "Starting camera and microphone. Windows may ask for permission.";
+        var session = new EmbeddedCameraSession();
+        session.PreviewFrameReady += CameraSession_PreviewFrameReady;
+        session.CaptureFailed += CameraSession_CaptureFailed;
+        _cameraSession = session;
+        try
+        {
+            await session.InitializeAsync(camera.Id);
+            CameraStatusText.Text = "Ready. Frame your guitar, then click Start.";
+            StartCameraRecordingButton.IsEnabled = true;
+        }
+        catch (Exception exception)
+        {
+            await DisposeCameraSessionAsync();
+            ShowCameraError(exception);
+        }
+        finally
+        {
+            CameraComboBox.IsEnabled = true;
+        }
+    }
+
+    private async void CameraComboBox_SelectionChanged(
+        object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e
+    )
+    {
+        if (
+            _cameraSelectionChanging
+            || CameraPanel.Visibility != Visibility.Visible
+            || _cameraSession?.IsRecording == true
+        )
+        {
+            return;
+        }
+
+        await InitializeSelectedCameraAsync();
+    }
+
+    private async void CloseCamera_Click(object sender, RoutedEventArgs e)
+    {
+        await CloseCameraAsync();
+    }
+
+    private async Task CloseCameraAsync()
+    {
+        if (_cameraSession?.IsRecording == true)
+        {
+            return;
+        }
+
+        _recordingTimer.Stop();
+        _recordingStartedAt = null;
+        RecordingDurationText.Visibility = Visibility.Collapsed;
+        await DisposeCameraSessionAsync();
+        CameraPanel.Visibility = Visibility.Collapsed;
+        OptionsPanel.Visibility = Visibility.Visible;
+        JobPanel.Visibility = Visibility.Visible;
+        RecordVideoButton.Content = "Record live";
+        CameraPreviewImage.Source = null;
+        _cameraPreviewBitmap = null;
+        DiscardPendingRecording();
+        SetJobRunning(isRunning: false);
+    }
+
+    private async void StartCameraRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cameraSession is null)
+        {
+            return;
+        }
+
+        DiscardPendingRecording();
+        var recordingPath = CameraRecordingPath.Create(
+            PythonEnvironmentLayout.Default.AppDataDirectory,
+            DateTimeOffset.Now
+        );
+        SetCameraRecordingState(isRecording: true);
+        CameraStatusText.Text = "Recording camera and microphone...";
+        try
+        {
+            await _cameraSession.StartRecordingAsync(recordingPath);
+            _recordingStartedAt = DateTimeOffset.UtcNow;
+            RecordingDurationText.Text = "Recording • 00:00";
+            RecordingDurationText.Visibility = Visibility.Visible;
+            _recordingTimer.Start();
+        }
+        catch (Exception exception)
+        {
+            _recordingStartedAt = null;
+            RecordingDurationText.Visibility = Visibility.Collapsed;
+            SetCameraRecordingState(isRecording: false);
+            ShowCameraError(exception);
+        }
+    }
+
+    private async void StopCameraRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cameraSession?.IsRecording != true)
+        {
+            return;
+        }
+
+        StopCameraRecordingButton.IsEnabled = false;
+        CameraStatusText.Text = "Finishing video...";
+        try
+        {
+            _pendingRecordingPath = await _cameraSession.StopRecordingAsync();
+            CameraStatusText.Text = "Recording ready. Use this video or retake it.";
+            StartCameraRecordingButton.Content = "Retake";
+            StartCameraRecordingButton.IsEnabled = true;
+            UseCameraRecordingButton.IsEnabled = true;
+        }
+        catch (Exception exception)
+        {
+            ShowCameraError(exception);
+            StartCameraRecordingButton.IsEnabled = true;
+        }
+        finally
+        {
+            _recordingTimer.Stop();
+            _recordingStartedAt = null;
+            CameraComboBox.IsEnabled = true;
+            CloseCameraButton.IsEnabled = true;
+            RecordVideoButton.IsEnabled = true;
+            ChooseVideoButton.IsEnabled = true;
+        }
+    }
+
+    private async void UseCameraRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingRecordingPath is null || !File.Exists(_pendingRecordingPath))
+        {
+            CameraStatusText.Text = "The recorded video is unavailable. Please record again.";
+            UseCameraRecordingButton.IsEnabled = false;
+            return;
+        }
+
+        var recordingPath = _pendingRecordingPath;
+        _pendingRecordingPath = null;
+        ShowSelectedInput(SelectedInputSummary.FromPath(recordingPath));
+        await CloseCameraAsync();
+        JobStatusText.Text = "Camera recording ready to transcribe.";
+    }
+
+    private async void ChooseVideo_Click(object sender, RoutedEventArgs e)
+    {
+        if (CameraPanel.Visibility == Visibility.Visible)
+        {
+            await CloseCameraAsync();
+        }
+
         var dialog = new OpenFileDialog
         {
             Title = "Choose a guitar video",
@@ -200,6 +491,147 @@ public partial class MainWindow : Window
         }
 
         ShowSelectedInput(SelectedInputSummary.FromPath(dialog.FileName));
+    }
+
+    private void CameraSession_PreviewFrameReady(object? sender, CameraPreviewFrame frame)
+    {
+        if (Interlocked.Exchange(ref _previewUpdateQueued, 1) != 0)
+        {
+            return;
+        }
+
+        _ = Dispatcher.BeginInvoke(
+            () =>
+            {
+                try
+                {
+                    if (
+                        _cameraPreviewBitmap is null
+                        || _cameraPreviewBitmap.PixelWidth != frame.Width
+                        || _cameraPreviewBitmap.PixelHeight != frame.Height
+                    )
+                    {
+                        _cameraPreviewBitmap = new WriteableBitmap(
+                            frame.Width,
+                            frame.Height,
+                            96,
+                            96,
+                            PixelFormats.Bgra32,
+                            null
+                        );
+                        CameraPreviewImage.Source = _cameraPreviewBitmap;
+                    }
+
+                    _cameraPreviewBitmap.WritePixels(
+                        new Int32Rect(0, 0, frame.Width, frame.Height),
+                        frame.Pixels,
+                        frame.Width * 4,
+                        0
+                    );
+                    CameraPreviewPlaceholder.Visibility = Visibility.Collapsed;
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _previewUpdateQueued, 0);
+                }
+            },
+            DispatcherPriority.Render
+        );
+    }
+
+    private void CameraSession_CaptureFailed(object? sender, string message)
+    {
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            CameraStatusText.Text = $"Camera error: {message}";
+            CameraPreviewPlaceholder.Text = "Camera unavailable.";
+            CameraPreviewPlaceholder.Visibility = Visibility.Visible;
+        });
+    }
+
+    private void RecordingTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_recordingStartedAt is null)
+        {
+            return;
+        }
+
+        var duration = DateTimeOffset.UtcNow - _recordingStartedAt.Value;
+        RecordingDurationText.Text =
+            $"Recording • {(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
+    }
+
+    private async Task DisposeCameraSessionAsync()
+    {
+        var session = _cameraSession;
+        _cameraSession = null;
+        if (session is null)
+        {
+            return;
+        }
+
+        session.PreviewFrameReady -= CameraSession_PreviewFrameReady;
+        session.CaptureFailed -= CameraSession_CaptureFailed;
+        await session.DisposeAsync();
+    }
+
+    private void SetCameraRecordingState(bool isRecording)
+    {
+        CameraComboBox.IsEnabled = !isRecording;
+        CloseCameraButton.IsEnabled = !isRecording;
+        RecordVideoButton.IsEnabled = !isRecording;
+        ChooseVideoButton.IsEnabled = !isRecording;
+        StartCameraRecordingButton.IsEnabled = !isRecording;
+        StopCameraRecordingButton.IsEnabled = isRecording;
+        UseCameraRecordingButton.IsEnabled = !isRecording && _pendingRecordingPath is not null;
+    }
+
+    private void ShowCameraError(Exception exception)
+    {
+        const int AccessDenied = unchecked((int)0x80070005);
+        var message =
+            exception.HResult == AccessDenied
+                ? "Camera or microphone access is off. In Windows Settings, allow desktop apps "
+                    + "to use both, then reopen the recorder."
+                : $"Camera error: {exception.Message}";
+        CameraStatusText.Text = message;
+        CameraPreviewPlaceholder.Text = message;
+        CameraPreviewPlaceholder.Visibility = Visibility.Visible;
+    }
+
+    private void DiscardPendingRecording()
+    {
+        var pendingPath = _pendingRecordingPath;
+        _pendingRecordingPath = null;
+        if (string.IsNullOrWhiteSpace(pendingPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var recordingsRoot = Path.GetFullPath(
+                Path.Combine(PythonEnvironmentLayout.Default.AppDataDirectory, "recordings")
+            );
+            var fullPath = Path.GetFullPath(pendingPath);
+            var rootPrefix = recordingsRoot.TrimEnd(Path.DirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            if (
+                fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(fullPath)
+            )
+            {
+                File.Delete(fullPath);
+            }
+        }
+        catch (IOException)
+        {
+            // A discarded recording can be cleaned up on a later run if it is still in use.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Keep the recording if Windows has not released it yet.
+        }
     }
 
     private void ShowSelectedInput(SelectedInputSummary selectedInput)
@@ -458,6 +890,7 @@ public partial class MainWindow : Window
 
     private void SetJobRunning(bool isRunning)
     {
+        RecordVideoButton.IsEnabled = _bootstrapReady && !isRunning;
         ChooseVideoButton.IsEnabled = _bootstrapReady && !isRunning;
         OptionsPanel.IsEnabled = _bootstrapReady && !isRunning;
         RepairBootstrapMenuItem.IsEnabled =

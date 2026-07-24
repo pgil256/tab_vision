@@ -146,6 +146,7 @@ checkout and from a fresh `.[dev]` install.
 | numpy | BSD-3-Clause | ✅ | |
 | ffmpeg-python | Apache-2.0 | ✅ | Wrapper; the underlying `ffmpeg` binary is LGPL/GPL depending on build, used as a shell-out only |
 | FFmpeg shared Windows runtime (BtbN `N-125716-g1b1f602699`) | LGPL v3 shared build | ✅ verified 2026-07-22 | Desktop installer only. Exact `win64-lgpl-shared` archive, byte size, SHA-256, and all redistributed file hashes are pinned in `desktop-client/installer/payloads.json`. The unmodified shared DLL build remains replaceable beside `ffmpeg.exe`/`ffprobe.exe`, and its upstream `LICENSE.txt` is bundled verbatim. |
+| Microsoft Windows SDK .NET targeting pack / C#/WinRT projection (`Microsoft.Windows.SDK.NET.Ref` 10.0.26100.56) | Microsoft Windows SDK license | ✅ desktop-only | Implicit framework pack selected by the Windows-version-specific .NET 8 TFM. Its projection/runtime assemblies are copied by the SDK for native `Windows.Media.Capture` access; required for embedded camera + microphone recording, with no third-party capture stack. Package metadata points to `https://aka.ms/WinSDKLicenseURL`. |
 | opencv-python | Apache-2.0 | ✅ | |
 | structlog | Apache-2.0 / MIT | ✅ | |
 | pydantic | MIT | ✅ | |

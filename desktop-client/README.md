@@ -30,6 +30,19 @@ dotnet build TabVision.Desktop.sln
 dotnet test TabVision.Desktop.sln --no-build
 ```
 
+## Video input
+
+**Record live** opens an embedded camera preview inside TabVision. The recorder
+captures camera video and microphone audio to MP4, then offers **Retake** and
+**Use video** before handing the file to the same transcription path used by
+uploaded videos. Camera and microphone access remain controlled by Windows;
+the app explains how to re-enable desktop-app access if initialization is
+denied. Uploaded videos remain available through **Upload video**.
+
+The recorder uses the native Windows MediaCapture API through the .NET Windows
+SDK targeting pack and supports Windows 10 version 2004 (build 19041) or later.
+No third-party camera or media-capture runtime is added.
+
 ## Build the installer
 
 The installer build pins and verifies the CPython 3.11 embeddable package,
