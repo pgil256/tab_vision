@@ -1,6 +1,6 @@
 # Accuracy-loop state
 last_updated: 2026-07-24
-current_branch: accuracy/n5-table-mismatch  (post-program N5 robustness study)
+current_branch: accuracy/n4-ritual-validation  (post-program N4 ritual validation)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
@@ -553,13 +553,74 @@ residual (up to 0.09 log-B, a quarter of σ) rides along inside every arm and
 reads as a string effect. Null perturbation is asserted bit-exact.
 
 **Limits.** The table was varied, the guitars were not — all 300 clips are
-GuitarSet, so timbre/mic/room portability is still unmeasured. The band is a
-lower bound (the curve is still rising at +0.60). σ = 0.60 arms are diagnostic
+GuitarSet, so timbre/mic/room portability is still unmeasured. ~~The band is a
+lower bound (the curve is still rising at +0.60).~~ **CLOSED by N4
+(2026-07-24):** on one consistent substrate +0.40 → +0.0131, +0.60 → +0.0160,
++0.78 → +0.0085, so the response **turns over between +0.60 and +0.78**,
+peaking near Q6's independently measured −0.566 residual. N4 also reproduced
+this study's `offset+0.60` arm at +0.0160 vs +0.0162 here — two independent
+studies agreeing to 0.0002. σ = 0.60 arms are diagnostic
 only: wider posterior doubles the gain when the table is badly wrong
 (+0.0120 → +0.0240) and costs a third when it is right (+0.0443 → +0.0300);
 not proposed, since choosing σ here would be tuning on the test. No offset
 default proposed either, for the same reason. Nothing registered, no shipped
 code touched, no default changed. 7.8 CPU-min, `$0`.
+
+## N4 ritual validation — blocker retired, ritual not worth shipping (2026-07-24)
+
+Report: `docs/EVAL_REPORTS/n4_ritual_validation_2026-07-24.md` (+ `.json`).
+Study: `tabvision/scripts/eval/n4_ritual_validation.py` (+ 12 unit tests).
+DECISIONS.md 2026-07-24.
+
+**The blocker was a property of the mono microphone, not of GuitarSet.**
+`calibrate_from_ritual` needs *certain* (string, fret) labels and a measurable
+`B` — not open strings and not temporally isolated notes. On the mono mic a
+note must be isolated in time to be measurable at all, which is where "only
+1-3 usable isolated open notes per player" came from. On
+`audio_hex-pickup_debleeded` every string has its own channel, so isolation is
+structural and JAMS supplies the label. Four clips per player yield 18/18
+ritual observations over 6/6 strings (players 00/01/04), 17 and 15 for 03/02.
+
+Mapping verified, not assumed: fitting each labelled note at its labelled `f0`
+in all six channels is 77% diagonal, with off-diagonal mass on **adjacent**
+channels (pickup bleed, not a permutation). Hence the bleed guard — a note
+enters only if its labelled channel is also the best-fitting one.
+
+**Verdict PARTIAL** on the pre-declared reading: the exponent recovers, but
+`ritual` vs `shipped` is **−0.0007 [−0.0081, +0.0061]**.
+
+| arm | vs shipped | lo-95 | hi-95 |
+|---|---:|---:|---:|
+| `ritual` (per-player `B0` + exponent) | −0.0007 | −0.0081 | +0.0061 |
+| `ritual-level` (per-player level only) | +0.0065 | −0.0020 | +0.0151 |
+| `global-level` (+0.780, ritual median) | +0.0085 | +0.0000 | +0.0170 |
+| `offset+0.40` (diagnostic) | +0.0131 | +0.0071 | +0.0194 |
+| **`offset+0.60`** (diagnostic) | **+0.0160** | +0.0088 | +0.0233 |
+
+- **More calibration is worse.** A fixed constant chosen *without* the ritual
+  beats the ritual's own constant, which beats its per-player levels, which
+  beat the full per-player fit.
+- **The fret exponent is measurably below the theoretical 1.0** —
+  0.859/0.887/0.835/**0.378**/0.869, five of five below, four tightly at
+  0.835–0.887. First measurement on real plucks; Q6 made the exponent fittable
+  for exactly this reason. It does **not** justify changing the shipped
+  exponent — the only arm that uses it is the worst one.
+- **Per-player calibration is real but nearly worthless.** Heterogeneity is
+  genuine (player 00 wants *no* offset; 01/02 want +0.60), but the **oracle**
+  per-player result (best arm per player, chosen on test) is +0.0187 against
+  the best fixed constant's +0.0160 — headroom **+0.0027** — while the ritual
+  lands **−0.0095 below** the constant. Variance ≈ 4× the signal.
+- Overshoot cause: the level is a median across strings, and 4 of 6 are wound
+  with shifts +0.75…+0.92 vs plain +0.21/+0.34, pulling it to +0.78 when the
+  decision-optimal offset is near +0.60. A second candidate — ritual measured
+  on hex, scoring on mono mic — is not separated here.
+
+**Recommendation: do not ship a per-instrument ritual** (machinery retained).
+**The live lever is the table's level**, worth +0.0160 [+0.0088, +0.0233] at
++0.60 log-B, now supported by three independent measurements of the same
+error: Q6's LOPO residual (−0.566), N5's perturbation sweep, and this run's
+direct hex measurement. That is a registered-artifact change on the `auto`
+path → **user decision** (see below), and it would want a cross-domain gate.
 
 ## Q4 gate revision (binding, from Q1's carry-forward)
 
@@ -625,6 +686,16 @@ order. A parallel session moved the shared working tree onto
 worktree so that checkout was left undisturbed.
 
 ## Iteration log (newest first)
+- 2026-07-24 — N4 — ritual validation. **Blocker RETIRED** (it was a mono-mic
+  property; hex isolates every string by construction → 18/18 obs over 6/6
+  strings, public data, no download). Verdict **PARTIAL**: exponent recovers
+  (median 0.859, and **5/5 players below the theoretical 1.0** — first
+  measurement on real plucks) but `ritual` vs shipped is −0.0007 [−0.0081,
+  +0.0061]. **Shipping question BANKED NEGATIVE**: more calibration is worse,
+  oracle per-player headroom is only +0.0027 while the ritual lands −0.0095
+  below a fixed constant. Live lever is the **table's level** (+0.0160 at
+  +0.60). Closed N5's open limit — the offset response turns over between
+  +0.60 and +0.78. `n4_ritual_validation_2026-07-24.md`.
 - 2026-07-24 — N5 — table-mismatch robustness **ROBUST**; the Q6 default-on
   caveat is discharged for the table axis. 300 clips × 17 pre-declared arms,
   banked replay. Every real-guitar arm lo-95 > 0; offset band ≥ [−0.40,
@@ -771,7 +842,7 @@ sessions as losing a "+22 pp" bonus. They actually score **0.2956 against a
 when every candidate sits above the capo. This is the largest single defect
 the program found, and it needs no new research to fix.
 
-## Two decisions pending (both yours, SPEC §0.8)
+## Three decisions pending (all yours, SPEC §0.8)
 
 1. **Default-on the Q6 channel** for clean steel-string acoustic, or keep it
    opt-in behind `--string-evidence acoustic-physics-v1`? Evidence: every
@@ -788,6 +859,19 @@ the program found, and it needs no new research to fix.
 2. **Route capo>0 to the covariant prior** instead of `priors=none`? Worth
    ~+0.37 to a capo user. Note the capo must still be supplied by hand;
    detection is refuted.
+3. **NEW (2026-07-24, from N4): correct the level of `acoustic-physics-v1` by
+   a uniform +0.60 log-B?** Worth **+0.0160 [+0.0088, +0.0233]** on 280 dev
+   clips on top of the shipped table — larger than anything per-instrument
+   calibration produced, and the error is now measured three independent ways
+   (Q6's LOPO residual −0.566; N5's perturbation sweep; N4's direct hex
+   measurement of the ritual, +0.51…+1.09 per player). Caveats you should
+   weigh: the **+0.60 value itself is located on GuitarSet dev**, so it is
+   in-distribution tuning in a way the specification-derived table was not —
+   the *existence* and *direction* of the error are corroborated, the exact
+   constant is not; it would want a cross-domain gate (today satisfied for
+   classical only by abstention); and it changes a registered artifact's hash.
+   A conservative variant is +0.40 (+0.0131 [+0.0071, +0.0194]), which keeps
+   most of the gain further from the fitted optimum.
 
 ## Proposed next program, in ROI order
 
@@ -826,7 +910,22 @@ The review-ranker died because it wanted Q3's posteriors. The inharmonicity
 fit produces exactly what it lacked: a per-note confidence (`r²`) and a
 physically-grounded margin between candidate strings.
 
-**N4 — Per-instrument calibration for real use.** `calibrate_from_ritual`
+**N4 — DONE (2026-07-24): blocker RETIRED, verdict PARTIAL, shipping question
+BANKED NEGATIVE.** The recorded blocker ("GuitarSet has only 1-3 usable
+isolated open notes per player, so it cannot contain the ritual") was a
+property of the **mono microphone**. `calibrate_from_ritual` needs certain
+(string, fret) labels and a measurable `B` — not open or isolated notes — and
+`audio_hex-pickup_debleeded` isolates every string **by construction**:
+18/18 observations over 6/6 strings for three of five players. Public data, no
+download, ban untouched. Result on 280 clips (vs shipped): `ritual` **-0.0007
+[-0.0081, +0.0061]**; per-player level +0.0065; the ritual's global constant
++0.0085; diagnostic **`offset+0.60` +0.0160 [+0.0088, +0.0233]**. **More
+calibration is worse** — a constant chosen *without* the ritual beats
+everything the ritual produces. Oracle per-player headroom over the best fixed
+constant is **+0.0027** (chosen on test); the ritual lands **-0.0095 below**
+it. Do not ship a ritual; machinery retained. See
+`n4_ritual_validation_2026-07-24.md`. Original text:
+`calibrate_from_ritual`
 (18 notes, three frets × six strings, fits `B0` *and* the fret exponent) is
 built but unvalidated on real plucks — GuitarSet contains only 1-3 usable
 isolated open notes per player, so it cannot contain the ritual. Needs public
@@ -886,6 +985,17 @@ principle).
   derivation's own fit residual — 0.09 log-B on G3 in N5, a quarter of the
   channel's σ — which then reads as the effect being measured. Assert the null
   perturbation is bit-exact. Cost of catching this late: one killed run.
+- **Re-test a blocker whose stated cause names a specific constraint.** N4 sat
+  blocked on "GuitarSet cannot contain the ritual". That was true of the **mono
+  microphone** and false of the dataset — the hex pickup isolates every string
+  by construction. The blocker named its own falsifier and nobody checked.
+  Cost of checking: one probe. Value: the item, plus the finding that closed it.
+- **Price the simple alternative before building the sophisticated one.** "Does
+  per-instrument calibration work?" was worth far less than "is it better than
+  one constant?". The oracle answer — +0.0027 of headroom, against a ritual
+  landing −0.0095 *below* the constant — closed a multi-week build in one
+  iteration. Compute the oracle first: if the ceiling is small, no estimator
+  can rescue it.
 - **A shared factor is not a no-op when only one side of a comparison moves.**
   Q6 reasoned that a uniform level error shifts every candidate equally and is
   therefore harmless; N5 measured 0.049 Tab F1 of swing. The predictions moved
