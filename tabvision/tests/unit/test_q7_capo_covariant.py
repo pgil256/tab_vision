@@ -9,10 +9,11 @@ against a prior with a known, asymmetric shape.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scripts.eval.q7_capo_covariant_probe import _covariant_score, _naive_score
 from tabvision.fusion.position_prior import PitchPositionPrior
-from tabvision.types import GuitarConfig
+from tabvision.types import GuitarConfig, SessionConfig
 
 CFG = GuitarConfig()
 
@@ -63,3 +64,88 @@ def test_out_of_range_shift_returns_none() -> None:
     # range has no matrix — both must decline rather than fabricate a score.
     assert _covariant_score(prior, 41, 0, 0, 5) is None
     assert _covariant_score(prior, 30, 0, 10, 2) is None
+
+
+# --- routing (2026-07-24 decision: capo>0 uses the covariant prior) ---
+
+
+def _capo_policy(capo: int, **kwargs: object):
+    from tabvision.fusion.inference_policy import resolve_inference_policy
+
+    return resolve_inference_policy(
+        requested_position_prior="auto",
+        requested_sequence_prior="auto",
+        requested_string_evidence="auto",
+        cfg=GuitarConfig(capo=capo),
+        session=SessionConfig(),
+        audio_backend_name="highres-ensemble",
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+@pytest.mark.parametrize("capo", [1, 2, 4, 7])
+def test_capo_sessions_get_the_position_prior(capo: int) -> None:
+    """Capo>0 used to route to priors=none, a measured collapse.
+
+    Q7: 0.2956 Tab F1 at capo 2 vs a 0.6773 capo-0 control, string wrong on
+    two thirds of notes, because the no-prior fallback prefers low frets and
+    under a capo every candidate is at fret >= capo.
+    """
+    assert _capo_policy(capo).resolved_position_prior == "guitarset-v1"
+
+
+@pytest.mark.parametrize("capo", [1, 2, 4, 7])
+def test_capo_suppresses_the_sequence_prior(capo: int) -> None:
+    """The sequence artifact is not capo-invariant, so it stays off.
+
+    ``delta_fret`` conditions on the absolute previous-fret region. Q7
+    measured the pairing rather than assuming: covariant+seq 0.6766 vs
+    covariant 0.6827 at capo 2.
+    """
+    policy = _capo_policy(capo)
+    assert policy.resolved_sequence_prior == "none"
+    assert "not capo-invariant" in policy.resolution_reason
+
+
+@pytest.mark.parametrize("capo", [1, 2, 4, 7])
+def test_capo_still_abstains_from_the_physics_channel(capo: int) -> None:
+    """B0 describes the *open* string; a capo moves length and tension."""
+    assert _capo_policy(capo).resolved_string_evidence == "none"
+
+
+def test_capo_zero_is_unchanged() -> None:
+    policy = _capo_policy(0)
+    assert policy.resolved_position_prior == "guitarset-v1"
+    assert policy.resolved_sequence_prior == "guitarset-seq-v1"
+    assert policy.resolved_string_evidence == "acoustic-physics-v1"
+
+
+def test_capo_routing_does_not_leak_to_other_instruments() -> None:
+    from tabvision.fusion.inference_policy import resolve_inference_policy
+
+    for instrument in ("classical", "electric"):
+        policy = resolve_inference_policy(
+            requested_position_prior="auto",
+            requested_sequence_prior="auto",
+            requested_string_evidence="auto",
+            cfg=GuitarConfig(capo=3),
+            session=SessionConfig(instrument=instrument),
+            audio_backend_name="highres",
+        )
+        # Unmeasured under capo; keeps the acoustic change from silently
+        # widening. Classical+capo remains a known gap.
+        assert policy.resolved_position_prior == "none"
+
+
+def test_alternate_tuning_with_capo_still_abstains() -> None:
+    from tabvision.fusion.inference_policy import resolve_inference_policy
+
+    policy = resolve_inference_policy(
+        requested_position_prior="auto",
+        requested_sequence_prior="auto",
+        requested_string_evidence="auto",
+        cfg=GuitarConfig(capo=2, tuning_midi=(38, 45, 50, 55, 59, 64)),
+        session=SessionConfig(),
+        audio_backend_name="highres",
+    )
+    assert policy.resolved_position_prior == "none"

@@ -45,7 +45,6 @@ def test_auto_uses_global_pair_for_supported_acoustic_styles(style: str) -> None
 @pytest.mark.parametrize(
     ("cfg", "session"),
     [
-        (GuitarConfig(capo=2), SessionConfig()),
         (GuitarConfig(tuning_midi=(38, 45, 50, 55, 59, 64)), SessionConfig()),
         (GuitarConfig(capo=2), SessionConfig(instrument="classical")),
         (
@@ -62,6 +61,21 @@ def test_auto_is_neutral_outside_validated_domain(
 ) -> None:
     policy = _resolve(cfg=cfg, session=session)
     assert policy.resolved_position_prior == "none"
+    assert policy.resolved_sequence_prior == "none"
+    assert policy.resolved_assignment_decoder == "baseline"
+
+
+def test_acoustic_capo_gets_the_covariant_position_prior_only() -> None:
+    """Was in the neutral list above until 2026-07-24.
+
+    Routing capo>0 to priors=none measured as a *collapse*, not a shortfall:
+    0.2956 Tab F1 at capo 2 against a 0.6773 capo-0 control. The position
+    prior re-indexes exactly under a capo and is now applied; the sequence
+    prior does not (delta_fret conditions on absolute fret region) and stays
+    off. The additive decoders remain baseline.
+    """
+    policy = _resolve(cfg=GuitarConfig(capo=2), session=SessionConfig())
+    assert policy.resolved_position_prior == "guitarset-v1"
     assert policy.resolved_sequence_prior == "none"
     assert policy.resolved_assignment_decoder == "baseline"
 

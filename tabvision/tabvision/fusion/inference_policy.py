@@ -62,9 +62,11 @@ def resolve_inference_policy(
 
     position_manifest: ArtifactManifest | None = None
     if requested_position == "auto":
-        if _automatic_acoustic_domain(cfg, session):
+        if _automatic_position_domain(cfg, session):
             try:
                 position_manifest = load_artifact_manifest("guitarset-v1", expected_kind="position")
+                if cfg.capo > 0:
+                    reasons.append(f"position prior re-indexed for capo {cfg.capo}")
             except ConfigurationError as exc:
                 reasons.append(f"automatic position prior unavailable: {exc}")
         elif _automatic_classical_domain(cfg, session):
@@ -85,6 +87,19 @@ def resolve_inference_policy(
     sequence_manifest: ArtifactManifest | None = None
     if requested_sequence == "auto":
         paired = position_manifest.compatible_sequence_prior if position_manifest else None
+        if paired and cfg.capo > 0:
+            # The registered sequence artifact uses the ``delta_fret`` scheme,
+            # which conditions on the *absolute* previous-fret region and is
+            # therefore NOT capo-invariant — unlike the position prior, which
+            # re-indexes exactly. Q7 measured the pairing under capo rather
+            # than assuming: covariant+seq 0.6766 vs covariant 0.6827 at capo
+            # 2, i.e. it costs a little and gains nothing. Position prior on,
+            # sequence prior off, is the arm that was gated.
+            reasons.append(
+                "sequence prior is not capo-invariant (delta_fret conditions on "
+                "absolute fret region); suppressed under capo"
+            )
+            paired = None
         if paired:
             try:
                 sequence_manifest = load_artifact_manifest(paired, expected_kind="sequence")
@@ -160,11 +175,34 @@ def _choice(value: str | None, *, default: str) -> str:
 
 
 def _automatic_acoustic_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
+    """Clean acoustic, standard tuning, **capo 0**.
+
+    The strict domain. Gates the physics channel and the additive decoders,
+    both of which genuinely break under a capo: ``B0`` describes the *open*
+    string, and a capo moves the speaking length and tension.
+    """
+    return _automatic_position_domain(cfg, session) and cfg.capo == 0
+
+
+def _automatic_position_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
+    """Clean acoustic, standard tuning, **any capo**.
+
+    The position prior is the one artifact that survives a capo, because a
+    capo shifts the whole fretboard uniformly: a note at absolute fret ``f``
+    under capo ``C`` is the shape ``f-C`` without one, so re-indexing both
+    axes makes the capo-0 prior apply exactly (``capo_covariant_prior``).
+
+    Routing capo sessions to ``priors=none`` was not merely forgoing a bonus.
+    Without a prior the decoder falls back to a low-fret preference, and under
+    a capo every candidate sits at fret >= C, so that heuristic mispicks
+    systematically: Q7 measured **0.2956** Tab F1 at capo 2 against a 0.6773
+    capo-0 control, with the string wrong on two thirds of notes. The
+    covariant prior restores **0.6827** (+0.3870 [+0.2818, +0.4906]).
+    """
     return (
         session.instrument == "acoustic"
         and session.tone == "clean"
         and cfg.tuning_midi == DEFAULT_TUNING_MIDI
-        and cfg.capo == 0
     )
 
 

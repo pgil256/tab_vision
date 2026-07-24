@@ -4204,3 +4204,43 @@ construction. `--string-evidence none` is the rollback.
 being held opt-in pending a decision, while a latent domain-guard bug meant the
 opt-in path did not work either. Promoting it and fixing the guard in one
 change keeps the shipped behaviour and the measured behaviour identical.
+
+## 2026-07-24 — route capo>0 to the capo-covariant position prior
+**Phase:** post-program, accuracy loop decision #2
+**Decision:** clean-acoustic sessions with capo>0 now resolve `guitarset-v1`
+and apply `capo_covariant_prior(prior, capo)`. The sequence prior stays off
+under capo. User-authorized.
+**Result:** Q7 measured today's `priors=none` capo routing as a **collapse,
+not a shortfall** — 0.2956 Tab F1 at capo 2 against a 0.6773 capo-0 control,
+with `wrong_position_same_pitch` at 1182 vs 615 correct. Without a prior the
+decoder falls back to a low-fret preference; under a capo every candidate sits
+at fret >= capo, so that heuristic mispicks systematically. The covariant
+prior restores **0.6827 (+0.3870 [+0.2818, +0.4906])** at capo 2 and 0.6533
+(+0.3658 [+0.2613, +0.4685]) at capo 4.
+**Sequence prior deliberately excluded.** The registered artifact uses the
+`delta_fret` scheme, which conditions on the *absolute* previous-fret region
+and is therefore not capo-invariant. Q7 measured the pairing rather than
+assuming it: covariant+seq 0.6766 vs covariant 0.6827 at capo 2 — it costs a
+little and gains nothing. `covariant` alone is the arm that was gated and the
+arm that ships.
+**Physics channel still abstains under capo** (`B0` describes the *open*
+string; a capo moves speaking length and tension). Unchanged.
+**Scope held to what was measured:** `_automatic_position_domain` is acoustic
++ standard tuning + any capo. Classical+capo and alternate-tuning+capo still
+route to `none`. The same covariance argument plausibly applies to the
+classical `gaps-v1` prior, but it is unmeasured, so it stays a known gap
+rather than an assumption.
+**Honest limits (carried from the Q7 report):** 20 clips, two capos,
+synthetic capo by pitch-shift with relabelled gold. The *collapse* half is a
+genuine measurement of current behaviour; the *restoration* half is partly
+guaranteed by construction, since relabelled capo-0 gold satisfies the
+covariance assumption by definition. GuitarSet has no real capo recordings.
+Capo remains user-supplied — Q7 refuted detection (1/60 from pitch, because a
+capo is pitch-identical to a transposition).
+**Evidence:** `docs/EVAL_REPORTS/q7_capo_audio_2026-07-23.md`,
+`q7_capo_covariant_2026-07-22.md`, `q7_capo_detect_2026-07-23.md`.
+962 unit tests pass; ruff and mypy clean.
+**Reasoning:** the transform and its tests already existed and were gated; only
+the routing was withheld pending this decision. Shipping the position prior
+without the sequence prior keeps the shipped configuration identical to the
+measured one rather than pairing them out of convention.
