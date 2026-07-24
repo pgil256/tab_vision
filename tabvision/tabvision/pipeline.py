@@ -40,7 +40,11 @@ from tabvision.fusion.inference_policy import ResolvedInferencePolicy, resolve_i
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
 from tabvision.fusion.playability import set_transition_prior
-from tabvision.fusion.position_prior import apply_pitch_position_prior, load_pitch_position_prior
+from tabvision.fusion.position_prior import (
+    apply_pitch_position_prior,
+    capo_covariant_prior,
+    load_pitch_position_prior,
+)
 from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.transition_prior import load_transition_prior
 from tabvision.fusion.viterbi import assignment_decoder_context
@@ -295,8 +299,18 @@ def run_pipeline_with_artifacts(
 
     if policy.resolved_position_prior != "none":
         prior = load_pitch_position_prior(policy.resolved_position_prior, cfg=cfg)
+        if cfg.capo > 0:
+            # A capo shifts the fretboard uniformly, so the capo-0 prior
+            # applies once both axes are re-indexed. Without this the prior
+            # would be read at absolute coordinates — the "naive" arm, which
+            # Q7 measured as no better than no prior at all by capo 4.
+            prior = capo_covariant_prior(prior, cfg.capo)
         audio_events = apply_pitch_position_prior(audio_events, prior, cfg)
-        logger.info("attached pitch-position prior %s", policy.resolved_position_prior)
+        logger.info(
+            "attached pitch-position prior %s%s",
+            policy.resolved_position_prior,
+            f" (capo-covariant, capo {cfg.capo})" if cfg.capo > 0 else "",
+        )
 
     if melodic_prior_enabled:
         audio_events = apply_melodic_segment_prior(audio_events, cfg)
