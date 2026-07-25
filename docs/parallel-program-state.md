@@ -93,7 +93,7 @@ Track E.
 |---|---|---|---|
 | A — physics coverage | `accuracy/a-physics-coverage` | **result, dev leg passed** | hard thresholds refuted; confidence weighting **+0.0071 [+0.0021, +0.0122]** vs shipped at 28% coverage |
 | B — timbral string classifier | `accuracy/b-timbre` | **CLOSED** | ceiling large, signal present, extraction ~0 — the conversion is the constraint |
-| C — session-adaptive prior | `accuracy/c-prior-adapt` | not started | owns `inference_policy.py` |
+| C — session-adaptive prior | `accuracy/c-prior-adapt` | **result** | personal-prior ceiling **+0.0305**; within-session self-adaptation not promoted |
 | D — detection buckets | `accuracy/d-detection` | **result** | both buckets decomposed; see section |
 | E — hygiene | `chore/e-hygiene` | **done** | 3 stale branches closed, loop-state frozen |
 
@@ -144,6 +144,34 @@ better features — Phase 4 already went to Nyquist.
 
 Report: `EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
 
+### Track C — session-adaptive position prior
+
+**Personal-prior lever justified and priced; self-adaptation not promoted.**
+
+`oracle_player` — giving a player their own prior — is worth **+0.0305
+[+0.0183, +0.0430]**, positive for all five players and largest where the system
+is weakest (player 01 +0.0762). Mean total-variation distance between per-player
+priors is 0.197: players really do differ, moderately.
+
+`self_adapt` (no gold — harvest the decode's own confident assignments, learn a
+session prior, blend, re-decode) gains **+0.0101 [+0.0036, +0.0166]** at the best
+weight and is genuinely session-specific: the **mismatched control regresses
+−0.0250**, four times as hard as the matched arm helps. But it helps three
+players and **hurts two, including the strongest**, so it fails the
+no-regression leg and is not promoted.
+
+**Recommendation — sub-item (ii), a personal prior from accumulated user data.**
+It is the only lever in this program whose production form is *easier* than its
+experimental form: a personal app sees the same player repeatedly, and the
+assisted-review queue already collects the confirmed (string, fret) labels a
+personal prior is built from, then discards them.
+
+⚠️ A 10-clip smoke covering only player 00 showed the player oracle at
+**−0.0084** — the opposite conclusion. Player 00 *is* the population average
+(own prior worth +0.0010). Price ceilings on the full dev set.
+
+Report: `EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
+
 ### Track E — hygiene
 
 **Done.** Three "unmerged" branches (`codex/fix-live-deployment`,
@@ -192,6 +220,34 @@ per-note evidence is *combined* (Track A's confidence-weighting precedent), not
 better features — Phase 4 already went to Nyquist.
 
 Report: `EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
+
+### Track C — session-adaptive position prior
+
+**Personal-prior lever justified and priced; self-adaptation not promoted.**
+
+`oracle_player` — giving a player their own prior — is worth **+0.0305
+[+0.0183, +0.0430]**, positive for all five players and largest where the system
+is weakest (player 01 +0.0762). Mean total-variation distance between per-player
+priors is 0.197: players really do differ, moderately.
+
+`self_adapt` (no gold — harvest the decode's own confident assignments, learn a
+session prior, blend, re-decode) gains **+0.0101 [+0.0036, +0.0166]** at the best
+weight and is genuinely session-specific: the **mismatched control regresses
+−0.0250**, four times as hard as the matched arm helps. But it helps three
+players and **hurts two, including the strongest**, so it fails the
+no-regression leg and is not promoted.
+
+**Recommendation — sub-item (ii), a personal prior from accumulated user data.**
+It is the only lever in this program whose production form is *easier* than its
+experimental form: a personal app sees the same player repeatedly, and the
+assisted-review queue already collects the confirmed (string, fret) labels a
+personal prior is built from, then discards them.
+
+⚠️ A 10-clip smoke covering only player 00 showed the player oracle at
+**−0.0084** — the opposite conclusion. Player 00 *is* the population average
+(own prior worth +0.0010). Price ceilings on the full dev set.
+
+Report: `EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
 
 ### Track E — hygiene
 _(nothing yet)_

@@ -5214,3 +5214,63 @@ features — Phase 4 already went to Nyquist — but how weak per-note evidence 
 own confidence rather than at full weight turned a regression into a gain. That
 is the only version of this idea the measurements support, and it needs its own
 gate.
+
+---
+
+## 2026-07-25 — personal-prior lever priced at +0.0305; within-session self-adaptation not promoted
+
+**Phase:** Parallel improvement program, Track C (session-adaptive position prior)
+**Decision tree:** The shipped position prior is population statistics; a player
+whose habits differ is systematically mis-assigned and nothing notices. Price
+the ceiling before building an estimator (the N4 rule), then measure the
+achievable no-gold version.
+**Branch taken:** **Justify sub-item (ii)** — build a personal prior from
+accumulated user data — with a measured ceiling of **+0.0305**. **Do not promote
+sub-item (i)**, within-session self-adaptation, despite a CI-significant
+aggregate gain. Shipped default unchanged; no artifact registered.
+**Evidence:** 300 dev clips, leave-one-player-out, sealed player not opened,
+frozen drift ±0.0000. Report:
+`docs/EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
+
+- `oracle_player` (the player's own in-sample prior): 0.6801 → **0.7106**,
+  **+0.0305 [+0.0183, +0.0430]**. Positive for all five players and largest
+  where the system is weakest (player 01 **+0.0762** off the worst baseline).
+- `oracle_clip` (the clip's own gold): +0.1527 — a loose bound, unreachable.
+- `self_adapt` (no gold; harvest the decode's own confident assignments, learn a
+  session prior, blend, re-decode): +0.0022 / +0.0040 / +0.0062 / +0.0087 /
+  **+0.0101 [+0.0036, +0.0166]** at blend weights 0.15 → 1.00, monotone.
+- **Control — mismatched session prior at the same weight: −0.0250
+  [−0.0334, −0.0171]**, a decisive regression against the matched arm's +0.0062.
+- Per-player, self-adaptation helps 00 (+0.0271), 01 (+0.0216), 03 (+0.0117) and
+  **hurts 02 (−0.0039) and 05 (−0.0060)** — 05 being the strongest player.
+- Mean total-variation distance between per-player priors: **0.197**.
+
+**Reasoning:** The control is what makes the self-adaptive result readable at
+all. At a 92% harvest rate the session prior is close to a restatement of the
+decode, so the gain could have been pure self-confirmation; a mismatched session
+prior regressing four times as hard as the matched one helps proves the effect
+is session-specific. It also carries a production warning: adapting to the
+*wrong* session is far more harmful than adapting to the right one is helpful.
+
+λ=1.00 scoring best is not the degenerate reading it appears to be — pass 1 used
+the population prior, so its information is baked into the session prior rather
+than discarded. The monotone trend is a statement about intra-session
+consistency, not about the population prior being worthless.
+
+The gate is failed on its second leg, deliberately kept: an adaptive prior that
+lifts the aggregate by hurting the players who already do well is not a default,
+whatever the mean says. The `oracle_player` arm has the opposite and much better
+shape — positive everywhere, largest where need is greatest.
+
+**Why (ii) is the recommendation:** it is the only lever in this program whose
+production form is *easier* than its experimental form. TabVision is a personal
+application, so the same player recurs across sessions, and the assisted-review
+queue already collects confirmed (string, fret) labels and discards them. The
+ingredient exists and is being thrown away.
+
+**Method note:** a 10-clip smoke of this probe covered only player 00 and showed
+the player oracle at **−0.0084**, i.e. the exact opposite conclusion. Player 00's
+own prior is worth +0.0010 — that player *is* the population average. A
+single-player pilot would have closed this track wrongly, which is an argument
+for pricing ceilings on the full development set even when the pilot looks
+decisive.
