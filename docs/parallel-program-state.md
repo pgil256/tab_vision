@@ -92,7 +92,7 @@ Track E.
 | track | branch | status | headline |
 |---|---|---|---|
 | A — physics coverage | `accuracy/a-physics-coverage` | **result, dev leg passed** | hard thresholds refuted; confidence weighting **+0.0071 [+0.0021, +0.0122]** vs shipped at 28% coverage |
-| B — timbral string classifier | `accuracy/b-timbre` | not started | needs compute approval before training |
+| B — timbral string classifier | `accuracy/b-timbre` | **CLOSED** | ceiling large, signal present, extraction ~0 — the conversion is the constraint |
 | C — session-adaptive prior | `accuracy/c-prior-adapt` | not started | owns `inference_policy.py` |
 | D — detection buckets | `accuracy/d-detection` | **result** | both buckets decomposed; see section |
 | E — hygiene | `chore/e-hygiene` | **done** | 3 stale branches closed, loop-state frozen |
@@ -120,6 +120,30 @@ partial-aware fits costs 2.9 min once; arms then sweep in seconds.
 
 Report: `EVAL_REPORTS/a_physics_coverage_2026-07-25.md`.
 
+### Track B — timbral string classifier
+
+**CLOSED. Do not build `guitarset-timbre-v1`.** Third independent closure of
+this path, first one with a measured account of why.
+
+On the ~77% of ambiguous notes where physics abstains: the gold-string oracle is
+worth **+0.1934 [+0.1768, +0.2101]** (ceiling is large), pairwise separability
+is **AUC 0.7060** vs 0.6633 on covered (signal is present) — yet the two prior
+model-based probes realised **+0.0072** and **−0.0218**. The constraint is the
+**conversion**, not the ingredients: AUC 0.71 is heavily overlapping
+distributions competing against a prior already at ~0.65 top-1 on the same
+notes, which is exactly where added channels wash out.
+
+**A hypothesis was refuted:** the probe was built to show masking destroys
+timbral information. Separability on the 66%-masked abstain population is
+*slightly better* than on covered. Physics abstains under simultaneity; timbre
+does not care.
+
+No artifact, no training, no spend. If reopened, the question is how weak
+per-note evidence is *combined* (Track A's confidence-weighting precedent), not
+better features — Phase 4 already went to Nyquist.
+
+Report: `EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
+
 ### Track E — hygiene
 
 **Done.** Three "unmerged" branches (`codex/fix-live-deployment`,
@@ -144,6 +168,30 @@ _(nothing yet)_
 
 ### Track D — detection buckets
 _(nothing yet)_
+
+### Track B — timbral string classifier
+
+**CLOSED. Do not build `guitarset-timbre-v1`.** Third independent closure of
+this path, first one with a measured account of why.
+
+On the ~77% of ambiguous notes where physics abstains: the gold-string oracle is
+worth **+0.1934 [+0.1768, +0.2101]** (ceiling is large), pairwise separability
+is **AUC 0.7060** vs 0.6633 on covered (signal is present) — yet the two prior
+model-based probes realised **+0.0072** and **−0.0218**. The constraint is the
+**conversion**, not the ingredients: AUC 0.71 is heavily overlapping
+distributions competing against a prior already at ~0.65 top-1 on the same
+notes, which is exactly where added channels wash out.
+
+**A hypothesis was refuted:** the probe was built to show masking destroys
+timbral information. Separability on the 66%-masked abstain population is
+*slightly better* than on covered. Physics abstains under simultaneity; timbre
+does not care.
+
+No artifact, no training, no spend. If reopened, the question is how weak
+per-note evidence is *combined* (Track A's confidence-weighting precedent), not
+better features — Phase 4 already went to Nyquist.
+
+Report: `EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
 
 ### Track E — hygiene
 _(nothing yet)_
