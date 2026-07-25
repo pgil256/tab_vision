@@ -4880,3 +4880,272 @@ runtime used cached audio predictions and therefore cannot close the full
 end-to-end latency gate. Those limitations make default promotion premature,
 while the conservative opt-in preserves the measured corrections and the
 existing rollback.
+
+---
+
+## 2026-07-25 — rotate the sealed confirmation set from player 05 to player 04
+
+**Phase:** Parallel improvement program, Phase 0 (P0.1)
+**Decision tree:** Player 05 had been opened twice for `acoustic-physics-v1` and
+four incoming workstreams all wanted confirmation against it. Either keep using
+a spent set, relabel it development-adjacent and have no sealed set at all, or
+rotate to a fresh player and accept a one-time re-base.
+**Branch taken:** Rotate. Sealed = player **04**, chosen by a mechanical rule
+(next player index below the burned one) fixed before any per-player score was
+inspected. Player 05 returns to development, so dev keeps 300 clips and only the
+roles swap. Every clip — dev and sealed alike — is now scored under
+leave-one-player-out priors rebuilt from a six-player pool at the registered
+artifacts' hyper-parameters, so no clip is ever scored under a prior that
+memorized its own player. The shipped artifacts are unmodified.
+**Evidence:** `docs/EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md` (+
+`.json`). The harness reproduces `player05_batched_confirm_2026-07-24`'s
+published 0.6340 / 0.7346 to −0.0000 drift on both arms, asserted at runtime.
+On the new sealed player 04 the shipped default measures aggregate **0.6609**
+(single-line 0.6686, strummed 0.6533) against a no-physics baseline of 0.6087 —
+Δ **+0.0522 [+0.0259, +0.0809]**, PASS. Dev over the remaining five players:
+0.6801 vs 0.6083, Δ +0.0718 [+0.0558, +0.0885].
+**Reasoning:** A sealed set that has been opened twice cannot support a
+program's worth of incoming confirmations, and the alternative — discovering
+later that nothing is confirmable — is far more expensive than one re-base. The
+mechanical selection rule matters as much as the rotation: a player chosen after
+seeing scores would bias every confirmation the rotation exists to protect.
+
+---
+
+## 2026-07-25 — the physics channel is worth +0.05 to +0.07, not +0.10
+
+**Phase:** Parallel improvement program, Phase 0 (P0.3/P0.4)
+**Decision tree:** Establish the frozen baseline the parallel tracks measure
+against, and decide whether the published headline can stand as the reference.
+**Branch taken:** Re-base the published numbers. Report the channel's value as a
+range with the per-player spread attached, and treat the dev figure over five
+players as the population estimate rather than any single held-out player.
+**Evidence:** Measured on all six players under leave-one-out priors, the
+channel's aggregate gain is +0.0468 (03), +0.0522 (04), +0.0603 (01), +0.0671
+(02), +0.0841 (00), +0.1006 (05) — a **2.15× spread, with the previously sealed
+player 05 at the maximum**. The Q6 and 2026-07-24 measurements are reproduced
+exactly, so nothing was mis-measured; the single-player estimate was simply the
+top of a wide range. Shipped aggregate on the new sealed player is 0.6609 versus
+the 0.7346 the README carried.
+**Reasoning:** A held-out player estimates a population mean only as tightly as
+the population is uniform, and this one is not. Publishing the maximum of six
+draws as the headline overstates what a new user should expect. The range is
+still a clear win and the channel still passes its gate on a fresh sealed
+player; only the point estimate was too generous.
+
+---
+
+## 2026-07-25 — Track D promoted; no accuracy track is cut
+
+**Phase:** Parallel improvement program, Phase 0 (P0.3)
+**Decision tree:** Phase 0's decomposition was explicitly allowed to kill a
+track — if `wrong_position_same_pitch` had fallen below `missed_onset`, Tracks
+A/B/C would have been chasing a bucket that was no longer dominant.
+**Branch taken:** Keep all four accuracy tracks; promote Track D from
+"measurement, probably only measurement" to a first-class track.
+**Evidence:** Shipped-arm decomposition. `wrong_position_same_pitch` is still
+the largest bucket at **47.6%** of dev loss (63.6% on single-line), down from
+57.3% pre-physics and 51.9% in this run's own baseline arm. But `missed_onset` +
+`extra_detection` together are **33.3%** of dev loss and **39.4%** of sealed
+loss, against 38.6% for wrong position on the sealed player — effectively tied.
+Also measured: between the two arms `pitch_off`, `timing_only`, `missed_onset`
+and `extra_detection` are identical to the event, and only
+`wrong_position_same_pitch` moves (13,088 → 10,999), converting 1:1 into
+`correct`. This directly verifies the claim that the channel cannot add, remove,
+or retime a note.
+**Reasoning:** The dominant bucket is still dominant, so the string-assignment
+tracks keep their justification, but the detection buckets are within striking
+distance and have had a fraction of the investment. Track D keeps its
+measurement-first discipline — the A10 precedent, where decomposing `pitch_off`
+closed it and saved the build, is the model — but it is no longer a side quest.
+
+---
+
+## 2026-07-25 — close three deployment branches as already-merged-by-content
+
+**Phase:** Parallel improvement program, Track E (hygiene)
+**Decision tree:** Three branches had sat unmerged for two weeks
+(`codex/fix-live-deployment`, `codex/record-live-shutdown`,
+`docs/prod-repoint-2026-07-09`). Merge them, or establish that they are not
+pending work.
+**Branch taken:** Close all three without merging. Their content is already in
+`main`, so the merges were noise — an attempt to merge the first produced a
+2,700-line `docs/DECISIONS.md` conflict purely because the branch predates every
+subsequent entry. Local branches deleted (SHAs recorded below; all three still
+exist on `origin`, so deleting the remote copies is left to the user).
+**Evidence:** `git cherry -v main codex/record-live-shutdown` reports `3992d88`
+as already upstream by patch-id. The other two are upstream by *content* rather
+than patch-id, having landed via PR #34 (`6a34c26`, "fix(web): refresh
+production and keep landing controls reachable"): `main` contains the
+landing-scroll and tooltip-placement fixes in both `web-client/src/App.tsx` and
+`index.css`, the full 2026-07-09 production-repoint entry, and the 2026-07-13
+Modal-retirement entry. Deleted refs: `codex/fix-live-deployment` @ `43b77a4`,
+`codex/record-live-shutdown` @ `3992d88`, `docs/prod-repoint-2026-07-09` @
+`87ec076`.
+**Reasoning:** A branch whose content has landed by another route is not
+outstanding work, and treating it as such generates conflicts that look like
+real disagreements. Patch-id equality is the cheap test; when it fails because a
+PR squashed or amended the change, the content test is the correct fallback
+rather than a merge attempt.
+
+**Incidental finding worth recording:** the retirement entry retires the *old*
+`pgil256` Modal workspace, not the deployment. The active `pgilhooley95` app is
+unaffected, so the README's claim that the project ships via a Modal production
+deploy remains accurate. This was checked because the branch name
+("record-live-shutdown") suggested otherwise.
+
+---
+
+## 2026-07-25 — freeze `accuracy-loop-state.md` as historical rather than update it
+
+**Phase:** Parallel improvement program, Track E (hygiene)
+**Decision tree:** The accuracy loop's state file is stale and self-
+contradicting. Either bring it current, or mark it closed.
+**Branch taken:** Freeze it with a prominent header enumerating exactly which
+claims are wrong, and point readers at `parallel-program-state.md` and the
+Phase 0 report. Do not update the queue table — the program it describes is
+closed, and a refreshed table would imply it is live.
+**Evidence:** The header names `accuracy/n4-ritual-validation` as the current
+branch; the real tip was `accuracy/level-correction-0.60`, four commits later.
+The Q6 row still reads "opt-in" though the channel became the default on
+2026-07-24, and the Q7 row still requests a capo-routing decision that shipped
+the same day. Nothing in the file records the +0.60 level correction being
+built, refuted on held-out data, and reverted, nor N1 being confirmed and
+shipped.
+**Reasoning:** The file's remaining value is its account of what was tried and
+why, which is intact and worth keeping. Its queue state is worse than useless
+because it reads as current. Marking the boundary precisely is more honest than
+a refresh that would blur which parts were contemporaneous. The successor
+program keeps its numbers in a generated report and uses prose only for
+narrative, so it cannot drift the same way.
+
+---
+
+## 2026-07-25 — close `extra_detection`, open `missed_onset`
+
+**Phase:** Parallel improvement program, Track D (detection buckets)
+**Decision tree:** Phase 0 promoted the detection buckets to a first-class track
+(33.3% of dev loss, 39.4% of sealed). Following the A10 precedent, decompose
+before building: look for a dominant fixable mode in each bucket and build only
+if one survives.
+**Branch taken:** **Close `extra_detection`** as a fix target. **Keep
+`missed_onset` open**, with a masking-aware detection pass as the single build
+candidate this probe supports. Build nothing yet.
+**Evidence:** 300 development clips, current default, residuals read from the
+shipped matcher via a new out-parameter rather than a reimplementation.
+Report: `docs/EVAL_REPORTS/d_detection_probe_2026-07-25.md`.
+
+`extra_detection` (3,324), against the interval content of the music: fifths and
+fourths are 29.6% of spurious detections and **37.2% of the intervals the music
+contains** — lift **0.80×**, i.e. depleted. `other` 0.92×, `semitone` 0.64×.
+Only octaves (10.2%, **2.32×**) and unisons (6.9%, **1.53×**) are genuinely
+enriched, together ~17% of the bucket and ~2.5% of total loss. Ring-out is 1.4%,
+so offset handling is not the problem either.
+
+`missed_onset` (4,371), against all gold notes: 3+ simultaneous neighbours
+**49.0% vs 30.1% base (1.63×)**; sounding alone **13.5% vs 30.2% (0.45×)**;
+short notes < 150 ms **34.0% vs 21.1% (1.61×)**. Register shows no
+concentration.
+**Reasoning:** The two buckets look similar in the Phase 0 totals and are not
+alike at all. `extra_detection`'s attractive harmonic-leakage story is a
+base-rate artifact — the largest identified class in the bucket is the one class
+the model is *under*-represented in — and what remains genuinely enriched is too
+small to build against. That reproduces A10's `pitch_off` outcome for the same
+reason, so two of the three non-position buckets are now closed on the same
+finding. `missed_onset` is the opposite: both hypotheses clear their base rates
+decisively and point the same way. The detector is not failing at recall
+generally — a note sounding alone is missed at less than half the base rate — it
+is failing inside dense simultaneity and on very short notes.
+
+**Method note worth carrying:** without the base-rate columns this probe would
+have reported "harmonic leakage is the dominant mode of `extra_detection`",
+which is precisely backwards. The repo has made the conditional-without-marginal
+error before (A14 read 0.285 without its 0.382 marginal; F7 repeated the shape).
+The probe now computes both by construction and prints them adjacently, so the
+conditional cannot be read without its marginal.
+
+---
+
+## 2026-07-25 — expose matcher residuals instead of reimplementing the matcher
+
+**Phase:** Parallel improvement program, Track D (prerequisite)
+**Decision tree:** Characterising missed and spurious events needs the events
+themselves; `decompose_errors` computes exactly which they are and returns only
+counts. Either reimplement the matching in the probe, or have the matcher hand
+them out.
+**Branch taken:** Add an optional `Residuals` out-parameter to
+`decompose_errors`, following the A10 precedent (which added `pitch_off_deltas`
+to the same function for the same reason). Omitting it changes nothing.
+**Evidence:** 39 existing `error_decomposition` tests pass unchanged, plus 4 new
+ones asserting the residuals agree with the counts they accompany, that omitting
+the parameter is a no-op, and that a fresh instance starts empty. 1113 tests,
+ruff and mypy clean.
+**Reasoning:** A second copy of the matching would drift from the scored one,
+and a diagnosis computed against a different matcher describes a pipeline that
+does not ship. This is the same argument that split the physics channel in
+Track A: derive the diagnostic from the production path rather than beside it.
+
+---
+
+## 2026-07-25 — coverage is not the lever; the binary admission gate is
+
+**Phase:** Parallel improvement program, Track A (physics-channel coverage)
+**Decision tree:** Phase 0 measured the channel's coverage at 22.4% of events
+and named coverage the binding constraint. Test whether the 77.6% of notes
+currently receiving no evidence are a reservoir of unused signal, by relaxing
+the `min_r2` admission threshold; and separately whether the threshold should be
+a threshold at all.
+**Branch taken:** Reject every hard-threshold relaxation. Adopt
+confidence-weighted admission (`confidence ≥ 0.30`) as the candidate for
+promotion, pending the cross-domain leg and the Phase 2 sealed confirmation.
+The shipped default is unchanged by this entry.
+**Evidence:** 300 development clips, leave-one-player-out priors, banked
+partial-aware fits, paired bootstrap N=10,000 seed 42, replay verified against
+the Phase 0 frozen baseline at ±0.0000 drift.
+
+Hard-threshold relaxation is **CI-significantly worse at every step**, with all
+five intervals entirely below zero: `min_r2` 0.40 −0.0050 [−0.0087, −0.0014],
+0.30 −0.0088, 0.20 −0.0135, 0.10 −0.0192, 0.00 −0.0206 [−0.0293, −0.0120].
+Coverage nearly doubled (22.4% → 43.1%) and Tab F1 fell 0.6801 → 0.6595.
+
+Confidence weighting (weight ∝ `(r2 − floor)/(1 − floor)`) passes:
+`≥0.30` **+0.0071 [+0.0021, +0.0122]** at 28.0% coverage; `≥0.10` +0.0068
+[+0.0016, +0.0122]; `≥0.00` +0.0052 [−0.0004, +0.0109], inconclusive.
+Report: `docs/EVAL_REPORTS/a_physics_coverage_2026-07-25.md`.
+**Reasoning:** The two results are only apparently contradictory. Admitting a
+marginal fit at *full* weight asserts confidence the fit does not support, and
+that corrupts more than the fit contributes — which is why every threshold
+relaxation loses. Admitting the same fit at *its own* weight contributes
+proportionally, which is why the soft rule gains accuracy and coverage at once.
+The motivating hypothesis — that uncovered notes hold usable signal — is
+therefore refuted in its stated form and true in a weaker one. The actionable
+statement is not "raise coverage" but "stop treating a continuous quality
+measure as a binary".
+
+---
+
+## 2026-07-25 — split the physics channel into a measurement half and a scoring half
+
+**Phase:** Parallel improvement program, Track A (prerequisite)
+**Decision tree:** Phase 0 found that `measure_events` had no isolation
+parameter and was always strict, so banked fits could not express the shipped
+`partial_aware` configuration — and that this had already caused a run to
+measure the wrong arm while reporting itself as shipped. Fix the parameter
+only, or split the channel at its seam.
+**Branch taken:** Split. `measure_events(..., isolation=, min_clean_partials=)`
+is now the whole spectral half; `apply_fits(...)` is the scoring half;
+`attach_inharmonicity_evidence` is their composition. The contamination check
+moves into the measurement half, where it is part of deciding whether a fit
+exists. `min_r2` stays in the scoring half because it is an admission threshold
+rather than a measurement, which is precisely what made this track's sweep
+possible.
+**Evidence:** Verified bit-identical rather than merely green — the Phase 0
+runner reproduces its pinned player-05 numbers at −0.0000 drift on both arms and
+the sealed decomposition matches to the event; 1109 tests, ruff, mypy clean.
+Banking 22,694 partial-aware fits over 300 clips costs 2.9 min once, after which
+nine admission arms swept in 2.2 min total.
+**Reasoning:** Adding the parameter alone would have left two separate
+implementations of the same gates — which is what allowed one of them to be
+silently missing a mode. Composing the shipped path from the same two halves the
+replay uses makes that class of divergence unrepresentable rather than merely
+unlikely.
