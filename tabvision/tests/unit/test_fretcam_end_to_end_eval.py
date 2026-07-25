@@ -18,6 +18,7 @@ from scripts.eval.fretcam_end_to_end import (
     micro_tab_f1,
     production_tab_cache_path,
     tab_events_to_audio_surrogate,
+    validate_alignment,
 )
 from tabvision.eval.error_decomposition import ErrorDecomposition
 from tabvision.eval.metrics import TabF1Result
@@ -40,6 +41,8 @@ def _clip(stem: str, baseline_tp: int, fretcam_tp: int) -> ClipResult:
         media_duration_s=60.0,
         offset_s=0.04,
         offset_peak_ratio=3.0,
+        direct_alignment_offset_s=None,
+        direct_alignment_peak_ratio=None,
         gold_notes=10,
         audio_events=10,
         accepted_observations=4,
@@ -77,6 +80,67 @@ def test_align_observations_maps_video_time_to_gold_time() -> None:
 
     assert aligned[0].timestamp_s == pytest.approx(-0.02)
     assert source[0].timestamp_s == 0.02
+
+
+def test_validate_alignment_accepts_sharp_full_coverage_match() -> None:
+    validate_alignment(
+        offset_s=0.04,
+        peak_ratio=2.1,
+        audio_duration_s=120.72,
+        video_duration_s=120.70,
+        latest_gold_onset_s=120.60,
+    )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"peak_ratio": 1.9}, "without direct-waveform"),
+        ({"video_duration_s": float("nan")}, "must be finite"),
+        ({"video_duration_s": 119.0}, "durations differ"),
+        ({"latest_gold_onset_s": 121.0}, "outside"),
+    ],
+)
+def test_validate_alignment_rejects_untrustworthy_records(
+    overrides: dict[str, float],
+    message: str,
+) -> None:
+    values = {
+        "offset_s": 0.04,
+        "peak_ratio": 3.0,
+        "audio_duration_s": 120.0,
+        "video_duration_s": 120.0,
+        "latest_gold_onset_s": 119.9,
+    }
+    values.update(overrides)
+
+    with pytest.raises(ValueError, match=message):
+        validate_alignment(**values)
+
+
+def test_validate_alignment_accepts_agreeing_direct_waveform_check() -> None:
+    validate_alignment(
+        offset_s=0.04,
+        peak_ratio=1.7,
+        audio_duration_s=120.0,
+        video_duration_s=120.0,
+        latest_gold_onset_s=119.9,
+        direct_offset_s=0.03625,
+        direct_peak_ratio=3.2,
+    )
+
+
+def test_validate_alignment_rejects_disagreeing_direct_waveform_check() -> None:
+    with pytest.raises(ValueError, match="methods differ"):
+        validate_alignment(
+            offset_s=0.04,
+            peak_ratio=1.7,
+            audio_duration_s=120.0,
+            video_duration_s=120.0,
+            latest_gold_onset_s=119.9,
+            direct_offset_s=0.02,
+            direct_peak_ratio=3.2,
+        )
 
 
 def test_cached_backend_returns_independent_event_arrays() -> None:

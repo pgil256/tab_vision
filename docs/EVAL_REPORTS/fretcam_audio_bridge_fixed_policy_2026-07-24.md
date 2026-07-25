@@ -5,8 +5,33 @@
 This check answers a narrow question: can the stabilized FretCam playing
 position be joined to the audio timeline and conservatively re-rank physically valid
 same-pitch string/fret candidates? Yes. The new route is functional and the
-cache-only proxy is directionally positive, but the controlled-live L2 gate
-and a source-disjoint real-audio end-to-end confirmation are still missing.
+cache-only proxy is directionally positive. A later source-disjoint paired
+real-prediction evaluation is also positive but small; the controlled-live L2
+gate and the statistical/default-promotion gate still do not pass.
+
+## Follow-up: current-solver paired end-to-end evaluation
+
+The live current FretCam solver was subsequently run through
+`run_pipeline_with_artifacts(..., video_backend="fretcam")` against shared real
+highres audio predictions. The primary population was ten GAPS test clips that
+were source-disjoint from FretCam development; clean-12 is reported separately
+as a development confirmation.
+
+| Population | Audio baseline | + FretCam | Macro delta (paired 95% CI) | Wrong-position/same-pitch |
+|---|---:|---:|---:|---:|
+| Source-disjoint 10 (primary) | 0.623750 | 0.624586 | +0.000836 [0.000000, 0.001994] | 1,021 -> 1,014 (-7) |
+| Clean 12 (development) | 0.772970 | 0.772815 | -0.000155 [-0.000623, 0.000159] | 1,930 -> 1,931 (+1) |
+| Combined test 22 | 0.705143 | 0.705438 | +0.000296 [-0.000219, 0.000935] | 2,951 -> 2,945 (-6) |
+
+The primary held-out result has two improved clips, eight unchanged, and no
+regressions. The clean development confirmation has one improvement, ten
+unchanged, and one regression (`118_VD1wc`). Thus the bridge does reduce the
+target error on held-out data, but the effect is too small and heterogeneous
+to make FretCam the default. Full paired reports:
+
+- `docs/EVAL_REPORTS/fretcam_e2e_source_disjoint10_2026-07-24.md`
+- `docs/EVAL_REPORTS/fretcam_e2e_clean12_2026-07-24.md`
+- `docs/EVAL_REPORTS/fretcam_e2e_test22_2026-07-24.md`
 
 ## Frozen bridge policy
 
@@ -133,11 +158,12 @@ project; exotic multi-audio/edit-list files remain a promotion-test case.
 ## Verdict
 
 The bounded integration mechanism is complete. Its deterministic regression
-fixes the intended same-pitch/wrong-position case, and the fixed
-production-aligned, assignment-scored cache proxy shows a small aggregate
-reduction of six errors. Current stabilized-solver and real-audio lift remain
-unproven, so keep
-it explicit opt-in. Promotion requires the missing controlled-live gate plus a
-frozen real-audio evaluation showing positive Tab F1, materially lower
-`wrong_position_same_pitch`, no open-string/full-clip regression, and latency
+fixes the intended same-pitch/wrong-position case, and live current-solver
+inference over the source-disjoint ten reduces that target error by seven
+while increasing macro Tab F1 by 0.000836. Confidence in the direction is
+moderate, not promotion-grade: only two held-out clips improve, the lower CI
+touches zero, clean-12 regresses by one net target error, and combined test-22
+has a CI spanning zero. Keep the route explicit opt-in. Promotion still
+requires the controlled-live gate plus a larger frozen evaluation showing a
+material effect, no important subgroup/full-clip regression, and latency
 within the project target.

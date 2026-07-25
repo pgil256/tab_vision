@@ -4803,3 +4803,41 @@ same-pitch ties without becoming a hard veto. The production-aligned proxy is
 directionally positive but too small and heterogeneous for automatic
 promotion, so explicit opt-in is the only branch consistent with both the
 user's integration request and the unpassed acceptance gate.
+
+---
+
+## 2026-07-24 - Keep FretCam opt-in after paired real-prediction evaluation
+
+**Phase:** FretCam F8 evaluation and promotion decision
+**Decision tree:** The bounded bridge is integrated and its proxy is positive;
+measure the live current solver against real audio predictions on a
+source-disjoint population, then either promote, retain opt-in, or roll back
+according to Tab F1, the target error, regressions, and runtime evidence.
+**Branch taken:** Retain `legacy` as the default and keep
+`--video-backend fretcam` as an explicit opt-in. Preserve the bounded causal
+prior unchanged. Do not tune on the newly opened source-disjoint ten; require
+a larger frozen result plus the controlled-live L2 gate before promotion.
+**Evidence:** The actual production pipeline ran live current FretCam inference
+over ten GAPS test clips that were source-disjoint from FretCam development.
+Both paired arms shared cached real highres pitch/onset predictions; the runner
+required exact reconstruction of the production audio baseline and asserted
+that FretCam could not change pitch, timing, duration, or event count. Macro
+Tab F1 moved `0.623750 -> 0.624586` (`+0.000836`, paired 95% bootstrap CI
+`[0.000000, 0.001994]`); micro F1 moved `0.603557 -> 0.604644`; and
+wrong-position/same-pitch errors fell `1,021 -> 1,014`. Two clips improved,
+eight were unchanged, and none regressed. Clean-12 confirmation moved
+`0.772970 -> 0.772815`, added one net target error, and contained one
+regression. Combined test-22 moved `0.705143 -> 0.705438`, but its paired CI
+spanned zero. Independent aggregation reproduced every macro/micro confusion
+count and target-error total. Reports:
+`docs/EVAL_REPORTS/fretcam_e2e_source_disjoint10_2026-07-24.md`,
+`docs/EVAL_REPORTS/fretcam_e2e_clean12_2026-07-24.md`, and
+`docs/EVAL_REPORTS/fretcam_e2e_test22_2026-07-24.md`.
+**Reasoning:** The held-out direction is favorable and directly addresses the
+requested failure mode, so rollback is unwarranted. The absolute lift is only
+0.000836, depends on two clips, has a confidence bound touching zero, and is
+not confirmed on clean-12; the combined interval also crosses zero. Evaluation
+runtime used cached audio predictions and therefore cannot close the full
+end-to-end latency gate. Those limitations make default promotion premature,
+while the conservative opt-in preserves the measured corrections and the
+existing rollback.

@@ -25,7 +25,7 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
-| F8 | M4 bridge verdict | implemented-opt-in | production-aligned causal cache proxy 0.800111→0.800665; +6 net / 0.28% relative error reduction; full suites 932 TabVision + 240 FretCam pass | preserve explicit rollback; run controlled-live + frozen real-audio gate before promotion | L2 + held-out promotion evidence |
+| F8 | M4 bridge verdict | implemented-tested-opt-in | source-disjoint real-prediction macro Tab F1 0.623750→0.624586 (+0.000836, paired 95% CI 0.000000–0.001994); wrong-position 1,021→1,014; 2 improved / 8 unchanged / 0 regressed | preserve explicit rollback; effect is too small for default promotion | L2 + larger frozen promotion evidence |
 
 **Live checkpoint.** F5c is complete. The final dev-only frozen benchmark
 reached displayed precision 67/67 (1.000), stable coverage 67/161 (0.416),
@@ -48,8 +48,12 @@ bridge now exists as `--video-backend fretcam` without changing §8. It uses
 only stabilized coarse position windows on the demux media clock, with causal
 pre-onset selection, open/capo support, and a default-policy one-nat cap; the legacy
 per-string posterior is excluded on this route. The corrected-cache causal
-proxy is directionally positive but small (+6/10,821 assignment-scored), so `legacy`
-remains the default and L2/held-out promotion evidence is still required.
+proxy is directionally positive but small (+6/10,821 assignment-scored).
+The later current-solver paired evaluation on ten source-disjoint GAPS clips
+also reduced the target error by seven and moved macro Tab F1
+`0.623750→0.624586`, but its lower paired CI touches zero. Clean-12 moved
+slightly backward (`0.772970→0.772815`) with one regression. `legacy` therefore
+remains the default; L2 plus a larger frozen promotion result is still required.
 
 ## Standing constraints (from the loop prompt — do not relax silently)
 - The 2026-07-24 user request lifted quarantine only for the bounded M4 bridge
@@ -82,6 +86,16 @@ remains the default and L2/held-out promotion evidence is still required.
   was supplied, so the formal L1 status remains open.
 
 ## Iteration log (newest first)
+- 2026-07-24 — F8 real-prediction evaluation completed — a checked-in paired
+  runner executed the actual production pipeline with live current FretCam
+  inference over ten source-disjoint GAPS clips, while sharing cached real
+  highres pitch/onset predictions and asserting exact baseline reconstruction
+  plus pitch/timing/event-count invariance. Macro Tab F1 moved
+  0.623750→0.624586 (+0.000836; paired 95% CI 0.000000–0.001994);
+  wrong-position/same-pitch errors fell 1,021→1,014, with two improved and no
+  regressed clips. Clean-12 was slightly negative and contained one
+  regression; combined test-22 moved 0.705143→0.705438 with a CI spanning
+  zero. Keep FretCam explicit opt-in.
 - 2026-07-24 — F8 implemented as explicit opt-in — added a synchronous
   media-clock FretCam adapter and a causal bounded position-window prior.
   `locked`/`holding` evidence at confidence ≥0.20 supports exactly

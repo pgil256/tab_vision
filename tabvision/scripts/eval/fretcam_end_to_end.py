@@ -25,6 +25,7 @@ import json
 import math
 import os
 import pickle
+import subprocess
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
@@ -50,10 +51,17 @@ from tabvision.pipeline import SEQUENCE_PRIOR_WEIGHT, run_pipeline_with_artifact
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig, TabEvent
 from tabvision.video.position import PositionWindowObservation
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 POSITION_PRIOR_NAME = "gaps-v1"
 SEQUENCE_PRIOR_NAME = "gaps-seq-v1"
 ONSET_TOLERANCE_S = 0.05
+MIN_ALIGNMENT_PEAK_RATIO = 2.0
+MAX_DURATION_MISMATCH_S = 0.5
+ALIGNMENT_COVERAGE_SLACK_S = 0.15
+DIRECT_ALIGNMENT_SR = 8_000
+DIRECT_ALIGNMENT_SEARCH_S = 0.5
+DIRECT_ALIGNMENT_GUARD_S = 0.02
+DIRECT_ALIGNMENT_OFFSET_TOLERANCE_S = 0.01
 
 # The official GAPS test-22 population is the clean-12 development bank plus
 # these ten source-disjoint videos. Eight other nominal test scores have less
@@ -111,6 +119,8 @@ class ClipResult:
     media_duration_s: float
     offset_s: float
     offset_peak_ratio: float
+    direct_alignment_offset_s: float | None
+    direct_alignment_peak_ratio: float | None
     gold_notes: int
     audio_events: int
     accepted_observations: int
@@ -306,6 +316,117 @@ def align_observations_to_gold_clock(
     ]
 
 
+def validate_alignment(
+    *,
+    offset_s: float,
+    peak_ratio: float,
+    audio_duration_s: float,
+    video_duration_s: float,
+    latest_gold_onset_s: float,
+    direct_offset_s: float | None = None,
+    direct_peak_ratio: float | None = None,
+) -> None:
+    """Reject ambiguous or incomplete video/WAV alignment before scoring."""
+    values = {
+        "offset_s": offset_s,
+        "peak_ratio": peak_ratio,
+        "audio_duration_s": audio_duration_s,
+        "video_duration_s": video_duration_s,
+        "latest_gold_onset_s": latest_gold_onset_s,
+    }
+    non_finite = [name for name, value in values.items() if not math.isfinite(float(value))]
+    if non_finite:
+        raise ValueError("alignment values must be finite: " + ", ".join(non_finite))
+    if peak_ratio < MIN_ALIGNMENT_PEAK_RATIO:
+        if direct_offset_s is None or direct_peak_ratio is None:
+            raise ValueError(
+                f"alignment peak ratio {peak_ratio:.3f} is below "
+                f"{MIN_ALIGNMENT_PEAK_RATIO:.1f} without direct-waveform corroboration"
+            )
+        if not math.isfinite(direct_offset_s) or not math.isfinite(direct_peak_ratio):
+            raise ValueError("direct-waveform alignment values must be finite")
+        if direct_peak_ratio < MIN_ALIGNMENT_PEAK_RATIO:
+            raise ValueError(
+                f"direct-waveform peak ratio {direct_peak_ratio:.3f} is below "
+                f"{MIN_ALIGNMENT_PEAK_RATIO:.1f}"
+            )
+        offset_delta = abs(offset_s - direct_offset_s)
+        if offset_delta > DIRECT_ALIGNMENT_OFFSET_TOLERANCE_S:
+            raise ValueError(
+                f"alignment methods differ by {offset_delta:.3f}s, above "
+                f"{DIRECT_ALIGNMENT_OFFSET_TOLERANCE_S:.2f}s"
+            )
+    if audio_duration_s <= 0.0 or video_duration_s <= 0.0:
+        raise ValueError("alignment media durations must be positive")
+    duration_delta = abs(audio_duration_s - video_duration_s)
+    if duration_delta > MAX_DURATION_MISMATCH_S:
+        raise ValueError(
+            f"aligned media durations differ by {duration_delta:.3f}s, above "
+            f"{MAX_DURATION_MISMATCH_S:.1f}s"
+        )
+    latest_video_onset_s = latest_gold_onset_s + offset_s
+    if latest_video_onset_s < -ALIGNMENT_COVERAGE_SLACK_S or (
+        latest_video_onset_s > video_duration_s + ALIGNMENT_COVERAGE_SLACK_S
+    ):
+        raise ValueError(
+            f"latest aligned gold onset {latest_video_onset_s:.3f}s is outside "
+            f"the {video_duration_s:.3f}s video"
+        )
+
+
+def direct_waveform_alignment(audio_path: Path, video_path: Path) -> tuple[float, float]:
+    """Corroborate a weak onset-envelope offset using raw waveform correlation."""
+    from scipy import signal
+
+    audio = _decode_mono(audio_path, DIRECT_ALIGNMENT_SR)
+    video = _decode_mono(video_path, DIRECT_ALIGNMENT_SR)
+    audio = (audio - audio.mean()) / (audio.std() + 1e-12)
+    video = (video - video.mean()) / (video.std() + 1e-12)
+    correlation = signal.correlate(video, audio, mode="full", method="fft")
+    lags = signal.correlation_lags(video.size, audio.size, mode="full")
+    search_samples = round(DIRECT_ALIGNMENT_SEARCH_S * DIRECT_ALIGNMENT_SR)
+    search_mask = np.abs(lags) <= search_samples
+    local_correlation = correlation[search_mask]
+    local_lags = lags[search_mask]
+    if local_correlation.size == 0:
+        raise ValueError("direct-waveform alignment search window is empty")
+    best_index = int(np.argmax(local_correlation))
+    best_lag = int(local_lags[best_index])
+    best_value = float(local_correlation[best_index])
+    guard_samples = round(DIRECT_ALIGNMENT_GUARD_S * DIRECT_ALIGNMENT_SR)
+    competing = np.abs(local_lags - best_lag) >= guard_samples
+    if not competing.any():
+        raise ValueError("direct-waveform alignment has no competing lags")
+    next_best = float(np.max(local_correlation[competing]))
+    peak_ratio = best_value / (next_best + 1e-12)
+    return best_lag / DIRECT_ALIGNMENT_SR, peak_ratio
+
+
+def _decode_mono(path: Path, sample_rate: int) -> np.ndarray:
+    process = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(path),
+            "-ac",
+            "1",
+            "-ar",
+            str(sample_rate),
+            "-f",
+            "f32le",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if process.returncode != 0 or not process.stdout:
+        message = process.stderr.decode(errors="ignore")
+        raise RuntimeError(f"ffmpeg failed to decode {path}: {message}")
+    return np.frombuffer(process.stdout, dtype=np.float32).astype(np.float64)
+
+
 def micro_tab_f1(results: Sequence[TabF1Result]) -> TabF1Result:
     """Sum per-clip confusion counts without cross-clip onset collisions."""
     tp = sum(result.true_positives for result in results)
@@ -341,6 +462,9 @@ def aggregate_results(
         "audio_events": sum(clip.audio_events for clip in clips),
         "accepted_observations": sum(clip.accepted_observations for clip in clips),
         "affected_audio_events": sum(clip.affected_audio_events for clip in clips),
+        "direct_alignment_checks": sum(
+            clip.direct_alignment_offset_s is not None for clip in clips
+        ),
         "baseline_macro": asdict(
             bootstrap_ci(
                 baseline_values,
@@ -386,6 +510,13 @@ def format_report(payload: Mapping[str, object]) -> str:
     fretcam_micro = _tab_f1_from_mapping(_require_mapping(aggregate["fretcam_micro"]))
     baseline_errors = _errors_from_mapping(_require_mapping(aggregate["baseline_errors"]))
     fretcam_errors = _errors_from_mapping(_require_mapping(aggregate["fretcam_errors"]))
+    wrong_reduction = int(aggregate["wrong_position_reduction"])
+    if wrong_reduction > 0:
+        wrong_change = f"{wrong_reduction:,} fewer"
+    elif wrong_reduction < 0:
+        wrong_change = f"{abs(wrong_reduction):,} more"
+    else:
+        wrong_change = "unchanged"
 
     lines = [
         "# FretCam current-solver paired end-to-end Tab F1",
@@ -404,7 +535,7 @@ def format_report(payload: Mapping[str, object]) -> str:
         f"| Wrong-position/same-pitch | "
         f"{baseline_errors.wrong_position_same_pitch:,} | "
         f"{fretcam_errors.wrong_position_same_pitch:,} | "
-        f"{int(aggregate['wrong_position_reduction']):+d} fewer |",
+        f"{wrong_change} |",
         "",
         f"Paired 95% bootstrap interval for the macro delta: "
         f"`[{paired_delta.lower:+.6f}, {paired_delta.upper:+.6f}]`.",
@@ -438,6 +569,9 @@ def format_report(payload: Mapping[str, object]) -> str:
             f"`{payload['video_stride']}`.",
             "- Cached cross-correlation offsets map FretCam observations from video "
             "time to the GAPS WAV/gold clock.",
+            f"- Alignment requires onset-envelope peak ratio >= "
+            f"`{MIN_ALIGNMENT_PEAK_RATIO:.1f}`; weaker peaks require an agreeing "
+            "raw-waveform offset with the same peak-ratio floor.",
             "- Both arms use the current clean-classical automatic policy: "
             f"`{payload['position_prior']}` + `{payload['sequence_prior']}` at "
             f"weight `{SEQUENCE_PRIOR_WEIGHT:.1f}`, assignment decoder "
@@ -455,6 +589,8 @@ def format_report(payload: Mapping[str, object]) -> str:
             f"`{float(aggregate['evaluation_runtime_s']) / 60.0:.2f} min`.",
             f"- Accepted observations: `{aggregate['accepted_observations']}`; "
             f"audio events affected: `{aggregate['affected_audio_events']}`.",
+            f"- Direct waveform alignment checks required: "
+            f"`{aggregate['direct_alignment_checks']}`.",
             f"- Improved / unchanged / regressed clips: "
             f"`{len(aggregate['improved_clips'])}` / "
             f"`{len(aggregate['unchanged_clips'])}` / "
@@ -512,6 +648,20 @@ def evaluate_clip(
     offset_record = _load_trusted_pickle(offset_path)
     offset_s = float(offset_record.offset_s)
     peak_ratio = float(offset_record.peak_ratio)
+    gold = parse_gaps(xml_path, cfg)
+    direct_offset_s: float | None = None
+    direct_peak_ratio: float | None = None
+    if peak_ratio < MIN_ALIGNMENT_PEAK_RATIO:
+        direct_offset_s, direct_peak_ratio = direct_waveform_alignment(wav_path, video_path)
+    validate_alignment(
+        offset_s=offset_s,
+        peak_ratio=peak_ratio,
+        audio_duration_s=float(offset_record.audio_duration_s),
+        video_duration_s=float(offset_record.video_duration_s),
+        latest_gold_onset_s=max((event.onset_s for event in gold), default=0.0),
+        direct_offset_s=direct_offset_s,
+        direct_peak_ratio=direct_peak_ratio,
+    )
     signature = _clip_signature(
         stem=stem,
         files=(xml_path, wav_path, video_path, offset_path, prediction_cache_path),
@@ -538,7 +688,6 @@ def evaluate_clip(
         raw_audio_events = tab_events_to_audio_surrogate(source_tabs)
     else:
         raw_audio_events = load_audio_events(prediction_cache_path)
-    gold = parse_gaps(xml_path, cfg)
     baseline_artifacts = run_pipeline_with_artifacts(
         video_path,
         audio_backend=CachedPredictionBackend(backend_name, raw_audio_events),
@@ -621,6 +770,8 @@ def evaluate_clip(
         media_duration_s=float(offset_record.video_duration_s),
         offset_s=offset_s,
         offset_peak_ratio=peak_ratio,
+        direct_alignment_offset_s=direct_offset_s,
+        direct_alignment_peak_ratio=direct_peak_ratio,
         gold_notes=len(gold),
         audio_events=len(raw_audio_events),
         accepted_observations=fretcam_artifacts.position_observation_count,
@@ -829,6 +980,16 @@ def _clip_from_mapping(payload: Mapping[str, Any]) -> ClipResult:
         media_duration_s=float(payload["media_duration_s"]),
         offset_s=float(payload["offset_s"]),
         offset_peak_ratio=float(payload["offset_peak_ratio"]),
+        direct_alignment_offset_s=(
+            None
+            if payload.get("direct_alignment_offset_s") is None
+            else float(payload["direct_alignment_offset_s"])
+        ),
+        direct_alignment_peak_ratio=(
+            None
+            if payload.get("direct_alignment_peak_ratio") is None
+            else float(payload["direct_alignment_peak_ratio"])
+        ),
         gold_notes=int(payload["gold_notes"]),
         audio_events=int(payload["audio_events"]),
         accepted_observations=int(payload["accepted_observations"]),
