@@ -5,10 +5,15 @@ narrative without manual annotation, new recordings, or private media.
 
 ## Headline accuracy
 
-- `../EVAL_REPORTS/player05_batched_confirm_2026-07-24.md` — **the current
-  default's numbers.** Held-out player-05: single-line 0.7257, strummed
-  0.7435, aggregate 0.7346 (+0.1006 [+0.0615, +0.1416]). Also the run that
+- `../EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md` — **the current
+  default's numbers.** Sealed player 04: single-line 0.6686, strummed 0.6533,
+  aggregate 0.6609 (+0.0522 [+0.0259, +0.0809]); development five-player
+  aggregate 0.6801. Also rotates the sealed set and decomposes the error
+  profile.
+- `../EVAL_REPORTS/player05_batched_confirm_2026-07-24.md` — the run that
   refuted the +0.60 level correction and confirmed partial-aware isolation.
+  **Historical for headline purposes:** its 0.7346 aggregate is reproduced
+  exactly by the current harness but is the most favourable of six players.
 - `../EVAL_REPORTS/v1_acceptance_2026-06-03.md` — the **v1.0.0 acceptance
   record** (aggregate 0.600). Historical: the configuration the tag was cut
   against, not the current default.

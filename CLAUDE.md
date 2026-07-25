@@ -24,9 +24,20 @@ automatic Tab F1.
 
 **Current default pipeline** — `highres-ensemble` audio + `guitarset-v1`
 position prior + `acoustic-physics-v1` string evidence with partial-aware
-isolation. Held-out player-05, 60 clips: **single-line 0.7257, strummed
-0.7435, aggregate 0.7346** (+0.1006 [+0.0615, +0.1416] over the pre-physics
-0.6340). Report: `docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md`.
+isolation. Under leave-one-player-out priors (2026-07-25):
+
+| split | single-line | strummed | aggregate | Δ vs no-physics |
+|---|---:|---:|---:|---|
+| sealed player 04 (60) | 0.6686 | 0.6533 | **0.6609** | +0.0522 [+0.0259, +0.0809] |
+| dev, 5 players (300) | 0.6854 | 0.6747 | **0.6801** | +0.0718 [+0.0558, +0.0885] |
+
+Report: `docs/EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md`.
+
+⚠️ **The sealed set is player 04, not 05** (rotated 2026-07-25; 05 was opened
+twice and returned to dev). **Older docs quoting 0.7346 aggregate are not
+wrong, but they report the single most favourable of six players** — the
+channel's gain spans +0.047 to +0.101 across players. Quote the range, or the
+dev figure, not player 05.
 
 Routing that `auto` performs per session: classical/nylon → `gaps-v1` /
 `gaps-seq-v1`; `--capo N` > 0 → capo-covariant position prior; anything
@@ -174,17 +185,22 @@ pytest tests/    # 17 v0 tests
 **v1 scope (2026-06-02): acoustic, audio-first.** Honest targets on
 GuitarSet (see SPEC §1.4.1): single-line Tab F1 ≥ 0.45, strummed ≥ 0.60,
 aggregate ≥ 0.55, + onset ≥ 0.92 / pitch ≥ 0.90 / chord ≥ 0.85 / latency ≤ 5 min.
-These are the **v1.0.0 acceptance gates** and remain the contractual targets;
-the current default clears all of them with substantial margin (0.7257 /
-0.7435 / 0.7346).
+These are the **v1.0.0 acceptance gates** and remain the contractual targets.
+On the sealed player 04 the current default clears the three Tab F1 legs
+(0.6686 / 0.6533 / 0.6609 against 0.45 / 0.60 / 0.55) — but **pitch F1 is
+0.8673, below the ≥ 0.90 leg** (dev five-player mean 0.9094; player 05 ~0.93).
+That is player difficulty, not a regression, and it is the reason a future
+acceptance run should report the per-player spread instead of one held-out
+figure.
 
 ⚠️ **The "single-line is information-limited" framing in older docs is
 superseded.** It was used to argue that only video could resolve strings.
 Inharmonicity — string stiffness stretching a note's partials by an amount that
 depends on the string — carries string identity in the audio, and reading it
-moved single-line 0.5503 → 0.7257. Treat "audio cannot resolve X" claims in
-pre-2026-07-22 documents as unverified. The retired 0.94 single-line figure was
-a *video-assisted* aspiration and is not a live target.
+moves single-line Tab F1 by **+0.083 to +0.175** depending on the player. Treat
+"audio cannot resolve X" claims in pre-2026-07-22 documents as unverified. The
+retired 0.94 single-line figure was a *video-assisted* aspiration and is not a
+live target.
 
 **Electric tiers → v2** (clean-electric measured **0.12**; acoustic-trained
 backbone, no in-repo training code — `cross_dataset_prior_2026-06-02.md`). v1

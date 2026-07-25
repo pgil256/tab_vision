@@ -32,20 +32,27 @@ did — is in [`docs/NARRATIVE.md`](docs/NARRATIVE.md).
 
 ## Accuracy
 
-All numbers on the GuitarSet held-out player-05 validation set (60 clips).
-**Current default pipeline** — `highres-ensemble` audio, `guitarset-v1`
-position prior, and the `acoustic-physics-v1` string-evidence channel with
-partial-aware isolation, measured 2026-07-24
-([report](docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md)):
+**Current default pipeline** — `highres-ensemble` audio, `guitarset-v1` position
+prior, and the `acoustic-physics-v1` string-evidence channel with partial-aware
+isolation. Measured on GuitarSet under leave-one-player-out priors, 2026-07-25
+([report](docs/EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md)):
 
 | Tier | Before the physics channel | **Current default** | Δ |
 |---|---:|---:|---:|
-| Single-line Tab F1 | 0.5503 | **0.7257** | +0.1754 |
-| Strummed Tab F1 | 0.7176 | **0.7435** | +0.0258 |
-| Aggregate Tab F1 | 0.6340 | **0.7346** | **+0.1006** |
+| **Held-out player 04** (60 clips) | | | |
+| Single-line Tab F1 | 0.5854 | **0.6686** | +0.0832 |
+| Strummed Tab F1 | 0.6320 | **0.6533** | +0.0213 |
+| Aggregate Tab F1 | 0.6087 | **0.6609** | **+0.0522** `[+0.0259, +0.0809]` |
+| **Development, 5 players** (300 clips) | | | |
+| Aggregate Tab F1 | 0.6083 | **0.6801** | **+0.0718** `[+0.0558, +0.0885]` |
 
-Aggregate delta `+0.1006`, 95% bootstrap CI `[+0.0615, +0.1416]`, on a sealed
-held-out player opened once for confirmation.
+An earlier revision of this table reported 0.7346 aggregate. That figure was
+correct for the player it was measured on and is reproduced exactly by the
+current harness — but measuring **all six** players showed the channel's gain
+ranges `+0.047` to `+0.101` across them, and that player was the maximum. The
+honest estimate is **+0.05 to +0.07**. Held-out players are single draws from a
+population that is not uniform, and one of them is not a tight estimate of the
+mean.
 
 **The v1.0.0 acceptance record** (2026-06-03, `highres` + `guitarset-v1`, the
 configuration the release was gated on —
@@ -63,10 +70,13 @@ configuration the release was gated on —
 Acceptance is `lower_95_CI ≥ target` over clips (bootstrap CIs). Scope and full
 targets: [`SPEC.md`](SPEC.md) §1.4 / §1.4.1.
 
-Onset and pitch F1 are **0.9491 / 0.9403** on the current default — improved by
-the ensemble backend, and untouched by the string-evidence channel, which only
-re-assigns positions and cannot add, remove, or retime a note. Every Tab F1
-gain above is therefore string assignment, not better note detection.
+Onset and pitch F1 vary by player like everything else here: **0.9270 / 0.9094**
+across the five development players, 0.9032 / 0.8673 on held-out player 04. They
+are **identical in both arms** — the string-evidence channel only re-assigns
+positions and cannot add, remove, or retime a note. That is measured, not
+argued: between the two arms the `missed_onset`, `extra_detection`, `pitch_off`
+and `timing_only` buckets match to the event, and only wrong-position errors
+move. Every Tab F1 gain above is string assignment, not better note detection.
 
 A concrete worked example — the same piece by the same player, single-line vs.
 strummed — is in
@@ -87,9 +97,13 @@ than "wrong evidence."
 
 **Honest limits (measured, not hedged):**
 
-- **Single-line is still the weak tier**, and the physics channel only applies
-  where it can read partials — 2,227 of 8,709 notes on the held-out set. The
-  rest still fall back to the playability prior.
+- **Single-line is still the weak tier**, and it is where most loss lives:
+  wrong-position errors are 63.6% of single-line loss against 42.4% of strummed.
+  The physics channel only applies where it can read partials — **22.4%** of
+  notes. The rest still fall back to the playability prior.
+- **Accuracy varies substantially by player.** Aggregate Tab F1 across the six
+  GuitarSet players spans 0.59 to 0.71 under the current default. Any single
+  held-out number, including the ones above, is one draw.
 - **The channel is scoped to clean steel-string acoustic** in standard tuning.
   Classical/nylon, electric, alternate tunings, and non-`highres` backends
   abstain by construction — a nylon table was tried and banked as a negative.
@@ -200,13 +214,15 @@ roles.
 ## Status
 
 **v1.0.0** is the tagged release — acoustic, audio-only, cut against the
-acceptance gate above. `main` has moved on since: an accuracy program raised the
-default aggregate to **0.7346** on the held-out player (single-line 0.5503 →
-0.7257), capo sessions now route to a covariant prior, and a Windows desktop
-shell and live FretCam HUD landed alongside the CLI.
+acceptance gate above. `main` has moved on since: an accuracy program added the
+physics string-evidence channel (**+0.05 to +0.07** aggregate, +0.13 on
+single-line development clips), capo sessions now route to a covariant prior,
+and a Windows desktop shell and live FretCam HUD landed alongside the CLI.
 
 Next levers, in rough order of measured promise: extending string evidence past
-the 26% of notes whose partials are currently readable; a technique detector
-(greenfield from a measured 0.00); and the spend-gated electric fine-tune for
-v2. Tracked in [`docs/NARRATIVE.md`](docs/NARRATIVE.md) and
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+the 22% of notes whose partials are currently readable; the note-detection
+buckets (`missed_onset` + `extra_detection` are a third of remaining loss and
+have had the least investment); a technique detector (greenfield from a measured
+0.00); and the spend-gated electric fine-tune for v2. Tracked in
+[`docs/NARRATIVE.md`](docs/NARRATIVE.md) and
+[`docs/parallel-program-state.md`](docs/parallel-program-state.md).

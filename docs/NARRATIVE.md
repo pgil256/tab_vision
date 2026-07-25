@@ -53,18 +53,26 @@ the string's gauge, tension, and speaking length. A given pitch played on a
 thick low string and a thin high one has measurably different partial spacing.
 That information was in the audio the entire time; we were not reading it.
 
-Adding a physics-derived inharmonicity channel took held-out single-line Tab F1
-from **0.5503 to 0.7257** and the aggregate from **0.6340 to 0.7346**
-(+0.1006 [+0.0615, +0.1416]). The channel is derived from published string
-specifications rather than fitted to the eval set, and abstains per note when
-the partials are unreadable — so its failure mode is "no evidence," not "wrong
-evidence."
+Adding a physics-derived inharmonicity channel moves aggregate Tab F1 by
+**+0.05 to +0.07**, and single-line — the tier the ceiling was supposedly about —
+by **+0.08 to +0.18** depending on the player. The channel is derived from
+published string specifications rather than fitted to the eval set, and abstains
+per note when the partials are unreadable, so its failure mode is "no evidence,"
+not "wrong evidence."
 
-The lesson is not "we were wrong about the ceiling." It's **that "information
--theoretic" is a claim about the world, and it was being used as a claim about
-our features.** The honest version was always "we can't currently extract it."
-The gap between those two sentences was worth 0.10 aggregate Tab F1, and it sat
-unexamined for two months because the stronger phrasing sounded more rigorous.
+The lesson is not "we were wrong about the ceiling." It's **that
+"information-theoretic" is a claim about the world, and it was being used as a
+claim about our features.** The honest version was always "we can't currently
+extract it." That gap sat unexamined for two months because the stronger
+phrasing sounded more rigorous.
+
+**And then the same instinct nearly bit twice.** The first measurement of this
+channel came from a single held-out player and read `+0.1006` — it went into the
+README as *the* number. Measuring all six players later showed the gain ranges
+`+0.047` to `+0.101` and that player was the maximum. Nothing was mis-measured;
+the estimate was just built on one draw from a population that turns out to vary
+by a factor of two. A single held-out set protects against overfitting. It does
+not, on its own, tell you the size of an effect.
 
 **2. Video was the obvious rescue — and it still doesn't pay, but not for the
 reason we first published.** If audio can't see the fretting hand, watch it. We
