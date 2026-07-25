@@ -156,6 +156,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--editor-output",
+        type=Path,
+        default=None,
+        help=(
+            "additively write the structured assisted-editor document, including "
+            "Python-ranked pitch-preserving candidates"
+        ),
+    )
+    t.add_argument(
         "--progress",
         action="store_true",
         help="write machine-readable 'PROGRESS <stage> <pct>' lines to stderr",
@@ -412,7 +421,7 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
     Phase 5 onward: video stack is wired through ``tabvision.pipeline.run_pipeline``.
     See SPEC.md §3.1 and ``docs/plans/2026-05-06-video-pipeline-integration-design.md``.
     """
-    from tabvision.pipeline import run_pipeline
+    from tabvision.pipeline import run_pipeline, run_pipeline_with_artifacts
     from tabvision.render import render
     from tabvision.types import GuitarConfig, SessionConfig
 
@@ -438,21 +447,26 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
             return rc
 
     pipeline_started = time.perf_counter()
-    tab_events = run_pipeline(
-        args.input,
-        audio_backend_name=args.audio_backend,
-        lambda_vision=args.fusion_lambda_vision,
-        video_stride=args.video_stride,
-        video_enabled=not args.no_video,
-        video_backend=args.video_backend,
-        position_prior=args.position_prior,
-        sequence_prior=args.sequence_prior,
-        string_evidence=args.string_evidence,
-        audio_filters=_resolve_audio_filters(args.audio_filters),
-        cfg=cfg,
-        session=session,
-        progress_callback=report_progress if args.progress else None,
-    )
+    pipeline_kwargs = {
+        "audio_backend_name": args.audio_backend,
+        "lambda_vision": args.fusion_lambda_vision,
+        "video_stride": args.video_stride,
+        "video_enabled": not args.no_video,
+        "video_backend": args.video_backend,
+        "position_prior": args.position_prior,
+        "sequence_prior": args.sequence_prior,
+        "string_evidence": args.string_evidence,
+        "audio_filters": _resolve_audio_filters(args.audio_filters),
+        "cfg": cfg,
+        "session": session,
+        "progress_callback": report_progress if args.progress else None,
+    }
+    pipeline_result = None
+    if args.editor_output is not None:
+        pipeline_result = run_pipeline_with_artifacts(args.input, **pipeline_kwargs)
+        tab_events = list(pipeline_result.tab_events)
+    else:
+        tab_events = run_pipeline(args.input, **pipeline_kwargs)
     pipeline_s = time.perf_counter() - pipeline_started
     logger.info("pipeline produced %d tab events", len(tab_events))
 
@@ -473,6 +487,25 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
     else:
         sys.stdout.buffer.write(output)
     render_s = time.perf_counter() - render_started
+
+    editor_path: str | None = None
+    if args.editor_output is not None:
+        from tabvision.assist.document import build_editor_document
+
+        if pipeline_result is None:  # pragma: no cover - guarded by the branch above
+            raise RuntimeError("editor output requires detailed pipeline artifacts")
+        editor_document = build_editor_document(
+            pipeline_result,
+            cfg=cfg,
+            source_path=args.input,
+            video_enabled=not args.no_video,
+        )
+        args.editor_output.parent.mkdir(parents=True, exist_ok=True)
+        args.editor_output.write_text(
+            json.dumps(editor_document, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        editor_path = str(args.editor_output.resolve())
 
     if args.json_output:
         from tabvision.render.ascii import LOW_CONFIDENCE_THRESHOLD
@@ -498,6 +531,8 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
                 "total_s": round(time.perf_counter() - total_started, 6),
             },
         }
+        if editor_path is not None:
+            envelope["editor_path"] = editor_path
         (json_stdout or sys.stdout).write(
             json.dumps(envelope, separators=(",", ":"), sort_keys=True) + "\n"
         )
