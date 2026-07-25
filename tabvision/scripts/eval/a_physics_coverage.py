@@ -329,6 +329,29 @@ def main() -> int:
             f"{ci.lower:>+9.4f}{ci.upper:>+9.4f}{cov:>10.1%}"
         )
 
+    # The gate that actually decides anything. Every delta above is against
+    # `baseline`, where all the physics arms sit inside each other's intervals —
+    # the question is not "does the channel work" (Phase 0 settled that) but
+    # "does this admission rule beat the shipped one". Paired on identical
+    # clips, so it is far tighter than either arm against baseline.
+    shipped = np.asarray(scores["shipped"], dtype=np.float64)
+    print(f"\n{'arm':<20}{'vs shipped':>11}{'lo95':>9}{'hi95':>9}  verdict")
+    results["vs_shipped"] = {}
+    for arm in arms:
+        name = arm["name"]
+        if name in {"baseline", "shipped"}:
+            continue
+        deltas = np.asarray(scores[name], dtype=np.float64) - shipped
+        ci = bootstrap_ci(deltas, n_bootstrap=BOOTSTRAP_N, seed=BOOTSTRAP_SEED)
+        verdict = "PASS" if ci.lower > 0 else ("regression" if ci.upper < 0 else "inconclusive")
+        results["vs_shipped"][name] = {
+            "delta": float(deltas.mean()),
+            "lo95": ci.lower,
+            "hi95": ci.upper,
+            "verdict": verdict,
+        }
+        print(f"{name:<20}{deltas.mean():>+11.4f}{ci.lower:>+9.4f}{ci.upper:>+9.4f}  {verdict}")
+
     # Pin against Phase 0 so a harness change cannot pass unnoticed.
     drift_base = results["arms"]["baseline"]["tab_f1"] - FROZEN_BASELINE["dev_baseline"]
     drift_ship = results["arms"]["shipped"]["tab_f1"] - FROZEN_BASELINE["dev_shipped"]
