@@ -251,13 +251,41 @@ def measure_events(
     wav: np.ndarray,
     sr: int,
     cfg: GuitarConfig | None = None,
+    *,
+    isolation: str = "strict",
+    min_clean_partials: int = MIN_CLEAN_PARTIALS,
 ) -> dict[int, InharmonicityFit]:
-    """Fit ``B`` for every isolated, ambiguous event; keyed by event index.
+    """Fit ``B`` for every measurable event; keyed by index into onset order.
 
-    Shared by the evidence pass and by self-calibration so a session pays the
-    spectral cost once.
+    The **whole spectral half** of the channel. :func:`attach_inharmonicity_evidence`
+    calls this and then does only the scoring half, so the two cannot drift, and
+    so a caller can bank these fits to disk and replay table or admission
+    variants against them for free.
+
+    ``isolation`` selects how neighbours are handled and must match the mode the
+    caller intends to score, because it changes *which* events get a fit and how
+    contaminated partials are dropped:
+
+    - ``"strict"`` requires a note to sound alone. The N1 diagnostic measured
+      this as 88% of all lost coverage.
+    - ``"partial_aware"`` drops only the partials a simultaneous note actually
+      collides with and fits the rest, so an overlapped note is still measured
+      whenever enough of its harmonic series survives. A contaminated fit
+      resting on fewer than ``min_clean_partials`` surviving partials is
+      discarded rather than trusted.
+
+    Note the parameter is **not** cosmetic: it did not exist until 2026-07-25,
+    which meant the banked-replay path could only ever express ``"strict"``.
+    A Phase 0 run replayed banked fits while reporting itself as measuring the
+    shipped ``partial_aware`` configuration, and silently scored the wrong arm.
+
+    ``min_r2`` is deliberately *not* applied here — it is an admission
+    threshold, not a measurement, so it belongs to the caller and can be swept
+    against a fixed set of banked fits.
     """
     cfg = cfg or GuitarConfig()
+    if isolation not in {"strict", "partial_aware"}:
+        raise ValueError(f"unknown isolation mode: {isolation!r}")
     audio = np.asarray(wav, dtype=np.float64)
     if audio.ndim > 1:
         audio = audio.mean(axis=1)
@@ -265,7 +293,7 @@ def measure_events(
     isolated = _isolated_flags(ordered)
     fits: dict[int, InharmonicityFit] = {}
     for index, (event, is_isolated) in enumerate(zip(ordered, isolated, strict=True)):
-        if not is_isolated:
+        if isolation == "strict" and not is_isolated:
             continue
         duration = event.offset_s - event.onset_s
         if duration < MIN_WINDOW_S + SKIP_ATTACK_S:
@@ -275,10 +303,39 @@ def measure_events(
         if start < 0 or stop > audio.size:
             continue
         nominal = 440.0 * 2 ** ((event.pitch_midi - 69) / 12.0)
-        fit = estimate_inharmonicity(audio[start:stop], sr, nominal)
-        if fit is not None:
-            fits[index] = fit
+        blocked: list[float] = []
+        separation = 0.0
+        if isolation == "partial_aware" and not is_isolated:
+            window_s = (stop - start) / sr
+            separation = SEPARATION_FACTOR / max(window_s, 1e-6)
+            for other in _overlapping(
+                ordered, index, event.onset_s + SKIP_ATTACK_S, event.onset_s + duration
+            ):
+                blocked.extend(_harmonic_frequencies(other.pitch_midi))
+        fit = estimate_inharmonicity(
+            audio[start:stop],
+            sr,
+            nominal,
+            blocked_hz=blocked,
+            min_separation_hz=separation,
+        )
+        if fit is None:
+            continue
+        if blocked and fit.partials < min_clean_partials:
+            # Contaminated and thinly supported: abstain rather than trust a
+            # fit resting on a handful of surviving partials.
+            continue
+        fits[index] = fit
     return fits
+
+
+def isolation_flags(events: Sequence[AudioEvent]) -> list[bool]:
+    """Public view of the isolation gate, in onset order.
+
+    Exposed so a banked-replay harness can reconstruct the coverage tally
+    without redoing the spectral work.
+    """
+    return _isolated_flags(sorted(events, key=lambda event: event.onset_s))
 
 
 def _parabolic_peak(spectrum: np.ndarray, index: int) -> float:
@@ -526,50 +583,64 @@ def attach_inharmonicity_evidence(
         # untouched keeps out-of-domain sessions bit-identical to baseline.
         return list(events), {"events": len(events), "isolated": 0, "fitted": 0, "applied": 0}
 
-    audio = np.asarray(wav, dtype=np.float64)
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
     ordered = sorted(events, key=lambda event: event.onset_s)
-    isolated = _isolated_flags(ordered)
+    if weight == 0.0:
+        return list(ordered), {
+            "events": len(ordered),
+            "isolated": 0,
+            "fitted": 0,
+            "applied": 0,
+        }
 
+    fits = measure_events(
+        ordered,
+        wav,
+        sr,
+        cfg,
+        isolation=isolation,
+        min_clean_partials=min_clean_partials,
+    )
+    return apply_fits(
+        ordered,
+        fits,
+        model,
+        cfg,
+        weight=weight,
+        min_r2=min_r2,
+        sigma=sigma,
+        isolation=isolation,
+    )
+
+
+def apply_fits(
+    ordered: Sequence[AudioEvent],
+    fits: dict[int, InharmonicityFit],
+    model: StringStiffnessModel,
+    cfg: GuitarConfig | None = None,
+    *,
+    weight: float = DEFAULT_WEIGHT,
+    min_r2: float = DEFAULT_MIN_R2,
+    sigma: float = DEFAULT_SIGMA,
+    isolation: str = "strict",
+) -> tuple[list[AudioEvent], dict[str, int]]:
+    """The scoring half: fold measured fits into each event's ``fret_prior``.
+
+    Separated from the spectral half so admission thresholds (``min_r2``),
+    ``sigma``, ``weight`` and the stiffness table can be swept against banked
+    fits without re-analysing audio. ``ordered`` must be in onset order and
+    ``fits`` keyed by index into it — exactly what :func:`measure_events`
+    returns for the same event list.
+    """
+    cfg = cfg or GuitarConfig()
+    isolated = _isolated_flags(ordered)
     tally = {"events": len(ordered), "isolated": 0, "fitted": 0, "applied": 0}
     out: list[AudioEvent] = []
     for index, (event, is_isolated) in enumerate(zip(ordered, isolated, strict=True)):
-        if weight == 0.0 or (isolation == "strict" and not is_isolated):
+        if isolation == "strict" and not is_isolated:
             out.append(event)
             continue
         tally["isolated"] += 1
-        duration = event.offset_s - event.onset_s
-        if duration < MIN_WINDOW_S + SKIP_ATTACK_S:
-            out.append(event)
-            continue
-        start = int((event.onset_s + SKIP_ATTACK_S) * sr)
-        stop = start + int(min(MAX_WINDOW_S, duration - SKIP_ATTACK_S) * sr)
-        if start < 0 or stop > audio.size:
-            out.append(event)
-            continue
-        nominal = 440.0 * 2 ** ((event.pitch_midi - 69) / 12.0)
-        blocked: list[float] = []
-        separation = 0.0
-        if isolation == "partial_aware" and not is_isolated:
-            window_s = (stop - start) / sr
-            separation = SEPARATION_FACTOR / max(window_s, 1e-6)
-            for other in _overlapping(
-                ordered, index, event.onset_s + SKIP_ATTACK_S, event.onset_s + duration
-            ):
-                blocked.extend(_harmonic_frequencies(other.pitch_midi))
-        fit = estimate_inharmonicity(
-            audio[start:stop],
-            sr,
-            nominal,
-            blocked_hz=blocked,
-            min_separation_hz=separation,
-        )
-        if fit is not None and blocked and fit.partials < min_clean_partials:
-            # Contaminated and thinly supported: abstain rather than trust a
-            # fit resting on a handful of surviving partials.
-            out.append(event)
-            continue
+        fit = fits.get(index)
         if fit is None or fit.r2 < min_r2:
             out.append(event)
             continue
@@ -601,6 +672,8 @@ __all__ = [
     "calibrate_from_ritual",
     "calibrate_from_session",
     "measure_events",
+    "apply_fits",
+    "isolation_flags",
     "attach_inharmonicity_evidence",
     "estimate_inharmonicity",
     "inharmonicity_matrix",
