@@ -1,6 +1,35 @@
-# Accuracy-loop state
-last_updated: 2026-07-24
-current_branch: accuracy/n4-ritual-validation  (post-program N4 ritual validation)
+# Accuracy-loop state — HISTORICAL, DO NOT TRUST AS CURRENT
+
+> **⚠️ This file is a closed program's record, and it went stale before that
+> program ended.** It is kept for the Q1-Q8 / N1-N5 reasoning, which is still
+> the best account of what was tried and why. Everything below the queue table
+> is accurate. **The queue table itself is not**, and neither is the header.
+>
+> Known-wrong, as of 2026-07-25:
+>
+> - `current_branch` names a branch that was superseded four commits later. The
+>   real tip was `accuracy/level-correction-0.60`.
+> - The **Q6 row still says "opt-in"**. The physics channel has been the
+>   clean-acoustic default since 2026-07-24.
+> - The **Q7 row still asks for a user decision** on capo routing. That shipped
+>   on 2026-07-24.
+> - Nothing here records that the +0.60 level correction was built, refuted on
+>   held-out data, and reverted, or that N1 was confirmed and shipped.
+>
+> **For current state read
+> [`parallel-program-state.md`](parallel-program-state.md)**; for the numbers
+> read [`EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md`](EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md).
+> For the last four iterations of this program, the **commit messages are
+> authoritative over this file**.
+>
+> The lesson worth keeping: a state file that is updated by hand at the end of
+> each iteration will eventually miss one, and a state file that lies is worse
+> than no state file. The successor keeps its numbers in a generated report and
+> uses the document only for narrative.
+
+last_updated: 2026-07-24 (frozen; superseded 2026-07-25)
+current_branch: accuracy/n4-ritual-validation  (STALE — real tip was
+accuracy/level-correction-0.60, now merged to main)
 
 ## Queue
 | id | item | status | key numbers | next action | blockers |
