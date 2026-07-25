@@ -10,8 +10,9 @@ state.
 The Python pipeline is a moving target, so this shell is expected to be rebuilt
 or heavily reworked as TabVision develops. Keep it thin: C# may launch the
 `tabvision transcribe` sidecar, parse its machine output, and present results,
-but all transcription and ranking logic stays in Python. D2 editor work remains
-out of scope until the web editor stabilizes.
+but all transcription and ranking logic stays in Python. The stabilized web
+editor is now the D2 interaction reference: the WPF shell consumes Python-ranked
+pitch-preserving candidates and owns only local presentation/editing state.
 
 ## Frozen directories
 

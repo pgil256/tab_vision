@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace TabVision.Desktop.Models;
 
 public static class EditorSessionStore

@@ -307,7 +307,7 @@ public sealed class PythonEnvironmentBootstrapper
                 "--requirement",
                 payloads.RequirementsLock,
             ],
-            layout.RootDirectory,
+            Path.GetDirectoryName(payloads.RequirementsLock)!,
             new Dictionary<string, string?>
             {
                 ["PATH"] = path,

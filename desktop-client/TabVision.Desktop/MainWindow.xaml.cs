@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private readonly CancellationTokenSource _bootstrapCancellationSource = new();
     private SelectedInputSummary? _selectedInput;
     private TranscriptionOptions? _completedOptions;
+    private EditorDocument? _completedEditorDocument;
     private BootstrapPayloadPaths? _bootstrapPayloads;
     private bool _bootstrapReady = true;
     private bool _bootstrapRunning;
@@ -49,6 +50,24 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromSeconds(1),
         };
         _recordingTimer.Tick += RecordingTimer_Tick;
+        RestoreEditorMenuItem.IsEnabled = EditorSessionStore.TryLoad() is not null;
+    }
+
+    private void RestoreEditorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var document = EditorSessionStore.TryLoad();
+        if (document is not null)
+        {
+            new EditorWindow(document) { Owner = this }.Show();
+        }
+    }
+
+    private void OpenEditor_Click(object sender, RoutedEventArgs e)
+    {
+        if (_completedEditorDocument is not null)
+        {
+            new EditorWindow(_completedEditorDocument) { Owner = this }.Show();
+        }
     }
 
     private void FitWindowToWorkArea()
@@ -638,6 +657,7 @@ public partial class MainWindow : Window
     {
         _selectedInput = selectedInput;
         _completedOptions = null;
+        _completedEditorDocument = null;
         SelectedFileNameText.Text = selectedInput.FileName;
         SelectedFileDetailsText.Text = selectedInput.Details;
         SelectedFilePathText.Text = selectedInput.FullPath;
@@ -648,6 +668,7 @@ public partial class MainWindow : Window
         ClearLowConfidenceFlags();
         ClearSidecarError();
         ExportButton.IsEnabled = false;
+        OpenEditorButton.IsEnabled = false;
         TranscribeButton.IsEnabled = true;
         JobStatusText.Text = "Ready to transcribe.";
     }
@@ -694,12 +715,14 @@ public partial class MainWindow : Window
         try
         {
             var outputPath = CreateJobOutputPath();
+            var editorPath = Path.Combine(Path.GetDirectoryName(outputPath)!, "editor.json");
             var options = ReadTranscriptionOptions();
             var result = await RunSidecarAsync(
                 _selectedInput.FullPath,
                 outputPath,
                 TranscriptionOutputFormat.Default.CliValue,
-                options
+                options,
+                editorPath
             );
 
             if (result.ExitCode != 0)
@@ -714,6 +737,17 @@ public partial class MainWindow : Window
             TabViewerTextBox.CaretIndex = 0;
             TabViewerTextBox.ScrollToHome();
             ShowLowConfidenceFlags(envelope.LowConfidenceFlags);
+            if (
+                !string.IsNullOrWhiteSpace(envelope.EditorPath)
+                && File.Exists(envelope.EditorPath)
+            )
+            {
+                _completedEditorDocument = EditorDocument.Load(envelope.EditorPath);
+                EditorSessionStore.Save(_completedEditorDocument);
+                RestoreEditorMenuItem.IsEnabled = true;
+                OpenEditorButton.IsEnabled = true;
+                new EditorWindow(_completedEditorDocument) { Owner = this }.Show();
+            }
             TabViewerPanel.Visibility = Visibility.Visible;
             _completedOptions = options;
             JobProgressBar.Value = 100;
@@ -797,7 +831,8 @@ public partial class MainWindow : Window
         string inputPath,
         string outputPath,
         string format,
-        TranscriptionOptions options
+        TranscriptionOptions options,
+        string? editorOutputPath = null
     )
     {
         var sidecarExecutable = SidecarExecutableLocator.Resolve();
@@ -805,7 +840,8 @@ public partial class MainWindow : Window
             inputPath,
             outputPath,
             format,
-            options
+            options,
+            editorOutputPath
         );
         var lineProgress = new Progress<string>(ShowProgressLine);
         var runner = new SidecarProcessRunner();
@@ -899,6 +935,8 @@ public partial class MainWindow : Window
             _bootstrapReady && !isRunning && _selectedInput is not null;
         ExportButton.IsEnabled =
             _bootstrapReady && !isRunning && _completedOptions is not null;
+        OpenEditorButton.IsEnabled =
+            _bootstrapReady && !isRunning && _completedEditorDocument is not null;
     }
 
     private static string CreateJobOutputPath()

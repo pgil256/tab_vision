@@ -7,17 +7,25 @@ public static class SidecarCommandBuilder
     public static IReadOnlyList<string> BuildAsciiArguments(
         string inputPath,
         string outputPath,
-        TranscriptionOptions options
+        TranscriptionOptions options,
+        string? editorOutputPath = null
     )
     {
-        return BuildArguments(inputPath, outputPath, TranscriptionOutputFormat.Default.CliValue, options);
+        return BuildArguments(
+            inputPath,
+            outputPath,
+            TranscriptionOutputFormat.Default.CliValue,
+            options,
+            editorOutputPath
+        );
     }
 
     public static IReadOnlyList<string> BuildArguments(
         string inputPath,
         string outputPath,
         string format,
-        TranscriptionOptions options
+        TranscriptionOptions options,
+        string? editorOutputPath = null
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(inputPath);
@@ -54,6 +62,11 @@ public static class SidecarCommandBuilder
         if (options.NoVideo)
         {
             arguments.Add("--no-video");
+        }
+        if (!string.IsNullOrWhiteSpace(editorOutputPath))
+        {
+            arguments.Add("--editor-output");
+            arguments.Add(editorOutputPath);
         }
 
         return arguments;

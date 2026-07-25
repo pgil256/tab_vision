@@ -1,0 +1,135 @@
+<Window x:Class="TabVision.Desktop.EditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:TabVision.Desktop.Controls"
+        Title="TabVision Editor"
+        Width="1180"
+        Height="760"
+        MinWidth="760"
+        MinHeight="520"
+        Background="#0B0F17"
+        Foreground="#E5E7EB"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock FontSize="23" FontWeight="SemiBold" Text="TabVision" />
+                <TextBlock Foreground="#8D96A8" Text="Editor · local autosave" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="ConfidenceSummaryText"
+                           Margin="0,0,18,0"
+                           VerticalAlignment="Center"
+                           Foreground="#B7C0CF" />
+                <Button Padding="12,6" Click="Shortcuts_Click" Content="Shortcuts" />
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1"
+                Margin="0,14,0,0"
+                Padding="10"
+                Background="#111827"
+                CornerRadius="7">
+            <WrapPanel VerticalAlignment="Center">
+                <Button x:Name="PlayButton" Padding="10,5" Click="Play_Click" Content="▶ Play" />
+                <Button Margin="6,0,0,0" Padding="10,5" Click="ToggleVideo_Click" Content="Show / hide video" />
+                <ComboBox x:Name="PlaybackRateComboBox"
+                          Width="68"
+                          Margin="6,0,0,0"
+                          VerticalContentAlignment="Center"
+                          SelectionChanged="PlaybackRateComboBox_SelectionChanged" />
+                <Button x:Name="MuteVideoButton" Margin="6,0,0,0" Padding="10,5" Click="MuteVideo_Click" Content="Mute video" />
+                <Button x:Name="ReviewButton" Margin="16,0,0,0" Padding="10,5" Click="Review_Click" Content="Review lowest confidence (R)" />
+                <Button Margin="6,0,0,0" Padding="10,5" Click="PreviousReview_Click" Content="Previous (P)" />
+                <Button Margin="6,0,0,0" Padding="10,5" Click="NextReview_Click" Content="Next (N)" />
+                <Button x:Name="UndoButton" Margin="16,0,0,0" Padding="10,5" Click="Undo_Click" Content="Undo" />
+                <Button x:Name="RedoButton" Margin="6,0,0,0" Padding="10,5" Click="Redo_Click" Content="Redo" />
+                <Button Margin="16,0,0,0" Padding="10,5" Click="ZoomOut_Click" Content="−" />
+                <TextBlock x:Name="ZoomText" Margin="8,0" VerticalAlignment="Center" Text="100%" />
+                <Button Padding="10,5" Click="ZoomIn_Click" Content="+" />
+                <Button Margin="16,0,0,0" Padding="12,5" Click="Export_Click" Content="Export edited tab" />
+                <Button Margin="6,0,0,0" Padding="12,5" Click="Copy_Click" Content="Copy tab" />
+                <Button x:Name="FollowButton" Margin="6,0,0,0" Padding="10,5" Click="Follow_Click" Content="Following playback" />
+            </WrapPanel>
+        </Border>
+
+        <Border x:Name="VideoPanel"
+                Grid.Row="2"
+                Height="190"
+                Margin="0,12,0,0"
+                Background="Black"
+                CornerRadius="7"
+                Visibility="Collapsed">
+            <Grid>
+                <MediaElement x:Name="VideoElement"
+                              LoadedBehavior="Manual"
+                              UnloadedBehavior="Manual"
+                              Stretch="Uniform"
+                              MediaOpened="VideoElement_MediaOpened"
+                              MediaEnded="VideoElement_MediaEnded" />
+                <Slider x:Name="VideoPositionSlider"
+                        Margin="16,0,16,12"
+                        VerticalAlignment="Bottom"
+                        ValueChanged="VideoPositionSlider_ValueChanged" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3"
+                Margin="0,12,0,0"
+                Background="#0B0F17"
+                BorderBrush="#202938"
+                BorderThickness="1"
+                CornerRadius="7">
+            <ScrollViewer x:Name="TimelineScroll"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled">
+                <controls:EditorTimeline x:Name="Timeline" />
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="4"
+                Margin="0,12,0,0"
+                Padding="12"
+                Background="#111827"
+                CornerRadius="7">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel>
+                    <TextBlock x:Name="SelectionText" FontWeight="SemiBold" Text="Select a note to edit" />
+                    <TextBlock x:Name="HintText"
+                               Margin="0,4,0,0"
+                               Foreground="#8D96A8"
+                               Text="Click a note, or press R to review the lowest-confidence notes."
+                               TextWrapping="Wrap" />
+                </StackPanel>
+                <WrapPanel Grid.Row="1" Margin="0,10,0,0" VerticalAlignment="Center">
+                    <Button Padding="9,5" Click="PreviousCandidate_Click" Content="◀ Candidate" />
+                    <Button Margin="6,0,0,0" Padding="9,5" Click="NextCandidate_Click" Content="Candidate ▶ (C)" />
+                    <Button Margin="12,0,0,0" Padding="9,5" Click="StringUp_Click" Content="String ↑" />
+                    <Button Margin="6,0,0,0" Padding="9,5" Click="StringDown_Click" Content="String ↓" />
+                    <TextBox x:Name="FretTextBox" Width="44" Margin="12,0,0,0" VerticalContentAlignment="Center" />
+                    <Button Margin="4,0,0,0" Padding="9,5" Click="ApplyFret_Click" Content="Set fret" />
+                    <Button Margin="6,0,0,0" Padding="9,5" Click="Mute_Click" Content="Mute (X)" />
+                    <Button Margin="6,0,0,0" Padding="9,5" Click="Delete_Click" Content="Delete" />
+                    <Button Margin="6,0,0,0" Padding="9,5" Click="Insert_Click" Content="Insert at playhead (I)" />
+                </WrapPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

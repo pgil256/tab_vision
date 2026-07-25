@@ -393,3 +393,18 @@ in Python. D2 is out of scope until the web editor stabilizes.
   reported 1280x720 display (672-pixel work area), the rebuilt window opened at
   `(230, 12)` with an 820x648 frame, entirely within `(0, 0)-(1280, 672)`.
   Release build had 0 warnings/errors and all 54 tests passed.
+- 2026-07-25: D2 unblocked by explicit user direction to emulate the stabilized
+  web editor. Added an additive `--editor-output` sidecar document, a dedicated
+  work-area-bounded WPF editor, confidence timeline, lowest-confidence review
+  queue, Python-ranked pitch-preserving candidate cycling, string/fret/mute/
+  insert/delete editing, undo/redo, zoom, local autosave/restore, video
+  playback controls, shortcuts, and edited text-tab export. Visual verification
+  at the current 1168x648 work area confirmed every editor control remains
+  onscreen; live review selected the 19%-confidence note and candidate cycling
+  moved it from string 6/fret 9 to Python option string 5/fret 4 with Undo
+  enabled. Debug build: 0 warnings/errors; 60 desktop tests passed. No C# or
+  Python dependency was added and no ranking logic moved into C#. Project-venv
+  Python gate: 1,122 passed / 12 skipped; Ruff and mypy passed. The Release
+  installer now bundles the editor-capable Python wheel at verified SHA-256
+  `382eef68...ccb80`; the 109,743,662-byte installer built successfully at
+  SHA-256 `d7b6b945...d4625`.

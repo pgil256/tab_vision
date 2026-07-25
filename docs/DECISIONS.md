@@ -4880,3 +4880,27 @@ runtime used cached audio predictions and therefore cannot close the full
 end-to-end latency gate. Those limitations make default promotion premature,
 while the conservative opt-in preserves the measured corrections and the
 existing rollback.
+
+---
+
+## 2026-07-25 — WPF D2 adopts the stabilized web editor contract
+
+**Context:** The disposable desktop plan deferred D2 until the web editor
+stabilized. The user explicitly directed the desktop app to inspect and emulate
+the current web editor.
+
+**Decision:** Treat the frozen web editor's structured `TabDocument`, review
+queue, keyboard map, and text export as the D2 interaction reference. The
+Python CLI additively emits `--editor-output` with production min-marginal,
+pitch-preserving candidates. WPF owns only selection, reversible local edits,
+playback/timeline presentation, autosave, and text export; it does not rank or
+transcribe. The editor opens as a separate work-area-bounded window so the
+record/upload shell stays cheap to rebuild.
+
+**Reasoning:** A shared document contract gives desktop parity without reviving
+or modifying the frozen web/server applications. Candidate order remains tied
+to the production decoder, while the desktop stays a thin client. The separate
+window preserves the existing capture/transcription workflow and prevents the
+short-screen clipping previously reported by the user.
+
+---

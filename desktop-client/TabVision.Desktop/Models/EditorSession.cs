@@ -25,7 +25,7 @@ public sealed class EditorSession
     public IReadOnlyList<int> ReviewIndices =>
         Document
             .Notes.Select((note, index) => (note, index))
-            .Where(item => !item.note.IsEdited && item.note.ConfidenceLevel == "low")
+            .Where(item => !item.note.IsEdited && !item.note.Fret.IsMuted)
             .OrderBy(item => item.note.Confidence)
             .Take(30)
             .Select(item => item.index)
@@ -54,8 +54,33 @@ public sealed class EditorSession
             Select(-1);
             return;
         }
-        var position = Math.Max(0, queue.IndexOf(SelectedIndex));
+        var position = queue.IndexOf(SelectedIndex);
+        if (position < 0)
+        {
+            Select(direction > 0 ? queue[0] : queue[^1]);
+            return;
+        }
         Select(queue[(position + direction + queue.Count) % queue.Count]);
+    }
+
+    public void SelectAdjacent(int direction)
+    {
+        if (Document.Notes.Count == 0)
+        {
+            Select(-1);
+            return;
+        }
+        Select(
+            SelectedIndex < 0
+                ? 0
+                : Math.Clamp(SelectedIndex + direction, 0, Document.Notes.Count - 1)
+        );
+    }
+
+    public void ClearSelection()
+    {
+        ReviewMode = false;
+        Select(-1);
     }
 
     public bool CycleCandidate(int direction)
@@ -134,10 +159,11 @@ public sealed class EditorSession
     public void Insert(double timestamp)
     {
         Snapshot();
+        var insertedId = $"inserted-{Guid.NewGuid():N}";
         Document.Notes.Add(
             new EditorNote
             {
-                Id = $"inserted-{Guid.NewGuid():N}",
+                Id = insertedId,
                 Timestamp = Math.Max(0, timestamp),
                 EndTime = Math.Max(0, timestamp) + 0.25,
                 String = 1,
@@ -149,7 +175,7 @@ public sealed class EditorSession
             }
         );
         Sort();
-        SelectedIndex = Document.Notes.FindIndex(note => note.Id.StartsWith("inserted-"));
+        SelectedIndex = Document.Notes.FindIndex(note => note.Id == insertedId);
     }
 
     public void Undo()
