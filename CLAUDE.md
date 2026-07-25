@@ -16,44 +16,55 @@ pitch-preserving candidate cycling (C key), shipped at the measured Phase 6
 level (38.76% wrong-position reduction @60s), reported separately from
 automatic Tab F1.
 
-## Desktop shell (planned 2026-07-22)
+## Project status (2026-07-25)
 
-A WPF (.NET 8) desktop shell over the Python pipeline is planned at
-`docs/plans/2026-07-22-wpf-desktop-shell-plan.md` (small installer,
-first-run weight/env download, viewer→editor phasing). **It is disposable
-by design: the pipeline is a moving target and the shell is expected to be
-rebuilt as TabVision develops.** Keep all transcription/ranking logic in
-Python; the shell must stay thin. See DECISIONS.md 2026-07-22.
+**v1.0.0 is released and `main` has moved well past it.** Work happens on
+`main`; cut new branches from it. SPEC §7's ten phases are complete and the
+`v1.0.0` tag records the 2026-06-03 acceptance run (aggregate Tab F1 0.600).
 
-## Project status (2026-05-05)
+**Current default pipeline** — `highres-ensemble` audio + `guitarset-v1`
+position prior + `acoustic-physics-v1` string evidence with partial-aware
+isolation. Held-out player-05, 60 clips: **single-line 0.7257, strummed
+0.7435, aggregate 0.7346** (+0.1006 [+0.0615, +0.1416] over the pre-physics
+0.6340). Report: `docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md`.
 
-**TabVision is mid-spec-adoption.** A new canonical specification at
-`SPEC.md` (formerly `TAB_SPEC_UPDATE.md`) reframes the project as a Python
-CLI with strict module boundaries. v0 (Electron + Flask, ~91.6% F1 on
-11-clip set) is **frozen**; v1 (`tabvision/` package) is being built in
-parallel under `refactor/v1`.
+Routing that `auto` performs per session: classical/nylon → `gaps-v1` /
+`gaps-seq-v1`; `--capo N` > 0 → capo-covariant position prior; anything
+outside clean steel-string acoustic standard tuning → physics channel
+abstains by construction.
 
 **Read these before any non-trivial change:**
-- `SPEC.md` — canonical spec (10-phase plan, §8 immutable contracts).
-- `docs/plans/2026-05-05-tabvision-spec-adoption-design.md` — adoption design
-  (hybrid approach, phase mapping, sequencing, eval set strategy).
+- `SPEC.md` — canonical spec (10-phase plan, §8 immutable contracts). §1.4 /
+  §1.4.1 remain the source of truth for scope and acceptance targets.
+- `docs/NARRATIVE.md` — what was tried, what worked, what was refuted, and
+  the two published claims that turned out to be wrong.
+- `docs/DECISIONS.md` — non-obvious branches taken (per SPEC §0.5). Append
+  only; ~139 entries.
+- `LICENSES.md` — per-artifact license map. Default *deps* are permissive;
+  default *artifacts* include CC-BY-NC-SA classical priors.
 - `AUDIT.md` — Phase 0 audit: inventory, what works, reusable artifacts.
-- `LICENSES.md` — dependency license map; ⚠️ items gate respective phase entry.
-- `docs/DECISIONS.md` — non-obvious branches taken (per SPEC §0.5).
 
-**Active branch (2026-05-13):** `main`. The Modal production deploy
-(`936a5cc`) and v1 CI hardening landed on `main`; `refactor/v1` is now
-**23 commits behind `main`** and should be treated as historical. Cut new
-work branches off `main`. Older design docs (and earlier paragraphs in
-this file) may reference paths that exist on `main` but not on
-`refactor/v1` — verify with `git cat-file -e origin/main:<path>` before
-relying on them. The full pipeline (`tabvision/tabvision/pipeline.py`),
-the Modal production adapter (`tabvision-server/modal_app.py`,
-`tabvision-server/app/v1_adapter.py`), and the highres audio backend all
-live on `main`. Phase 5 fusion has shipped. See
-`docs/2026-05-12-session-handoff.md` for the production state and
-`docs/plans/2026-05-12-tab-f1-to-spec-design.md` (+ companion Phase 0
-implementation plan) for current accuracy work.
+**Two live caveats when reading state files.** `docs/accuracy-loop-state.md`
+went stale before its program ended — for the final iterations the commit
+messages are authoritative. And this repo is often worked by more than one
+session at once: check `git worktree list` and re-read `git log` before
+assuming a branch tip is where you left it.
+
+## Desktop shell + FretCam (2026-07-23/24)
+
+`desktop-client/` is a WPF (.NET 8) shell over the Python CLI: pinned
+installer, resumable first-run env/weight bootstrap, audited
+offline-after-bootstrap transcription, in-app camera + mic recording.
+**It is disposable by design: the pipeline is a moving target and the shell
+is expected to be rebuilt.** Keep all transcription/ranking logic in Python;
+the shell must stay thin. Plan: `docs/plans/2026-07-22-wpf-desktop-shell-plan.md`.
+
+`fretcam/` is a live fretboard/position HUD and the source of the **opt-in**
+`--video-backend fretcam` bridge. `legacy` remains the default: end-to-end
+against real audio the bridge measured +0.000836 on ten source-disjoint clips
+(95% CI lower bound exactly 0) and −0.000155 on the development set. Do not
+promote it without the L2 controlled-live gate plus a larger frozen result.
+The exact-string video path stays quarantined.
 
 ## Layout
 
@@ -67,6 +78,8 @@ tab_vision/
 │   ├── tests/{unit,integration,eval}/
 │   ├── scripts/{acquire,train,eval,augment,annotate}/
 │   └── data/{fixtures,eval,augmented}/
+├── desktop-client/         ← WPF (.NET 8) shell over the CLI. Thin, disposable.
+├── fretcam/                ← live position HUD + opt-in video bridge
 ├── tabvision-server/       ← FROZEN v0 backend (Flask). No further dev.
 ├── tabvision-client/       ← FROZEN v0 desktop UI (Electron). No further dev.
 ├── web-client/             ← FROZEN v0 web client (Vite + Vercel).
@@ -112,8 +125,24 @@ ruff check .
 ruff format --check .
 mypy tabvision
 
-# CLI (Phase 0 stub)
+# CLI
 tabvision --version
+tabvision transcribe input.mov --format ascii -o out.tab
+```
+
+FretCam bridge tests (CI installs the package and gates the four bridge files):
+
+```bash
+cd fretcam
+pip install --no-deps -e .    # into the tabvision venv
+pytest -q
+```
+
+Desktop shell:
+
+```bash
+cd desktop-client
+dotnet test
 ```
 
 ## v0 (frozen) reference
@@ -142,11 +171,21 @@ pytest tests/    # 17 v0 tests
 
 ## Acceptance targets (SPEC §1.4)
 
-**v1 scope (2026-06-02): acoustic, audio-only.** Honest audio-only targets on
+**v1 scope (2026-06-02): acoustic, audio-first.** Honest targets on
 GuitarSet (see SPEC §1.4.1): single-line Tab F1 ≥ 0.45, strummed ≥ 0.60,
 aggregate ≥ 0.55, + onset ≥ 0.92 / pitch ≥ 0.90 / chord ≥ 0.85 / latency ≤ 5 min.
-**Single-line is information-limited** — audio can't resolve which string a pitch
-is on; 0.94 is a **v1.1 video** target (`docs/EVAL_REPORTS/acoustic_single_line_2026-06-02.md`).
+These are the **v1.0.0 acceptance gates** and remain the contractual targets;
+the current default clears all of them with substantial margin (0.7257 /
+0.7435 / 0.7346).
+
+⚠️ **The "single-line is information-limited" framing in older docs is
+superseded.** It was used to argue that only video could resolve strings.
+Inharmonicity — string stiffness stretching a note's partials by an amount that
+depends on the string — carries string identity in the audio, and reading it
+moved single-line 0.5503 → 0.7257. Treat "audio cannot resolve X" claims in
+pre-2026-07-22 documents as unverified. The retired 0.94 single-line figure was
+a *video-assisted* aspiration and is not a live target.
+
 **Electric tiers → v2** (clean-electric measured **0.12**; acoustic-trained
 backbone, no in-repo training code — `cross_dataset_prior_2026-06-02.md`). v1
 ships the **tone toggle** (electric → separate `highres-electric` checkpoint).

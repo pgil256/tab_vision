@@ -34,6 +34,18 @@ strings they must be on, and the audio-only decode gets it right. Single-line is
 information-limited exactly where strummed is not. This is why v1 is scoped
 audio-only and why the string-resolution story (`../NARRATIVE.md`) is the point.
 
+> **Update 2026-07-24 — this table documents the v1.0.0 configuration, and the
+> default has since moved.** With the `acoustic-physics-v1` string-evidence
+> channel now on by default, these same two clips measure **0.6667** single-line
+> (from 0.3333 — the gap roughly halves) and **0.9333** strummed (from 0.9467).
+> The single-line clip doubling is the point: that gap was called
+> information-limited, and a physics-derived channel recovered half of it from
+> the same audio. The small strummed regression is consistent with the
+> aggregate split (solo +0.1754, comp +0.0258 — the channel earns its keep on
+> single lines and occasionally costs a little on chords). Numbers from
+> [`../EVAL_REPORTS/player05_batched_confirm_2026-07-24.md`](../EVAL_REPORTS/player05_batched_confirm_2026-07-24.md).
+> The tab excerpts below are the v1.0.0 decode and have not been regenerated.
+
 ## Single-line (`05_BN1-129-Eb_solo`) — TabVision output, first 8 notes
 
 ```
