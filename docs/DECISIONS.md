@@ -5149,3 +5149,68 @@ implementations of the same gates — which is what allowed one of them to be
 silently missing a mode. Composing the shipped path from the same two halves the
 replay uses makes that class of divergence unrepresentable rather than merely
 unlikely.
+
+---
+
+## 2026-07-25 — Track B CLOSED: do not build `guitarset-timbre-v1`
+
+**Phase:** Parallel improvement program, Track B (timbral string classifier)
+**Decision tree:** The `guitarset-timbre-v1` slot is registered in the CLI and
+empty. Two prior closures (Phase 2 2026-07-14, Phase 4 2026-07-16) rejected
+timbral models over *all* ambiguous notes; neither asked about the population
+the physics channel created. Establish whether a timbral model has a niche on
+the ~77% of ambiguous notes where physics abstains, without re-running anything
+those closures forbade.
+**Branch taken:** **Close Track B.** Do not register the artifact, do not train,
+do not spend. `--string-evidence auto` continues to resolve to the physics
+channel or `none`. The slot stays empty.
+**Evidence:** 300 development clips, leave-one-player-out, sealed player not
+opened, frozen-baseline drift ±0.0000.
+
+*Where a timbral model would work:* abstain is 37,740 of 49,268 ambiguous notes
+(76.6%), at 1.8× the concurrency and 1.9× the masking of the covered population
+(mean concurrency 3.72 vs 2.07; masked 66.3% vs 35.7%). Median duration is
+equal, so physics abstains under **simultaneity**, not brevity.
+
+*Ceiling:* gold-string oracle on the abstain population alone is **+0.1934
+[+0.1768, +0.2101]** over shipped (0.6801 → 0.8735). Large, so — per the
+pre-declared reading — it does not close the track by itself.
+
+*Signal:* leave-one-player-out pairwise separability (same pitch, different
+string, Fisher direction, plain spectral features) is **AUC 0.7060 on abstain**
+against 0.6633 on covered.
+
+*Realised extraction, from the prior closures:* Phase 2's audio ranker scored
+0.6331 against a 0.6548 prior-only comparator (**worse**) with healthy
+calibration; Phase 4's native-rate model with inharmonicity reached **+0.0072
+[−0.0152, +0.0291]** against a +0.05 gate.
+Report: `docs/EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
+**Reasoning:** The constraint is the conversion, not the ingredients. Ceiling is
+large and signal is present, so neither explains the failure — but a pairwise
+AUC of 0.71 is substantially overlapping distributions, and it must improve a
+position prior already at ~0.65 top-1 on the same notes. Weak evidence competing
+against a strong prior on a six-way decision is exactly where added channels
+wash out, and "healthy calibration, no lift" is that regime's signature — which
+is precisely what Phase 2 reported.
+
+This also explains why *physics* succeeded where fitted timbral models failed
+even though Phase 4 included inharmonicity as a feature. The physics channel is
+**specification-derived**, contributing an absolute physical prediction per
+candidate, rather than a discriminative direction learned from the same
+distribution the position prior already models. Its evidence is independent of
+the prior in a way a fitted timbral direction is not.
+
+**A hypothesis was refuted along the way, and it is worth recording because it
+was the attractive one.** The probe was built to confirm that masking destroys
+timbral information — which would have explained both prior closures at once
+and made the complement provably hopeless. Measurement says the opposite:
+separability on the heavily-masked abstain population is *slightly better* than
+on the covered one. The tidy mechanism was wrong, and the closure rests on the
+weak-evidence-versus-strong-prior account instead.
+
+**If reopened,** the evidence says the productive question is not better
+features — Phase 4 already went to Nyquist — but how weak per-note evidence is
+*combined*. Track A's result is the precedent: the same evidence admitted at its
+own confidence rather than at full weight turned a regression into a gain. That
+is the only version of this idea the measurements support, and it needs its own
+gate.
