@@ -89,13 +89,49 @@ Track E.
 
 ## Phase 1 tracks
 
-| track | branch | status | owner notes |
+| track | branch | status | headline |
 |---|---|---|---|
-| A — physics coverage | `accuracy/a-physics-coverage` | ready | first task: bankable partial-aware fits (`measure_events` isolation param) |
-| B — timbral string classifier | `accuracy/b-timbre` | blocked | needs compute approval before training |
-| C — session-adaptive prior | `accuracy/c-prior-adapt` | ready | owns `inference_policy.py` |
-| D — detection buckets | `accuracy/d-detection` | ready — **promoted** | 33-39% of loss; measurement first, build only on a dominant mode |
-| E — hygiene | `chore/e-hygiene` | ready | SPEC §1.4.1 edit needs approval; also carries the pitch-gate spread finding |
+| A — physics coverage | `accuracy/a-physics-coverage` | **result, dev leg passed** | hard thresholds refuted; confidence weighting **+0.0071 [+0.0021, +0.0122]** vs shipped at 28% coverage |
+| B — timbral string classifier | `accuracy/b-timbre` | not started | needs compute approval before training |
+| C — session-adaptive prior | `accuracy/c-prior-adapt` | not started | owns `inference_policy.py` |
+| D — detection buckets | `accuracy/d-detection` | **result** | both buckets decomposed; see section |
+| E — hygiene | `chore/e-hygiene` | **done** | 3 stale branches closed, loop-state frozen |
+
+### Track A — physics coverage
+
+**Dev leg PASSED; not promoted.** The motivating premise — that the 77.6% of
+uncovered notes hold usable signal — is **refuted in its stated form**. Every
+relaxation of `min_r2` is a CI-significant regression against shipped (0.40
+−0.0050 … 0.00 −0.0206), with coverage nearly doubling to 43.1% while Tab F1
+falls 0.6801 → 0.6595.
+
+What works instead is **weighting by fit quality rather than thresholding on
+it**: `confidence ≥ 0.30` gains **+0.0071 [+0.0021, +0.0122]** over shipped
+*and* raises coverage to 28.0%. A marginal fit admitted at full weight asserts
+confidence it cannot support; admitted at its own weight it contributes.
+
+Shipped default unchanged. Still needs the cross-domain leg and the Phase 2
+sealed confirmation. **+0.0071 is a tenth of the channel's own value** — real,
+CI-significant, not to be oversold.
+
+Prerequisite landed: `measure_events` / `apply_fits` split, verified
+bit-identical against Phase 0's pinned numbers (±0.0000). Banking 22,694
+partial-aware fits costs 2.9 min once; arms then sweep in seconds.
+
+Report: `EVAL_REPORTS/a_physics_coverage_2026-07-25.md`.
+
+### Track E — hygiene
+
+**Done.** Three "unmerged" branches (`codex/fix-live-deployment`,
+`codex/record-live-shutdown`, `docs/prod-repoint-2026-07-09`) were not pending
+work — their content is already in `main` via PR #34 and other paths. Local refs
+deleted; **the remote copies still exist and deleting them is the user's call**.
+
+`accuracy-loop-state.md` frozen as historical with its wrong claims enumerated
+rather than refreshed, since the program it describes is closed.
+
+Incidental: the 2026-07-13 entry retires the *old* `pgil256` Modal workspace,
+not the deployment — the README's "Modal production deploy" claim is accurate.
 
 ### Track A — physics coverage
 _(nothing yet)_
