@@ -77,6 +77,20 @@ HAND_SEARCH_UPSCALE_MAX_SCALE = 2.5
 # would-be-empty frame may spend on an uncropped still-image recovery pass.
 HAND_DETECTOR_CALLS_PER_FRAME = 2
 HAND_DETECTOR_RECOVERY_CALLS = 3
+# Rendered neck long edge, in detector-input pixels, that the OBB model wants.
+# Measured on the frozen benchmark at native scale: close framing presents a
+# 433 px neck and fits a rule-of-18 fret map on 1.000 of frames with 14.4 wires
+# detected, while full-neck framing presents 250 px and fits one on 0.333 with
+# 6.6 wires. Fret wires are small objects, so what matters is their size *in the
+# model's input* -- which makes the target an absolute pixel extent rather than
+# a fraction of the frame.
+DETECTOR_TARGET_NECK_PX = 430.0
+# Never go below ultralytics' default (also the detector's training scale) and
+# never above 1280: past that the close-framing sweep started losing the neck
+# OBB itself (1.000 -> 0.611), which costs far more than the extra wires gain.
+DETECTOR_MIN_IMGSZ = 640
+DETECTOR_MAX_IMGSZ = 1280
+DETECTOR_IMGSZ_STRIDE = 32
 GEOMETRY_REFINE_INTERVAL_S = 0.20
 FULL_HAND_VIDEO_REFRESH_INTERVAL_S = 0.50
 LOCKED_HAND_DETECTOR_HZ = 5.0
@@ -701,6 +715,34 @@ def _fret_ticks(
         )
         for fret, line in enumerate(projected)
     )
+
+
+def _adaptive_detector_imgsz(
+    frame_shape: tuple[int, ...],
+    neck_quad: tuple[Point, ...],
+) -> int | None:
+    """Pick an inference scale that renders the neck near its measured optimum.
+
+    ``rendered_neck_px = neck_px * imgsz / frame_long_px``, so solving for the
+    target extent gives the scale directly. Returns ``None`` when there is no
+    usable neck yet, which leaves the detector at its default — the first pass
+    has to find a neck before its size can inform anything.
+    """
+    if len(neck_quad) != 4 or len(frame_shape) < 2:
+        return None
+    quad = np.asarray(neck_quad, dtype=np.float64)
+    if not np.all(np.isfinite(quad)):
+        return None
+    edges = np.linalg.norm(np.roll(quad, -1, axis=0) - quad, axis=1)
+    neck_px = float(np.max(edges)) if edges.size else 0.0
+    frame_long_px = float(max(frame_shape[0], frame_shape[1]))
+    if neck_px <= 1.0 or frame_long_px <= 1.0:
+        return None
+    ideal = DETECTOR_TARGET_NECK_PX * frame_long_px / neck_px
+    if not math.isfinite(ideal):
+        return None
+    snapped = int(round(ideal / DETECTOR_IMGSZ_STRIDE) * DETECTOR_IMGSZ_STRIDE)
+    return int(np.clip(snapped, DETECTOR_MIN_IMGSZ, DETECTOR_MAX_IMGSZ))
 
 
 def _hand_points(hand: HandSample | None) -> tuple[HandPoint, ...]:
@@ -2149,6 +2191,7 @@ class DetectionChain:
         crop_hand: bool = True,
         board_tracker: OpticalBoardTracker | None = None,
         hand_tracker: TemporalHandLandmarkTracker | None = None,
+        adaptive_detector_scale: bool = False,
     ) -> None:
         if detector_hz <= 0.0:
             raise ValueError("detector_hz must be positive")
@@ -2168,6 +2211,7 @@ class DetectionChain:
         self.calibrator = calibrator
         self.background_detector = background_detector
         self.crop_hand = crop_hand
+        self.adaptive_detector_scale = adaptive_detector_scale
         self.board_tracker = board_tracker or OpticalBoardTracker()
         self.hand_tracker = hand_tracker or TemporalHandLandmarkTracker()
         self._lock = RLock()
@@ -2532,12 +2576,18 @@ class DetectionChain:
                     frame.copy(),
                     now_s,
                     self._generation,
+                    self._detector_imgsz(frame.shape, snapshot),
                 )
                 self._last_detection_s = now_s
                 self._last_detector_request_s = now_s
         elif self._should_detect(now_s, snapshot):
             detector_requested = True
-            result = self._run_detector_job(frame.copy(), now_s, self._generation)
+            result = self._run_detector_job(
+                frame.copy(),
+                now_s,
+                self._generation,
+                self._detector_imgsz(frame.shape, snapshot),
+            )
             detector_result_consumed = True
             detector_ran = self._apply_detector_result(result, frame, now_s)
             detector_result_accepted = detector_ran
@@ -3588,9 +3638,16 @@ class DetectionChain:
         frame: np.ndarray,
         timestamp_s: float,
         generation: int,
+        imgsz: int | None = None,
     ) -> _DetectorJobResult:
         detector_started = time.perf_counter()
-        predictions = self.detector.predict_all(frame)
+        predictions = self.detector.predict_all(
+            frame,
+            **_supported_extractor_kwargs(
+                self.detector.predict_all,
+                **({} if imgsz is None else {"imgsz": imgsz}),
+            ),
+        )
         detector_ms = (time.perf_counter() - detector_started) * 1000.0
         homography_started = time.perf_counter()
         homography, centers = self.calibrator(predictions, self.guitar_config)
@@ -3685,6 +3742,36 @@ class DetectionChain:
                 return
 
         future.add_done_callback(discard_result)
+
+    def _detector_imgsz(
+        self,
+        frame_shape: tuple[int, ...],
+        snapshot: TrackingSnapshot,
+    ) -> int | None:
+        """Scale the next detector pass to the neck the tracker already holds.
+
+        This is deliberately one pass behind: the size of the neck is what sets
+        the scale, so the first detection has to happen at the default before
+        anything can be adapted. Once a board is held the estimate is stable,
+        and a neck that is too small to yield fret wires simply gets a larger
+        input on the following pass.
+
+        **Off by default — it was measured and it regressed.** Upscaling does
+        deliver the wires it promises, but more wires let ``calibrate_fret_xs``
+        win a rule-of-18 consensus at the *wrong* first-wire index, shifting the
+        whole fret axis: dev coverage moved 0.4783 -> 0.4845 while false locks
+        went 0.000 -> 0.0497, every one of them at full-neck framing and several
+        off by seven positions. Retained behind the flag because the wire-yield
+        result is real and reusable once the fret-map fit is anchored well
+        enough to consume it. See
+        ``docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md``.
+        """
+        if not self.adaptive_detector_scale:
+            return None
+        homography = snapshot.homography
+        if homography.confidence <= 0.0:
+            return None
+        return _adaptive_detector_imgsz(frame_shape, _neck_quad(homography))
 
     def _should_detect(
         self,

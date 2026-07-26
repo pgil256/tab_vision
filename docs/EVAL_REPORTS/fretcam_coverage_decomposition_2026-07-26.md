@@ -251,10 +251,16 @@ portion before claiming generalisation.
 
    So the fix is a **scale-adaptive** inference size — upscale when the detected
    neck is small in frame, stay native when it fills it — not a fixed larger
-   `imgsz`. This is the clearest remaining path to lead 2. **It was not
-   implemented here**: `imgsz` would have to be plumbed through
-   `YoloOBBBackend`, which lives in `tabvision/`, and FretCam accuracy work is
-   scoped to `fretcam/` unless separately approved.
+   `imgsz`.
+
+   **Update (same day): this was implemented, measured, and closed negative.**
+   The rule works and delivers the wires, but more wires let
+   `calibrate_fret_xs` win a rule-of-18 consensus at the *wrong* first-wire
+   index: dev coverage +0.006 while false locks went 0.000 → 0.0497, every one
+   at full-neck framing and four of them off by seven positions. It ships off
+   by default. **Fret-map fit rate is not fret-map correctness** — lead 2's real
+   blocker is the `k0` anchor search, not wire yield. See
+   `docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md`.
 4. **Rejected-jump vs real-motion disambiguation**, which closes the dev
    regression in §5.
 5. **The contact classifier admits one finger per frame 72% of the time.** The

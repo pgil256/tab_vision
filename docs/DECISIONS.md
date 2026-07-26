@@ -4953,3 +4953,45 @@ The fix is scale-adaptive inference, and it is **not** taken here because
 `imgsz` lives in `tabvision/`, outside FretCam's work scope.
 
 ---
+
+## 2026-07-26 — Adaptive detector scale closed negative; fret-map fit rate is not fret-map correctness
+
+**Context:** The coverage decomposition left the calibrated fret map absent on
+51% of benchmark frames as the largest fret-geometry weakness, and identified
+detector inference scale as the cheapest untried lever. `YoloOBBBackend` ran at
+ultralytics' default `imgsz=640` and `HudFrameProcessor` caps live frames at
+640×480, so fret wires were never detected above native resolution.
+
+**Decision:** Implement scale-adaptive inference, measure it, and **leave it off
+by default**. Report: `docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md`.
+
+**Reasoning:** The intermediate result was strong and reproducible. At full-neck
+framing `imgsz` 640 → 960 more than doubles fret-wire detections (6.56 → 14.42)
+and lifts the fret-map fit rate 0.333 → 0.667, while at close framing the same
+change loses the **neck OBB itself** (1.000 → 0.611 at 1280). Measuring the
+detected neck's long edge separates the framings cleanly (close median 433 px,
+full-neck 250 px), so one constant — render the neck at ~430 px in the model
+input — reproduces both optima and is resolution-independent.
+
+It still regressed the end metric. Dev coverage moved 0.4783 → 0.4845 (noise)
+while the false-lock rate went **0.000 → 0.0497** and valid observations *fell*
+0.056. All eight false locks are at full-neck framing, and four are off by
+**seven positions** — a mis-anchored axis, not a noisy contact.
+`calibrate_fret_xs` picks the first visible wire's index by inlier count alone
+over `k0 ∈ 1..6`; the extra high-neck wires upscaling provides let a wrong `k0`
+win consensus, shifting the entire fret axis, and the displaced neck quad then
+degrades hand selection too (`no_hand` 26 → 37).
+
+The lesson is the transferable part: **optimising the fret-map *fit rate* moved
+the end metric backwards, because the fit fails silently rather than declining.**
+Lead 2's blocker is the `k0` anchor — which has no temporal agreement, no
+nut-anchored cross-check, and no penalty for disagreeing with the previous
+frame — not wire yield. Retained behind `adaptive_detector_scale=False` because
+the wire-yield measurement is reusable once the anchor is fixed; verified inert
+by re-running the dev benchmark to identical numbers.
+
+`YoloOBBBackend.predict_all` gains an additive optional `imgsz=None`; the
+`Detector` protocol is unchanged and FretCam feature-detects the keyword, so no
+other caller or test double is affected.
+
+---

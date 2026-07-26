@@ -13,6 +13,7 @@ from fretcam.detection import (
     HandObservation,
     HandSearchHint,
     MediaPipeHandExtractor,
+    _adaptive_detector_imgsz,
     _extract_candidates,
     _fret_cell_from_canonical_x,
     _fret_wire_xs,
@@ -2040,6 +2041,121 @@ class MultiFingerPositionSolverTest(unittest.TestCase):
         self.assertEqual(aged.freshness, 0.25)
         self.assertEqual(unstable.stability, 0.40)
         self.assertEqual(weak_board.board, 0.40)
+
+
+class AdaptiveDetectorScaleTest(unittest.TestCase):
+    """The inference scale must track the neck's rendered size, both ways."""
+
+    @staticmethod
+    def _quad(long_edge_px: float) -> tuple[tuple[float, float], ...]:
+        return (
+            (0.0, 0.0),
+            (long_edge_px, 0.0),
+            (long_edge_px, 40.0),
+            (0.0, 40.0),
+        )
+
+    def test_close_framing_stays_at_the_default_scale(self) -> None:
+        # A 433 px neck in a 640 px frame is the framing that already fits a
+        # fret map on every frame; upscaling it is what loses the neck OBB.
+        self.assertEqual(
+            _adaptive_detector_imgsz((360, 640, 3), self._quad(433.0)), 640
+        )
+
+    def test_full_neck_framing_upscales(self) -> None:
+        # A 250 px neck fits a fret map on only a third of frames at native
+        # scale, and lands in the measured 960-1280 band once rendered larger.
+        imgsz = _adaptive_detector_imgsz((360, 640, 3), self._quad(250.0))
+        assert imgsz is not None
+        self.assertGreaterEqual(imgsz, 960)
+        self.assertLessEqual(imgsz, 1280)
+
+    def test_scale_is_clamped_and_stride_aligned(self) -> None:
+        for long_edge in (20.0, 120.0, 250.0, 433.0, 600.0, 5000.0):
+            imgsz = _adaptive_detector_imgsz((360, 640, 3), self._quad(long_edge))
+            assert imgsz is not None
+            self.assertGreaterEqual(imgsz, 640)
+            self.assertLessEqual(imgsz, 1280)
+            self.assertEqual(imgsz % 32, 0)
+
+    def test_scale_is_resolution_independent(self) -> None:
+        # The same framing at a different capture resolution must resolve to the
+        # same scale: it is the *rendered* neck that the detector responds to.
+        small = _adaptive_detector_imgsz((360, 640, 3), self._quad(250.0))
+        large = _adaptive_detector_imgsz((1080, 1920, 3), self._quad(750.0))
+        self.assertEqual(small, large)
+
+    def test_no_board_yet_keeps_the_detector_default(self) -> None:
+        self.assertIsNone(_adaptive_detector_imgsz((360, 640, 3), ()))
+        self.assertIsNone(
+            _adaptive_detector_imgsz((360, 640, 3), self._quad(float("nan")))
+        )
+
+    def test_chain_passes_the_scale_once_a_board_is_held(self) -> None:
+        # Opt-in: the scale regressed on the frozen benchmark and ships off.
+        class ScaleRecordingDetector:
+            def __init__(self) -> None:
+                self.scales: list[int | None] = []
+
+            def predict_all(
+                self, _frame: np.ndarray, *, imgsz: int | None = None
+            ) -> OBBPredictions:
+                self.scales.append(imgsz)
+                return OBBPredictions()
+
+        detector = ScaleRecordingDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+            adaptive_detector_scale=True,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        # The second pass must land inside the tracker's hard expiry, or the
+        # board it would have been scaled from is already gone.
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertIsNone(detector.scales[0])
+        self.assertIsNotNone(detector.scales[-1])
+
+    def test_a_detector_without_the_keyword_still_runs(self) -> None:
+        detector = FakeDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertEqual(detector.calls, 2)
+
+    def test_adaptive_scale_is_off_by_default(self) -> None:
+        """It regressed the frozen benchmark, so the default must stay off."""
+
+        class ScaleRecordingDetector:
+            def __init__(self) -> None:
+                self.scales: list[int | None] = []
+
+            def predict_all(
+                self, _frame: np.ndarray, *, imgsz: int | None = None
+            ) -> OBBPredictions:
+                self.scales.append(imgsz)
+                return OBBPredictions()
+
+        detector = ScaleRecordingDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertEqual(detector.scales, [None, None])
 
 
 if __name__ == "__main__":

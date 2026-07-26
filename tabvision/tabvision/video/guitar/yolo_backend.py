@@ -148,12 +148,18 @@ class YoloOBBBackend:
         self._model = YOLO(str(self.checkpoint_path))
         return self._model
 
-    def predict_all(self, frame: np.ndarray) -> OBBPredictions:
+    def predict_all(self, frame: np.ndarray, *, imgsz: int | None = None) -> OBBPredictions:
         """Run the model once and return detections grouped by class.
 
         This is the workhorse that the other ``detect_*`` methods delegate
         to — calling them sequentially would mean re-running inference
         per class, which costs ~10× more wallclock per frame.
+
+        ``imgsz`` overrides ultralytics' inference scale for this call only.
+        Fret wires are small objects whose detectability tracks their *rendered*
+        size, so a caller that knows how much of the frame the neck occupies can
+        pick a better scale than the fixed default; ``None`` keeps ultralytics'
+        own default. See ``docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md``.
         """
         model = self._load()
         results = model.predict(
@@ -162,6 +168,7 @@ class YoloOBBBackend:
             iou=self.iou,
             device=self.device,
             verbose=False,
+            **({} if imgsz is None else {"imgsz": int(imgsz)}),
         )
         if not results:
             return OBBPredictions()
