@@ -4904,3 +4904,52 @@ window preserves the existing capture/transcription workflow and prevents the
 short-screen clipping previously reported by the user.
 
 ---
+
+## 2026-07-26 — FretCam position accuracy is a coverage problem, not an error problem
+
+**Context:** FretCam's live position HUD was assumed to be limited by fret/neck
+detection quality, and the standing accuracy handoff
+(`docs/plans/2026-07-22-fretcam-accuracy-improvement-handoff.md` §6) recommended
+against a dedicated fret CV model until an error breakdown justified one. No
+breakdown had been run against the frozen F4e-A benchmark.
+
+**Decision:** Diagnose by blocker before changing anything, then fix the four
+causes the data actually named — none of which was fret/neck detection.
+Report: `docs/EVAL_REPORTS/fretcam_coverage_decomposition_2026-07-26.md`.
+
+**Reasoning:** On the frozen benchmark the shipped build displays a position on
+0.272 of stable frames and **every displayed position is correct** (precision
+1.000, false-lock 0.000, negative-control 0.000). The lever is therefore
+coverage at fixed precision. Blocker tabulation put `no_hand` first (60% dev /
+68% test of uncovered stable frames) and `no_board` at **zero** — board
+confidence stays 0.88–0.92 even on failing frames. Three of the four fixes are
+recalibrations of quantities that were measured to be mis-specified rather than
+threshold tuning:
+
+- an uncropped still MediaPipe pass finds a hand on **100%** of the frames the
+  chain calls `no_hand`, with 61% already placing three fingertips on the neck,
+  and the neck **crop scores worse than the whole frame** (0.481 vs 0.610) — so
+  the crop-first search, and its deferral of recovery to the next frame, was the
+  cause, not detector recall;
+- `geometry_stability` used a fixed 2-pixel flow-residual scale, giving median
+  0.113 on healthy tracked boards and a *higher* mean on failing frames than on
+  passing ones — anti-correlated with the outcome it gates;
+- the contact-support gate normalised by 1.5 when a useful contact's median
+  weight is 0.571 and 72% of frames carry exactly one, i.e. it demanded roughly
+  three contacts, which is why barre (with its hard-coded 0.85 bypass) covered
+  0.75 while chord and note covered 0.08 and 0.12.
+
+Dev coverage 0.4161 → 0.4783 at unchanged 0.000 false-lock and 0.000
+negative-control display; held-out test coverage 0.0696 → 0.1130 at the cost of
+one adjacent-position lock event (2 frames). Both splits are small and the test
+column was visible during screening, so test is recorded as an audit figure, not
+a clean held-out result.
+
+**Also recorded:** detector inference scale is now measured and is the lever on
+the remaining fret-geometry weakness (the calibrated fret map is absent on 51%
+of frames). At full-neck framing `imgsz` 640 → 960 more than doubles fret-wire
+detections; at close framing the same change starts losing the neck OBB itself.
+The fix is scale-adaptive inference, and it is **not** taken here because
+`imgsz` lives in `tabvision/`, outside FretCam's work scope.
+
+---

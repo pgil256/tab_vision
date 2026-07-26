@@ -141,6 +141,7 @@ class PositionEstimator:
         self._suspected_jump_fret: float | None = None
         self._suspected_jump_since_s: float | None = None
         self._transition_active = False
+        self._departed_position = False
         self._reacquiring_after_gap = False
 
     def update(
@@ -180,6 +181,7 @@ class PositionEstimator:
                     # displacement is still useful evidence that the previous
                     # position is no longer safe to display.
                     self._transition_active = True
+                    self._departed_position = True
             reason = (
                 "low_confidence"
                 if hinted_fret is not None and finite_confidence
@@ -269,6 +271,7 @@ class PositionEstimator:
                 self._stable_position = candidate
                 self._clear_pending()
                 self._transition_active = False
+                self._departed_position = False
                 self._reacquiring_after_gap = False
                 state: PositionState = "locked"
                 stable_for_s = self.config.acquisition_duration_s
@@ -277,9 +280,19 @@ class PositionEstimator:
                 if stable_enough:
                     reason = "temporal_disagreement"
         elif candidate == self._stable_position and not moving:
+            # Once the evidence has actually pointed *away* from the held
+            # position, one agreeing frame must not undo the departure. Contact
+            # classification lags the hand at the start of a shift -- the last
+            # fingers to lift still read the origin -- so a single late frame
+            # could re-lock the origin and then ride the dropout hold well into
+            # the move. Treat a believed departure like an evidence gap and
+            # require the elapsed agreement a fresh acquisition needs. A merely
+            # *rejected* spike is deliberately excluded: nothing was believed to
+            # move, so the F4b isolated-spike guarantee still holds.
+            must_reacquire = reacquiring_after_gap or self._departed_position
             stable_enough = (
                 stable_for_s >= self.config.acquisition_duration_s
-                if reacquiring_after_gap
+                if must_reacquire
                 else True
             )
             if (
@@ -294,6 +307,7 @@ class PositionEstimator:
                     else self.config.shift_duration_s
                 )
                 self._transition_active = False
+                self._departed_position = False
                 state = "locked"
             else:
                 self._transition_active = True
@@ -307,12 +321,14 @@ class PositionEstimator:
         else:
             previous = self._stable_position
             self._transition_active = True
+            self._departed_position = True
             stable_enough = stable_for_s >= self.config.shift_duration_s
             confident_enough = candidate_confidence >= self.config.min_vision_confidence
             if stable_enough and confident_enough:
                 self._stable_position = candidate
                 self._clear_pending()
                 self._transition_active = False
+                self._departed_position = False
                 self._reacquiring_after_gap = False
                 state = "locked"
                 stable_for_s = self.config.shift_duration_s
@@ -525,6 +541,7 @@ class PositionEstimator:
             self._last_accepted_s = None
             self._last_valid_s = None
             self._transition_active = False
+            self._departed_position = False
             self._reacquiring_after_gap = False
             previous = None
             state: PositionState = "acquiring"
@@ -622,6 +639,7 @@ class PositionEstimator:
         self._last_accepted_s = None
         self._last_valid_s = None
         self._transition_active = False
+        self._departed_position = False
         self._reacquiring_after_gap = False
         self._clear_pending()
         return self._estimate(

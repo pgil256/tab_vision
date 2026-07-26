@@ -73,6 +73,10 @@ LONGITUDINAL_WRIST_OUTWARD_MARGIN = 0.15
 ROI_CROP_COOLDOWN_FRAMES = 10
 HAND_SEARCH_UPSCALE_MIN_LONG_EDGE = 512
 HAND_SEARCH_UPSCALE_MAX_SCALE = 2.5
+# Ordinary per-frame MediaPipe budget, plus one reserve call that only a
+# would-be-empty frame may spend on an uncropped still-image recovery pass.
+HAND_DETECTOR_CALLS_PER_FRAME = 2
+HAND_DETECTOR_RECOVERY_CALLS = 3
 GEOMETRY_REFINE_INTERVAL_S = 0.20
 FULL_HAND_VIDEO_REFRESH_INTERVAL_S = 0.50
 LOCKED_HAND_DETECTOR_HZ = 5.0
@@ -110,6 +114,15 @@ FINGER_BASE_WEIGHTS = {
     "pinky": 0.74,
 }
 MIN_POSITION_OBSERVATION_CONFIDENCE = 0.20
+# Total contact weight at which support saturates. Each contact's weight is a
+# product of four [0, 1] terms, so on the frozen benchmark a *useful* contact
+# carries a median weight of 0.571 and 72% of frames with any useful contact
+# have exactly one. Normalising by 0.9 means "two typical contacts saturate,
+# one typical contact clears the sufficiency gate" -- the reading the gate was
+# written for. The previous 1.5 demanded roughly three, which is why barre (the
+# one technique with a hard-coded 0.85 bypass) covered 0.75 of its frames while
+# note and chord covered 0.12 and 0.08.
+CONTACT_SUPPORT_NORMALIZER = 0.9
 
 
 class Detector(Protocol):
@@ -1487,7 +1500,7 @@ def solve_hand_position(
         runner_up = scored[1][0] if len(scored) > 1 else 0.0
         separation = float(np.clip((best_score - runner_up) / 0.20, 0.0, 1.0))
         finger_agreement = best_score * (0.5 + 0.5 * separation)
-        support = float(np.clip(total_weight / 1.5, 0.0, 1.0))
+        support = float(np.clip(total_weight / CONTACT_SUPPORT_NORMALIZER, 0.0, 1.0))
         if any(
             contact.name == "index" and contact.barre and contact.weight >= 0.5
             for contact in useful
@@ -3198,6 +3211,12 @@ class DetectionChain:
             )
             self._last_hand_source = "neck_recovery"
             if selected is None:
+                selected = self._full_frame_recovery(
+                    frame,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
+            if selected is None:
                 self._force_full_hand_frame = True
                 self._force_hand_detection = True
             else:
@@ -3250,6 +3269,13 @@ class DetectionChain:
                         else "full_video_refresh"
                     )
                     self._roi_misses = 0
+                    return selected
+                selected = self._full_frame_recovery(
+                    frame,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
+                if selected is not None:
                     return selected
                 # A scheduled identity refresh plus one tight fallback already
                 # used this frame's two-call budget. Widen on the next frame.
@@ -3305,6 +3331,13 @@ class DetectionChain:
                     self._last_hand_source = "full_reacquire"
                 return selected
 
+            selected = self._full_frame_recovery(
+                frame,
+                homography,
+                timestamp_s=timestamp_s,
+            )
+            if selected is not None:
+                return selected
             self._roi_misses += 1
             if self._roi_misses < 2:
                 return None
@@ -3334,11 +3367,61 @@ class DetectionChain:
             homography,
             timestamp_s=timestamp_s,
         )
+        if selected is None and crop_rect is not None:
+            # Bootstrap alternates a neck crop with the whole image, so a crop
+            # miss otherwise costs a full frame before the wider search runs.
+            selected = self._full_frame_recovery(
+                frame,
+                homography,
+                timestamp_s=timestamp_s,
+            )
         if selected is not None:
-            self._last_hand_source = source
+            self._last_hand_source = (
+                self._last_hand_source
+                if self._last_hand_source == "full_still_recovery"
+                else source
+            )
             self._roi_misses = 0
             if self._last_full_hand_video_s is None:
                 self._last_full_hand_video_s = timestamp_s
+        return selected
+
+    def _full_frame_recovery(
+        self,
+        frame: np.ndarray,
+        homography: Homography,
+        *,
+        timestamp_s: float,
+    ) -> HandObservation | HandSample | None:
+        """Spend the reserve budget on one uncropped still pass for this frame.
+
+        Measured on the frozen benchmark: on the stable frames the chain reports
+        as ``no_hand``, an uncropped still-image pass finds a hand on every one
+        of them, and on 61% that hand already puts three or more fingertips on
+        the canonical neck. The crop-first search is what loses them -- at this
+        framing the crop removes the body context the palm detector uses, so a
+        neck crop scores *worse* than the whole frame (0.52 vs 0.61). Deferring
+        recovery to the next frame therefore throws away a hand that is visible
+        right now, which is why this runs in-frame rather than setting a flag.
+        """
+        candidates = self._extract_hand_candidates(
+            frame,
+            timestamp_s=timestamp_s,
+            crop_rect=None,
+            source="full_still_recovery",
+            use_video=False,
+            reserve=True,
+        )
+        if not candidates:
+            return None
+        selected = self._select_neck_hand(
+            candidates,
+            homography,
+            timestamp_s=timestamp_s,
+        )
+        if selected is not None:
+            self._last_hand_source = "full_still_recovery"
+            self._roi_misses = 0
         return selected
 
     def _extract_hand_candidates(
@@ -3348,8 +3431,13 @@ class DetectionChain:
         timestamp_s: float,
         crop_rect: tuple[int, int, int, int] | None,
         source: str,
+        use_video: bool = True,
+        reserve: bool = False,
     ) -> tuple[HandObservation | HandSample, ...]:
-        if self._frame_hand_detector_calls >= 2:
+        budget = (
+            HAND_DETECTOR_RECOVERY_CALLS if reserve else HAND_DETECTOR_CALLS_PER_FRAME
+        )
+        if self._frame_hand_detector_calls >= budget:
             self._force_full_hand_frame = True
             self._force_hand_detection = True
             self._last_hand_source = "full_recovery_pending"
@@ -3362,6 +3450,7 @@ class DetectionChain:
                 self.hand_extractor,
                 frame,
                 timestamp_s=timestamp_s,
+                use_video=use_video,
             )
         crop, scale_x, scale_y = _prepare_hand_crop(frame, crop_rect)
         crop_width = max(1, crop_rect[2] - crop_rect[0])

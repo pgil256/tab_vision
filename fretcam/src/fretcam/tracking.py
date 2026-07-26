@@ -15,6 +15,18 @@ CANONICAL_QUAD = np.asarray(
     dtype=np.float32,
 )
 
+# Flow residual that should halve-ish the stability score, as a fraction of the
+# tracked neck's long edge. Under rule-of-18 spacing the narrowest cell on a
+# nut-to-fret-12 board is ~6% of that edge, so 3% is about half a fret at the
+# tightest end of the board — the point where a residual starts being able to
+# move a contact into the wrong cell. A fixed pixel scale cannot express that:
+# the same 3 px means a quarter of a fret on a close-framed neck and two frets
+# on a distant one.
+STABILITY_ERROR_NECK_FRACTION = 0.03
+# Floor for degenerate/tiny necks so a near-zero quad cannot make every residual
+# look acceptable.
+STABILITY_ERROR_MIN_PX = 2.0
+
 
 @dataclass(frozen=True)
 class TrackingSnapshot:
@@ -272,7 +284,8 @@ class OpticalBoardTracker:
         self._homography = candidate
         self._last_geometry_s = timestamp_s
         self._status = "tracked"
-        self._stability = float(np.clip(ratio * math.exp(-error / 2.0), 0.0, 1.0))
+        scale = _stability_error_scale(candidate)
+        self._stability = float(np.clip(ratio * math.exp(-error / scale), 0.0, 1.0))
         self._flow_inliers = count
         self._flow_inlier_ratio = ratio
         self._flow_error_px = error
@@ -344,6 +357,24 @@ def _project_quad(homography: Homography) -> np.ndarray:
         CANONICAL_QUAD.reshape(-1, 1, 2),
         matrix,
     ).reshape(-1, 2)
+
+
+def _stability_error_scale(homography: Homography) -> float:
+    """Return the flow-residual scale, in pixels, for one tracked board.
+
+    Expressed against the projected neck's long edge so the score answers "has
+    the geometry slipped by a musically meaningful amount?" rather than "did any
+    pixel move?". Falls back to the floor when the quad is unusable.
+    """
+    try:
+        quad = _project_quad(homography)
+    except cv2.error:
+        return STABILITY_ERROR_MIN_PX
+    if not np.all(np.isfinite(quad)):
+        return STABILITY_ERROR_MIN_PX
+    edges = np.linalg.norm(np.roll(quad, -1, axis=0) - quad, axis=1)
+    long_edge = float(np.max(edges)) if edges.size else 0.0
+    return max(STABILITY_ERROR_MIN_PX, STABILITY_ERROR_NECK_FRACTION * long_edge)
 
 
 def _valid_homography(

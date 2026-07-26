@@ -734,7 +734,13 @@ class DetectionChainTest(unittest.TestCase):
         self.assertGreaterEqual(hands.shapes[3][1], hands.shapes[2][1])
         self.assertTrue(result.hand_points)
 
-    def test_acquired_search_never_exceeds_two_hand_detector_calls(self) -> None:
+    def test_acquired_search_stays_within_two_calls_plus_one_reserve(self) -> None:
+        """Per-frame MediaPipe work stays bounded, reserve call included.
+
+        Two ordinary searches plus at most one uncropped still recovery: the
+        reserve is only reachable on a frame that would otherwise publish
+        nothing, so a healthy frame still costs the same as before.
+        """
         hands = SelectableFakeHandExtractor(None)
         chain = DetectionChain(
             detector=FakeDetector(),
@@ -752,14 +758,13 @@ class DetectionChainTest(unittest.TestCase):
         chain._last_hand_timestamp_s = 0.1
         second_miss = chain.process_frame(frame, timestamp_s=0.2)
 
-        self.assertEqual(first_miss.hand_detector_calls, 2)
-        self.assertEqual(second_miss.hand_detector_calls, 2)
+        self.assertLessEqual(first_miss.hand_detector_calls, 3)
+        self.assertLessEqual(second_miss.hand_detector_calls, 3)
         self.assertEqual(
             second_miss.hand_search_attempts,
-            ("last_hand_crop", "neck_crop"),
+            ("last_hand_crop", "neck_crop", "full_still_recovery"),
         )
         self.assertEqual(second_miss.hand_search_source, "full_recovery_pending")
-        self.assertEqual(hands.calls, 5)
 
     def test_chain_rescales_crop_and_stillness_state_with_inference_size(self) -> None:
         chain = DetectionChain(
@@ -777,7 +782,14 @@ class DetectionChainTest(unittest.TestCase):
         self.assertEqual(chain._last_finger_tips["index"], (160.0, 200.0))
         self.assertEqual(chain._last_hand_frame_shape, (480, 640))
 
-    def test_neck_search_starts_immediately_then_alternates_full_frame(self) -> None:
+    def test_neck_search_recovers_on_the_full_frame_within_one_frame(self) -> None:
+        """A crop miss must not cost a frame the whole image could have served.
+
+        Bootstrap starts on the neck crop, but on the frozen benchmark the crop
+        is the weaker search at real framing, so a miss spends the reserve call
+        on the uncropped still pass immediately instead of alternating.
+        """
+
         class AcquireOnFullFrame:
             def __init__(self) -> None:
                 self.shapes: list[tuple[int, ...]] = []
@@ -799,12 +811,12 @@ class DetectionChainTest(unittest.TestCase):
         frame = np.zeros((200, 400, 3), dtype=np.uint8)
 
         first = chain.process_frame(frame, timestamp_s=0.0)
-        second = chain.process_frame(frame, timestamp_s=0.1)
 
-        self.assertFalse(first.hand_points)
         self.assertNotEqual(hands.shapes[0], frame.shape)
         self.assertEqual(hands.shapes[1], frame.shape)
-        self.assertTrue(second.hand_points)
+        self.assertTrue(first.hand_points)
+        self.assertEqual(first.hand_search_source, "full_still_recovery")
+        self.assertEqual(first.hand_detector_calls, 2)
 
     def test_neck_geometry_selects_best_hand_before_handedness(self) -> None:
         class TwoHands:
