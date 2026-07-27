@@ -33,7 +33,7 @@ from pathlib import Path
 import numpy as np
 
 from tabvision.types import FrameFingering, GuitarConfig, Homography
-from tabvision.video.guitar.yolo_backend import OBBPredictions
+from tabvision.video.guitar.yolo_backend import OBBDetection, OBBPredictions
 from tabvision.video.hand.fingertip_to_fret import HandSample, PosteriorConfig, compute_fingering
 
 # Bump when the RawFrameCV layout changes in a way that invalidates old pickles.
@@ -137,9 +137,133 @@ def make_board_calibrator(cfg: GuitarConfig) -> CalibrateFn:
     return _calibrate
 
 
-def rawcv_cache_path(cache_dir: Path, stem: str, conf: float) -> Path:
-    """Path of the v2 rich cache for ``stem`` at YOLO confidence ``conf``."""
-    return cache_dir / f"{stem}.rawcv.c{conf:.2f}.pkl"
+# --------------------------------------------------------------------------- #
+# Crop-then-detect (Phase A, 2026-07-27): numpy-only geometry for a second
+# detector pass on the zoomed neck crop. The chunk-6 WS3 analysis found ~68% of
+# ambiguous notes sit on clips where the full-frame pass finds ~0 fret OBBs —
+# at 360p a fret wire is a few pixels wide. The cv2 resize + second YOLO call
+# live in the probe; these helpers keep the coordinate mapping and the merge
+# testable without cv2/ultralytics (the F2b lesson: coordinate bugs, not noise,
+# produced the largest video errors on record).
+# --------------------------------------------------------------------------- #
+def obb_corner_bounds(det: OBBDetection) -> tuple[float, float, float, float]:
+    """Axis-aligned ``(xmin, ymin, xmax, ymax)`` of an OBB's four corners."""
+    theta = float(np.deg2rad(det.rotation_deg))
+    c, s = np.cos(theta), np.sin(theta)
+    hx, hy = det.w / 2.0, det.h / 2.0
+    xs = [det.cx + sx * hx * c - sy * hy * s for sx in (-1.0, 1.0) for sy in (-1.0, 1.0)]
+    ys = [det.cy + sx * hx * s + sy * hy * c for sx in (-1.0, 1.0) for sy in (-1.0, 1.0)]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def crop_rect_for_neck(
+    preds: OBBPredictions,
+    frame_w: int,
+    frame_h: int,
+    *,
+    pad_frac: float = 0.12,
+) -> tuple[int, int, int, int] | None:
+    """Padded axis-aligned crop rect ``(x0, y0, x1, y1)`` around the best neck OBB.
+
+    ``None`` when there is no neck detection (the crop pass then simply does not
+    run — full-frame behaviour is unchanged) or the rect degenerates.
+    """
+    neck = preds.best_neck()
+    if neck is None:
+        return None
+    xmin, ymin, xmax, ymax = obb_corner_bounds(neck)
+    pad = pad_frac * max(xmax - xmin, ymax - ymin)
+    x0 = int(max(0.0, np.floor(xmin - pad)))
+    y0 = int(max(0.0, np.floor(ymin - pad)))
+    x1 = int(min(float(frame_w), np.ceil(xmax + pad)))
+    y1 = int(min(float(frame_h), np.ceil(ymax + pad)))
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        return None
+    return x0, y0, x1, y1
+
+
+def map_crop_detection(
+    det: OBBDetection, x0: float, y0: float, sx: float, sy: float
+) -> OBBDetection:
+    """Map one OBB detected on an upscaled crop back to full-frame coordinates.
+
+    Centers map per-axis; the rotated extents use the mean scale (the resize is
+    isotropic up to sub-pixel rounding, so ``sx`` and ``sy`` differ only at the
+    rounding level).
+    """
+    s_mean = (sx + sy) / 2.0
+    return replace(
+        det,
+        cx=x0 + det.cx / sx,
+        cy=y0 + det.cy / sy,
+        w=det.w / s_mean,
+        h=det.h / s_mean,
+    )
+
+
+def _dedupe_frets(dets: list[OBBDetection], *, min_sep_px: float = 6.0) -> list[OBBDetection]:
+    """Greedy confidence-first dedupe of fret OBBs by center distance.
+
+    The separation threshold is half the median adjacent-fret spacing along the
+    dominant axis of the center cloud (ignoring sub-``min_sep_px`` gaps, which
+    are the duplicates themselves), floored at ``min_sep_px``.
+    """
+    if len(dets) <= 1:
+        return sorted(dets, key=lambda d: -d.confidence)
+    centers = np.array([[d.cx, d.cy] for d in dets], dtype=np.float64)
+    thr = min_sep_px
+    if len(dets) >= 3:
+        centered = centers - centers.mean(axis=0)
+        _, _, vt = np.linalg.svd(centered, full_matrices=False)
+        gaps = np.diff(np.sort(centered @ vt[0]))
+        big = gaps[gaps >= min_sep_px]
+        if big.size:
+            thr = max(min_sep_px, 0.5 * float(np.median(big)))
+    kept: list[OBBDetection] = []
+    kept_centers: list[np.ndarray] = []
+    for d in sorted(dets, key=lambda d: -d.confidence):
+        c = np.array([d.cx, d.cy], dtype=np.float64)
+        if all(float(np.linalg.norm(c - kc)) >= thr for kc in kept_centers):
+            kept.append(d)
+            kept_centers.append(c)
+    return kept
+
+
+def merge_crop_predictions(
+    full: OBBPredictions,
+    crop: OBBPredictions,
+    *,
+    x0: float,
+    y0: float,
+    sx: float,
+    sy: float,
+) -> OBBPredictions:
+    """Merge a crop-pass detection set into the full-frame set.
+
+    The neck comes from the **full-frame pass only** — its acceptance
+    confidence is unchanged by design (Phase A drops the fret/nut floor, not
+    the neck's). The crop pass contributes fret and nut OBBs, mapped back to
+    full-frame coordinates; frets are deduplicated confidence-first and all
+    lists stay sorted by descending confidence per the ``OBBPredictions``
+    contract.
+    """
+    mapped_frets = [map_crop_detection(d, x0, y0, sx, sy) for d in crop.frets]
+    mapped_nut = [map_crop_detection(d, x0, y0, sx, sy) for d in crop.nut]
+    return OBBPredictions(
+        frets=_dedupe_frets(list(full.frets) + mapped_frets),
+        neck=sorted(full.neck, key=lambda d: -d.confidence),
+        nut=sorted(list(full.nut) + mapped_nut, key=lambda d: -d.confidence),
+    )
+
+
+def rawcv_cache_path(cache_dir: Path, stem: str, conf: float, *, suffix: str = "") -> Path:
+    """Path of the v2 rich cache for ``stem`` at YOLO confidence ``conf``.
+
+    ``suffix`` distinguishes cache variants built with a different CV pass
+    (e.g. ``".crop"`` for the Phase A crop-then-detect pass) so they can never
+    be silently confused with a plain full-frame cache in the same directory.
+    """
+    return cache_dir / f"{stem}.rawcv.c{conf:.2f}{suffix}.pkl"
 
 
 def legacy_frames_cache_path(cache_dir: Path, stem: str, conf: float) -> Path:
@@ -156,6 +280,7 @@ def load_frame_fingerings(
     fps: float,
     calibrate: CalibrateFn | None = None,
     posterior_cfg: PosteriorConfig | None = None,
+    cache_suffix: str = "",
 ) -> dict[int, FrameFingering | None]:
     """Per-frame ``FrameFingering``s for a clip, from cache (no CV re-run).
 
@@ -176,7 +301,7 @@ def load_frame_fingerings(
     Raises:
         FileNotFoundError: if neither cache exists for ``(stem, conf)``.
     """
-    rich = rawcv_cache_path(cache_dir, stem, conf)
+    rich = rawcv_cache_path(cache_dir, stem, conf, suffix=cache_suffix)
     if rich.exists():
         with open(rich, "rb") as fh:
             raw: dict[int, RawFrameCV | None] = pickle.load(fh)
@@ -233,9 +358,13 @@ __all__ = [
     "RAWCV_CACHE_VERSION",
     "CalibrateFn",
     "RawFrameCV",
+    "crop_rect_for_neck",
     "fingering_from_raw",
     "make_fret_xs_calibrator",
     "make_board_calibrator",
+    "map_crop_detection",
+    "merge_crop_predictions",
+    "obb_corner_bounds",
     "rawcv_cache_path",
     "legacy_frames_cache_path",
     "load_frame_fingerings",

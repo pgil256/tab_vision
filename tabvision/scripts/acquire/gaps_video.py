@@ -199,7 +199,15 @@ def download_video(
     if dst.exists() and dst.stat().st_size > 0:
         return dst
     dst.parent.mkdir(parents=True, exist_ok=True)
-    fmt = f"18/bv*[height<={max_height}]+ba/b[height<={max_height}]/b"
+    if max_height <= 360:
+        # Legacy cache: prefer format 18 (360p single-file H.264+AAC) for
+        # bit-identical re-downloads of the chunk-5/6 media.
+        fmt = f"18/bv*[height<={max_height}]+ba/b[height<={max_height}]/b"
+    else:
+        # Format 18 is 360p, so listing it first would silently cap every
+        # download at 360p regardless of ``max_height`` — demote it to the
+        # fallback position for the high-resolution cache.
+        fmt = f"bv*[height<={max_height}]+ba/b[height<={max_height}]/b/18"
     opts: dict = {
         "format": fmt,
         "outtmpl": str(dst),
@@ -233,6 +241,13 @@ def main(argv: list[str] | None = None) -> int:
         help="'clean12', a metadata split ('train'/'test'/'all'), or comma-separated stems",
     )
     ap.add_argument("--ffmpeg-location", type=Path, default=None)
+    ap.add_argument(
+        "--max-height",
+        type=int,
+        default=360,
+        help="yt-dlp height cap: 360 (default) keeps the legacy format-18 cache; "
+        "720 builds the high-resolution cache (use a separate --cache-dir)",
+    )
     ap.add_argument("--download", action="store_true", help="download missing videos")
     ap.add_argument("--limit", type=int, default=None, help="cap to first N clips (batching)")
     ap.add_argument("--offsets", action="store_true", help="estimate + print per-clip offsets")
@@ -263,7 +278,12 @@ def main(argv: list[str] | None = None) -> int:
                 failures.append(f"{stem}:no_yt_id")
                 continue
             try:
-                download_video(yt_id, dst, ffmpeg_location=args.ffmpeg_location)
+                download_video(
+                    yt_id,
+                    dst,
+                    max_height=args.max_height,
+                    ffmpeg_location=args.ffmpeg_location,
+                )
                 ok += 1
                 print(f"[ok {i + 1}/{len(stems)}] {stem}  yt={yt_id}", flush=True)
             except Exception as exc:  # noqa: BLE001 — dead links / geo-blocks are expected at scale

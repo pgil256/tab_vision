@@ -71,9 +71,11 @@ from scripts.acquire.gaps_video import CLEAN_12, AlignmentResult, estimate_offse
 from scripts.eval.gaps_cv_cache import (
     CalibrateFn,
     RawFrameCV,
+    crop_rect_for_neck,
     fingering_from_raw,
     make_board_calibrator,
     make_fret_xs_calibrator,
+    merge_crop_predictions,
     needed_frames,
     rawcv_cache_path,
 )
@@ -101,6 +103,23 @@ from tabvision.fusion.vision_evidence import (
 from tabvision.types import AudioEvent, FrameFingering, GuitarConfig, SessionConfig
 
 _TARGET_094 = 0.94
+
+
+@dataclass
+class CropParams:
+    """Phase A crop-then-detect pass configuration (disabled when ``yolo_crop`` is None).
+
+    ``cache_suffix`` keys the rich cache filename (``.crop``) so crop-pass
+    caches can never be silently confused with plain full-frame caches.
+    """
+
+    yolo_crop: object | None = None
+    pad_frac: float = 0.12
+    min_long_edge: int = 1280
+
+    @property
+    def cache_suffix(self) -> str:
+        return ".crop" if self.yolo_crop is not None else ""
 
 
 @dataclass
@@ -192,6 +211,10 @@ def _raw_cv_for_frame(
     frame: np.ndarray,
     yolo,  # noqa: ANN001 - YoloOBBBackend
     landmarker,  # noqa: ANN001 - mediapipe HandLandmarker
+    *,
+    yolo_crop=None,  # noqa: ANN001 - second YoloOBBBackend at the crop-pass conf
+    crop_pad: float = 0.12,
+    crop_min_long_edge: int = 1280,
 ) -> RawFrameCV | None:
     """Run the CV stack on one frame -> raw intermediates, or None.
 
@@ -209,6 +232,31 @@ def _raw_cv_for_frame(
     from tabvision.video.hand.mediapipe_backend import _build_hand_sample
 
     preds = yolo.predict_all(frame)
+    if yolo_crop is not None:
+        # Phase A crop-then-detect: a second fret/nut pass on the zoomed neck
+        # crop. The neck itself is still taken from the full-frame pass only.
+        fh, fw = frame.shape[:2]
+        rect = crop_rect_for_neck(preds, fw, fh, pad_frac=crop_pad)
+        if rect is not None:
+            x0, y0, x1, y1 = rect
+            crop = frame[y0:y1, x0:x1]
+            ch, cw = crop.shape[:2]
+            scale = max(1.0, crop_min_long_edge / max(ch, cw))
+            if scale > 1.0:
+                crop = cv2.resize(
+                    crop,
+                    (int(round(cw * scale)), int(round(ch * scale))),
+                    interpolation=cv2.INTER_CUBIC,
+                )
+            crop_preds = yolo_crop.predict_all(crop)
+            preds = merge_crop_predictions(
+                preds,
+                crop_preds,
+                x0=float(x0),
+                y0=float(y0),
+                sx=crop.shape[1] / cw,
+                sy=crop.shape[0] / ch,
+            )
     homography = predictions_to_homography(preds)
     if homography.confidence <= 0.0:
         return None
@@ -236,14 +284,16 @@ def _raw_cv_cache(
     landmarker,  # noqa: ANN001
     cache_dir: Path,
     conf: float,
+    crop: CropParams | None = None,
 ) -> dict[int, RawFrameCV | None]:
     """Raw per-frame CV intermediates for ``needed`` indices (incremental pickle).
 
-    The v2 rich cache (``{stem}.rawcv.c{conf}.pkl``) — see
+    The v2 rich cache (``{stem}.rawcv.c{conf}[.crop].pkl``) — see
     :mod:`scripts.eval.gaps_cv_cache`. Decoding is the expensive part, so frames
     are accumulated incrementally and only missing indices are (re)computed.
     """
-    cache_path = rawcv_cache_path(cache_dir, stem, conf)
+    crop = crop or CropParams()
+    cache_path = rawcv_cache_path(cache_dir, stem, conf, suffix=crop.cache_suffix)
     cache: dict[int, RawFrameCV | None] = {}
     if cache_path.exists():
         with open(cache_path, "rb") as fh:
@@ -256,7 +306,14 @@ def _raw_cv_cache(
             if fi > max_fi:
                 break
             if fi in target:
-                cache[fi] = _raw_cv_for_frame(frame, yolo, landmarker)
+                cache[fi] = _raw_cv_for_frame(
+                    frame,
+                    yolo,
+                    landmarker,
+                    yolo_crop=crop.yolo_crop,
+                    crop_pad=crop.pad_frac,
+                    crop_min_long_edge=crop.min_long_edge,
+                )
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as fh:
             pickle.dump(cache, fh)
@@ -325,6 +382,7 @@ def _score_clip(
     params: GateParams,
     audio_sources: tuple[str, ...],
     calibrate: CalibrateFn | None = None,
+    crop: CropParams | None = None,
 ) -> ClipResult | None:
     gaps = data_root / "gaps"
     xml = gaps / "musicxml" / f"{stem}.xml"
@@ -357,7 +415,7 @@ def _score_clip(
         window_s=params.vote_window_s,
         max_frames=params.vote_frames,
     )
-    rawcv = _raw_cv_cache(stem, vid, fps, needed, yolo, landmarker, cache_dir, conf)
+    rawcv = _raw_cv_cache(stem, vid, fps, needed, yolo, landmarker, cache_dir, conf, crop)
     # Reconstruct the chunk-5 FrameFingerings from the rich cache. This is the
     # WS0 split: the fit/orient/project layer now runs from cached intermediates,
     # so later geometry/posterior changes re-derive ``raw_cache`` without CV.
@@ -616,6 +674,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--clips", default="clean12", help="'clean12' or comma-separated stems")
     ap.add_argument("--checkpoint", type=Path, default=None, help="YOLO-OBB checkpoint")
     ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument(
+        "--crop-detect",
+        action="store_true",
+        help="Phase A: second fret/nut YOLO pass on the zoomed neck crop "
+        "(cache filenames gain a .crop suffix)",
+    )
+    ap.add_argument("--crop-conf", type=float, default=0.10, help="crop-pass YOLO conf")
+    ap.add_argument("--crop-pad", type=float, default=0.12, help="crop padding fraction")
+    ap.add_argument(
+        "--crop-min-long-edge",
+        type=int,
+        default=1280,
+        help="upscale the neck crop so its long edge is at least this many px",
+    )
     ap.add_argument("--audio-source", choices=["gold", "highres", "both"], default="both")
     ap.add_argument("--orientation", choices=["auto", *ORIENTATION_BY_NAME.keys()], default="auto")
     ap.add_argument("--no-gate", action="store_true")
@@ -671,6 +743,15 @@ def main(argv: list[str] | None = None) -> int:
 
     ckpt = args.checkpoint or os.environ.get("TABVISION_GUITAR_YOLO_CHECKPOINT")
     yolo = YoloOBBBackend(checkpoint_path=ckpt, conf=args.conf, device="cpu")
+    crop = CropParams(
+        yolo_crop=(
+            YoloOBBBackend(checkpoint_path=ckpt, conf=args.crop_conf, device="cpu")
+            if args.crop_detect
+            else None
+        ),
+        pad_frac=args.crop_pad,
+        min_long_edge=args.crop_min_long_edge,
+    )
     landmarker = _build_landmarker()
 
     clips = _resolve_clips(args.clips)
@@ -699,6 +780,7 @@ def main(argv: list[str] | None = None) -> int:
             params=params,
             audio_sources=audio_sources,
             calibrate=calibrate,
+            crop=crop,
         )
         if res is None:
             continue
