@@ -64,6 +64,34 @@ banked aggregate is therefore *not* bit-comparable and is quoted as context.
 **`212_y41wc`** 403'd on its first 360p attempt (transient — format 18 is listed
 for that video) and succeeded on retry. Both caches hold all 12 clips.
 
+**The 360p arm is a re-derived control, not a bit-exact replay of the banked
+cache.** On `027_Zpswc` the frame-level evidence count reproduces the banked WS0
+table *exactly* (`haveCV` = 1450/1450), but the accuracies differ slightly:
+uniform **0.422** vs banked 0.428, WS1-calibrated **0.446** vs banked 0.424.
+Cause ruled in by elimination, not assumed:
+
+- the calibration path is **unchanged since the banked run** — the last commits
+  touching `video/fretboard/calibrate.py` and `video/hand/fingertip_to_fret.py`
+  are the WS1/WS2 commits that produced those very numbers, and this branch's
+  only diagnostic change (`--cache-suffix`) defaults to prior behaviour;
+- gold parsing for `027` matches exactly (1607 notes), so the A6 unfold is not
+  involved for this clip;
+- `haveCV` matching exactly while per-note predictions differ means the same
+  frames were sampled and a small number of *detections* differ.
+
+The residual explanation is the media itself: YouTube re-encodes, so a clip
+pulled today at format 18 need not be byte-identical to one pulled in June. The
+WS1 path is more sensitive to this than the uniform path because
+`calibrate_fret_xs` succeeds or fails on wire-count thresholds, so a handful of
+detection differences flip whole frames between the nonlinear map and the uniform
+fallback.
+
+**Consequence for this report:** the *within-report* A/B is the valid comparison —
+both arms were downloaded the same day with the same tool and scored with the
+same code. The banked 0.544/0.574 figures are quoted as **context, not as a
+bit-exact target**, and the 360p arm measured here is the control the A5 decision
+is taken against.
+
 ## 3. Delivered resolutions
 
 The `--max-height` fix is load-bearing: without it the format-18-first preference
