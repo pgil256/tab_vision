@@ -8,8 +8,14 @@ directly, since a subtle error in either silently changes the headline delta.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
-from scripts.eval.n3_ranker_build import Row, build_features, replay
+# The module under test is pure numpy, but it reaches torch transitively via
+# tabvision.eval.review_queue. torch ships in the audio-highres/train extras,
+# not in [dev], so guard the import the way test_review_queue.py does.
+pytest.importorskip("torch", reason="scripts.eval.n3_ranker_build imports review_queue.")
+
+from scripts.eval.n3_ranker_build import Row, build_features, replay  # noqa: E402
 
 
 def _row(event_id: str, track: str, *, wrong: bool, top3: bool, idx: int) -> Row:
