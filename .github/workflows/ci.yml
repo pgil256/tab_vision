@@ -38,7 +38,10 @@ jobs:
         run: mypy tabvision
 
       - name: Pytest
-        run: pytest -v
+        # -rs prints a reason for every skip. Without it, tests skipped for a
+        # missing optional extra (torch et al.) are invisible in the summary,
+        # and "N tests clean" reads as broader coverage than CI actually ran.
+        run: pytest -v -rs
 
       - name: FretCam bridge lint + format
         run: |
