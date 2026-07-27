@@ -42,6 +42,7 @@ class ClipFretWall:
     zero_share: float  # share of cached frames with 0 fret OBBs
     calib_share: float  # share of cached frames with >=4 fret OBBs (calibrate's minimum)
     n_ambiguous: int
+    mean_hconf: float  # mean homography confidence over usable frames
 
 
 def _clip_stats(
@@ -58,7 +59,9 @@ def _clip_stats(
         return None
     with open(cache_path, "rb") as fh:
         cache: dict[int, RawFrameCV | None] = pickle.load(fh)
-    counts = np.array([len(rec.preds.frets) for rec in cache.values() if rec is not None])
+    usable = [rec for rec in cache.values() if rec is not None]
+    counts = np.array([len(rec.preds.frets) for rec in usable])
+    hconfs = np.array([rec.homography.confidence for rec in usable])
     if counts.size == 0:
         print(f"  [skip] {stem}: cache has no usable frames")
         return None
@@ -75,6 +78,7 @@ def _clip_stats(
         zero_share=float((counts == 0).mean()),
         calib_share=float((counts >= 4).mean()),
         n_ambiguous=n_ambiguous,
+        mean_hconf=float(hconfs.mean()),
     )
 
 
@@ -96,7 +100,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     cfg = GuitarConfig()
     print(
-        f"{'clip':>12} {'frames':>7} {'med':>5} {'mean':>6} {'zero%':>6} {'>=4%':>6} {'ambig':>6}"
+        f"{'clip':>12} {'frames':>7} {'med':>5} {'mean':>6} {'zero%':>6} {'>=4%':>6} "
+        f"{'Hconf':>6} {'ambig':>6}"
     )
     rows: list[ClipFretWall] = []
     for stem in clips:
@@ -106,7 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         rows.append(row)
         print(
             f"{row.stem:>12} {row.n_frames:>7} {row.median_frets:>5.1f} {row.mean_frets:>6.2f} "
-            f"{row.zero_share:>6.1%} {row.calib_share:>6.1%} {row.n_ambiguous:>6}"
+            f"{row.zero_share:>6.1%} {row.calib_share:>6.1%} {row.mean_hconf:>6.3f} "
+            f"{row.n_ambiguous:>6}"
         )
     if not rows:
         print("no clips measured")
