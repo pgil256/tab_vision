@@ -172,6 +172,42 @@ personal prior is built from, then discards them.
 
 Report: `EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
 
+### Track D — detection buckets
+
+**`extra_detection` closed; `missed_onset` opened.** The two buckets look alike
+in the Phase 0 totals and are not alike at all — decomposed before building
+anything, per the A10 precedent.
+
+**`extra_detection` (3,324) — CLOSE as a fix target.** Its attractive
+harmonic-leakage story is a base-rate artifact. Fifths and fourths are 29.6% of
+spurious detections but **37.2% of the intervals this music contains** (standard
+tuning, ordinary voicings): lift **0.80×** — the model is *under*-represented in
+the largest identified class of the bucket. Only octaves (10.2%, **2.32×**) and
+unisons (6.9%, **1.53×**) are genuinely enriched, together ~17% of the bucket and
+~2.5% of total loss. Ring-out is 1.4%, so offset handling is not it either. Same
+outcome as A10 on `pitch_off`, for the same reason.
+
+**`missed_onset` (4,371) — OPEN.** Both hypotheses clear their base rates
+decisively and agree: 3+ simultaneous neighbours **49.0% vs 30.1%** (**1.63×**);
+sounding **alone 13.5% vs 30.2%** (**0.45×**); short notes < 150 ms **34.0% vs
+21.1%** (**1.61×**). The detector is not failing at recall generally — an
+isolated note is missed at less than half base rate — it fails inside dense
+simultaneity and on very brief notes. **A masking-aware detection pass is the one
+build candidate this probe supports.**
+
+**The base-rate columns are the finding.** Without them this reads "harmonic
+leakage is the dominant mode", which is backwards. This repo has made the
+conditional-without-marginal error before (A14's 0.285 without its 0.382
+marginal; F7 repeated the shape), so the probe computes both by construction and
+prints them adjacently.
+
+Residuals come from the shipped matcher via a new optional out-parameter on
+`decompose_errors`, not a reimplementation — a second copy would drift from the
+scored one. Omitting the parameter is a no-op. Dev only; the sealed player was
+not opened.
+
+Report: `EVAL_REPORTS/d_detection_probe_2026-07-25.md`.
+
 ### Track E — hygiene
 
 **Done.** Three "unmerged" branches (`codex/fix-live-deployment`,
@@ -184,73 +220,6 @@ rather than refreshed, since the program it describes is closed.
 
 Incidental: the 2026-07-13 entry retires the *old* `pgil256` Modal workspace,
 not the deployment — the README's "Modal production deploy" claim is accurate.
-
-### Track A — physics coverage
-_(nothing yet)_
-
-### Track B — timbral string classifier
-_(nothing yet)_
-
-### Track C — session-adaptive prior
-_(nothing yet)_
-
-### Track D — detection buckets
-_(nothing yet)_
-
-### Track B — timbral string classifier
-
-**CLOSED. Do not build `guitarset-timbre-v1`.** Third independent closure of
-this path, first one with a measured account of why.
-
-On the ~77% of ambiguous notes where physics abstains: the gold-string oracle is
-worth **+0.1934 [+0.1768, +0.2101]** (ceiling is large), pairwise separability
-is **AUC 0.7060** vs 0.6633 on covered (signal is present) — yet the two prior
-model-based probes realised **+0.0072** and **−0.0218**. The constraint is the
-**conversion**, not the ingredients: AUC 0.71 is heavily overlapping
-distributions competing against a prior already at ~0.65 top-1 on the same
-notes, which is exactly where added channels wash out.
-
-**A hypothesis was refuted:** the probe was built to show masking destroys
-timbral information. Separability on the 66%-masked abstain population is
-*slightly better* than on covered. Physics abstains under simultaneity; timbre
-does not care.
-
-No artifact, no training, no spend. If reopened, the question is how weak
-per-note evidence is *combined* (Track A's confidence-weighting precedent), not
-better features — Phase 4 already went to Nyquist.
-
-Report: `EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
-
-### Track C — session-adaptive position prior
-
-**Personal-prior lever justified and priced; self-adaptation not promoted.**
-
-`oracle_player` — giving a player their own prior — is worth **+0.0305
-[+0.0183, +0.0430]**, positive for all five players and largest where the system
-is weakest (player 01 +0.0762). Mean total-variation distance between per-player
-priors is 0.197: players really do differ, moderately.
-
-`self_adapt` (no gold — harvest the decode's own confident assignments, learn a
-session prior, blend, re-decode) gains **+0.0101 [+0.0036, +0.0166]** at the best
-weight and is genuinely session-specific: the **mismatched control regresses
-−0.0250**, four times as hard as the matched arm helps. But it helps three
-players and **hurts two, including the strongest**, so it fails the
-no-regression leg and is not promoted.
-
-**Recommendation — sub-item (ii), a personal prior from accumulated user data.**
-It is the only lever in this program whose production form is *easier* than its
-experimental form: a personal app sees the same player repeatedly, and the
-assisted-review queue already collects the confirmed (string, fret) labels a
-personal prior is built from, then discards them.
-
-⚠️ A 10-clip smoke covering only player 00 showed the player oracle at
-**−0.0084** — the opposite conclusion. Player 00 *is* the population average
-(own prior worth +0.0010). Price ceilings on the full dev set.
-
-Report: `EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
-
-### Track E — hygiene
-_(nothing yet)_
 
 ## Coordination
 
