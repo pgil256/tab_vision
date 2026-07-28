@@ -303,6 +303,29 @@ Pre-registered gates:
 band of the prior runs. Per operating rule 8, the training launch waits for
 explicit approval even after this doc is signed off.
 
+**Status 2026-07-27 — code landed, data acquired, execution queued.**
+
+- `scripts/train/extract_string_dataset.py` gained `--hand-tight` (square crop
+  around the fretting hand's landmark span, pad 1.6×, floored at 160 px, falling
+  back to the clip neck rect on hand dropout) and `--sustain` (frame sampled from
+  `[onset+80 ms, min(onset+400 ms, next_onset−40 ms)]`, clamped so it never
+  borrows a frame from the following note). Both default **off**, so prior
+  extractions reproduce bit-identically. 11 unit tests in
+  `tests/unit/test_phased_extraction.py`.
+- GAPS **train split** acquired at 720p: **252 of 270 clips** (18 failed — a mix
+  of transient 403s and permanently unavailable uploads). That matches the 251
+  clips the banked WS4 run used, so the corpus is not the limiting factor.
+  Train-only by construction: `read_split_stems` filters on the metadata CSV, so
+  the clean-12 / test-22 eval clips cannot leak into a training manifest.
+- Codec audit across all 264 cached 720p files: **263 H.264, 1 VP9, zero AV1**.
+  This matters because AV1 decodes as *zero frames* in this OpenCV build while
+  ffprobe reports a healthy stream — the failure that produced a spurious 0.000
+  in Phase A before the `vcodec^=avc1` fix.
+- **Not started:** extraction (~150k crops with MediaPipe per frame) is heavily
+  CPU-bound and would contend with the C1 decode currently running. Queue it
+  after C1, then Gate 1 (clip-disjoint val 6-way accuracy ≥ 0.45) decides whether
+  any spend is justified.
+
 ---
 
 ## 8. Phase E — neck-cam program gate (STOP: commitment decision)
