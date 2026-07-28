@@ -5384,3 +5384,50 @@ close-to-audio and removed the detection wall, but Tab F1 cannot improve while
 the channel sits below the prior it displaces. Effort should go to closing that
 last ~0.089 (learned fret keypoints; the `118`-class partial-evidence fix), not
 to gate tuning or orientation polish.
+
+---
+
+## 2026-07-27 - C1 regenerates, but 4 rows short of the pinned assertion
+
+**Phase:** C1 (offline assisted-review ranker), execution of the feasibility
+verdict recorded earlier today.
+**Decision tree:** Can the exact 38.76% comparison be restored on this machine?
+**Branch taken:** **Partially — and the remaining obstacle is real, unlike the
+three the n3 report gave.** Regeneration ran end to end; the blocker is now a
+4-row drift against a hard assertion. **STOP for a user decision** rather than
+relaxing a provenance-pinned assertion unilaterally.
+
+**Evidence:** `scripts.eval.string_assignment_phase0` and `...phase1` both ran to
+completion against `~/mir_datasets/guitarset` (written under `--date 2026-07-27`
+so the seven tracked 2026-07-15 artifacts were not overwritten), producing
+`string_assignment_phase0_..._notes.csv` (67 MB) and `phase1_..._notes.csv`
+(34.0 MB) - sizes essentially matching the recorded 69.9 MB / 34.0 MB.
+
+**Not bit-identical:** phase0 sha256 `7d460bb7...` vs recorded `6f067585...`;
+phase1 `c09c467a...` vs recorded `541220a6...`.
+
+**Structure is 4 rows short.** The regenerated table holds **51,126**
+`development_oof` rows per condition against the **51,130** asserted at
+`string_assignment_phase6.py:145`. Observed, not inferred - phase6 exits with
+`RuntimeError: expected 51,130 development rows per condition, got 51126 and
+51126`. Both conditions (`production_equivalent`, `segment-v1`) agree at 51,126,
+and each carries 8,600 `held_out_05` rows.
+
+**Reasoning:** The feasibility analysis predicted exactly this class of drift
+(torch 2.12->2.11, numpy 2.4.6->2.4.4, Windows->Linux, a different ffmpeg
+resampler on the 44.1k->22.05k path) and predicted it would fail loudly rather
+than silently. It did, which is the design working: a drifted decode cannot
+quietly produce a wrong 38.76% comparison.
+
+The drift is **4 rows in 51,130 = 0.008%**, far below any effect size that could
+move a wrong-reduction metric, and the ranker uses player-held nested OOF, so
+four notes cannot swing the comparison. Relaxing the assertion to a small
+tolerance would therefore yield a *materially* valid comparison - but it is not
+bit-exact, and `string_assignment_phase6.py` sits in a SHA-pinned provenance
+chain, so loosening it is a user call, not an implementation detail. The
+alternative (pinning the exact original toolchain) is unbounded work with an
+uncertain outcome.
+
+**Recommendation:** relax the assertion to a tolerance (e.g. +-0.05% of 51,130)
+with the observed count recorded in the run's provenance, and report the result
+as "near-exact, 4/51,130 rows drifted" rather than as the frozen comparison.
