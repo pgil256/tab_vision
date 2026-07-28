@@ -56,7 +56,46 @@ Recorded do-not-retry / refuted levers stay closed:
 | Roboflow `b101/guitar-3` | existing detector training data | CC-BY-4.0 | ✅ already in LICENSES.md |
 | ultralytics YOLO11 | detector runtime | AGPL-3.0 | ✅ deliberately accepted (existing) |
 | Modal L4 (Phase D) | paid fine-tune | n/a | ⛔ **STOP for spend approval** per operating rule 8 |
-| `joaomarcoscrs/guitar-chords`, `ghaleb/guitar-fretboard`, other Phase-E data | keypoints / IoU fallback | **UNVERIFIED** | ⛔ fetch and quote the actual LICENSE string verbatim before any acquisition (design-plan gate 1). `AlbertMitjans/chord-detection` has **no license file** — read-only reference, never a dependency |
+
+**Phase E / F6 data — verified 2026-07-27** (against the live Roboflow pages and
+the HF/GitHub APIs; slugs corrected, several differ from the names carried in
+earlier docs):
+
+| Artifact | Role | Verified license | Status |
+|---|---|---|---|
+| `b101/guitar-3` | **already in the shipping detector** | `CC BY 4.0` | ✅ re-confirmed against the live page; the shipping path is clean |
+| `s-workspace-y3mjn/guitar-fret-6pt` | **Phase E2 keypoints** | `CC BY 4.0` | ✅ **the E2 unlock** — 926 images, *keypoint* detection, `nut`/`fret`. Created April 2026, so it postdates the 2026-06 survey that found nothing. Almost certainly a re-annotation of `b101/guitar-3` (identical count/vocabulary): legally clean, but attribute **both** |
+| `ghaleb/guitar-fretboard` | F6 IoU fallback | `CC BY 4.0` | ✅ 384 images, `Hand` + `Zone1..Zone12` — matches the F6 mechanism |
+| `bandsucore/guitar-neck-detection-suhgk` | optional neck data | `CC BY 4.0` | ✅ 1,001 images, single `neck` class |
+| `my-workspace-xslxf/guitar-neck-chords-yrnmt` | optional | `CC BY 4.0` | ⚠️ **trap-type (a) risk** — a re-export banner (`ChordDetection - v11`) where the CC-BY tag was set by a re-uploader who may not have held the rights. Same shape as the SynthTab trap. Avoid or attribute cautiously |
+| `soen357/fretboard` | — | **gone** | ⛔ workspace now reports `0 projects · 0 images`; search results are stale cache. Drop from all plans |
+| `joaomarcoscrs/guitar-chords-daewp` | *was* the assumed E2 source | `CC BY 4.0` | ⛔ **premise was wrong** — 151 images (not ~343) and its keypoints are `hand`/`guitar-neck`/`strings`, **not fret or inlay points**. Does not serve E2 |
+| `shamakg/string-fret-guitar` (HF) | candidate checkpoint | **none** | ⛔ unlabeled weights blob, no card, no license — all-rights-reserved |
+| `AlbertMitjans/chord-detection` | reference | **none** (`"license": null`) | ⛔ read-only reference, never a dependency (unchanged) |
+
+Three findings that change Phase E:
+
+1. **The pretrained-checkpoint gap is unchanged** — HF `search=fretboard` returns
+   a literally empty list; no downloadable fret-keypoint checkpoint exists
+   anywhere. E2 means *training* one, not fetching one.
+2. **The dataset gap has closed.** `guitar-fret-6pt` gives permissive 6-point
+   fret/nut keypoints. This is the concrete substrate for the "learned keypoints
+   beat OBB wires" idea, on CC-BY data, with no NC entanglement.
+3. **No inlay-dot dataset exists — confirmed, not assumed.** Roboflow and HF
+   searches return nothing guitar-related for inlay/position markers. Inlay
+   annotation is genuinely novel work, so E2 should open on `guitar-fret-6pt`'s
+   fret-wire keypoints (same rectification geometry, different landmark) and
+   treat inlay dots as a later increment requiring self-annotation.
+
+**Synthetic route (E, optional).** Poly Haven is CC0 but has **no guitar** (only
+a ukulele — four strings, wrong scale length). Sketchfab CC0 for "guitar"
+returns one asset and it is a fish. Usable meshes exist under **CC-BY**, but the
+license is per-model and NC variants sit under the same search UI, so each must
+be checked individually. The stronger engineering point: a downloaded mesh's
+fret spacing is *decorative*, so for "perfect string/fret labels" the fretboard
+should be generated procedurally from scale length and `d_n = L(1 − 2^(−n/12))`,
+using a CC-BY body mesh only for surrounding context — which also removes most
+of the licensing exposure, since the labeled geometry becomes ours.
 
 No new dependency enters the default pipeline in Phases A–C. Phase A is pure
 re-measurement with existing tools.
@@ -245,11 +284,19 @@ against the Phase A cache:
   signal — the optical analogue of GuitarSet's hex pickup — and the kind of
   "materially better position solver" NARRATIVE.md names as the only thing
   that reopens video.
-- **E2 — inlay-dot keypoints:** fret markers at 3/5/7/9/12 anchor the fret
-  map absolutely, eliminating the first-visible-wire (`k0`) search class of
-  error behind F2b. Data: synthetic renders + the one permissive keypoint
-  source, license verified first (§3). Go bar: absolute fret-index anchoring
-  beats `calibrate.py`'s consensus fit on wire-sparse clips.
+- **E2 — learned fret keypoints (re-scoped 2026-07-27 by the §3 verification):**
+  the original framing was inlay dots at 3/5/7/9/12, which anchor the fret map
+  absolutely and would eliminate the first-visible-wire (`k0`) search class of
+  error behind F2b. **No public dataset annotates inlay markers** — that is now
+  confirmed, so inlay work means self-annotation and moves to a later increment.
+  E2 instead opens on `s-workspace-y3mjn/guitar-fret-6pt` (CC BY 4.0, 926
+  images, 6-point `nut`/`fret` keypoints): same rectification geometry, a
+  landmark that public data actually supplies, and a direct test of "learned
+  keypoints beat OBB wire detection" — which Phase A has independently shown to
+  be the binding constraint. Go bar: keypoint-derived fret registration beats
+  `calibrate.py`'s consensus fit on wire-sparse clips. Note there is **no
+  pretrained checkpoint to fetch**; this is a training run and needs its own
+  spend approval.
 
 Data policy is fixed in advance: user footage is **inference-only**; training
 uses public/synthetic data exclusively. Revisiting the private-recordings ban
