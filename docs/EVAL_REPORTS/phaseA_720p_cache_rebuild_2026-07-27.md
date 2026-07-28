@@ -163,11 +163,45 @@ Two consequences follow, and both are measured rather than assumed:
    influence. The fret-wall diagnostic was extended to report mean homography
    confidence per arm for this reason.
 
-## 6. Results
+## 6. Mechanism — measured directly, and a pre-registered prediction
+
+The causal claim is that the crop pass helps by letting `calibrate_fret_xs`
+actually **fit**, rather than silently falling back to the uniform partition.
+"Frames with ≥4 wires" is only the *precondition* for that; the RANSAC consensus
+fit can still reject them on inlier count or RMS. The diagnostic therefore calls
+`calibrate_fret_xs` per cached frame and reports the true **fit rate**:
+
+| clip | arm | ≥4 wires | **fit rate** | leading indicator |
+|---|---|---:|---:|---:|
+| 027_Zpswc | 360p | 46.3% | **36.1%** | 0.446 |
+| 027_Zpswc | 720p-crop | 100.0% | **88.2%** | **0.774** |
+| 031_vpswc | 360p | 66.0% | **58.0%** | 0.618 |
+| 031_vpswc | 720p-crop | 100.0% | **90.3%** | **0.766** |
+
+Two things follow. **The dose–response holds across arms and across clips**: at
+360p, `031` had both the higher fit rate (58.0% vs 36.1%) and the higher accuracy
+(0.618 vs 0.446); at 720p both converge to ~90% fit and ~0.77 accuracy. **And the
+RANSAC backstop is working** — the fit rate sits strictly below the ≥4-wire share
+in every cell (88.2% vs 100.0% on `027`), so ~10% of frames carry enough wires
+yet still fail the consensus test and correctly revert to the uniform fallback.
+That is the designed defence against the conf-0.10 false positives seen in §5,
+observed operating rather than assumed.
+
+**Pre-registered prediction (recorded before the remaining ten clips were
+measured):** if this mechanism is the whole story, then per-clip Δ in the leading
+indicator should track per-clip Δ in fit rate, and clips already near-saturated at
+360p should gain little. The six documented zero-fret clips (`043`, `063`, `118`,
+`179`, `235`, `294`) have the most headroom and should gain most — *unless* their
+crop-pass detections are false wires, in which case fit rate rises while accuracy
+does not. **A rise in fit rate without a rise in accuracy on those clips is the
+falsifier**, and would mean the crop pass is manufacturing plausible-looking
+geometry rather than finding real frets.
+
+## 7. Results
 
 _Pending — filled from the frozen runs._
 
-## 7. A5 decision
+## 8. A5 decision
 
 _Pending._ The pre-registered tree (plan §4.5), applied to the WS1 leading
 indicator against the 0.574 baseline:
@@ -182,7 +216,7 @@ indicator against the 0.574 baseline:
 Source-disjoint-10 is not touched until clean-12 passes; test-22 only for a single
 final frozen confirmation.
 
-## 8. Reproduce
+## 9. Reproduce
 
 ```bash
 cd tabvision

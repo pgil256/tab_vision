@@ -43,6 +43,7 @@ class ClipFretWall:
     calib_share: float  # share of cached frames with >=4 fret OBBs (calibrate's minimum)
     n_ambiguous: int
     mean_hconf: float  # mean homography confidence over usable frames
+    calib_fire_share: float  # share of usable frames where calibrate_fret_xs actually FIT
 
 
 def _clip_stats(
@@ -59,9 +60,18 @@ def _clip_stats(
         return None
     with open(cache_path, "rb") as fh:
         cache: dict[int, RawFrameCV | None] = pickle.load(fh)
+    from tabvision.video.fretboard.calibrate import calibrate_fret_xs
+
     usable = [rec for rec in cache.values() if rec is not None]
     counts = np.array([len(rec.preds.frets) for rec in usable])
     hconfs = np.array([rec.homography.confidence for rec in usable])
+    # The direct mechanism test: >=4 wires is only the precondition — the
+    # RANSAC consensus fit can still reject them (bad RMS / too few inliers),
+    # in which case compute_fingering silently falls back to the uniform
+    # partition. This counts frames where the rule-of-18 map actually applied.
+    fired = sum(
+        1 for rec in usable if calibrate_fret_xs(rec.preds, rec.homography, cfg) is not None
+    )
     if counts.size == 0:
         print(f"  [skip] {stem}: cache has no usable frames")
         return None
@@ -79,6 +89,7 @@ def _clip_stats(
         calib_share=float((counts >= 4).mean()),
         n_ambiguous=n_ambiguous,
         mean_hconf=float(hconfs.mean()),
+        calib_fire_share=fired / len(usable),
     )
 
 
@@ -101,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = GuitarConfig()
     print(
         f"{'clip':>12} {'frames':>7} {'med':>5} {'mean':>6} {'zero%':>6} {'>=4%':>6} "
-        f"{'Hconf':>6} {'ambig':>6}"
+        f"{'fit%':>6} {'Hconf':>6} {'ambig':>6}"
     )
     rows: list[ClipFretWall] = []
     for stem in clips:
@@ -111,8 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         rows.append(row)
         print(
             f"{row.stem:>12} {row.n_frames:>7} {row.median_frets:>5.1f} {row.mean_frets:>6.2f} "
-            f"{row.zero_share:>6.1%} {row.calib_share:>6.1%} {row.mean_hconf:>6.3f} "
-            f"{row.n_ambiguous:>6}"
+            f"{row.zero_share:>6.1%} {row.calib_share:>6.1%} {row.calib_fire_share:>6.1%} "
+            f"{row.mean_hconf:>6.3f} {row.n_ambiguous:>6}"
         )
     if not rows:
         print("no clips measured")
