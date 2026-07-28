@@ -96,19 +96,68 @@ correct statement is: **one clip (`118_VD1wc`) is harmed by calibration, and it
 happens to sit in the sparse subset.** The suggested lever built on that reading
 is now tested and refuted.
 
-## 5. `118_VD1wc` keeps appearing
+## 5. `118_VD1wc` — diagnosed
 
-Three independent measurements now single it out:
+Three independent measurements singled it out:
 
 - Phase A's largest per-clip regression (−0.150);
 - the only clip here where calibration hurts (−0.129, and uncalibrated it is the
   *best* clip in the set at 0.895);
 - the clip where E2's keypoint model detects essentially nothing (~0.02 fret
-  instances per frame, gate fires 0.000).
+  instances per frame).
 
-That is a clip-specific pathology worth one look on its own terms — a rendered
-overlay would probably explain it in minutes. It is **not** evidence for any
-general rule, and nothing here should be built on it.
+**Cause: an extreme foreshortening camera angle.** Confirmed by
+`scripts/eval/diag_118_pathology.py` and by rendering the overlay. Against the
+other eleven clips:
+
+| statistic | 118_VD1wc | healthy range |
+|---|---:|---|
+| homography confidence | 0.878 | 0.84–1.00 |
+| fret wires per frame | **2.99** | 14.2–23.2 |
+| nut detected (share of frames) | **0.04** | 0.38–1.00 |
+| `nut_at_high_canonical_x` share | **0.60** | 0.01–0.38 |
+
+The neck is found perfectly well — `hconf` 0.878 is unremarkable. What differs is
+the **geometry**: 118 is shot with the neck angled steeply up and away from the
+camera, strongly foreshortened into a narrow diagonal band, with the headstock
+small and frequently leaving frame at the top. 104_xf1wc, by contrast, presents
+the neck nearly flat to the camera with the fretboard spread across the frame.
+
+The consequences chain:
+
+1. perspective compresses the wire spacing, so only ~3 wires are detected —
+   barely the `_MIN_WIRES = 4` floor;
+2. the nut is small, distant and often occluded, so it is detected in **4%** of
+   frames and almost never anchors the fit;
+3. with no nut anchor and too few wires, `nut_at_high_canonical_x` — which infers
+   the nut end from fret-spacing decay — has almost no signal and **degenerates
+   to a coin flip** (0.60, against 0.01–0.38 where the decision is decisive);
+4. so roughly half the fitted maps are built **end-for-end reversed**. The median
+   fitted map runs fret 0 at canonical x **0.961** *descending* to fret 24 at
+   **0.029**, against the uniform partition's 0.02 → 0.98.
+
+A reversed map swaps fret 0 with fret 24, which corrupts the fingering and hence
+the string attribution. The 28% of frames that do fire are enough to drag an
+otherwise excellent clip from 0.895 to 0.766.
+
+`063_bV1wc` is the instructive contrast: it sees even less (0.01 wires/frame,
+`hconf` 0.443), fires **0.000**, and is therefore *harmless* — `d = +0.000`. 118
+is worse precisely because it has *just enough* evidence to fire and not enough
+to orient.
+
+**Implication — and a candidate the pre-registration deliberately excludes.**
+The precondition that separates 118 from the healthy clips is not fire rate
+(tested and refuted above) but **orientation determinacy**: no nut anchor plus
+too few wires to read the spacing decay. Refusing the fitted map when the nut
+side cannot be established is a per-*frame* precondition and a much better
+targeted hypothesis than the per-clip rate tested here. It is **not tested**, and
+under §6 it needs its own pre-registration — testing it now, having arrived at it
+by inspecting the clip that failed, is exactly the search this document's design
+was written to prevent.
+
+*(No frames from this clip are committed. GAPS media is CC-BY-NC-SA and
+LICENSES.md:72 forbids redistribution; the renders were inspected locally and
+discarded.)*
 
 ## 6. What is now closed, and what is not
 

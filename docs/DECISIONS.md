@@ -5703,3 +5703,52 @@ pre-registration.
 
 **Phase A's +0.151 pooled calibration gain is unaffected and reinforced** -
 calibration helps on 11 of 12 clips, by up to +0.385.
+
+## 2026-07-28 - 118_VD1wc diagnosed: foreshortening, not detector quality
+
+**Phase:** follow-up to the wire-sparse gate refutation.
+**Decision tree:** why do three independent measurements single out this clip?
+**Branch taken:** **Root cause found; no code change made.** Report section:
+`docs/EVAL_REPORTS/wire_sparse_calibration_gate_2026-07-28.md` §5. Tool:
+`scripts/eval/diag_118_pathology.py`.
+
+**Cause: an extreme foreshortening camera angle**, not a weak detector. The neck
+is found perfectly well (homography confidence 0.878, unremarkable against the
+0.84-1.00 healthy range). What differs is geometry - the neck is angled steeply
+up and away from the camera and compressed into a narrow diagonal band, with the
+headstock small and frequently out of frame. Verified by rendering the overlay
+and comparing against `104_xf1wc`, which presents the neck nearly flat.
+
+| statistic | 118_VD1wc | healthy range |
+|---|---:|---|
+| fret wires per frame | **2.99** | 14.2-23.2 |
+| nut detected (share of frames) | **0.04** | 0.38-1.00 |
+| `nut_at_high_canonical_x` share | **0.60** | 0.01-0.38 |
+
+**The failure chain:** perspective compresses wire spacing so only ~3 wires are
+found (barely the `_MIN_WIRES = 4` floor); the nut is too small and too often
+occluded to anchor the fit (4% of frames); with neither, `nut_at_high_canonical_x`
+has almost no signal and **degenerates to a coin flip** (0.60 against a decisive
+0.01-0.38 elsewhere); so about half the fitted maps come out **end-for-end
+reversed** - the median map runs fret 0 at canonical 0.961 *descending* to fret 24
+at 0.029, against uniform's 0.02 -> 0.98. Reversing fret 0 with fret 24 corrupts
+the fingering and therefore the string attribution, and the 28% of frames that
+fire drag the clip from 0.895 (best in clean-12 uncalibrated) to 0.766.
+
+**`063_bV1wc` is the instructive contrast:** it sees even less (0.01 wires/frame,
+hconf 0.443), fires **0.000**, and is therefore harmless at d = +0.000. 118 is
+worse precisely because it has *just enough* evidence to fire and not enough to
+orient. "Sees nothing" is safe; "sees a little" is not.
+
+**Candidate deliberately left untested.** The precondition separating 118 from
+the healthy clips is **orientation determinacy** - no nut anchor plus too few
+wires to read the spacing decay - not the per-clip fire rate refuted earlier
+today. Refusing a fitted map when the nut side cannot be established is a
+per-frame precondition and a better-targeted hypothesis. Arriving at it by
+inspecting the clip that failed is exactly the post-hoc search the gate
+pre-registration was written to prevent, so it is recorded here and **needs its
+own pre-registration** before anyone runs it.
+
+**No media committed.** GAPS is CC-BY-NC-SA and LICENSES.md:72 forbids
+redistribution; the overlay renders and extracted frames were inspected locally
+and discarded.
