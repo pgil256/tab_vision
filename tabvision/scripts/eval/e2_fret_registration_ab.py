@@ -192,21 +192,29 @@ def _run_clip(
     cache_suffix: str,
     window_s: float,
     max_frames: int,
+    arms: tuple[str, ...] = ARMS,
 ) -> dict[str, ArmResult] | None:
-    """Run all three arms over one clip's cached frames."""
+    """Run the requested arms over one clip's cached frames.
+
+    ``arms`` lets a caller that only needs the geometry arms skip the keypoint
+    cache entirely — the wire-sparse gate experiment compares ``uniform`` against
+    ``obb`` and must not depend on E2's model being trained.
+    """
     gaps = data_root / "gaps"
     xml = gaps / "musicxml" / f"{stem}.xml"
     vid = video_cache / f"{stem}.mp4"
     offset_pkl = cv_cache / f"{stem}.offset.pkl"
     rich = rawcv_cache_path(cv_cache, stem, conf, suffix=cache_suffix)
     kpt_path = kpt_cache_path(kpt_cache, stem, det_conf)
-    for label, path in (
+    needed = [
         ("musicxml", xml),
         ("video", vid),
         ("offset", offset_pkl),
         ("cv cache", rich),
-        ("keypoint cache", kpt_path),
-    ):
+    ]
+    if "keypoint" in arms:
+        needed.append(("keypoint cache", kpt_path))
+    for label, path in needed:
         if not path.exists():
             print(f"  [skip] {stem}: missing {label} ({path.name})")
             return None
@@ -220,11 +228,13 @@ def _run_clip(
     _dur, fps = _probe_metadata(vid)
     with open(rich, "rb") as fh:
         raw: dict[int, RawFrameCV | None] = pickle.load(fh)
-    with open(kpt_path, "rb") as fh:
-        kpts: dict[int, FretKeypointFrame | None] = pickle.load(fh)
+    kpts: dict[int, FretKeypointFrame | None] = {}
+    if "keypoint" in arms:
+        with open(kpt_path, "rb") as fh:
+            kpts = pickle.load(fh)
 
     out: dict[str, ArmResult] = {}
-    for arm in ARMS:
+    for arm in arms:
         per_frame = {}
         fire = 0
         usable = 0
