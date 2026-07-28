@@ -337,14 +337,43 @@ lagging indicator did not move at all**, despite the leading indicator gaining
 marginal accuracy does not help when its errors remain co-located with the notes
 audio already gets right.
 
-**A large, cheap, previously unnoticed lever falls out of this table.**
-Auto-orientation scores 0.6142 while best-fixed-orientation scores 0.7635 — a
-**0.149 Tab F1 gap attributable purely to orientation selection**. On `294` the
-auto path picks `none` and scores 0.2658 where `flip-both` would score 0.8080.
-`choose_orientation` (which selects using audio-pitch agreement only, no gold) is
-choosing wrong on the majority of clips. Fixing orientation selection is worth
-more than any gate change, is pure offline work on the existing cache, and was
-not on the Phase A plan — it emerged from this measurement.
+**Orientation selection accounts for the auto-vs-ceiling gap — but fixing it
+would not make ungated video a win.** Auto-orientation scores 0.6142 against a
+best-fixed-orientation ceiling of 0.7635, a 0.149 Tab F1 gap; on `294` the auto
+path picks `none` (0.2658) where `flip-both` scores 0.8080. A dedicated
+diagnostic (`scripts/eval/phasea_orientation_diag.py`) then tested *why*, and the
+result corrects the first reading:
+
+| measure | value |
+|---|---:|
+| clips where the selector agrees with the gold-best orientation | **5 / 12** |
+| **mean ambiguous-note string accuracy lost to the choice** | **0.031** |
+| median relative spread across the four scores | 0.545 |
+
+The initial hypothesis — that `candidate_support` is near-invariant under the
+string-axis mirror, so the four scores tie and `max` falls back to
+`ORIENTATIONS` order — is **wrong for most clips**. The scores are
+well-separated (relative spread 0.21–1.00 on ten of twelve); only `063` (0.002)
+and `212` (0.051) are genuine near-ties. The selector is making a *confident*
+wrong call, not an arbitrary one.
+
+And the cost is smaller than the Tab F1 gap suggests: orientation costs only
+**0.031** of ambiguous-note string accuracy. The 0.149 appears in Tab F1 because
+the ungated path applies the video posterior to *every* note, so a systematically
+mirrored posterior damages notes audio would otherwise have decoded correctly —
+the damage is amplified by ungated application, not caused by orientation alone.
+
+**The decisive number: even with a perfect, gold-chosen orientation, ungated
+video scores 0.7635 against audio-only 0.8147.** Orientation selection is
+therefore *necessary but not sufficient* — fixing it reduces the harm from
+−0.201 to −0.051, and does not turn the channel into a net contributor.
+
+⚠️ **Consequently the §7.3 leading indicator is a best-orientation figure.** The
+diagnostic selects the orientation that maximises gold string accuracy, so
+**0.720 is not directly deployable**; the auto-orientation equivalent is
+≈ **0.689**. The banked 0.574 baseline is computed the same way, so the +0.151
+comparison stands — but the deployable channel quality is the lower number, and
+the gap to the 0.778 audio prior is correspondingly wider (≈0.089, not 0.058).
 
 ### 7.5 Where the channel now stands
 
@@ -405,21 +434,35 @@ confidence-keyed routing of the **360p-era** evidence is a recorded do-not-retry
 (A14), so any such attempt must be justified by the new evidence quality and
 pre-registered afresh rather than treated as a reopened lever.
 
-### 8.3 The lever this measurement actually found
+### 8.3 Orientation selection — real, but smaller than it first looked
 
-**Orientation selection is worth more than any gate change.** Ungated
-auto-orientation scores 0.6142 against a best-fixed-orientation ceiling of
-0.7635 — a **0.149 Tab F1 gap from orientation alone**, with `294_BSswc` the
-extreme case (auto `none` 0.2658 vs `flip-both` 0.8080). `choose_orientation`
-resolves the string-axis mirror using audio-pitch agreement only, and it is
-choosing wrong on most clips. This is pure offline work against the existing
-cache, needs no new data or training, and closes a larger gap than the gate does.
+The ungated table made orientation look like the dominant lever (0.6142 auto vs
+0.7635 ceiling). The follow-up diagnostic (§7.4b) qualifies that: the selector is
+wrong on 7/12 clips but costs only **0.031** of ambiguous-note string accuracy,
+and its scores are well-separated rather than tied — it is confidently wrong, not
+arbitrary. The 0.149 shows up in Tab F1 because ungated application multiplies a
+mirrored posterior across every note.
 
-**Recommended order:** (1) fix orientation selection and re-measure; (2) only then
-consider selective admission; (3) treat the `118`-class partial-evidence failure
-(fit rate 35.9%, −0.150) as a minimum-support condition on applying the
-calibrated map. Source-disjoint-10 remains untouched until clean-12 shows a
-*Tab F1* gain, not merely an evidence gain.
+**The number that settles it: with a perfect gold-chosen orientation, ungated
+video still scores 0.7635 vs audio-only 0.8147.** Orientation is necessary but
+not sufficient; fixing it reduces harm from −0.201 to −0.051 without producing a
+gain. It is therefore worth doing, but it is **not** a route to a Tab F1 win on
+its own, and it should not be sold as one.
+
+**Recommended order:** (1) fix orientation selection — cheap, offline, and it
+removes a confound from every later measurement; (2) impose a minimum-support
+condition on applying the calibrated map, targeting the `118`-class failure
+(35.9% fit, −0.150); (3) only then consider selective admission, freshly
+pre-registered given A14's do-not-retry. Source-disjoint-10 stays untouched until
+clean-12 shows a **Tab F1** gain, not merely an evidence gain.
+
+**The honest strategic read:** Phase A moved the channel from *decisively worse
+than audio* to *close to audio* (deployable ≈0.689 vs 0.778), and removed the
+detection wall that was the stated blocker. It did not move Tab F1, and no
+combination of gate or orientation work will, while the channel remains below the
+prior it displaces. Closing that last ≈0.089 — via learned fret keypoints
+(Phase E2) or the partial-evidence fix — is the precondition for any Tab F1 gain,
+and that is where effort should go next.
 
 ## 9. Reproduce
 

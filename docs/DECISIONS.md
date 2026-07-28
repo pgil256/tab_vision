@@ -5340,3 +5340,47 @@ Two engineering fixes landed alongside: the >360p yt-dlp selector now pins
 decodes as **zero frames** while ffprobe reports a healthy stream), and
 `_raw_cv_cache` now raises rather than persisting an empty cache — that empty
 cache had scored as 0.000 and would have been silently reused on rerun.
+
+---
+
+## 2026-07-27 - Orientation selection is confidently wrong, not tied, and is not the win
+
+**Phase:** Video evidence roadmap Phase A, follow-up diagnostic
+**Decision tree:** Which lever to pursue after Phase A moved the leading
+indicator (+0.151) without moving Tab F1.
+**Branch taken:** **Correct the previous entry's emphasis.** Orientation
+selection is worth fixing but is NOT the route to a Tab F1 gain; deprioritize
+gate work and orientation work relative to closing the channel's remaining
+deficit against the audio prior.
+
+**Evidence:** `scripts/eval/phasea_orientation_diag.py` (new, cache-only) over
+clean-12 on the 720p crop cache. The selector agrees with the gold-best
+orientation on **5/12** clips, but the mean ambiguous-note string accuracy lost
+to its choice is only **0.031**. The four orientation scores are **well
+separated** (median relative spread **0.545**; 0.21-1.00 on ten clips), so the
+hypothesis that `candidate_support` is mirror-invariant and the argmax falls back
+to `ORIENTATIONS` order is **refuted** except on `063` (0.002) and `212` (0.051).
+Decisively: with a perfect gold-chosen orientation the ungated arm still scores
+**0.7635 vs audio-only 0.8147**.
+
+**Reasoning:** The ungated table (auto 0.6142 vs best-orientation 0.7635) made
+orientation look like a 0.149 Tab F1 lever, and the preceding DECISIONS entry
+said so. That reading was too strong. The 0.149 arises because ungated fusion
+applies the video posterior to *every* note, so a systematically mirrored
+posterior damages notes audio already decoded correctly — the orientation error
+is amplified by ungated application rather than being large in itself. Fixing it
+takes the ungated arm from -0.201 to -0.051 versus audio-only: less harmful,
+still not a gain.
+
+This also forces an honest restatement of the Phase A headline: the leading
+indicator is computed at the **best orientation**, so **0.720 is not deployable**
+- the auto-orientation equivalent is ~**0.689**, widening the gap to the 0.778
+audio prior from ~0.058 to ~0.089. The banked 0.574 baseline uses the same
+best-orientation convention, so the +0.151 delta stands; only the absolute
+deployable level is lower than the headline implies.
+
+Net: Phase A moved the channel from decisively-worse-than-audio to
+close-to-audio and removed the detection wall, but Tab F1 cannot improve while
+the channel sits below the prior it displaces. Effort should go to closing that
+last ~0.089 (learned fret keypoints; the `118`-class partial-evidence fix), not
+to gate tuning or orientation polish.
