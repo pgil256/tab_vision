@@ -5648,3 +5648,58 @@ outright on `118` (~0.02 instances/frame) and under-detects on `043` (3.16, belo
 the 4-wire floor), neither diagnosed; best-orientation convention; and
 registration was never scored against ground-truth fret pixel positions because
 GAPS has none.
+
+## 2026-07-28 - Wire-sparse calibration gate REFUTED: an outlier, not a threshold effect
+
+**Phase:** follow-up to E2 §6.
+**Decision tree:** does per-clip calibration fire rate predict, out of sample,
+whether calibrating that clip helps?
+**Branch taken:** **No. Bank the negative and close the line.** Report:
+`docs/EVAL_REPORTS/wire_sparse_calibration_gate_2026-07-28.md`. Pre-registration
+committed as `a8f5f2e` **before** the run.
+
+**Result:** leave-one-clip-out gating 0.7152 vs ungated 0.7195, gain
+**-0.0043**. The pre-registered tree routes <= 0 to "bank the negative".
+
+**The design existed to avoid a circular result, and that mattered.** The
+tempting experiment - gate at the same 0.50 threshold that *defined* the
+wire-sparse subset, score the same twelve clips - reduces to the already-measured
+subset difference and would have come out positive even if fire rate carried no
+information. LOO, with each held-out clip's threshold fitted only on the other
+eleven, tests generalisation instead. Had the circular version been run it would
+have "confirmed" the lever and a useless gate would have gone into the pipeline.
+
+**Why it fails - the trend is real, the harm is not.** Spearman(fire, d) =
+**+0.797**, and note-weighted mean d is +0.072 in the low-fire half vs +0.281 in
+the high-fire half, so calibration genuinely helps more when it fires more. But a
+gate needs a region where calibration *hurts*, and there is none: calibration is
+net-positive even in the low-fire half. Exactly **one clip of twelve** has
+d < 0 - `118_VD1wc` at -0.129 - and the four-clip subset average in E2 §6 was
+dragged negative by it alone.
+
+Mechanically, for held-out `118_VD1wc` (fire 0.280) the other eleven chose
+T = 0.15, which does **not** gate it, so the harm survives; while for
+`179_pM1wc` (fire 0.311, d **+0.065**) they chose T = 0.50, which **does** gate
+it, discarding a real gain. The rule transfers backwards.
+
+**Correction applied to the E2 report.** §6 said "on wire-sparse clips the
+current OBB calibration is net-harmful". Accurate about that subset, but it
+invited reading sparseness as the cause. A warning box now sits at the top of
+that section pointing here. The correct statement is that one clip is harmed and
+it happens to sit in the sparse subset.
+
+**`118_VD1wc` is now flagged by three independent measurements** - Phase A's
+largest per-clip regression (-0.150), the only clip harmed by calibration here
+(-0.129, and uncalibrated it is the best clip in the set at 0.895), and the clip
+where E2's keypoint model detects almost nothing (~0.02 instances/frame). A
+clip-specific pathology worth one rendered overlay, and **not** a basis for any
+general rule.
+
+**Deliberately not tried:** homography confidence, inlier counts, fit RMS,
+per-frame gating. The pre-registration fixed fire rate as *the* statistic so a
+failure could be banked cleanly; searching over statistics after it failed is the
+fishing the document was written to prevent. Any successor needs its own
+pre-registration.
+
+**Phase A's +0.151 pooled calibration gain is unaffected and reinforced** -
+calibration helps on 11 of 12 clips, by up to +0.385.

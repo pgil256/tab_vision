@@ -133,6 +133,16 @@ fires more than OBB (0.796 vs 0.311) and beats both it and the control
 
 ## 6. The separate finding worth acting on
 
+> ⚠️ **Tested same day and REFUTED — read this before acting on §6.**
+> `docs/EVAL_REPORTS/wire_sparse_calibration_gate_2026-07-28.md`.
+> The lever proposed below does not work: leave-one-clip-out gating scores
+> −0.0043 against the ungated default. The reason is that **sparseness does not
+> cause the harm** — calibration is net-positive even in the low-fire half
+> (+0.072 note-weighted), and exactly one clip of twelve has a negative delta,
+> `118_VD1wc` at −0.129. The subset average below was dragged negative by that
+> single clip. The statement "on wire-sparse clips calibration is net-harmful"
+> is accurate about *this subset* but must not be read as a threshold effect.
+
 **On wire-sparse clips the current OBB calibration is net-harmful:** 0.6603
 against the uncalibrated control's 0.6915, a **−0.031** loss on 1,987 notes.
 `118_VD1wc` shows it starkly — 0.766 calibrated vs **0.895** uncalibrated, a
