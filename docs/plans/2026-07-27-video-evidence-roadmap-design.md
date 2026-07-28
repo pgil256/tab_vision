@@ -335,6 +335,28 @@ against the Phase A cache:
   pretrained checkpoint to fetch**; this is a training run and needs its own
   spend approval.
 
+  **Data acquired and inspected 2026-07-27.** `guitar-fret-6pt` v1 is in place at
+  `~/.tabvision/data/datasets/roboflow-s-workspace-y3mjn-guitar-fret-6pt-v1`
+  (710/144/72 = 926 images; `data.yaml` self-declares `license: CC BY 4.0`,
+  matching the page). The label format is more useful than the name suggests:
+  `kpt_shape: [6, 3]` with classes `fret` / `nut`, and reading the coordinates
+  shows the six points per instance are **the wire's intersections with the six
+  strings** — successive y at near-constant x along each fret.
+
+  That means the export supplies the **string axis and the fret axis together**,
+  which is exactly what `calibrate.py` currently has to *reconstruct* by
+  RANSAC-fitting rule-of-18 to noisy OBB centres. Phase A established that this
+  reconstruction is the binding constraint (fit rate drives the whole +0.151, and
+  its partial-evidence failures cause the `118`-class regressions), so a model
+  that predicts the lattice directly attacks the measured bottleneck rather than
+  a hypothesised one.
+
+  **Next step needs approval:** training is a YOLOv8-pose fine-tune (no
+  checkpoint exists to fetch). `yolo11n-pose` on 710 images is plausibly
+  CPU-feasible here but slow; the Modal L4 route is the ~$0.40-class run already
+  used for the detector. **STOP for spend sign-off before launching**, per
+  operating rule 8.
+
 Data policy is fixed in advance: user footage is **inference-only**; training
 uses public/synthetic data exclusively. Revisiting the private-recordings ban
 for a consented self-captured corpus is a separate, explicit user decision —
