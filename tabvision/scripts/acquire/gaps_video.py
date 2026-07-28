@@ -207,7 +207,19 @@ def download_video(
         # Format 18 is 360p, so listing it first would silently cap every
         # download at 360p regardless of ``max_height`` — demote it to the
         # fallback position for the high-resolution cache.
-        fmt = f"bv*[height<={max_height}]+ba/b[height<={max_height}]/b/18"
+        #
+        # Prefer H.264 (``avc1``) explicitly. Above 360p YouTube also offers AV1
+        # and VP9, and yt-dlp picks by bitrate — but OpenCV's ``VideoCapture``
+        # (which ``tabvision.demux._frame_iterator`` uses) cannot decode AV1 in
+        # this build: it yields **zero frames** while ffprobe reports the stream
+        # as perfectly healthy. VP9 decodes fine; only AV1 is fatal. The
+        # non-avc1 branches stay as fallbacks so a source that offers no H.264
+        # at the cap still downloads.
+        fmt = (
+            f"bv*[height<={max_height}][vcodec^=avc1]+ba/"
+            f"b[height<={max_height}][vcodec^=avc1]/"
+            f"bv*[height<={max_height}]+ba/b[height<={max_height}]/b/18"
+        )
     opts: dict = {
         "format": fmt,
         "outtmpl": str(dst),

@@ -314,6 +314,18 @@ def _raw_cv_cache(
                     crop_pad=crop.pad_frac,
                     crop_min_long_edge=crop.min_long_edge,
                 )
+        if not cache:
+            # A codec the OpenCV build cannot decode (notably AV1) makes
+            # _frame_iterator yield nothing while ffprobe still reports a
+            # healthy stream. Writing the resulting empty cache would bake a
+            # silent zero into every downstream metric, and the next run would
+            # reuse it. Fail loudly instead.
+            raise RuntimeError(
+                f"{stem}: decoded 0 frames from {video_path} (requested "
+                f"{len(missing)}). The container may use a codec this OpenCV "
+                f"build cannot read — check `ffprobe -show_entries "
+                f"stream=codec_name`. Refusing to write an empty cache."
+            )
         cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(cache_path, "wb") as fh:
             pickle.dump(cache, fh)
