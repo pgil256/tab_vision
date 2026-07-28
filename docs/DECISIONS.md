@@ -5589,3 +5589,62 @@ banked WS4 plateau of ~0.30 - a promising early signal, explicitly **not** a
 Gate 1 reading. `~/phaseD_gate1.sh` now waits on the extraction, refuses to
 train on fewer than 200 clips, then tars, uploads and runs 20 epochs, printing
 the Gate 1 verdict against the >= 0.45 bar.
+
+## 2026-07-28 - E2 FAILS its go bar: learned keypoints lose to the OBB fit by 0.089
+
+**Phase:** E2, evaluation.
+**Decision tree:** does keypoint-derived fret registration beat
+`calibrate.py`'s consensus fit on wire-sparse clips?
+**Branch taken:** **No. Bank the negative.** Full report:
+`docs/EVAL_REPORTS/e2_fret_keypoints_2026-07-28.md`.
+
+**Result** (clean-12, 8,539 ambiguous notes, ambiguous-note string accuracy,
+best orientation): `uniform` 0.5365, `obb` **0.7195**, `keypoint` 0.6305. The
+keypoint arm is **0.089 worse** than the geometry it was meant to replace. The
+pre-registered bar is a conjunction — beat OBB on wire-sparse **and** no overall
+regression — and the second clause fails decisively.
+
+**One-variable swap.** Both arms shared the cached homography (never re-fit),
+`fit_fret_map`, the nut anchoring, the canonical window, `_MIN_WIRES`, the same
+frames, and — after a correction — the same 0.10 detection floor. Only the wire
+*source* differed. The first keypoint cache was built at 0.25 while Phase A's
+OBB fret pass ran at 0.10; that handicap was found and fixed before any verdict,
+and the cache path now encodes the floor so the two cannot be confused.
+
+**A harness asymmetry corrected after a FAIL was already visible.** The keypoint
+arm's detection was never the problem (comparable wire counts to OBB, in-window)
+— `fit_fret_map` was rejecting its wires. Cause: Phase A's crop pass dedupes
+detections "by center distance < half the local fret pitch" before they reach
+`calibrate_fret_xs`, so the OBB arm arrives deduped and the keypoint arm did not.
+Measured: median minimum adjacent canonical gap 0.003 vs 0.024, median one
+clustered pair per frame vs zero. Adding an equivalent dedupe moved keypoint
+0.5745 -> 0.6305 pooled. Recorded explicitly because the change came after
+seeing a failure: it is justified by the mechanism diagnostic and by symmetry
+with what the OBB arm already receives, not by the metric. **Both numbers are in
+the report**; the verdict is identical either way.
+
+**The pre-dedupe "win" on the wire-sparse subset was an artifact** — on
+`118_VD1wc` the keypoint arm never fired and simply inherited `uniform`'s 0.895.
+Post-dedupe the subset gain (0.7222 vs obb 0.6603) is carried by `179_pM1wc`,
+where the keypoint model genuinely fires more than OBB (0.796 vs 0.311) and
+beats both it and the control. That is mechanism-consistent and is the behaviour
+E2 predicted — but it is **one clip**, and two of the four subset clips have the
+keypoint arm firing at 0.000. Too thin to build on.
+
+**Separate finding, independent of E2 and worth acting on.** On the wire-sparse
+subset the *current* OBB calibration is **net-harmful**: 0.6603 against the
+uncalibrated control's 0.6915 (-0.031 over 1,987 notes), and on `118_VD1wc`
+0.766 calibrated vs **0.895** uncalibrated (-0.129) where it fires on 28% of
+frames. When wire evidence is thin the maps it does produce are bad often enough
+to cost more than they gain, and the per-frame `None` fallback misses it because
+those maps still pass the consensus check. This does not overturn Phase A's
++0.151 pooled gain — the harm is confined to the sparse tail. Suggested lever:
+gate calibration on a per-clip fit-rate/quality floor. **Untested, and it needs
+its own pre-registration before anyone runs it.**
+
+**Limits recorded, not glossed:** clean-12 is dev data; the subset is 4 clips
+with 1-2 contributing; one nano model, one seed, one config; the model fails
+outright on `118` (~0.02 instances/frame) and under-detects on `043` (3.16, below
+the 4-wire floor), neither diagnosed; best-orientation convention; and
+registration was never scored against ground-truth fret pixel positions because
+GAPS has none.
