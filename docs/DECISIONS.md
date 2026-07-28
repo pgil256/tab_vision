@@ -5274,3 +5274,69 @@ own prior is worth +0.0010 — that player *is* the population average. A
 single-player pilot would have closed this track wrongly, which is an argument
 for pricing ceilings on the full development set even when the pilot looks
 decisive.
+
+---
+
+## 2026-07-27 - Phase A lifts the video channel but not Tab F1; the gate stays
+
+**Phase:** Video evidence roadmap Phase A
+(`docs/plans/2026-07-27-video-evidence-roadmap-design.md`)
+**Decision tree:** A5 — 720p / conf-0.10 / crop-then-detect, keyed on the WS1
+leading indicator against the 0.574 baseline.
+**Branch taken:** The **>= 0.65** branch fires (0.720) with no gated regression,
+so WS5 is formally authorized — but its premise is **re-scoped**: do NOT lower
+`min_clip_coverage`. Phase A is banked as a channel improvement, explicitly not
+as a Tab F1 improvement, and source-disjoint-10 stays untouched until a *Tab F1*
+gain exists.
+
+**Evidence:** Report `docs/EVAL_REPORTS/phaseA_720p_cache_rebuild_2026-07-27.md`.
+
+Positive: the fret-detection wall is essentially eliminated — WS3 statistic
+**0.650 -> 0.081**, zero-median-fret clips **8/12 -> 1/12** (only `063_bV1wc`
+survives, and there the *neck* is barely detected at homography confidence
+0.406, so crop-then-detect cannot reach it). Ambiguous-note string accuracy
+**0.568 -> 0.720 (+0.151)**, 9 clips gaining / 3 regressing; best `142_GD1wc`
++0.347, worst `118_VD1wc` -0.150. Calibration fit rate rises in lockstep
+(e.g. `027` 36.1% -> 88.2%, `043` 0.0% -> 85.1%), and the uniform-partition
+control is **-0.007** — resolution alone buys nothing; the gain is entirely the
+rule-of-18 map becoming able to fit.
+
+Negative: gated Tab F1 is **unchanged** (0.8147 -> 0.8147, +0.0000 on 12/12;
+measured coverage 0.48-0.52 against the 0.71 gate). Ungated it is **worse** —
+mean **0.6142 (-0.2006)**, no-regression violated on **10/12**, worst
+`294_BSswc` -0.6624 — and even the best-fixed-orientation ceiling (**0.7635**)
+sits below audio-only 0.8147. Against the banked chunk-6 sweep the lagging
+indicator did not move at all (oracle-orientation 0.7632 banked vs 0.7635 here).
+
+Control fidelity: the 360p arm reproduces the banked figures on a from-scratch
+data root — uniform 0.543 vs 0.544, WS1 0.568 vs 0.574, gated audio-only 0.8147
+vs 0.8148, oracle 0.9728 vs 0.9726. Per-*clip* agreement is much looser
+(`212` -0.266, `294` -0.137), attributed to YouTube re-encoding between June and
+today; within-report deltas are valid, single-clip comparisons against the June
+column are not.
+
+**Reasoning:** The A5 threshold was pre-registered and 0.720 clears it, so the
+formal branch is not in question. But the ungated measurement — which the tree
+did not anticipate — establishes that the coverage gate is not withholding a
+win. At 0.720 the video channel is still below the **0.778** audio playability
+prior it would displace, so admitting it costs more than it gains wherever it is
+applied; the gate has been protecting Tab F1, not obstructing it. Loosening it
+would import a 0.05-0.20 Tab F1 loss. WS5 is therefore re-scoped from
+"re-derive the threshold" to "admit video only where it is expected to beat
+audio", and note that confidence-keyed routing of the *360p-era* evidence is a
+recorded do-not-retry (A14) — any revival must be justified by the new evidence
+quality and pre-registered afresh.
+
+The measurement also surfaced a larger, cheaper lever that was not on the plan:
+ungated auto-orientation scores 0.6142 against a 0.7635 best-fixed-orientation
+ceiling, a **0.149 Tab F1 gap from orientation selection alone** (`294_BSswc`:
+auto `none` 0.2658 vs `flip-both` 0.8080). `choose_orientation` resolves the
+string-axis mirror from audio-pitch agreement and is wrong on most clips. Fixing
+it is pure offline work on the existing cache and closes more than the gate does,
+so it takes priority over both gate work and further data acquisition.
+
+Two engineering fixes landed alongside: the >360p yt-dlp selector now pins
+`vcodec^=avc1` (for `142_GD1wc` it had selected AV1, which this OpenCV build
+decodes as **zero frames** while ffprobe reports a healthy stream), and
+`_raw_cv_cache` now raises rather than persisting an empty cache — that empty
+cache had scored as 0.000 and would have been silently reused on rerun.

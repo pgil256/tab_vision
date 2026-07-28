@@ -11,9 +11,12 @@ accuracy, clean-12, best fixed orientation per clip). Banked baselines: uniform
 **0.544**, WS1 calibrated **0.574** (chunk-5 `_diag` 0.543). Audio playability
 prior comparator: **0.778**.
 
-> **STATUS: measurement in progress.** Method, environment, and deviations below
-> are final; result tables are filled from the frozen runs and the A5 decision is
-> recorded only once both arms complete.
+> **STATUS: complete (2026-07-27).** Headline: the fret-detection wall is
+> essentially eliminated (WS3 **0.650 → 0.081**) and ambiguous-note string
+> accuracy rises **0.568 → 0.720 (+0.151)** — but **Tab F1 does not move**
+> (gated 0.8147 → 0.8147; ungated −0.2006). Phase A is banked as a *channel*
+> improvement, not a Tab F1 improvement. See §8 for the A5 decision and the
+> orientation-selection lever this measurement uncovered.
 
 ## 1. What changed (code)
 
@@ -225,24 +228,198 @@ of this report were fetched the same day with the same tool, so within-report
 deltas remain valid; comparisons of a single clip against the 2026-06 banked
 column are not reliable at better than roughly ±0.1.**
 
-### 7.2 Phase A arm — in progress
+### 7.2 The detection wall is essentially eliminated
 
-_Filled when the 720p crop-detect cache completes._
+| statistic | 360p control | 720p + crop |
+|---|---:|---:|
+| **WS3 — ambiguous notes on zero-median-fret clips** | **0.650** (6639/10213) | **0.081** (824/10213) |
+| clips with zero median fret detections | **8 / 12** | **1 / 12** (`063_bV1wc` only) |
+
+Per-clip, the precondition moves almost everywhere. Frames carrying ≥4 wires
+(`calibrate_fret_xs`'s minimum) go 0.0% → 100.0% on `043`, `179`, `294`;
+1.3% → 98.6% on `235`; 16.3% → 100.0% on `142`; 5.7% → 94.2% on `341`. Two clips
+resist: `118` reaches only 35.9% and `212` only 35.6%, and `063` does not move at
+all (0.0% → 0.0%).
+
+### 7.3 Leading indicator — the A5 decision variable
+
+| | 360p control | 720p + crop | Δ |
+|---|---:|---:|---:|
+| uniform partition | 0.543 (4492/8266) | 0.536 (4575/8539) | **−0.007** |
+| **WS1 calibrated** | **0.568** (4696/8266) | **0.720** (6146/8539) | **+0.151** |
+
+| clip | haveCV | 360p WS1 | 720p-crop WS1 | Δ |
+|---|---:|---:|---:|---:|
+| 142_GD1wc | 608 | 0.503 | **0.850** | +0.347 |
+| 027_Zpswc | 1450 | 0.446 | **0.774** | +0.329 |
+| 294_BSswc | 423 | 0.447 | **0.771** | +0.324 |
+| 235_Ny1wc | 1482 | 0.384 | **0.591** | +0.207 |
+| 104_xf1wc | 377 | 0.647 | **0.852** | +0.205 |
+| 031_vpswc | 753 | 0.618 | **0.766** | +0.148 |
+| 179_pM1wc | 477 | 0.587 | **0.660** | +0.073 |
+| 043_bc1wc | 870 | 0.699 | **0.755** | +0.056 |
+| 341_1M1wc | 527 | 0.710 | **0.737** | +0.028 |
+| 212_y41wc | 304 | 0.569 | 0.524 | **−0.045** |
+| 063_bV1wc | 229 | 0.616 | 0.569 | **−0.047** |
+| 118_VD1wc | 766 | 0.915 | 0.766 | **−0.150** |
+
+**Nine clips gain, three regress.**
+
+**The uniform row is the load-bearing control.** At −0.007 it is flat-to-slightly-
+negative: quadrupling the pixel count buys *nothing* on its own, because the
+uniform partition is the wrong model at any resolution. The entire +0.151 comes
+from the calibrated map finally being able to fit. That is the §6 mechanism
+confirmed at full scale, not inferred from two favourable clips.
+
+The pre-registered prediction was **partly falsified, in exactly one place.**
+`118_VD1wc` is the falsifier case: fit rate rose 0% → 35.9% and accuracy *fell*
+0.915 → 0.766. Partial wire evidence produced a confidently wrong nonlinear map
+on the clip that had the most to lose, and a wrong map is worse than the uniform
+default it displaced. `212` shows the same signature more weakly (35.6% fit,
+−0.045). `063` is the complementary case — the crop pass cannot reach it at all
+(homography confidence 0.406, the lowest in the set: the *neck* is barely
+detected, so there is no crop region to search) and accuracy is unchanged within
+noise. **The failure mode is therefore identified and bounded: partial fret
+evidence, not false evidence in general.**
+
+### 7.4 Gated Tab F1 — unchanged, because the coverage gate blocks everything
+
+Gold audio, clean-12, `--vote-frames 1`:
+
+| condition | 360p control | 720p + crop |
+|---|---:|---:|
+| audio-only | 0.8147 | 0.8147 |
+| + real video (auto orientation) | **0.8147** | **0.8147** |
+| + oracle strings | 0.9728 | 0.9728 |
+| per-clip lift | +0.0000 (12/12) | +0.0000 (12/12) |
+| clip coverage | 0.48 – 0.52 | 0.48 – 0.52 |
+
+**No regression on any clip in either arm** — the no-regression invariant holds
+12/12. But no gain either: measured coverage sits at **0.48–0.52 against the 0.71
+`min_clip_coverage` gate**, so the video channel is gated out on every clip in
+both arms, exactly as chunk-6 recorded. Phase A improved the *evidence*; the
+*gate* prevents that evidence from reaching fusion at all.
+
+This is also a strong control-fidelity check: the 360p arm reproduces the banked
+gated numbers essentially exactly — **0.8147 vs banked 0.8148** audio-only, and
+**0.9728 vs banked 0.9726** oracle.
+
+### 7.4b Ungated A/B — the gate is *not* the only obstacle
+
+Removing the coverage gate entirely (`--no-gate`, 720p + crop, gold audio):
+
+| condition | mean Tab F1 | vs audio-only |
+|---|---:|---:|
+| audio-only | 0.8147 | — |
+| + real video, **auto** orientation | **0.6142** | **−0.2006** |
+| + real video, **best fixed** orientation (diagnostic ceiling) | **0.7635** | **−0.0512** |
+| + oracle strings | 0.9728 | +0.1581 |
+
+No-regression is **VIOLATED on 10/12 clips**, worst `294_BSswc` −0.6624.
+
+**This is the finding that matters most, and it tempers the headline.** Even at
+the *best-orientation diagnostic ceiling* — which uses gold to pick the flip and
+is therefore unavailable in practice — ungated video still scores **0.7635 vs
+0.8147 audio-only**. The improved evidence does not convert.
+
+The reason is visible in §7.5: the video channel is now *near-peer* with the
+audio playability prior (0.720 vs 0.778) but still **below** it. Applying a
+0.720-accurate string prior in place of a 0.778-accurate one costs more than it
+gains, at every clip where it is applied. The coverage gate is not an
+inconvenience blocking a win — it is what has been protecting Tab F1 from a
+channel that is still second-best.
+
+Compare against the banked chunk-6 sweep, which ran the same conditions on the
+360p evidence: no-gate auto **0.6597** (banked) vs **0.6142** here, and no-gate
+oracle-orientation **0.7632** (banked) vs best-orientation **0.7635** here. **The
+lagging indicator did not move at all**, despite the leading indicator gaining
++0.151. That is the A14 complementarity problem restated: improving video's
+marginal accuracy does not help when its errors remain co-located with the notes
+audio already gets right.
+
+**A large, cheap, previously unnoticed lever falls out of this table.**
+Auto-orientation scores 0.6142 while best-fixed-orientation scores 0.7635 — a
+**0.149 Tab F1 gap attributable purely to orientation selection**. On `294` the
+auto path picks `none` and scores 0.2658 where `flip-both` would score 0.8080.
+`choose_orientation` (which selects using audio-pitch agreement only, no gold) is
+choosing wrong on the majority of clips. Fixing orientation selection is worth
+more than any gate change, is pure offline work on the existing cache, and was
+not on the Phase A plan — it emerged from this measurement.
+
+### 7.5 Where the channel now stands
+
+| comparator | value |
+|---|---:|
+| audio playability prior (the thing to beat) | 0.778 |
+| **video, 720p + crop, WS1 calibrated** | **0.720** |
+| video, 360p WS1 (previous state) | 0.568 |
+| chunk-6 "competitive" target | 0.75 |
+
+Video string resolution was **0.210 behind** the audio prior; it is now **0.058
+behind**. This does not overturn the chunk-6 capstone ordering — audio still
+resolves strings better than video — but it converts a decisively worse channel
+into a near-peer one, which is the precondition for it contributing anything in
+fusion. It remains just short of the 0.75 bar.
 
 ## 8. A5 decision
 
-_Pending._ The pre-registered tree (plan §4.5), applied to the WS1 leading
-indicator against the 0.574 baseline:
+The pre-registered tree (plan §4.5), against the 0.574 baseline:
 
-| outcome | action |
-|---|---|
-| < 0.60 | bank the negative; resolution/conf/crop is not the wall; the geometry line stops here |
-| 0.60–0.65 **and** zero-fret share < 30% | one further lever (conf 0.05 floor or per-clip multi-scale), then a final call |
-| ≥ 0.65 | proceed to WS5 gate re-derivation on clean-12, then one confirmation run |
-| any gated clean-12 regression | the coverage gate stays as-is regardless of the indicator |
+| outcome | action | fired? |
+|---|---|---|
+| < 0.60 | bank the negative; the geometry line stops here | no |
+| 0.60–0.65 **and** zero-fret share < 30% | one further lever, then a final call | no |
+| **≥ 0.65** | **proceed to WS5 gate re-derivation on clean-12, then one confirmation run** | **YES — 0.720** |
+| any gated clean-12 regression | the coverage gate stays as-is regardless | no — 12/12 hold |
 
-Source-disjoint-10 is not touched until clean-12 passes; test-22 only for a single
-final frozen confirmation.
+**Formally: the ≥ 0.65 branch fires and no gated regression occurred.**
+
+### 8.1 What is banked
+
+**Phase A is a real and large improvement to the video channel, and it is not a
+Tab F1 improvement.** Both halves of that sentence are load-bearing:
+
+- **Banked positive.** The fret-detection wall is essentially gone (WS3 0.650 →
+  0.081; zero-median-fret clips 8/12 → 1/12), and ambiguous-note string accuracy
+  rises **0.568 → 0.720 (+0.151)**, 9 clips gaining and 3 regressing. The
+  mechanism is measured, not inferred: calibration fit rate rises in lockstep,
+  and the uniform-partition control is flat at −0.007, so resolution alone
+  contributes nothing.
+- **Banked negative.** Gated Tab F1 is **unchanged** (0.8147 → 0.8147, +0.0000 on
+  12/12), and ungated Tab F1 is **worse** (0.6142, −0.2006; violated on 10/12),
+  with even the best-orientation ceiling at 0.7635 still below audio-only 0.8147.
+  Against the banked chunk-6 no-gate sweep the lagging indicator did not move
+  (oracle-orientation 0.7632 banked vs best-orientation 0.7635 here).
+
+### 8.2 WS5 is authorized but its premise has changed — do not simply loosen the gate
+
+The tree authorizes WS5. The ungated measurement, which the tree did not
+anticipate, shows **what WS5 must not be**: lowering `min_clip_coverage` to admit
+this evidence would import a −0.05 to −0.20 Tab F1 loss. The gate is not
+withholding a win; it is protecting Tab F1 from a channel that, at 0.720, is
+still below the 0.778 audio playability prior it would displace.
+
+WS5 should therefore be re-scoped from *"re-derive the coverage threshold"* to
+*"admit video only where it is expected to beat audio"* — and note that
+confidence-keyed routing of the **360p-era** evidence is a recorded do-not-retry
+(A14), so any such attempt must be justified by the new evidence quality and
+pre-registered afresh rather than treated as a reopened lever.
+
+### 8.3 The lever this measurement actually found
+
+**Orientation selection is worth more than any gate change.** Ungated
+auto-orientation scores 0.6142 against a best-fixed-orientation ceiling of
+0.7635 — a **0.149 Tab F1 gap from orientation alone**, with `294_BSswc` the
+extreme case (auto `none` 0.2658 vs `flip-both` 0.8080). `choose_orientation`
+resolves the string-axis mirror using audio-pitch agreement only, and it is
+choosing wrong on most clips. This is pure offline work against the existing
+cache, needs no new data or training, and closes a larger gap than the gate does.
+
+**Recommended order:** (1) fix orientation selection and re-measure; (2) only then
+consider selective admission; (3) treat the `118`-class partial-evidence failure
+(fit rate 35.9%, −0.150) as a minimum-support condition on applying the
+calibrated map. Source-disjoint-10 remains untouched until clean-12 shows a
+*Tab F1* gain, not merely an evidence gain.
 
 ## 9. Reproduce
 
