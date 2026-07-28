@@ -32,11 +32,41 @@ Prepared and verified on 2026-07-27:
 - server smoke-tested: `HTTP 200`, `<title>FretCam</title>`, camera + calibration
   controls served.
 
+**Re-verified 2026-07-28, and the server is already running.** Beyond the HTTP
+check, the live path was exercised end to end this time: `/health` returns
+`{"status":"ok","mode":"hud"}`, and a synthetic JPEG pushed over `ws://…/ws`
+came back as a HUD JSON payload in 0.35 s on the first frame (model prewarm)
+then 0.10 s / 0.06 s. So the WebSocket, decode and inference path are known-good
+before you pick up the guitar — if nothing appears, suspect the *camera
+permission*, not the server. The WSL IP is still `172.24.194.6`.
+
+> ⚠️ **Free the CPU before A4 (and A1).** This box has 6 cores and the Phase D
+> extraction saturates most of them for ~18 h, which would understate FPS and
+> lock time. Suspend it for the session and resume after — `SIGSTOP` freezes the
+> run in place, so no clip is lost or repeated:
+>
+> ```bash
+> ~/phaseD_pause.sh     # before the session
+> ~/phaseD_resume.sh    # after
+> ```
+>
+> If you skip this, treat a failing A4 as inconclusive rather than a FAIL — per
+> §5 an A4 failure is an environment verdict, not an accuracy one.
+
 Model prewarm runs automatically on connect (`app.py:149` → `processor.warmup`),
 so A1 measures camera acquisition rather than a one-time model load — this is
 the F4 fix for the 8.5 s cold start.
 
 ## 1. Start
+
+**As of 2026-07-28 the server is already up on port 8765** — skip to opening
+Chrome. Check it is still alive with:
+
+```bash
+wsl -d Ubuntu -- bash -c "curl -s http://127.0.0.1:8765/health"
+```
+
+If that returns nothing, start it again:
 
 ```bash
 wsl -d Ubuntu -- bash -c "cd /home/gilhooleyp/projects/tab_vision/tabvision && .venv/bin/fretcam --host 0.0.0.0 --port 8765"

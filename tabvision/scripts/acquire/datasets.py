@@ -114,6 +114,39 @@ def main(argv: list[str] | None = None) -> int:
         help=f"Zenodo record id (default {GUITAR_TECHS_ZENODO_RECORD}).",
     )
 
+    ga = sub.add_parser(
+        "gaps-annotations",
+        help="GAPS score/audio annotations from the HF mirror (Phase D training "
+        "substrate). CC-BY-NC-SA-4.0; NC-acceptable under the 2026-07-20 posture.",
+    )
+    ga.add_argument(
+        "--split",
+        default="train",
+        help="GAPS split to fetch ('train'/'test'/'all'). Default 'train' — the "
+        "only split permitted in a training role (LICENSES.md:72).",
+    )
+    ga.add_argument(
+        "--data-home",
+        type=Path,
+        default=None,
+        help="GAPS root; defaults to $TABVISION_DATA_ROOT/gaps.",
+    )
+    ga.add_argument(
+        "--only-cached-video",
+        type=Path,
+        default=None,
+        help="restrict to stems with a downloaded video in this cache dir. "
+        "Phase D needs annotations only where the video exists.",
+    )
+    ga.add_argument(
+        "--include",
+        default="musicxml,midi,syncpoints,audio",
+        help="comma-separated subdirs to fetch (musicxml,audio,midi,syncpoints). "
+        "Default is all four: parse_gaps() derives the midi/ and syncpoints/ "
+        "siblings from the musicxml path and raises without them.",
+    )
+    ga.add_argument("--limit", type=int, default=None, help="cap stems (smoke test)")
+
     rb = sub.add_parser(
         "roboflow-guitar",
         help="Roboflow b101/guitar-3 (YOLO-OBB training, Phase 3)",
@@ -146,7 +179,17 @@ def main(argv: list[str] | None = None) -> int:
         print("  guitar-techs   - Guitar-TECHS via Zenodo (clean_electric tier)")
         print("  egdb           - EGDB electric guitar (Phase 0 distorted-electric eval)")
         print("  roboflow-guitar - Roboflow b101/guitar-3 (Phase 3, YOLO-OBB)")
+        print("  gaps-annotations - GAPS musicxml/audio from the HF mirror (Phase D)")
         return 0
+
+    if args.dataset == "gaps-annotations":
+        return _acquire_gaps_annotations(
+            split=args.split,
+            data_home=args.data_home,
+            only_cached_video=args.only_cached_video,
+            include=tuple(s.strip() for s in args.include.split(",") if s.strip()),
+            limit=args.limit,
+        )
 
     if args.dataset == "guitarset":
         return _acquire_guitarset(data_home=args.data_home)
@@ -247,6 +290,128 @@ def _acquire_roboflow_guitar(
     print(f"\nattribution required:\n  {citation}\n  license: {license_info}")
     print("Add the above to docs/HISTORY.md and to the repo README before merging Phase 3.")
     return 0
+
+
+GAPS_HF_REPO = "xavriley/GAPS"  # mirror whose layout matches scan_gaps()
+GAPS_SUBDIR_EXT = {
+    "musicxml": ".xml",
+    "audio": ".wav",
+    "midi": ".mid",
+    "syncpoints": ".json",
+}
+
+
+def _acquire_gaps_annotations(
+    *,
+    split: str,
+    data_home: Path | None,
+    only_cached_video: Path | None,
+    include: tuple[str, ...],
+    limit: int | None,
+) -> int:
+    """Fetch GAPS score/audio annotations from the HF mirror, split-filtered.
+
+    The Zenodo archive names files by the stem *without* its ``NNN_`` prefix, so
+    it does not satisfy ``scan_gaps``/``extract_string_dataset`` lookups. The HF
+    mirror ``xavriley/GAPS`` uses the documented ``<subdir>/<stem>.<ext>``
+    layout, so it is the source here.
+
+    Only the requested ``--split`` is fetched. That is the eval-leakage guard:
+    ``clean-12 ⊂ test``, so a ``train`` fetch cannot pull an eval clip
+    (LICENSES.md:72 — the GAPS eval splits never enter a training role).
+
+    CC-BY-NC-SA-4.0. NC is acceptable in a training role under the 2026-07-20
+    personal-posture amendment; media is cached locally and never committed.
+    """
+    unknown = [s for s in include if s not in GAPS_SUBDIR_EXT]
+    if unknown:
+        print(
+            f"error: unknown --include subdir(s): {', '.join(unknown)}. "
+            f"Choose from: {', '.join(GAPS_SUBDIR_EXT)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    home = data_home or (_data_root() / "gaps")
+    csv_path = home / "gaps_metadata_with_splits.csv"
+    if not csv_path.is_file():
+        print(
+            f"error: GAPS metadata CSV not found at {csv_path}.\n"
+            "Fetch it from the HF mirror first, or pass --data-home.",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError:
+        print(
+            "error: huggingface_hub not installed. Install with:\n  pip install huggingface_hub\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    from scripts.acquire.gaps_video import read_split_stems
+
+    stems = read_split_stems(csv_path, split)
+    if not stems:
+        print(f"error: no stems in split '{split}' of {csv_path}", file=sys.stderr)
+        return 2
+
+    if only_cached_video is not None:
+        cached = {p.stem for p in only_cached_video.glob("*.mp4")}
+        stems = tuple(s for s in stems if s in cached)
+        if not stems:
+            print(
+                f"error: no '{split}' stem has a cached video in {only_cached_video}",
+                file=sys.stderr,
+            )
+            return 2
+    if limit is not None:
+        stems = stems[:limit]
+
+    print(
+        f"GAPS annotations: split={split} stems={len(stems)} include={','.join(include)} -> {home}"
+    )
+    fetched = 0
+    skipped = 0
+    failures: list[str] = []
+    for subdir in include:
+        ext = GAPS_SUBDIR_EXT[subdir]
+        (home / subdir).mkdir(parents=True, exist_ok=True)
+        for i, stem in enumerate(stems, 1):
+            dest = home / subdir / f"{stem}{ext}"
+            if dest.is_file() and dest.stat().st_size > 0:
+                skipped += 1
+                continue
+            try:
+                hf_hub_download(
+                    repo_id=GAPS_HF_REPO,
+                    repo_type="dataset",
+                    filename=f"{subdir}/{stem}{ext}",
+                    local_dir=str(home),
+                )
+            except Exception as exc:  # noqa: BLE001 - report and continue
+                failures.append(f"{subdir}/{stem}{ext}: {type(exc).__name__}")
+                continue
+            fetched += 1
+            if fetched % 10 == 0 or i == len(stems):
+                print(f"  [{subdir}] {i}/{len(stems)} fetched={fetched}", flush=True)
+
+    print(
+        f"\nGAPS annotations acquired: fetched={fetched} already-present={skipped} "
+        f"failed={len(failures)}"
+    )
+    if failures:
+        print("failures (first 10):", file=sys.stderr)
+        for f in failures[:10]:
+            print(f"  {f}", file=sys.stderr)
+    print(
+        "  CC-BY-NC-SA-4.0 (GAPS, Zenodo 10.5281/zenodo.13962272); cached locally, "
+        "never committed or redistributed.\n"
+        f"  Split '{split}' only — GAPS eval splits stay out of training manifests."
+    )
+    return 1 if failures and fetched == 0 else 0
 
 
 def _acquire_guitarset(*, data_home: Path | None) -> int:

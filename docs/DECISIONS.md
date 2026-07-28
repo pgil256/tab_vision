@@ -5431,3 +5431,161 @@ uncertain outcome.
 **Recommendation:** relax the assertion to a tolerance (e.g. +-0.05% of 51,130)
 with the observed count recorded in the run's provenance, and report the result
 as "near-exact, 4/51,130 rows drifted" rather than as the frozen comparison.
+
+## 2026-07-28 - C1 unblocked: the 4-row drift is one track, and the tolerance is now +-0.05%
+
+**Phase:** C1 (offline assisted-review ranker), resolving the STOP recorded
+2026-07-27.
+**Decision tree:** Relax the pinned 51,130-row assertion, or leave C1 blocked?
+**Branch taken:** **Localise first, then relax.** The user declined to loosen a
+provenance-pinned assertion on a blind tolerance and asked which rows drifted.
+They were identified, so the tolerance now rests on a named cause.
+
+**Evidence — the deficit is one track, not a diffuse decode wobble.** Diffing
+the tracked 2026-07-15 summaries against the 2026-07-27 regeneration over every
+`(condition, evaluation_split, dimension, value)` cell: the key sets are
+identical (4,068 phase0 / 1,877 phase1 cells, nothing appeared or vanished), and
+**every count difference traces to the single track `03_Rock3-148-C_comp`**
+(player 03 / style Rock3 / mode comp): `predicted_notes` 323 -> 319,
+`ambiguous_pitch_matches` 202 -> 200, `correct_notes` 197 -> 195 (phase0) and
+138 -> 136 (phase1). The four are predicted events at MIDI **52, 57, 60, 64**,
+one each. Every other player, style, mode and track cell reproduces the banked
+counts exactly; dev rows by player are 00=11,963 01=11,462 02=8,375 03=9,224
+04=10,102, summing to the observed 51,126.
+
+**Cause — gold annotations, not the decode.** Upstream provenance separates the
+candidates cleanly: `development_track_ids_sha256` is **identical**
+(`544d51c3...`) and the runtime-benchmark `prediction_sha256` is **identical**
+(`9788d929...`, i.e. the transcriber is deterministic and reproduces bit-exactly
+on fixed input), while `development_annotations_sha256` **differs**
+(`ae67ab86...` -> `0a7e5529...`). That hash is taken over the raw JAMS bytes
+(`string_assignment_phase0.py:988` `_source_hash`), so the GuitarSet annotation
+files on this Linux box differ in bytes from the Windows run's copy. The
+300-entry `audio_manifest` in the phase4 provenance still matches 300/300, so
+the audio is not implicated.
+
+**Honest limit:** the banked runs recorded **no per-file annotation manifest**,
+only a single running digest over all dev tracks, so *which* JAMS differ cannot
+be recovered from banked artifacts — the localisation above is behavioural (one
+track moved) rather than a byte-level identification. The original
+2026-07-15 `*_notes.csv` are git-ignored (`.gitignore:76-77`) and the copies on
+disk under both dates are bit-identical regenerations, so there is no baseline
+table on disk to diff. Recording a per-file annotation manifest alongside the
+audio manifest would make this localisable next time; not done here to avoid
+touching the pinned chain further.
+
+**Change:** `string_assignment_phase6.py` gains `EXPECTED_DEV_ROWS = 51_130` and
+`DEV_ROW_TOLERANCE = 25` (= floor(0.05% of 51,130); 26 was rejected because
+26/51,130 = 0.0509% exceeds the stated bound). `_load_note_rows` now accepts
+counts within that band and still raises outside it. Six unit tests in
+`tests/unit/test_string_assignment_phase6_rows.py` pin both directions —
+including that a drift one row beyond tolerance still fails loudly, so a real
+decode regression cannot be absorbed. Verified against the actual regenerated
+table: loads at 51,126 (-4, 0.0078%).
+
+**Consequence:** the C1 comparison must be reported as **"near-exact, 4/51,130
+rows drifted, all in `03_Rock3-148-C_comp`"** — never as the frozen 2026-07-15
+comparison. Modifying phase6 also breaks its recorded script sha against the
+Phase 6/7 provenance chain; that is expected and is the price of the tolerance.
+
+## 2026-07-28 - Phase D was blocked on data acquisition, not CPU
+
+**Phase:** D (WS4 learned string resolver retrain), execution.
+**Decision tree:** Is Phase D's extraction runnable as the handoff claimed?
+**Branch taken:** **No — the handoff was wrong, and the gap was closed.**
+
+**Evidence:** `docs/HANDOFF-2026-07-27-video-evidence.md` records Phase D as
+"code + 11 tests landed; 252/270 train clips acquired", blocked on "CPU, then
+Gate 1". The 252 figure is **video only**. A 2-clip smoke run of
+`extract_string_dataset --hand-tight --sustain` returned **0 crops in 3.6 s** —
+`extract_clip` early-returns when the musicxml/wav siblings are missing, and
+`~/.tabvision/data/gaps/{musicxml,audio}` held only the **clean-12** eval clips.
+`parse_gaps` additionally derives `midi/` and `syncpoints/` siblings and raises
+without them. So the train split had no gold annotations and no reference audio
+at all; the extraction could never have produced a single training crop.
+
+**Fix:** new `scripts.acquire.datasets gaps-annotations` subcommand pulling from
+the HF mirror `xavriley/GAPS`, whose layout matches `scan_gaps` (the Zenodo
+archive strips the `NNN_` stem prefix, which is why the local
+`*_zenodo_naming/` dirs were unusable for lookups). It is split-filtered via
+`read_split_stems`, which is the eval-leakage guard — clean-12 is a subset of
+`test`, so a `train` fetch cannot pull an eval clip (LICENSES.md:72). Default
+`--include` is all four subdirs precisely so the midi/syncpoints footgun cannot
+recur. Acquired **1008/1008 files, zero failures** (252 stems x 4), 9.5 GB.
+
+**Validation before committing ~18 h of CPU:** the 2-clip smoke then produced
+**2,035 crops**, 100% of them clearing the frozen `--min-peak-ratio 2.0`
+alignment filter (per-clip peak_ratio 2.938 and 7.719), string labels spread
+across all six strings (152-423), fret range 0-17. Crops eyeballed per the F2b
+rule: hand-tight on the fretting hand with individual strings resolvable; one of
+five sampled frames caught the picking hand, which is the documented hand-dropout
+fallback rather than a coordinate bug.
+
+**Cost measured, not estimated:** 8m29s for 2 clips => ~4.2 min/clip => **~18 h**
+for 252 clips, ~256k crops. Free (local CPU), resumable at clip granularity via
+the manifest.
+
+**Lesson recorded:** "N clips acquired" in a handoff should name *which artifact*
+was acquired. Video, gold annotation and reference audio are three separate
+acquisitions here, and only one had happened.
+
+## 2026-07-28 - Training moves to Modal L4; E2 keypoint model trained (bar not yet tested)
+
+**Phase:** D + E2, execution.
+**Decision tree:** local CPU or paid GPU for the two training runs?
+**Branch taken:** **Modal L4 for both**, reversing the earlier same-day choice of
+local CPU. User direction, so operating rule 8's STOP is satisfied. Both runs sit
+in the ~$0.40-$5 band the plan pre-registered.
+
+**Scope correction that shaped the plan.** The ~11 h local job is *extraction*,
+not training - MediaPipe hand-finding per frame to cut crops. Moving training to
+GPU does not remove it, so it stays local (MediaPipe is CPU-bound; a GPU buys
+little, and relocating it would mean pushing 7 GB of cached video). E2, by
+contrast, has no dependency on it at all and went straight to the GPU.
+
+**New:** `scripts/train/yolo_fret_keypoints_modal.py`, adapted from the OBB
+runner. Volume `tabvision-yolo-fret-6pt` (1,855 files, 55.1 MB).
+
+**Trap caught before it corrupted the run.** `guitar-fret-6pt`'s `data.yaml`
+declares `flip_idx: [0, 1, 2, 3, 4, 5]` - an **identity** mapping. The six
+keypoints are the wire's intersections with the six strings, so a horizontal
+mirror reverses them and the correct mapping is `[5, 4, 3, 2, 1, 0]`. Under
+ultralytics' default `fliplr=0.5` roughly half of every epoch would have carried
+silently transposed string labels. `fliplr` is pinned to **0.0**, for the same
+reason WS4 banned flips (string identity is encoded in across-neck position).
+The runner also rewrites the Roboflow `data.yaml` with absolute split paths,
+because `train: ../train/images` resolves outside the dataset dir.
+
+**E2 result (yolo11n-pose, 100 epochs, batch 16, imgsz 640, seed 0, L4):**
+
+| metric | value |
+|---|---:|
+| pose mAP50 | **0.7399** |
+| pose mAP50-95 | 0.6951 |
+| box mAP50 | 0.7265 |
+| box mAP50-95 | 0.5183 |
+| `fret` pose mAP50 | **0.854** (1,736 instances) |
+| `nut` pose mAP50 | 0.626 (143 instances) |
+
+A 3-epoch smoke already reached pose mAP50 0.643; the curve peaks near epoch 50
+(box mAP50 0.715) and is flat-to-slightly-down by 100, so ~50 epochs suffices
+next time. The `fret` class - the one that carries the lattice - is the strong
+one; `nut` is weaker but there is only one instance per image.
+
+⚠️ **This does NOT clear the E2 go bar.** The pre-registered bar is
+"keypoint-derived fret registration **beats `calibrate.py`'s consensus fit on
+wire-sparse clips**". What is measured here is the model's accuracy at *its own*
+detection task on the Roboflow validation split. The comparison against
+`calibrate.py` over the Phase A cache has not been run, so E2 is **"model
+trained"**, not "E2 passed". Treating 0.7399 as an E2 result would be exactly
+the category error this repo keeps having to correct.
+
+**Phase D Gate 1 chained.** The GPU path was validated end to end *before* the
+data exists, using the 30 clips extracted so far (199 MB tarball): the volume
+round-trip, CUDA training and checkpoint return all work, and 2 epochs on a
+clip-disjoint split (n_train 17,738 / n_val 1,968) reached **val_acc 0.3135**
+against 0.167 chance. That is 12% of the data and 2 epochs already matching the
+banked WS4 plateau of ~0.30 - a promising early signal, explicitly **not** a
+Gate 1 reading. `~/phaseD_gate1.sh` now waits on the extraction, refuses to
+train on fewer than 200 clips, then tars, uploads and runs 20 epochs, printing
+the Gate 1 verdict against the >= 0.45 bar.
