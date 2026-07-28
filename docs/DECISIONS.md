@@ -5752,3 +5752,51 @@ own pre-registration** before anyone runs it.
 **No media committed.** GAPS is CC-BY-NC-SA and LICENSES.md:72 forbids
 redistribution; the overlay renders and extracted frames were inspected locally
 and discarded.
+
+## 2026-07-28 - The shipped default is now audio-only; video is explicit opt-in
+
+**Phase:** production default hygiene (follow-up to the Phase A video-evidence
+work).
+**Decision tree:** eval/production parity. `run_pipeline` shipped with
+`video_enabled=True, video_backend="legacy", lambda_vision=1.0`, feeding raw
+per-frame fingerings straight into `fuse()` - while the chunk-3 protective
+layer (`choose_orientation`, `combine_fingerings`, `gate_fingering_to_audio`,
+the 0.71 coverage fallback in `fusion/vision_evidence.py`) was called only
+from eval scripts and tests, and every published Tab F1 number is computed
+audio-only (`eval/guitarset_audio.py`, `eval/string_assignment.py` both use
+`lambda_vision=0.0` with no fingerings). The shipped default matched no
+reported metric. Two candidate fixes: (a) wire the chunk-3 protections into
+the default legacy route, or (b) make audio-only the default and quarantine
+video behind explicit opt-in.
+**Branch taken:** **(b) - audio-only default.** `video_enabled` now defaults
+to `False` in `run_pipeline` / `run_pipeline_with_artifacts` /
+`write_diagnose_report`. The CLI grows `--video` (opt-in); an explicit
+`--video-backend` also opts in so pre-flip `--video-backend fretcam`
+invocations keep their meaning; `--no-video` stays accepted (the desktop
+shell passes it) and still wins. A non-default `--fusion-lambda-vision`
+without `--video` logs a warning instead of silently doing nothing. `fuse()`
+and every other SPEC section 8 signature are unchanged.
+**Evidence:** Ungated legacy video measured **-0.2006 aggregate Tab F1 on
+GAPS clean-12** (10/12 clips harmed) even after the 720p detection-wall fix,
+and -0.15 to -0.20 in the June chain
+(`phaseA_720p_cache_rebuild_2026-07-27.md`,
+`v1_1_gaps_video_chain_2026-06-22.md`); an uncorrected orientation inversion
+took a clip from 0.96 to 0.17 (`v1_1_chunk2_cv_chain_2026-06-10.md`). The
+decisive fact against (a): **gated video is exactly +0.0000** - measured clip
+coverage (0.48-0.52) never clears the 0.71 threshold, so wiring the
+protections in ships a configuration whose measured best case is doing
+nothing at full YOLO + MediaPipe runtime on every transcription. Deployable
+video string accuracy (0.689) remains below the audio prior it would displace
+(0.778); the best end-to-end video delta anywhere is +0.000836 (FretCam,
+95% CI lower bound exactly 0).
+**Reasoning:** Audio-only is the configuration every published number was
+measured under, so the default now matches the reported metrics, removes a
+0.15-0.20 regression exposure, and skips the vision-stack runtime. With no
+fingerings and no anchors the vision term in `playability.emission_cost`
+never fires, so the default decode is bit-identical to the eval convention
+regardless of `lambda_vision`. The legacy route stays reachable (`--video`)
+as measured evidence and rollback; FretCam stays opt-in. **Revisit** when
+FretCam passes the L2 controlled-live promotion gate plus a larger frozen
+result, or if Phase D/E2 lift video string accuracy above the audio prior -
+promotion then needs its own pre-registered end-to-end gate, not a default
+flip.

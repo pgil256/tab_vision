@@ -1,7 +1,8 @@
 """CLI parser smoke for the transcribe-subcommand flags.
 
-Covers ``--fusion-lambda-vision``, ``--no-video``, ``--video-backend``,
-and ``--video-stride``.
+Covers ``--fusion-lambda-vision``, ``--video`` / ``--no-video``,
+``--video-backend``, ``--video-stride``, and the video-flag resolution
+that makes audio-only the default (DECISIONS.md 2026-07-28).
 """
 
 from __future__ import annotations
@@ -68,28 +69,88 @@ def test_lambda_vision_nonfinite_rejected(value: str):
         parser.parse_args(["transcribe", "in.mp4", "--fusion-lambda-vision", value])
 
 
-# ---------- --no-video ----------
+# ---------- --video / --no-video ----------
 
 
-def test_no_video_default_false():
+def test_video_flags_default_off():
+    """Audio-only is the shipped default (DECISIONS.md 2026-07-28)."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
+    assert args.video is False
     assert args.no_video is False
 
 
-def test_no_video_flag_sets_true():
+def test_video_flag_sets_true():
+    parser = _build_parser()
+    args = parser.parse_args(["transcribe", "in.mp4", "--video"])
+    assert args.video is True
+
+
+def test_no_video_still_accepted_for_compat():
+    """Redundant since the default flip, but the desktop shell passes it."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4", "--no-video"])
     assert args.no_video is True
 
 
+def test_video_and_no_video_are_mutually_exclusive():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["transcribe", "in.mp4", "--video", "--no-video"])
+
+
+def test_video_flag_available_on_diagnose():
+    parser = _build_parser()
+    args = parser.parse_args(["diagnose", "in.mp4", "--video"])
+    assert args.video is True
+
+
+# ---------- video-flag resolution ----------
+
+
+def _resolve(argv: list[str]):
+    from tabvision.cli import _resolve_video_args
+
+    return _resolve_video_args(_build_parser().parse_args(argv))
+
+
+def test_resolve_video_default_is_audio_only():
+    assert _resolve(["transcribe", "in.mp4"]) == (False, "legacy")
+
+
+def test_resolve_video_opt_in_uses_legacy_backend():
+    assert _resolve(["transcribe", "in.mp4", "--video"]) == (True, "legacy")
+
+
+def test_resolve_explicit_video_backend_implies_opt_in():
+    """Pre-flip ``--video-backend fretcam`` invocations keep their meaning."""
+    argv = ["transcribe", "in.mp4", "--video-backend", "fretcam"]
+    assert _resolve(argv) == (True, "fretcam")
+
+
+def test_resolve_no_video_wins_over_explicit_backend():
+    argv = ["transcribe", "in.mp4", "--no-video", "--video-backend", "fretcam"]
+    assert _resolve(argv) == (False, "fretcam")
+
+
+def test_resolve_warns_when_lambda_vision_is_inert(caplog):
+    """A non-default weight without --video silently does nothing — say so."""
+    with caplog.at_level("WARNING", logger="tabvision.cli"):
+        enabled, _backend = _resolve(["transcribe", "in.mp4", "--fusion-lambda-vision", "2.5"])
+    assert enabled is False
+    assert any("no effect" in rec.message for rec in caplog.records)
+
+
 # ---------- --video-backend ----------
 
 
-def test_video_backend_defaults_to_legacy_rollback():
+def test_video_backend_defaults_to_unset_sentinel():
+    """``None`` at parse time distinguishes "not given" from an explicit
+    "legacy" — an explicit backend implies video opt-in, so the parser must
+    keep the difference; resolution maps ``None`` → 'legacy'."""
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4"])
-    assert args.video_backend == "legacy"
+    assert args.video_backend is None
 
 
 def test_fretcam_video_backend_is_explicitly_reachable():

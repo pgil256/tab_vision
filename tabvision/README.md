@@ -44,8 +44,9 @@ scope rationale: [`../SPEC.md`](../SPEC.md) §1.4 / §1.4.1.
   shipping default.
 - **FretCam is a separate, explicit coarse-position experiment.** It contributes
   only a stabilized pre-onset fret window, keeps open strings eligible, and
-  caps its likelihood bonus. Select it with `--video-backend fretcam`; the
-  legacy route remains the default rollback until the controlled-live gate and
+  caps its likelihood bonus. Select it with `--video-backend fretcam` (which
+  implies `--video`); `legacy` is the default backend when video is enabled,
+  kept for diagnostics and rollback until the controlled-live gate and
   held-out end-to-end evaluation pass.
 - **A compact timbral string ranker did not generalize.** Five-player OOF
   evaluation scored 0.633 candidate top-1 versus the 0.655 prior-only baseline,
@@ -108,7 +109,10 @@ Render ASCII tab:
 tabvision transcribe input.mov --format ascii -o output.tab
 ```
 
-`transcribe` defaults to the accepted v1 config: the `highres` audio backend
+`transcribe` defaults to the accepted v1 config: **audio-only** (the video
+stack is opt-in via `--video` since 2026-07-28 — the ungated legacy chain
+measured −0.15 to −0.20 aggregate Tab F1, and every published figure is
+audio-only; see `docs/DECISIONS.md`), with the `highres` audio backend
 (via `--audio-backend auto`, which routes `--instrument electric` to the
 electric checkpoint) plus domain-aware `--position-prior auto` and
 `--sequence-prior auto`. Clean acoustic, standard-tuning, capo-zero sessions
@@ -140,7 +144,7 @@ Useful context flags:
 
 ```bash
 tabvision transcribe input.mov --instrument electric --tone clean --style mixed --capo 0
-tabvision transcribe input.mov --no-video --format ascii
+tabvision transcribe input.mov --video --format ascii
 tabvision transcribe input.mov --video-backend fretcam --format ascii
 tabvision transcribe input.mov --position-prior none --sequence-prior none --audio-backend basicpitch
 tabvision transcribe input.mov --string-evidence none

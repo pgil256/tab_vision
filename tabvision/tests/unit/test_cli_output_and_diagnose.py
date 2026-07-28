@@ -144,6 +144,8 @@ def test_transcribe_forwards_explicit_fretcam_backend(
 
     assert rc == 0
     assert captured["video_backend"] == "fretcam"
+    # An explicit backend implies opt-in (audio-only default, 2026-07-28).
+    assert captured["video_enabled"] is True
 
 
 def test_transcribe_json_envelope_reports_output_flags_and_timings(

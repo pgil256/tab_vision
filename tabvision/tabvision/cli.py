@@ -201,31 +201,46 @@ def _build_parser() -> argparse.ArgumentParser:
         default=1.0,
         metavar="FLOAT",
         help=(
-            "weight on vision evidence in fusion (default 1.0). 0.0 "
-            "disables vision entirely (audio-only Viterbi); values >1 "
-            "lean more heavily on the legacy fingertip posterior. The "
-            "FretCam input-odds contribution remains capped at the default "
-            "decoder weights so it cannot overwhelm strong audio evidence. "
-            "See SPEC §5 / Phase-5 design doc §2."
+            "weight on vision evidence in fusion (default 1.0); only "
+            "meaningful with --video. 0.0 disables vision entirely "
+            "(audio-only Viterbi); values >1 lean more heavily on the "
+            "legacy fingertip posterior. The FretCam input-odds "
+            "contribution remains capped at the default decoder weights so "
+            "it cannot overwhelm strong audio evidence. See SPEC §5 / "
+            "Phase-5 design doc §2."
         ),
     )
-    t.add_argument(
+    t_video = t.add_mutually_exclusive_group()
+    t_video.add_argument(
+        "--video",
+        action="store_true",
+        help=(
+            "enable the video stack (opt-in since 2026-07-28 — the ungated "
+            "legacy chain measured -0.15 to -0.20 aggregate Tab F1, so "
+            "audio-only is the default; see DECISIONS.md). An explicit "
+            "--video-backend also opts in."
+        ),
+    )
+    t_video.add_argument(
         "--no-video",
         action="store_true",
         help=(
-            "disable the video stack entirely; transcribe audio-only. "
-            "Equivalent to --fusion-lambda-vision 0 plus skipping the "
-            "guitar / fretboard / hand backends."
+            "force the audio-only default explicitly. Redundant since "
+            "audio-only became the default (2026-07-28), but kept so "
+            "existing callers such as the desktop shell keep working; it "
+            "also wins over an explicit --video-backend."
         ),
     )
     t.add_argument(
         "--video-backend",
         choices=["legacy", "fretcam"],
-        default="legacy",
+        default=None,
         help=(
-            "video analyzer. 'fretcam' uses the stabilized, media-clock-aligned "
-            "playing-position window; 'legacy' (default) is the rollback path "
-            "until FretCam's controlled-live promotion gate passes"
+            "video analyzer used when the video stack is enabled; passing "
+            "this flag implies --video. 'fretcam' uses the stabilized, "
+            "media-clock-aligned playing-position window; 'legacy' (the "
+            "default when enabled) is the ungated per-string fingertip "
+            "posterior, kept for diagnostics and rollback"
         ),
     )
     t.add_argument(
@@ -370,18 +385,24 @@ def _build_parser() -> argparse.ArgumentParser:
         type=_lambda_vision_arg,
         default=1.0,
         metavar="FLOAT",
-        help="weight on vision evidence in fusion (default 1.0)",
+        help="weight on vision evidence in fusion (default 1.0); only meaningful with --video",
     )
-    d.add_argument(
+    d_video = d.add_mutually_exclusive_group()
+    d_video.add_argument(
+        "--video",
+        action="store_true",
+        help="enable the video stack for the diagnostic decode (audio-only is the default)",
+    )
+    d_video.add_argument(
         "--no-video",
         action="store_true",
-        help="disable the video stack for the diagnostic decode",
+        help="force the audio-only default explicitly (kept for compatibility)",
     )
     d.add_argument(
         "--video-backend",
         choices=["legacy", "fretcam"],
-        default="legacy",
-        help="video analyzer used for the diagnostic decode",
+        default=None,
+        help="video analyzer for the diagnostic decode; passing this flag implies --video",
     )
     d.add_argument(
         "--video-stride",
@@ -447,12 +468,13 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
             return rc
 
     pipeline_started = time.perf_counter()
+    video_enabled, video_backend = _resolve_video_args(args)
     pipeline_kwargs = {
         "audio_backend_name": args.audio_backend,
         "lambda_vision": args.fusion_lambda_vision,
         "video_stride": args.video_stride,
-        "video_enabled": not args.no_video,
-        "video_backend": args.video_backend,
+        "video_enabled": video_enabled,
+        "video_backend": video_backend,
         "position_prior": args.position_prior,
         "sequence_prior": args.sequence_prior,
         "string_evidence": args.string_evidence,
@@ -498,7 +520,7 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
             pipeline_result,
             cfg=cfg,
             source_path=args.input,
-            video_enabled=not args.no_video,
+            video_enabled=video_enabled,
         )
         args.editor_output.parent.mkdir(parents=True, exist_ok=True)
         args.editor_output.write_text(
@@ -561,6 +583,27 @@ def _make_audio_backend(name: str):
     return make(name)
 
 
+def _resolve_video_args(args: argparse.Namespace) -> tuple[bool, str]:
+    """Map the video flags to ``(video_enabled, video_backend)``.
+
+    Audio-only is the default (DECISIONS.md 2026-07-28): the ungated legacy
+    chain measured −0.15 to −0.20 aggregate Tab F1 and no published figure
+    uses video. ``--video`` opts in, and an explicit ``--video-backend``
+    also opts in so pre-flip FretCam invocations keep their meaning.
+    ``--no-video`` still forces audio-only (the desktop shell passes it)
+    and wins over an explicit ``--video-backend``; argparse rejects
+    combining it with ``--video``.
+    """
+    video_backend = args.video_backend if args.video_backend is not None else "legacy"
+    video_enabled = not args.no_video and (args.video or args.video_backend is not None)
+    if not video_enabled and args.fusion_lambda_vision not in (0.0, 1.0):
+        logger.warning(
+            "--fusion-lambda-vision has no effect while the video stack is "
+            "disabled; pass --video to enable it"
+        )
+    return video_enabled, video_backend
+
+
 def _resolve_audio_filters(choice: str) -> bool | None:
     """Map the ``--audio-filters`` CLI choice to a ``run_pipeline`` value.
 
@@ -593,14 +636,15 @@ def _cmd_diagnose(args: argparse.Namespace) -> int:
     cfg = GuitarConfig(capo=args.capo)
     session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
     output_path = args.output or args.input.with_suffix(args.input.suffix + ".diagnose.html")
+    video_enabled, video_backend = _resolve_video_args(args)
     report_path = write_diagnose_report(
         args.input,
         output_path,
         audio_backend_name=args.audio_backend,
         lambda_vision=args.fusion_lambda_vision,
         video_stride=args.video_stride,
-        video_enabled=not args.no_video,
-        video_backend=args.video_backend,
+        video_enabled=video_enabled,
+        video_backend=video_backend,
         preflight_enabled=not args.no_preflight,
         audio_filters=_resolve_audio_filters(args.audio_filters),
         cfg=cfg,

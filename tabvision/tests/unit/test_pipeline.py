@@ -138,6 +138,38 @@ def test_run_pipeline_audio_only_when_video_disabled(monkeypatch):
     assert audio.calls, "audio backend should have been invoked"
 
 
+def test_run_pipeline_video_disabled_by_default(monkeypatch):
+    """Audio-only is the shipped default (DECISIONS.md 2026-07-28): no video
+    backend is constructed and the decode sees no fingerings, matching the
+    convention every published Tab F1 figure was measured under."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=3))
+    for factory in (
+        "_make_guitar_backend",
+        "_make_fretboard_backend",
+        "_make_hand_backend",
+        "_make_fretcam_position_analyzer",
+    ):
+        monkeypatch.setattr(
+            pipeline, factory, lambda *_a, **_k: pytest.fail("video must be opt-in")
+        )
+    captured: dict = {}
+
+    def fake_fuse(events, fings, cfg, session, *, lambda_vision=1.0):
+        captured["fingerings"] = list(fings)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+    stages: list[str] = []
+    result = pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(),
+        progress_callback=stages.append,
+    )
+    assert result.resolved_video_backend == "none"
+    assert captured["fingerings"] == []
+    assert "video_analysis" not in stages
+
+
 def test_detailed_pipeline_result_preserves_events_and_resolved_policy(monkeypatch):
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result())
     audio = _FakeAudioBackend(
@@ -255,6 +287,7 @@ def test_run_pipeline_reports_video_stage_when_enabled(monkeypatch):
         guitar_backend=_FakeGuitarBackend(),
         fretboard_backend=_FakeFretboardBackend(),
         hand_backend=_FakeHandBackend(),
+        video_enabled=True,
         video_stride=1,
         progress_callback=stages.append,
     )
@@ -295,6 +328,7 @@ def test_run_pipeline_invokes_video_backends(monkeypatch):
         guitar_backend=guitar,
         fretboard_backend=fretboard,
         hand_backend=hand,
+        video_enabled=True,
         video_stride=3,  # 9 frames / stride 3 = 3 sampled frames
     )
 
@@ -345,6 +379,7 @@ def test_fretcam_backend_uses_only_stabilized_position_evidence(monkeypatch):
         fretboard_backend=fretboard,
         hand_backend=hand,
         position_analyzer=analyzer,
+        video_enabled=True,
         video_backend="fretcam",
         video_stride=2,
         position_prior="none",
@@ -402,6 +437,7 @@ def test_fretcam_zero_weight_is_exact_audio_only_prior(monkeypatch):
         "ignored.mp4",
         audio_backend=_FakeAudioBackend([original]),
         position_analyzer=analyzer,
+        video_enabled=True,
         video_backend="fretcam",
         lambda_vision=0.0,
         position_prior="none",
@@ -438,6 +474,7 @@ def test_fretcam_route_closes_frame_iterator_when_analyzer_returns_early(monkeyp
         "ignored.mp4",
         audio_backend=_FakeAudioBackend(),
         position_analyzer=EarlyAnalyzer(),
+        video_enabled=True,
         video_backend="fretcam",
         video_stride=1,
         position_prior="none",
@@ -460,6 +497,7 @@ def test_fretcam_backend_requires_its_optional_package(monkeypatch):
         pipeline.run_pipeline(
             "ignored.mp4",
             audio_backend=audio,
+            video_enabled=True,
             video_backend="fretcam",
         )
     assert audio.calls == []
@@ -532,6 +570,7 @@ def test_run_pipeline_stride_one_runs_every_frame(monkeypatch):
         guitar_backend=guitar,
         fretboard_backend=_FakeFretboardBackend(),
         hand_backend=_FakeHandBackend(),
+        video_enabled=True,
         video_stride=1,
     )
     assert len(guitar.calls) == 5
@@ -562,6 +601,7 @@ def test_run_pipeline_skips_fretboard_when_no_guitar(monkeypatch):
         guitar_backend=guitar,
         fretboard_backend=fretboard,
         hand_backend=hand,
+        video_enabled=True,
         video_stride=1,
     )
     assert len(guitar.calls) == 3
@@ -581,6 +621,7 @@ def test_run_pipeline_skips_hand_when_no_fretboard(monkeypatch):
         guitar_backend=guitar,
         fretboard_backend=fretboard,
         hand_backend=hand,
+        video_enabled=True,
         video_stride=1,
     )
     assert len(guitar.calls) == 3
@@ -604,6 +645,7 @@ def test_run_pipeline_propagates_lambda_vision(monkeypatch):
         guitar_backend=_FakeGuitarBackend(),
         fretboard_backend=_FakeFretboardBackend(),
         hand_backend=_FakeHandBackend(),
+        video_enabled=True,
         lambda_vision=2.5,
     )
     assert captured["lambda_vision"] == 2.5
@@ -630,6 +672,7 @@ def test_run_pipeline_attaches_neck_anchor_prior_before_fusion(monkeypatch):
         guitar_backend=_FakeGuitarBackend(),
         fretboard_backend=_FakeFretboardBackend(),
         hand_backend=hand,
+        video_enabled=True,
         video_stride=1,
     )
 
@@ -658,6 +701,7 @@ def test_run_pipeline_skips_neck_anchor_prior_when_vision_weight_zero(monkeypatc
         guitar_backend=_FakeGuitarBackend(),
         fretboard_backend=_FakeFretboardBackend(),
         hand_backend=_FakeHandBackend(anchor=HandNeckAnchor(10.0, 9.0, 11.0, 0.9)),
+        video_enabled=True,
         lambda_vision=0.0,
         position_prior="none",
     )
@@ -879,7 +923,7 @@ def test_run_pipeline_falls_back_to_audio_only_on_video_import_failure(monkeypat
         events=[AudioEvent(onset_s=0.0, offset_s=0.25, pitch_midi=69, velocity=0.8, confidence=0.8)]
     )
     with caplog.at_level("WARNING", logger="tabvision.pipeline"):
-        out = pipeline.run_pipeline("ignored.mp4", audio_backend=audio)
+        out = pipeline.run_pipeline("ignored.mp4", audio_backend=audio, video_enabled=True)
 
     assert any("falling back to audio-only" in rec.message for rec in caplog.records)
     assert len(out) == 1
@@ -899,9 +943,6 @@ def test_run_pipeline_constructs_audio_backend_by_name_when_not_provided(monkeyp
     pipeline.run_pipeline(
         "ignored.mp4",
         audio_backend_name="basicpitch",
-        guitar_backend=_FakeGuitarBackend(),
-        fretboard_backend=_FakeFretboardBackend(),
-        hand_backend=_FakeHandBackend(),
     )
     assert captured["name"] == "basicpitch"
 
