@@ -1,5 +1,26 @@
 # Handoff — video evidence work, 2026-07-27
 
+> ## Update 2026-07-28 — read this before acting on §4/§5
+>
+> The three parked decisions in §5 are **resolved**, and one claim below is
+> **wrong**:
+>
+> - ⚠️ **§4 "Phase D … blocked on CPU, then Gate 1" is incorrect.** The "252/270
+>   train clips acquired" figure is **video only**. The train split had **no gold
+>   annotations and no reference audio** on disk, so the extraction returned 0
+>   crops in 3.6 s — it could never have produced a training crop. Closed by a new
+>   `scripts.acquire.datasets gaps-annotations` subcommand (1008/1008 files, 9.5 GB,
+>   zero failures). Extraction then validated at 2,035 crops on 2 clips and is
+>   **running** (~18 h, ~256k crops).
+> - **C1 (§5.1) — resolved.** All four drifted rows were localised to the single
+>   track `03_Rock3-148-C_comp` before the assertion was relaxed; the tolerance is
+>   `+-25` rows (0.05%) with the cause named. See DECISIONS 2026-07-28.
+> - **E2 (§5.2) — no spend.** Running on local CPU, queued behind Phase D.
+> - **L2 (§5.3) — prepped.** Server is up and the live WebSocket path was verified
+>   end to end; `docs/fretcam-l2-run-sheet.md` now carries a CPU-contention guard.
+>
+> §§1–3 and §§6–8 below stand as written.
+
 Read this first if you are picking up the video track cold. It records what was
 done, what it proved, what it disproved, what broke, and what is waiting on a
 decision. Everything below was measured on this machine unless marked otherwise.
@@ -114,10 +135,10 @@ the top of that report.
 |---|---|---|
 | **Phase A** (720p + crop) | **done, banked** | — |
 | **Gate re-derivation (WS5)** | authorized by the decision tree, but **re-scoped** — do not lower the coverage threshold | evidence quality, not the gate |
-| **C1** (assisted-review ranker) | regenerated, **4 rows short** | a tolerance decision (see §5) |
-| **Phase D** (string-model retrain) | code + 11 tests landed; 252/270 train clips acquired | CPU, then Gate 1 |
-| **Phase E2** (fret keypoints) | data acquired + license-verified | **~$0.40 training spend** |
-| **L2** (live camera test) | fully prepared, server verified | 15 min with a guitar |
+| ~~**C1** (assisted-review ranker)~~ | ~~regenerated, **4 rows short**~~ → **unblocked 2026-07-28**, tolerance +-25 rows with the cause localised | — |
+| ~~**Phase D** (string-model retrain)~~ | ~~252/270 train clips acquired~~ — that was **video only**; annotations + audio acquired 2026-07-28, extraction **running** | ~18 h CPU, then Gate 1 |
+| **Phase E2** (fret keypoints) | data acquired + license-verified | queued on local CPU behind Phase D (**no spend**) |
+| **L2** (live camera test) | **server up and live path verified 2026-07-28** | 15 min with a guitar |
 
 ### C1 detail
 
