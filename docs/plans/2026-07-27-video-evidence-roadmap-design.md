@@ -216,15 +216,52 @@ Two tracks with different blockers. The review-queue module
 provenance records — all work here is additive (a versioned ranker artifact),
 never a restructure.
 
-**C1 — offline ranker upgrade (unblocked now).** Regenerate the Phase 6 row
-provenance (the `PHASE1_NOTES` re-decode that `n3_ranker_build_2026-07-23`
-found missing), time-boxed; if regeneration is infeasible, say so and stop C1.
-With provenance restored, run the exact Phase 6 replay protocol (2 s/note,
-gold-in-top-3 correctable, reduction @10/30/60 s) on the full ten-feature
-ranker **plus the three physics features** N3 already validated (+0.0514 @60 s
-marginal on the self-contained ranker). Gate: beat **38.76% @60 s** on the
-exact protocol; report @10/@30 alongside. GuitarSet has no video, so no
-FretCam features enter C1.
+**C1 — offline ranker upgrade. Feasibility resolved 2026-07-27: NOT blocked.**
+
+`n3_ranker_build_2026-07-23.md` records the exact 38.76% comparison as
+"blocked (verified)" on three grounds. All three are wrong:
+
+| n3 claim | Reality (verified 2026-07-27) |
+|---|---|
+| `PHASE1_NOTES` is "a re-decode stage **not on disk** and not cheaply regenerable" | It is a **git-ignored CSV output** — `.gitignore:76-77` covers both the phase0 and phase1 `*_notes.csv`. A fresh clone loses it *by design*; phase0's own report calls it "generated locally and git-ignored because it is **reproducible**". Regenerating it means running a script, not reconstructing a lost stage |
+| Row order differs — "the **event-id SHA differs**" | The provenance files record the **identical** hash: phase4 and phase6 both carry `event_ids_sha256 = 17b7d3b3a7da24f82de778fffc84cff73ee012c2c10d80fd82dc9727020fce3c`. The 43,080-vs-35,959 gap is just all-splits vs dev-OOF-ambiguous — same set, same order, same wrong rate (0.34517 vs n3's 0.3452) |
+| Three features need "the Phase 4 timbre model" | Phase 6 loads **no checkpoint** — it re-runs the model in-process (`string_assignment_phase6.py:279`, `run_phase4_oof`). Recorded cost 240 s |
+
+Verified on this machine: **GuitarSet is present and intact** — 360
+`audio_mono-mic/*.wav` + 360 `annotation/*.jams`, 1.2 GB, at
+`~/mir_datasets/guitarset`. It is **not** under `$TABVISION_DATA_ROOT`, so these
+scripts need `--data-home ~/mir_datasets/guitarset`; that path difference is why
+it read as missing. All 300 dev WAVs sha256-match the `audio_manifest` in the
+phase4 provenance, 300/300. The decode checkpoint `guitar-gaps.pth` is already in
+the HF cache.
+
+**Cost: ~5.6 h unattended CPU, zero downloads, ~930 MB disk** — dominated by the
+phase0 event decode (~2.7 h) and the phase3 posterior cache (~2.3 h; recorded rate
+0.92 s compute per second of audio per checkpoint). The full C1 deliverable (ten
+features **+ physics**) additionally needs the `q6_full_dev_cache` ensemble JSONs,
+taking it to roughly **9.5 h**; the first 5.6 h independently restores the 38.76%
+baseline and de-risks the rest.
+
+Bit-identity is not guaranteed (torch 2.12→2.11, numpy 2.4.6→2.4.4,
+Windows→Linux, different ffmpeg resampler) but is **cheaply checkable** against the
+recorded `541220a6…` (phase1) and `6f067585…` (phase0) hashes — and a drifted
+decode fails *loudly*: the 51,130-row assertion (phase6:145), the 35,959-row
+assertion (phase4:167), the row-order assertion (phase6:266), and the `onset_s`
+tolerance check (phase6:319) all guard it.
+
+⚠️ **Silent-failure landmine to fix before running the fallback.**
+`n3_ranker_build.py:151-153` does `if not cache.is_file(): continue` on the
+per-track ensemble JSON. With that cache absent it reports physics firing on
+0/35,959 notes and both arms identical — **no error raised**. Any C1 run must
+assert non-empty physics coverage rather than trust a silent zero.
+
+Then: the exact Phase 6 replay protocol (2 s/note, gold-in-top-3 correctable,
+reduction @10/30/60 s) on the full ten-feature ranker **plus the three physics
+features** N3 validated (+0.0514 @60 s marginal). Gate: beat **38.76% @60 s**;
+report @10/@30 alongside. GuitarSet has no video, so no FretCam features enter C1.
+
+**Scheduling:** deliberately not started — it is CPU-bound and would contend with
+Phase A's cache builds. Queue it once Phase A's arms complete.
 
 **C2 — live FretCam-anchored A/B (blocked by an L2 pass).** Design §7.3b(b):
 personal recording sessions with FretCam running; anchors re-rank the review

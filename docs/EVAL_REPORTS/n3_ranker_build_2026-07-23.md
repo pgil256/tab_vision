@@ -4,6 +4,20 @@ Accuracy-loop N3 build slice. The entry probe showed the physics "doubt" score
 is a strong wrong-position detector (AUC 0.75 isolated). This measures what it
 buys the review ranker under the Phase 6 replay protocol.
 
+> **CORRECTION 2026-07-27 — the blockage below is not real.** All three grounds
+> were re-checked and none holds: `PHASE1_NOTES` is a **git-ignored, reproducible
+> CSV output** (`.gitignore:76-77`), not a lost stage; phase4 and phase6
+> provenance record the **identical** `event_ids_sha256`
+> (`17b7d3b3a7da24f82de778fffc84cff73ee012c2c10d80fd82dc9727020fce3c`), so row
+> order does not differ; and phase 6 loads **no** Phase 4 timbre checkpoint — it
+> re-runs the model in-process (`string_assignment_phase6.py:279`). GuitarSet is
+> on disk at `~/mir_datasets/guitarset` (360 wav + 360 jams, 300/300 dev sha256
+> match) — it read as missing only because it is not under
+> `$TABVISION_DATA_ROOT`, so the scripts need `--data-home`. Regeneration costs
+> ~5.6 h of unattended CPU and zero downloads. The marginal-delta framing below
+> remains valid on its own terms, but it was **not** the only option available.
+> See `docs/plans/2026-07-27-video-evidence-roadmap-design.md` §6 (C1).
+
 ## The exact 38.76% comparison is blocked (verified)
 
 The intended test — add physics to the frozen Phase 6 ranker and beat its
