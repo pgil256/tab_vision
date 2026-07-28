@@ -199,7 +199,35 @@ geometry rather than finding real frets.
 
 ## 7. Results
 
-_Pending — filled from the frozen runs._
+### 7.1 The 360p control reproduces the banked baseline (complete, 12/12 clips)
+
+| quantity | this control | banked | Δ |
+|---|---:|---:|---:|
+| leading indicator, uniform | **0.543** (4492/8266) | 0.544 | −0.001 |
+| leading indicator, WS1 calibrated | **0.568** (4696/8266) | 0.574 | −0.006 |
+| WS3 fret wall (ambiguous notes on zero-median-fret clips) | **0.650** (6639/10213) | ~0.68 | −0.03 |
+
+The control is faithful in aggregate, which is what the A5 decision rests on.
+Eight of twelve clips have a zero *median* fret count at 360p, confirming the
+wall is a property of this corpus and not an artefact of the re-download.
+
+**But per-clip variance is substantial, and that matters for reading per-clip
+deltas.** Against the banked WS1 column: `063` +0.083, `118` +0.037, `104`
++0.028, `027` +0.022 on one side; `294` −0.137 and `212` −0.266 on the other.
+`212` also shows a large evidence-count change (`haveCV` 304 here vs 79 banked)
+— unsurprising, since it is the clip that 403'd and was re-fetched. These swings
+largely cancel, which is why the aggregate lands within 0.006.
+
+The interpretation is the media-drift finding of §2 operating at clip scale:
+YouTube re-encodes, a handful of detections flip, and `calibrate_fret_xs`
+amplifies that because it succeeds or fails on wire-count thresholds. **Both arms
+of this report were fetched the same day with the same tool, so within-report
+deltas remain valid; comparisons of a single clip against the 2026-06 banked
+column are not reliable at better than roughly ±0.1.**
+
+### 7.2 Phase A arm — in progress
+
+_Filled when the 720p crop-detect cache completes._
 
 ## 8. A5 decision
 
