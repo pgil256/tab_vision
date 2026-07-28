@@ -130,6 +130,109 @@ def _offset_s(stem: str, wav: Path, vid: Path, cache_dir: Path) -> tuple[float, 
     return float(res.offset_s), float(res.peak_ratio)
 
 
+def sustain_frame_index(
+    onset_s: float,
+    next_onset_s: float | None,
+    offset_s: float,
+    fps: float,
+    *,
+    lead_s: float = 0.080,
+    max_s: float = 0.400,
+    tail_guard_s: float = 0.040,
+) -> int:
+    """Frame index inside a note's *sustain*, not on its onset (Phase D).
+
+    The WS4 negative was diagnosed as whole-neck crops starving the model, but a
+    second contributor is label noise at the onset frame: the fretting hand is
+    still arriving, so the frame labelled with a note's (string, fret) often does
+    not yet show that shape. Sampling from
+    ``[onset + lead_s, min(onset + max_s, next_onset - tail_guard_s)]`` picks a
+    frame where the shape is held.
+
+    The window is clamped so it never crosses into the next note, and never
+    lands before the onset itself when notes are very close together.
+    """
+    start = onset_s + lead_s
+    end = onset_s + max_s
+    if next_onset_s is not None:
+        end = min(end, next_onset_s - tail_guard_s)
+    if end < start:
+        # Notes closer than lead+guard: fall back toward the onset rather than
+        # borrowing a frame that belongs to the following note.
+        target = max(onset_s, min(start, next_onset_s or start) - tail_guard_s)
+    else:
+        target = 0.5 * (start + end)
+    return int(round((target + offset_s) * fps))
+
+
+def hand_tight_rect(
+    hand,  # noqa: ANN001 - HandSample
+    frame_w: int,
+    frame_h: int,
+    *,
+    pad_mult: float = 1.6,
+    min_extent_px: int = 160,
+) -> tuple[int, int, int, int] | None:
+    """Square crop around the fretting hand's landmark span (Phase D).
+
+    The banked WS4 root cause was that a whole-neck crop squished into 224x224
+    leaves the hand only a few pixels tall — "the whole-neck crop starves the
+    model". This centres a square crop on the hand instead, padded by
+    ``pad_mult`` and floored at ``min_extent_px`` so a distant hand still yields
+    enough context to resolve which string is being pressed.
+    """
+    coords = [hand.wrist_xy, *(f.tip_xy for f in hand.fingers.values())]
+    pts = np.asarray(coords, dtype=np.float64)
+    if pts.size == 0 or not np.isfinite(pts).all():
+        return None
+    cx, cy = pts[:, 0].mean(), pts[:, 1].mean()
+    extent = float(np.max(pts.max(axis=0) - pts.min(axis=0)))
+    half = max(extent * pad_mult, float(min_extent_px)) / 2.0
+    x0 = int(max(0.0, np.floor(cx - half)))
+    y0 = int(max(0.0, np.floor(cy - half)))
+    x1 = int(min(float(frame_w), np.ceil(cx + half)))
+    y1 = int(min(float(frame_h), np.ceil(cy + half)))
+    if x1 - x0 < 16 or y1 - y0 < 16:
+        return None
+    return x0, y0, x1, y1
+
+
+def _hand_rect_for_frame(
+    frame,  # noqa: ANN001 - BGR ndarray
+    landmarker,  # noqa: ANN001 - mediapipe HandLandmarker
+    yolo,  # noqa: ANN001 - YoloOBBBackend, for neck-relative fretting-hand choice
+) -> tuple[int, int, int, int] | None:
+    """Locate the fretting hand in one frame and return its square crop rect."""
+    if landmarker is None:
+        return None
+    import cv2
+    import mediapipe as mp
+
+    from scripts.eval.v1_1_real_chain_probe import _select_fretting_hand_geometric
+    from tabvision.video.fretboard.keypoint import predictions_to_homography
+    from tabvision.video.hand.mediapipe_backend import _build_hand_sample
+
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    res = landmarker.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb))
+    if not res.hand_landmarks:
+        return None
+    h, w = frame.shape[:2]
+    hands = [
+        _build_hand_sample(lm, hd, frame_width=w, frame_height=h)
+        for lm, hd in zip(res.hand_landmarks, res.handedness, strict=False)
+    ]
+    if len(hands) == 1:
+        hand = hands[0]
+    else:
+        homography = predictions_to_homography(yolo.predict_all(frame))
+        if homography.confidence <= 0.0:
+            return None
+        hand = _select_fretting_hand_geometric(hands, np.linalg.inv(homography.H))
+    if hand is None:
+        return None
+    return hand_tight_rect(hand, w, h)
+
+
 def extract_clip(
     stem: str,
     data_root: Path,
@@ -141,6 +244,9 @@ def extract_clip(
     n_samples: int,
     pad_frac: float,
     offset_cache: Path,
+    sustain: bool = False,
+    hand_tight: bool = False,
+    landmarker=None,  # noqa: ANN001 - mediapipe HandLandmarker, required by hand_tight
 ) -> list[dict]:
     """Extract all gold-note crops for one clip; returns manifest rows."""
     import cv2
@@ -162,10 +268,14 @@ def extract_clip(
         return []
     x0, y0, x1, y1 = rect
 
-    # Map each note onset to a video frame index; crop in a single streamed pass.
+    # Map each note to a video frame index; crop in a single streamed pass.
     want: dict[int, list[int]] = {}
     for i, g in enumerate(gold):
-        fi = int(round((g.onset_s + offset) * fps))
+        if sustain:
+            nxt = gold[i + 1].onset_s if i + 1 < len(gold) else None
+            fi = sustain_frame_index(g.onset_s, nxt, offset, fps)
+        else:
+            fi = int(round((g.onset_s + offset) * fps))
         if fi >= 0:
             want.setdefault(fi, []).append(i)
     if not want:
@@ -180,7 +290,14 @@ def extract_clip(
             break
         if fi not in want:
             continue
-        crop = frame[y0:y1, x0:x1]
+        cx0, cy0, cx1, cy1 = x0, y0, x1, y1
+        if hand_tight:
+            # Per-frame hand crop; fall back to the clip neck rect when the hand
+            # is missing so a dropout costs one crop's quality, not the note.
+            hand_rect = _hand_rect_for_frame(frame, landmarker, yolo)
+            if hand_rect is not None:
+                cx0, cy0, cx1, cy1 = hand_rect
+        crop = frame[cy0:cy1, cx0:cx1]
         if crop.size == 0:
             continue
         crop = cv2.resize(crop, (crop_size, crop_size), interpolation=cv2.INTER_AREA)
@@ -216,6 +333,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--conf", type=float, default=0.25)
     ap.add_argument("--crop-size", type=int, default=224)
     ap.add_argument("--neck-samples", type=int, default=20)
+    ap.add_argument(
+        "--hand-tight",
+        action="store_true",
+        help="Phase D: crop around the fretting hand per frame instead of the "
+        "clip-wide neck rect (the banked WS4 root cause was that the whole-neck "
+        "crop starves the model). Requires MediaPipe.",
+    )
+    ap.add_argument(
+        "--sustain",
+        action="store_true",
+        help="Phase D: sample a frame inside the note's sustain rather than at "
+        "its onset, where the fretting hand is still arriving.",
+    )
     ap.add_argument("--pad-frac", type=float, default=0.35)
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args(argv)
@@ -245,6 +375,11 @@ def main(argv: list[str] | None = None) -> int:
 
     ckpt = args.checkpoint or os.environ.get("TABVISION_GUITAR_YOLO_CHECKPOINT")
     yolo = YoloOBBBackend(checkpoint_path=ckpt, conf=args.conf, device="cpu")
+    landmarker = None
+    if args.hand_tight:
+        from scripts.eval.v1_1_gaps_video_chain_probe import _build_landmarker
+
+        landmarker = _build_landmarker()
 
     total_rows = 0
     with open(manifest_path, "a", encoding="utf-8") as out:
@@ -262,6 +397,9 @@ def main(argv: list[str] | None = None) -> int:
                     n_samples=args.neck_samples,
                     pad_frac=args.pad_frac,
                     offset_cache=offset_cache,
+                    sustain=args.sustain,
+                    hand_tight=args.hand_tight,
+                    landmarker=landmarker,
                 )
             except Exception as exc:  # noqa: BLE001 — keep the long batch alive
                 print(

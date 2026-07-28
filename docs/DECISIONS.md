@@ -5274,3 +5274,160 @@ own prior is worth +0.0010 — that player *is* the population average. A
 single-player pilot would have closed this track wrongly, which is an argument
 for pricing ceilings on the full development set even when the pilot looks
 decisive.
+
+---
+
+## 2026-07-27 - Phase A lifts the video channel but not Tab F1; the gate stays
+
+**Phase:** Video evidence roadmap Phase A
+(`docs/plans/2026-07-27-video-evidence-roadmap-design.md`)
+**Decision tree:** A5 — 720p / conf-0.10 / crop-then-detect, keyed on the WS1
+leading indicator against the 0.574 baseline.
+**Branch taken:** The **>= 0.65** branch fires (0.720) with no gated regression,
+so WS5 is formally authorized — but its premise is **re-scoped**: do NOT lower
+`min_clip_coverage`. Phase A is banked as a channel improvement, explicitly not
+as a Tab F1 improvement, and source-disjoint-10 stays untouched until a *Tab F1*
+gain exists.
+
+**Evidence:** Report `docs/EVAL_REPORTS/phaseA_720p_cache_rebuild_2026-07-27.md`.
+
+Positive: the fret-detection wall is essentially eliminated — WS3 statistic
+**0.650 -> 0.081**, zero-median-fret clips **8/12 -> 1/12** (only `063_bV1wc`
+survives, and there the *neck* is barely detected at homography confidence
+0.406, so crop-then-detect cannot reach it). Ambiguous-note string accuracy
+**0.568 -> 0.720 (+0.151)**, 9 clips gaining / 3 regressing; best `142_GD1wc`
++0.347, worst `118_VD1wc` -0.150. Calibration fit rate rises in lockstep
+(e.g. `027` 36.1% -> 88.2%, `043` 0.0% -> 85.1%), and the uniform-partition
+control is **-0.007** — resolution alone buys nothing; the gain is entirely the
+rule-of-18 map becoming able to fit.
+
+Negative: gated Tab F1 is **unchanged** (0.8147 -> 0.8147, +0.0000 on 12/12;
+measured coverage 0.48-0.52 against the 0.71 gate). Ungated it is **worse** —
+mean **0.6142 (-0.2006)**, no-regression violated on **10/12**, worst
+`294_BSswc` -0.6624 — and even the best-fixed-orientation ceiling (**0.7635**)
+sits below audio-only 0.8147. Against the banked chunk-6 sweep the lagging
+indicator did not move at all (oracle-orientation 0.7632 banked vs 0.7635 here).
+
+Control fidelity: the 360p arm reproduces the banked figures on a from-scratch
+data root — uniform 0.543 vs 0.544, WS1 0.568 vs 0.574, gated audio-only 0.8147
+vs 0.8148, oracle 0.9728 vs 0.9726. Per-*clip* agreement is much looser
+(`212` -0.266, `294` -0.137), attributed to YouTube re-encoding between June and
+today; within-report deltas are valid, single-clip comparisons against the June
+column are not.
+
+**Reasoning:** The A5 threshold was pre-registered and 0.720 clears it, so the
+formal branch is not in question. But the ungated measurement — which the tree
+did not anticipate — establishes that the coverage gate is not withholding a
+win. At 0.720 the video channel is still below the **0.778** audio playability
+prior it would displace, so admitting it costs more than it gains wherever it is
+applied; the gate has been protecting Tab F1, not obstructing it. Loosening it
+would import a 0.05-0.20 Tab F1 loss. WS5 is therefore re-scoped from
+"re-derive the threshold" to "admit video only where it is expected to beat
+audio", and note that confidence-keyed routing of the *360p-era* evidence is a
+recorded do-not-retry (A14) — any revival must be justified by the new evidence
+quality and pre-registered afresh.
+
+The measurement also surfaced a larger, cheaper lever that was not on the plan:
+ungated auto-orientation scores 0.6142 against a 0.7635 best-fixed-orientation
+ceiling, a **0.149 Tab F1 gap from orientation selection alone** (`294_BSswc`:
+auto `none` 0.2658 vs `flip-both` 0.8080). `choose_orientation` resolves the
+string-axis mirror from audio-pitch agreement and is wrong on most clips. Fixing
+it is pure offline work on the existing cache and closes more than the gate does,
+so it takes priority over both gate work and further data acquisition.
+
+Two engineering fixes landed alongside: the >360p yt-dlp selector now pins
+`vcodec^=avc1` (for `142_GD1wc` it had selected AV1, which this OpenCV build
+decodes as **zero frames** while ffprobe reports a healthy stream), and
+`_raw_cv_cache` now raises rather than persisting an empty cache — that empty
+cache had scored as 0.000 and would have been silently reused on rerun.
+
+---
+
+## 2026-07-27 - Orientation selection is confidently wrong, not tied, and is not the win
+
+**Phase:** Video evidence roadmap Phase A, follow-up diagnostic
+**Decision tree:** Which lever to pursue after Phase A moved the leading
+indicator (+0.151) without moving Tab F1.
+**Branch taken:** **Correct the previous entry's emphasis.** Orientation
+selection is worth fixing but is NOT the route to a Tab F1 gain; deprioritize
+gate work and orientation work relative to closing the channel's remaining
+deficit against the audio prior.
+
+**Evidence:** `scripts/eval/phasea_orientation_diag.py` (new, cache-only) over
+clean-12 on the 720p crop cache. The selector agrees with the gold-best
+orientation on **5/12** clips, but the mean ambiguous-note string accuracy lost
+to its choice is only **0.031**. The four orientation scores are **well
+separated** (median relative spread **0.545**; 0.21-1.00 on ten clips), so the
+hypothesis that `candidate_support` is mirror-invariant and the argmax falls back
+to `ORIENTATIONS` order is **refuted** except on `063` (0.002) and `212` (0.051).
+Decisively: with a perfect gold-chosen orientation the ungated arm still scores
+**0.7635 vs audio-only 0.8147**.
+
+**Reasoning:** The ungated table (auto 0.6142 vs best-orientation 0.7635) made
+orientation look like a 0.149 Tab F1 lever, and the preceding DECISIONS entry
+said so. That reading was too strong. The 0.149 arises because ungated fusion
+applies the video posterior to *every* note, so a systematically mirrored
+posterior damages notes audio already decoded correctly — the orientation error
+is amplified by ungated application rather than being large in itself. Fixing it
+takes the ungated arm from -0.201 to -0.051 versus audio-only: less harmful,
+still not a gain.
+
+This also forces an honest restatement of the Phase A headline: the leading
+indicator is computed at the **best orientation**, so **0.720 is not deployable**
+- the auto-orientation equivalent is ~**0.689**, widening the gap to the 0.778
+audio prior from ~0.058 to ~0.089. The banked 0.574 baseline uses the same
+best-orientation convention, so the +0.151 delta stands; only the absolute
+deployable level is lower than the headline implies.
+
+Net: Phase A moved the channel from decisively-worse-than-audio to
+close-to-audio and removed the detection wall, but Tab F1 cannot improve while
+the channel sits below the prior it displaces. Effort should go to closing that
+last ~0.089 (learned fret keypoints; the `118`-class partial-evidence fix), not
+to gate tuning or orientation polish.
+
+---
+
+## 2026-07-27 - C1 regenerates, but 4 rows short of the pinned assertion
+
+**Phase:** C1 (offline assisted-review ranker), execution of the feasibility
+verdict recorded earlier today.
+**Decision tree:** Can the exact 38.76% comparison be restored on this machine?
+**Branch taken:** **Partially — and the remaining obstacle is real, unlike the
+three the n3 report gave.** Regeneration ran end to end; the blocker is now a
+4-row drift against a hard assertion. **STOP for a user decision** rather than
+relaxing a provenance-pinned assertion unilaterally.
+
+**Evidence:** `scripts.eval.string_assignment_phase0` and `...phase1` both ran to
+completion against `~/mir_datasets/guitarset` (written under `--date 2026-07-27`
+so the seven tracked 2026-07-15 artifacts were not overwritten), producing
+`string_assignment_phase0_..._notes.csv` (67 MB) and `phase1_..._notes.csv`
+(34.0 MB) - sizes essentially matching the recorded 69.9 MB / 34.0 MB.
+
+**Not bit-identical:** phase0 sha256 `7d460bb7...` vs recorded `6f067585...`;
+phase1 `c09c467a...` vs recorded `541220a6...`.
+
+**Structure is 4 rows short.** The regenerated table holds **51,126**
+`development_oof` rows per condition against the **51,130** asserted at
+`string_assignment_phase6.py:145`. Observed, not inferred - phase6 exits with
+`RuntimeError: expected 51,130 development rows per condition, got 51126 and
+51126`. Both conditions (`production_equivalent`, `segment-v1`) agree at 51,126,
+and each carries 8,600 `held_out_05` rows.
+
+**Reasoning:** The feasibility analysis predicted exactly this class of drift
+(torch 2.12->2.11, numpy 2.4.6->2.4.4, Windows->Linux, a different ffmpeg
+resampler on the 44.1k->22.05k path) and predicted it would fail loudly rather
+than silently. It did, which is the design working: a drifted decode cannot
+quietly produce a wrong 38.76% comparison.
+
+The drift is **4 rows in 51,130 = 0.008%**, far below any effect size that could
+move a wrong-reduction metric, and the ranker uses player-held nested OOF, so
+four notes cannot swing the comparison. Relaxing the assertion to a small
+tolerance would therefore yield a *materially* valid comparison - but it is not
+bit-exact, and `string_assignment_phase6.py` sits in a SHA-pinned provenance
+chain, so loosening it is a user call, not an implementation detail. The
+alternative (pinning the exact original toolchain) is unbounded work with an
+uncertain outcome.
+
+**Recommendation:** relax the assertion to a tolerance (e.g. +-0.05% of 51,130)
+with the observed count recorded in the run's provenance, and report the result
+as "near-exact, 4/51,130 rows drifted" rather than as the frozen comparison.
