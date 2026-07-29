@@ -5752,3 +5752,49 @@ own pre-registration** before anyone runs it.
 **No media committed.** GAPS is CC-BY-NC-SA and LICENSES.md:72 forbids
 redistribution; the overlay renders and extracted frames were inspected locally
 and discarded.
+
+## 2026-07-28 - Phase D Gate 1 FAILS: the documented WS4 root cause was not the cause
+
+**Phase:** D (WS4 learned string resolver retrain), Gate 1.
+**Decision tree:** clip-disjoint val 6-way accuracy >= 0.45?
+**Branch taken:** **No - 0.2919. Bank the negative; no pipeline A/B, no further
+spend.** Report: `docs/EVAL_REPORTS/phaseD_gate1_2026-07-28.md`.
+
+**Result:** best val accuracy **0.2919** (epoch 3 of 20) against a 0.45 bar and
+0.167 chance, on 159,381 train / 22,556 val crops from **241 clips**. Training
+loss falls monotonically 1.62 -> 0.34 while val accuracy peaks early and drifts
+down - textbook overfitting.
+
+**What this refutes.** The banked WS4 run plateaued at ~0.30 and had a documented
+root cause with a committed fix: the whole-neck crop starves the model
+(-> `--hand-tight`), and onset-frame labels are misaligned (-> `--sustain`). Both
+were executed here for the first time, everything else frozen (clip-disjoint
+split, peak_ratio >= 2.0 filter, no flips). The plateau did not move. **Crop
+framing and onset-frame label noise are therefore not what limits this model** -
+a plausible, committed diagnosis that turns out to be wrong, which is worth
+recording as such rather than quietly re-scoping.
+
+**A caution the pre-registration earned.** The partial-data smoke earlier the
+same day (30 clips, 2 epochs) hit **0.3135**, *higher* than the full run's best,
+and it would have been easy to read as encouraging. It was reported at the time
+as explicitly "not a Gate 1 reading". Small easy val splits flatter.
+
+**Not established:** that learned string resolution is impossible. One backbone
+(ResNet-18), one crop policy, one sampling policy, one seed, 20 epochs. The
+overfitting signature points at capacity/regularisation/augmentation as untested
+variables - and the epoch-3 peak suggests a shorter, more regularised schedule is
+the obvious next configuration. **Untested, and it needs its own
+pre-registration** rather than an open hyperparameter search.
+
+**Spend:** ~$1 for the Gate 1 run. The larger fine-tune this gate existed to
+authorise is not justified and was not run.
+
+**Operational:** the extraction was interrupted twice by WSL restarts (14:36 and
+~16:54). The first was manual to recover; the second was recovered automatically
+by the supervisor installed in between (systemd user timer inside WSL plus a
+Windows-side keeper, since a supervisor inside WSL cannot survive WSL dying).
+Manifest-level resumability capped each interruption at one clip. Note the
+supervisor's first version was itself broken - a `Type=oneshot` systemd service
+tears down its cgroup on exit and killed the jobs it had just launched;
+`KillMode=process` fixed it, caught only by testing the automatic path rather
+than trusting the manual one.
