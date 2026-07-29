@@ -287,8 +287,14 @@ shipped table's argmax accuracy, and citing it as A0's anchor was my error.**
 
 - `reference` — the shipped table applied raw. The floor, and what ships today.
 - `self_seeded` — `calibrate_from_session(seed=reference)` with provisional
-  positions taken from the `reference` arm's own argmax. **Fully label-free
-  and deployable**; mirrors the `self-seeded` arm q6 measured at +0.0388.
+  positions from a **physics-free first pass**: the `guitarset-v1` position
+  prior's top-1 per note. **Fully label-free and deployable**; mirrors the
+  `self-seeded` arm q6 measured at +0.0388, whose provisional labels likewise
+  come from a first *decode* (~0.65 top-1). Seeding instead from the
+  mis-centred table's own 0.20 argmax was tried first and merely recycles its
+  error (agreement 0.19 vs 0.66 per-note) — recorded so the distinction is
+  not lost. The prior artifact is in-sample for players 00–03, which makes
+  this arm mildly optimistic; A0 is already declared an upper bound.
 - `gold_calibrated` — the same refit with gold provisional positions. Uses
   labels, so it is the ceiling, reported for bracketing only.
 
