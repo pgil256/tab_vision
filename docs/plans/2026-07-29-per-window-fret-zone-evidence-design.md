@@ -253,8 +253,52 @@ resolve to `min_r2 = 0.5`, `isolation = "partial_aware"`, `sigma = 0.35`,
 
 **Implied position of a readable note.** The playable candidate for its pitch
 minimising `|fit.log_b − model.predicted_log_b(string, fret)|`. This is the
-physics channel's own scoring, so A0 cannot flatter the channel with a
-different rule than production uses.
+physics channel's own scoring (`inharmonicity_matrix` is Gaussian in that
+same distance, so its argmax is this argmin), so A0 cannot flatter the
+channel with a different rule than production uses.
+
+##### Amendment, 2026-07-29, before the first full run — the calibration arm
+
+The rule above was run on two tracks as a harness check and returned
+implied-position accuracy **0.1975** against the ~0.92 this section named as
+the sanity anchor. Per the paragraph below, that means the harness was wrong,
+and it was — in a way worth recording rather than quietly patching.
+
+**Diagnosis.** Measured `log B` sits a systematic **+0.52** above the
+reference table's prediction *at the gold position* (residual std 0.582 to
+gold versus 1.487 to alternatives, so the table's shape is right and only its
+offset is wrong). +0.52 in log B is a **1.68×** ratio — almost exactly the
+1.59–1.78× that separates two candidates 4–5 frets apart
+(`docs/EVAL_REPORTS/q6_separability_2026-07-22.md`). A whole-table offset of
+one candidate-step is enough to move the argmax to the wrong candidate
+nearly every time.
+
+**Why the anchor did not apply.** The 0.92 was measured under **per-player
+B0 calibration**, stated in that report's own limitations
+(*"Per-player B0 calibration is leave-one-player-out but same-instrument-set"*).
+The shipping table is a reference table applied raw, and
+`docs/EVAL_REPORTS/q6_self_calibration_2026-07-22.md` shows why that is still
+sound in production: the channel is *soft evidence multiplied into the
+prior*, not an argmax, so a mis-centred table still helps (+0.0525 lopo,
++0.0388 self-seeded) even though its top-1 is poor. **0.92 was never the
+shipped table's argmax accuracy, and citing it as A0's anchor was my error.**
+
+**Amended rule — three arms, all sharing one set of spectral fits:**
+
+- `reference` — the shipped table applied raw. The floor, and what ships today.
+- `self_seeded` — `calibrate_from_session(seed=reference)` with provisional
+  positions taken from the `reference` arm's own argmax. **Fully label-free
+  and deployable**; mirrors the `self-seeded` arm q6 measured at +0.0388.
+- `gold_calibrated` — the same refit with gold provisional positions. Uses
+  labels, so it is the ceiling, reported for bracketing only.
+
+**Gate A0 is read on `self_seeded`** — the deployable arm — at solo, 1 s.
+The two gate values (0.60 / 0.75) are unchanged from the merged design and
+are not being touched with a number in view; only the arm the implied zone is
+computed from is being corrected, because the original rule measured a
+mis-centred table's argmax and no propagation design would ever have used
+that. The revised sanity anchor is `gold_calibrated`, which should approach
+the ~0.92 regime; if it does not, the harness is still wrong.
 
 **Windows.** `fixed_window_groups` from
 `tabvision/scripts/eval/string_assignment_oracles.py` at its default
