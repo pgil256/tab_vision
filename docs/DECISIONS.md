@@ -6041,3 +6041,61 @@ displayed precision 0.324 (22/68), coverage 0.410 (66/161), false locks
 42/161, 0/120. The F5c-era 1.000 line is historical: correct for bytes
 that no longer exist, unreachable on these. F6's gate reading
 (non-degrading on identical inputs, negative control clean) stands.
+
+## 2026-07-29 - Segment position-window fusion CLOSED: the retained paths were the same tab
+
+**Phase:** segment-level position-window fusion, Stage 1 ceiling probe.
+**Decision tree:** G1 - gold-window rerank aggregate Tab F1 delta on GAPS
+clean-12 >= +0.010, no per-clip regression worse than -0.002?
+**Branch taken:** **No - +0.0000. Bank the negative, close the line; Stage 2
+is not run.** Report: `docs/EVAL_REPORTS/segment_window_stage1_2026-07-29.md`.
+
+**Process.** The user approved Stage 1 on 2026-07-29. Every remaining free
+parameter - the aggregation form section 3.2 had deferred "to implementation
+time", the bonus cap 3.3 pointed at 5, and the gold-window degradation of 4 -
+was frozen in a new section 5a and committed (`d6c4c89`) **before** the script
+first ran, so no constant could be chosen with a number in view.
+
+**Result:** aggregate Tab F1 0.766423 in both arms; mean delta **+0.0000
+[+0.0000, +0.0000]**; the reranker abstained on **12 of 12 clips**.
+
+**Why - and this matters more than the gate.** The evidence channel was not
+the binding constraint. Of an 11,028-tick candidate grid, 3,589 windows
+survived the frozen 0.416 coverage degradation (measured 0.4153), every one
+passed the production validity contract, and they contributed 3,187
+(segment, observation) pairs at precision 1.0 by construction. **The paths
+they were asked to choose between were the same tab.** On 11 of 12 clips all
+three retained paths carry identical string/fret assignments; on the twelfth
+they differ on 2 notes of 976. `decode_segment_clusters` runs its K-best over
+the product space of *latent hand state x chord state*, and only the
+chord-state half reaches the emitted `TabEvent` - so alternatives are
+overwhelmingly hand-state relabelings of one tab, several at cost delta
+exactly 0.0000.
+
+**Ceiling for any reranker over this path set** (`segment_window_headroom`,
+best-of-k chosen with gold in hand): k=3 **+0.000087** (115x below the gate),
+k=10 +0.000262, k=25 +0.000385 (26x below). Distinct assignments per clip
+1.08 / 1.25 / 1.67; only 1/12 clips has any alternative at the design's k=3.
+
+**What is refuted.** Section 2's premise - that segment aggregation could
+separate "retained candidate paths whose margins average ~0.18 nats" - is
+wrong on this corpus: those margins separate hand-state hypotheses, not tabs.
+This is also why the per-note bridge's +0.000836 and this mechanism's +0.0000
+are consistent with one underlying fact rather than two independent
+disappointments. The negative holds **regardless of detector quality**, so no
+FretCam improvement can revive it, and it applies to any reranker over this
+K-best, not only a vision-driven one.
+
+**Honest limits.** The oracle is generous (0.35 s lookahead, precision 1.0,
+no drift) and still changed nothing, so real observations cannot rescue
+Stage 2. An assignment-deduplicated K-best is a *different* experiment, not
+registered here; the k=25 column is the best available estimate of its
+ceiling and does not motivate one. Ran under q6's acoustic/clean session,
+because `segment-v1` is admitted only by `_automatic_acoustic_domain`; a
+session tagged classical/nylon abstains to `baseline` and is zero by
+construction. GuitarSet's strummed material is untested and reported a larger
+mean second-path margin (0.1826 nats) than the margins seen here.
+
+**Spend:** $0. 90 min CPU to cache `highres-ensemble` events for clean-12
+(2.7x realtime, reused by both arms and by the q6 gate), 55.7 s for the
+Stage 1 decode, 445.9 s for the headroom sweep.

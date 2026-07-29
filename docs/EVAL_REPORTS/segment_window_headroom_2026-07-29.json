@@ -1,0 +1,356 @@
+{
+  "clips": 12,
+  "k_values": [
+    3,
+    10,
+    25
+  ],
+  "wall_seconds": 445.9073645640001,
+  "per_clip": [
+    {
+      "clip": "027_Zpswc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6845088161209067,
+        "oracle_best_tab_f1": 0.6845088161209067,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 2,
+        "base_tab_f1": 0.6845088161209067,
+        "oracle_best_tab_f1": 0.6851385390428211,
+        "oracle_gain": 0.0006297229219143219,
+        "max_notes_differing": 3
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 2,
+        "base_tab_f1": 0.6845088161209067,
+        "oracle_best_tab_f1": 0.6851385390428211,
+        "oracle_gain": 0.0006297229219143219,
+        "max_notes_differing": 3
+      }
+    },
+    {
+      "clip": "031_vpswc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.826381059751973,
+        "oracle_best_tab_f1": 0.826381059751973,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.826381059751973,
+        "oracle_best_tab_f1": 0.826381059751973,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.826381059751973,
+        "oracle_best_tab_f1": 0.826381059751973,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "043_bc1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7456896551724139,
+        "oracle_best_tab_f1": 0.7456896551724139,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7456896551724139,
+        "oracle_best_tab_f1": 0.7456896551724139,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7456896551724139,
+        "oracle_best_tab_f1": 0.7456896551724139,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "063_bV1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6579261025029797,
+        "oracle_best_tab_f1": 0.6579261025029797,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6579261025029797,
+        "oracle_best_tab_f1": 0.6579261025029797,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6579261025029797,
+        "oracle_best_tab_f1": 0.6579261025029797,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "104_xf1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7030878859857482,
+        "oracle_best_tab_f1": 0.7030878859857482,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7030878859857482,
+        "oracle_best_tab_f1": 0.7030878859857482,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.7030878859857482,
+        "oracle_best_tab_f1": 0.7030878859857482,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "118_VD1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8486450760079314,
+        "oracle_best_tab_f1": 0.8486450760079314,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8486450760079314,
+        "oracle_best_tab_f1": 0.8486450760079314,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8486450760079314,
+        "oracle_best_tab_f1": 0.8486450760079314,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "142_GD1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8269921033740129,
+        "oracle_best_tab_f1": 0.8269921033740129,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8269921033740129,
+        "oracle_best_tab_f1": 0.8269921033740129,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8269921033740129,
+        "oracle_best_tab_f1": 0.8269921033740129,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "179_pM1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8507751937984496,
+        "oracle_best_tab_f1": 0.8507751937984496,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8507751937984496,
+        "oracle_best_tab_f1": 0.8507751937984496,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8507751937984496,
+        "oracle_best_tab_f1": 0.8507751937984496,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "212_y41wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 2,
+        "base_tab_f1": 0.6815816857440167,
+        "oracle_best_tab_f1": 0.6826222684703434,
+        "oracle_gain": 0.0010405827263266776,
+        "max_notes_differing": 2
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 2,
+        "base_tab_f1": 0.6815816857440167,
+        "oracle_best_tab_f1": 0.6826222684703434,
+        "oracle_gain": 0.0010405827263266776,
+        "max_notes_differing": 2
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 6,
+        "base_tab_f1": 0.6815816857440167,
+        "oracle_best_tab_f1": 0.6826222684703434,
+        "oracle_gain": 0.0010405827263266776,
+        "max_notes_differing": 3
+      }
+    },
+    {
+      "clip": "235_Ny1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6197092084006462,
+        "oracle_best_tab_f1": 0.6197092084006462,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6197092084006462,
+        "oracle_best_tab_f1": 0.6197092084006462,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.6197092084006462,
+        "oracle_best_tab_f1": 0.6197092084006462,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "294_BSswc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8858057630736392,
+        "oracle_best_tab_f1": 0.8858057630736392,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8858057630736392,
+        "oracle_best_tab_f1": 0.8858057630736392,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8858057630736392,
+        "oracle_best_tab_f1": 0.8858057630736392,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      }
+    },
+    {
+      "clip": "341_1M1wc",
+      "k3": {
+        "paths_returned": 3,
+        "distinct_assignments": 1,
+        "base_tab_f1": 0.8659793814432989,
+        "oracle_best_tab_f1": 0.8659793814432989,
+        "oracle_gain": 0.0,
+        "max_notes_differing": 0
+      },
+      "k10": {
+        "paths_returned": 10,
+        "distinct_assignments": 2,
+        "base_tab_f1": 0.8659793814432989,
+        "oracle_best_tab_f1": 0.8674521354933726,
+        "oracle_gain": 0.0014727540500737435,
+        "max_notes_differing": 1
+      },
+      "k25": {
+        "paths_returned": 25,
+        "distinct_assignments": 3,
+        "base_tab_f1": 0.8659793814432989,
+        "oracle_best_tab_f1": 0.8689248895434462,
+        "oracle_gain": 0.002945508100147265,
+        "max_notes_differing": 2
+      }
+    }
+  ],
+  "aggregate_k3": {
+    "mean_distinct_assignments": 1.0833333333333333,
+    "clips_with_any_alternative": 1,
+    "mean_base_tab_f1": 0.7664234942813347,
+    "mean_oracle_tab_f1": 0.7665102095085286,
+    "mean_oracle_gain": 8.67152271938898e-05
+  },
+  "aggregate_k10": {
+    "mean_distinct_assignments": 1.25,
+    "clips_with_any_alternative": 3,
+    "mean_base_tab_f1": 0.7664234942813347,
+    "mean_oracle_tab_f1": 0.7666854159228609,
+    "mean_oracle_gain": 0.0002619216415262286
+  },
+  "aggregate_k25": {
+    "mean_distinct_assignments": 1.6666666666666667,
+    "clips_with_any_alternative": 3,
+    "mean_base_tab_f1": 0.7664234942813347,
+    "mean_oracle_tab_f1": 0.7668081454270337,
+    "mean_oracle_gain": 0.00038465114569902203
+  }
+}

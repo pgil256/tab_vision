@@ -1,13 +1,31 @@
 # Segment-level position-window fusion — design (pre-registration draft)
 
-**Status: STAGE 1 APPROVED 2026-07-29 (user sign-off). Stage 2 still
-requires G1 to pass first.** Gates in §5 are written before any run and
-must not be edited after numbers are seen, per the wire-sparse precedent
-(`a8f5f2e`). §5a below freezes every remaining free parameter — the
-aggregation form §3.2 deferred "to implementation time", the bonus cap §3.3
-referred to §5, and the gold-window degradation of §4 — and was committed
-**before the Stage 1 script was run**, so no constant in it can have been
-chosen with a number in view.
+**Status: CLOSED 2026-07-29 — G1 FAILED at +0.0000. Stage 2 is not run.**
+Stage 1 was approved by the user on 2026-07-29, run the same day, and
+returned a mean aggregate Tab F1 delta of exactly **+0.0000** on GAPS
+clean-12 with the reranker abstaining on all twelve clips. Per §5's own
+decision tree that banks the negative and closes the line. Report:
+`docs/EVAL_REPORTS/segment_window_stage1_2026-07-29.md`.
+
+**The refutation is upstream of the evidence channel, and is worth more
+than the gate it failed.** On 11 of 12 clips all three retained paths carry
+identical string/fret assignments, so there was nothing for *any* reranker
+to choose between. The decoder's K-best runs over the product space of
+latent hand state × chord state and only the chord-state half reaches the
+emitted tab, so the ~0.18 nat path margins §2 relied on separate hand-state
+hypotheses rather than tabs. A gold oracle picking best-of-3 with the answer
+in hand wins **+0.000087**; best-of-25 wins **+0.000385**, still 26× below
+the gate. §1's framing — that segment aggregation could break ties the
+per-note bridge could not — is therefore refuted, and the ceiling holds
+regardless of detector quality.
+
+Gates in §5 are written before any run and must not be edited after numbers
+are seen, per the wire-sparse precedent (`a8f5f2e`). §5a below freezes every
+remaining free parameter — the aggregation form §3.2 deferred "to
+implementation time", the bonus cap §3.3 referred to §5, and the gold-window
+degradation of §4 — and was committed (`d6c4c89`) **before the Stage 1
+script was run**, so no constant in it can have been chosen with a number in
+view.
 
 ## 1. Problem
 
