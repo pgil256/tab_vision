@@ -6099,3 +6099,64 @@ mean second-path margin (0.1826 nats) than the margins seen here.
 **Spend:** $0. 90 min CPU to cache `highres-ensemble` events for clean-12
 (2.7x realtime, reused by both arms and by the q6 gate), 55.7 s for the
 Stage 1 decode, 445.9 s for the headroom sweep.
+
+## 2026-07-29 - Per-window fret-zone evidence CLOSED at A0: the channel covers the window but cannot aim it
+
+**Phase:** per-window fret-zone evidence, Phase A0 (coverage-and-aim probe).
+**Decision tree:** A0 - solo 1 s windows with >= 1 readable note >= 0.60, and
+implied-zone agreement with gold on those windows >= 0.75?
+**Branch taken:** **Coverage yes (0.7940), aim no (0.5816). Bank the negative,
+close the program; A1 is not built and Phase B is not entered.** Report:
+`docs/EVAL_REPORTS/window_zone_a0_2026-07-29.md`. 300 GuitarSet dev tracks
+(players 00,01,02,03,05), 52,223 notes, 291 s CPU, $0, sealed 04 not read.
+
+**The arithmetic bet was right and did not matter.** Per-note readability is
+12,978/52,223 = **0.2485**, yet **79.4%** of solo 1 s windows hold at least one
+readable note - sparse per-note coverage really does become dense per-window,
+which was the whole premise. 5,265 unreadable solo notes sit inside covered
+windows, **5,217 of them ambiguous**: a large, precisely-targeted population.
+
+**Why it fails.** Measured `log B` sits a systematic **+0.52** above the
+reference table's prediction *at the gold position* (residual std 0.582 to
+gold vs 1.487 to alternatives - the shape is right, the centre is not).
++0.52 in log B is a **1.68x** ratio, almost exactly the 1.59-1.78x that
+separates candidates 4-5 frets apart (`q6_separability_2026-07-22.md`), so a
+whole-table offset of one candidate-step moves the argmax off gold nearly
+every time. Per-note implied-position accuracy: shipped table raw **0.3437**,
+label-free session refit **0.5830**, gold-calibrated refit **0.7797**.
+
+**This is not a defect in the shipping channel, and the distinction is the
+lesson.** `apply_fits` multiplies a Gaussian likelihood into the prior, so
+*soft, mis-centred evidence still helps* (+0.0522 on sealed 04) even when its
+top-1 is wrong two thirds of the time. **Propagation is a different contract:
+it pushes the argmax zone onto neighbours that have no evidence of their own,
+so it needs the top-1 to be right.** A channel can be worth shipping as
+evidence and worthless as a source of labels for other notes.
+
+**No window size rescues it.** 1 s -> 4 s buys coverage 0.794 -> 0.971 but
+agreement collapses 0.582 -> 0.359 while hand-moved windows rise 8.7% -> 42%.
+Strummed is worse at every size (1 s: 0.4267 self-seeded), as predicted.
+
+**Section 8's decision tree did not cover this outcome** - it anticipated "A0
+passes but A1 fails" and "A0 fails on coverage but not agreement". Passing
+coverage and failing agreement is a third case, and it argues *against* Phase
+B: a learned model would fit the same mis-centred evidence, and the only arm
+that reached 0.7797 needed gold labels. Recorded rather than reinterpreted
+after the fact.
+
+**Process note.** A two-track harness check returned per-note accuracy 0.1975
+against the ~0.92 anchor section 7a had named, which by that section's own
+rule meant the harness was wrong - and it was: 0.92 came from a per-player
+*calibrated* table, and citing it as the raw table's argmax anchor was an
+error. The arm definition was corrected before the full run (`08207ca`,
+`821b13e`); **neither gate value was touched**, and the correction is what
+turned an uninterpretable 0.20 into the three-arm decomposition above.
+
+**Spin-off, observation only, needs its own pre-registration.** The gap
+between the shipped table's per-note top-1 (0.3437) and a gold-calibrated
+refit (0.7797) is a property of the *existing shipped* physics channel, not
+of the window idea. Whether better centring lifts the channel is a distinct
+question - and q6 already refuted the obvious label-free routes, so it is not
+a free win.
+
+**Spend:** $0. 291 s CPU total.
