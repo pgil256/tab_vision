@@ -7,7 +7,7 @@ import math
 import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from threading import RLock
 from typing import Protocol
 
@@ -110,6 +110,16 @@ FINGER_BASE_WEIGHTS = {
     "pinky": 0.74,
 }
 MIN_POSITION_OBSERVATION_CONFIDENCE = 0.20
+# F6 whole-hand fallback (TapToTab-style coarse observation).  When the
+# composite solver abstains but a fretting hand is tracked on locked, fresh
+# geometry, the hand bounding box projected into canonical fretboard space
+# still carries a coarse position.  The scale halves the landmark-quality
+# confidence the solver would use; the cap keeps every fallback observation
+# strictly below the calibration collector's 0.45 floor and below any
+# composite observation that could compete with it.
+BBOX_FALLBACK_MIN_NECK_OVERLAP = 0.5
+BBOX_FALLBACK_CONFIDENCE_SCALE = 0.5
+BBOX_FALLBACK_MAX_CONFIDENCE = 0.449
 
 
 class Detector(Protocol):
@@ -1029,6 +1039,103 @@ def _hand_overlaps_neck(hand: HandSample | None, homography: Homography) -> bool
     ) >= MIN_ON_NECK_FINGERTIPS and not _has_outward_longitudinal_wrist(
         hand, homography
     )
+
+
+def _canonical_axis_overlap_fraction(low: float, high: float) -> float:
+    """Fraction of a canonical-space interval inside the unit neck axis."""
+    span = high - low
+    if span <= 1e-9:
+        return 1.0 if CANONICAL_NECK_MIN <= low <= CANONICAL_NECK_MAX else 0.0
+    intersection = min(high, CANONICAL_NECK_MAX) - max(low, CANONICAL_NECK_MIN)
+    return max(0.0, intersection) / span
+
+
+def compute_bbox_fallback(
+    hand: HandSample | None,
+    homography: Homography,
+    cfg: GuitarConfig,
+    fret_centers: np.ndarray | None,
+    *,
+    geometry_status: str,
+    freshness: float = 1.0,
+    geometry_stability: float = 1.0,
+) -> tuple[float, float] | None:
+    """Coarse whole-hand observation for frames where the composite abstains.
+
+    F6: single-finger fretting fails the ``MIN_ON_NECK_FINGERTIPS`` gate even
+    while the hand is tracked accurately on a locked board.  Project the hand
+    bounding box (wrist plus every available fingertip) into canonical
+    fretboard space and read the calibrated fret coordinate at its centre —
+    no fingertip contacts required.  Every gate errs toward abstention: the
+    board must be freshly detected or tracked, at least one fretting
+    fingertip must project onto the neck, the outward-wrist picking-hand
+    rejector must pass, and at least half of the bbox must overlap the neck.
+
+    Returns ``(continuous_fret, confidence)`` or ``None``.  Confidence is
+    half the landmark-quality-based confidence the solver would use, capped
+    strictly below the calibration collector's 0.45 floor, so a fallback
+    observation can never outrank a composite one and only ever reaches a
+    lock through the PositionEstimator's slow agreement hysteresis.
+    """
+    if hand is None or homography.confidence <= 0.0:
+        return None
+    if geometry_status not in {"detected", "tracked"}:
+        return None
+    fingertips = [
+        hand.fingers[name].tip_xy for name in FRETTING_FINGERS if name in hand.fingers
+    ]
+    if not fingertips:
+        return None
+    try:
+        canonical_tips = project_to_canonical(
+            homography, np.asarray(fingertips, dtype=np.float64)
+        )
+    except np.linalg.LinAlgError:
+        return None
+    if int(np.count_nonzero(_on_canonical_neck(canonical_tips))) < 1:
+        return None
+    if _has_outward_longitudinal_wrist(hand, homography):
+        return None
+    points = [hand.wrist_xy, *(finger.tip_xy for finger in hand.fingers.values())]
+    try:
+        canonical_points = project_to_canonical(
+            homography, np.asarray(points, dtype=np.float64)
+        )
+    except np.linalg.LinAlgError:
+        return None
+    finite = np.all(np.isfinite(canonical_points), axis=1)
+    if not np.any(finite):
+        return None
+    canonical_points = canonical_points[finite]
+    min_x = float(canonical_points[:, 0].min())
+    max_x = float(canonical_points[:, 0].max())
+    min_y = float(canonical_points[:, 1].min())
+    max_y = float(canonical_points[:, 1].max())
+    overlap = _canonical_axis_overlap_fraction(
+        min_x, max_x
+    ) * _canonical_axis_overlap_fraction(min_y, max_y)
+    if overlap < BBOX_FALLBACK_MIN_NECK_OVERLAP:
+        return None
+    center_x = 0.5 * (min_x + max_x)
+    fret_positions, _ = _fret_positions_from_canonical_x(
+        np.asarray([center_x], dtype=np.float64), cfg, fret_centers
+    )
+    fret = float(fret_positions[0])
+    if not math.isfinite(fret):
+        return None
+    landmark_quality = float(np.clip(hand.confidence, 0.0, 1.0))
+    board = float(np.clip(homography.confidence, 0.0, 1.0))
+    confidence = min(
+        BBOX_FALLBACK_MAX_CONFIDENCE,
+        BBOX_FALLBACK_CONFIDENCE_SCALE
+        * landmark_quality
+        * board
+        * float(np.clip(freshness, 0.0, 1.0))
+        * float(np.clip(geometry_stability, 0.0, 1.0)),
+    )
+    if confidence <= 0.0:
+        return None
+    return fret, confidence
 
 
 def compute_position_anchor(
@@ -2671,6 +2778,9 @@ class DetectionChain:
                 self._hand_refresh_reason = "detector_miss"
 
         anchor_started = time.perf_counter()
+        # Keep the tracked hand for the F6 whole-hand fallback even when the
+        # 3-fingertip overlap gate rejects it for the composite solver.
+        fallback_hand = hand
         if not _hand_overlaps_neck(hand, homography):
             hand = None
             finger_axes_xy = {}
@@ -2731,6 +2841,30 @@ class DetectionChain:
                 self._local_geometry_stability,
             ),
         )
+        observation_confidence = confidence_factors.combined
+        composite_available = True
+        if position_fret is None and locked:
+            fallback = compute_bbox_fallback(
+                fallback_hand,
+                homography,
+                self.guitar_config,
+                self._fret_centers,
+                geometry_status=snapshot.status,
+                freshness=freshness,
+                geometry_stability=min(
+                    snapshot.stability,
+                    self._local_geometry_stability,
+                ),
+            )
+            if fallback is not None:
+                position_fret, observation_confidence = fallback
+                composite_available = False
+                confidence_factors = replace(
+                    confidence_factors,
+                    blockers=tuple(
+                        dict.fromkeys((*confidence_factors.blockers, "bbox_fallback"))
+                    ),
+                )
         anchor_ms = (time.perf_counter() - anchor_started) * 1000.0
 
         latency = StageLatency(
@@ -2754,9 +2888,9 @@ class DetectionChain:
             anchor=anchor,
             stage_latency=latency,
             index_fret_raw=index_fret_raw,
-            composite_available=True,
+            composite_available=composite_available,
             position_fret=position_fret,
-            observation_confidence=confidence_factors.combined,
+            observation_confidence=observation_confidence,
             confidence_factors=confidence_factors,
             finger_contacts=contacts,
             geometry_status=snapshot.status,
@@ -3654,6 +3788,7 @@ __all__ = [
     "HandPoint",
     "MediaPipeHandExtractor",
     "StageLatency",
+    "compute_bbox_fallback",
     "compute_finger_contacts",
     "compute_index_fret",
     "compute_index_fret_raw",
