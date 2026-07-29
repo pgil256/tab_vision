@@ -55,7 +55,12 @@
           "lighting": "mixed",
           "verification": "user_verified",
           "notes": "A deterministic mask hides the fretting hand and adjacent neck over public frames; the end boundary is the annotated valid return.",
-          "occlusion_rect": [0.48, 0.0, 0.88, 0.72]
+          "occlusion_rect": [
+            0.48,
+            0.0,
+            0.88,
+            0.72
+          ]
         },
         {
           "start_s": 14.2,
@@ -424,7 +429,12 @@
           "lighting": "bright",
           "verification": "frame_reviewed",
           "notes": "A deterministic mask hides the fretting hand and adjacent neck over public frames; the end boundary is the annotated valid return.",
-          "occlusion_rect": [0.51, 0.0, 0.9, 0.68]
+          "occlusion_rect": [
+            0.51,
+            0.0,
+            0.9,
+            0.68
+          ]
         },
         {
           "start_s": 17.5,
@@ -439,5 +449,19 @@
         }
       ]
     }
-  ]
+  ],
+  "source_sha256": {
+    "027_Zpswc": "b952fd2c455dce7bfd55ad9fd9137e8ffd6813c1ec04122291fe9912479d3b5c",
+    "031_vpswc": "949e8de8096f2ead64dae3247aa3e6a57e51e9cba935934b95f72210703b27e9",
+    "077_vV1wc": "0d400a43c02028f19d8751fc6a06132e83196955036f2a0b52675c5e5b6176d7",
+    "104_xf1wc": "b54c5c9b5d0cabb92a632381cf3e29c1443773053fe878d2461d4cc2acd140bc",
+    "105_Qf1wc": "b0bf088d555213a421569f7812cf4ed080ba13a05722577b9ed9db7cd60f0eb6",
+    "118_VD1wc": "d404698a59c0d5d9d735ddfae52b7bfd568fb74c1d029e937d0c89d57f350240",
+    "142_GD1wc": "d25037933ee7120ce2be917fdb53bd227124f0154cfd95d96f344664d3b2a242",
+    "178_SM1wc": "90cfd985c7f49b809363b036fe2a99e312b16e9f218dadfea3e53da62939cf81",
+    "179_pM1wc": "aa1776e2f816b76bb287844b3dcc52160eaa5807736c0e315435a525c8fd4ea0",
+    "235_Ny1wc": "d8fa90610494f3331ecc577f6df5e35167a94d4aa9b277771148722b135b22d2",
+    "238_My1wc": "a6b818c7941c7112c1bc3163449ddae85a398ed8650b6b16a8f34c54f5ac2890",
+    "341_1M1wc": "81fbe6953343a4b3ab7fb2be0d08cf934e8bcb8798db9fc49307059bd17468b9"
+  }
 }

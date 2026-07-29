@@ -6000,3 +6000,44 @@ marginally improves both lines - and passed the one leg that survived
 intact. Routing decision (accept this reading and proceed to the L2
 re-run, or demand the 031 regression fixed first) rests with the user.
 
+
+## 2026-07-29 - F9 refuted by its own acceptance run; instrument re-baselined and hash-pinned
+
+**The nut-anchored translation fix was implemented exactly to spec, passed
+its unit suite (260 tests), and failed its pre-registered acceptance:**
+dev_031_barre_i unchanged at 0/55 correct, every other sequence
+byte-identical. Per the design's own terms the implementation was reverted
+the same hour.
+
+**Why it failed - and why the failure is informative.** Live
+instrumentation of the gate inputs showed the design's premise is wrong:
+when the boundary detector finds the true nut it reads canonical 0.9958
+against the map's 1.0 - a 0.004 disagreement, i.e. the canonical frame is
+NOT translated. The coherent half-cell shift that moves all four fingers
+of the Position-I chord one cell body-side lives in the hand-landmark
+measurements themselves on this encode, which no frame-level anchoring can
+reach. Two gate behaviors worth keeping: the correction correctly measured
+"nothing to correct" when it saw the real nut, and when the detector
+instead grabbed wire 1 (0.918) as the right boundary, the 0.6-first-cell
+cap refused the resulting ~full-cell pseudo-correction that would have
+shifted every contact a fret. The safety design did its job; the mechanism
+was aimed at the wrong layer.
+
+**Disposition.** 031 stands as a known, explained solver limitation on the
+current encode: a barre whose landmarks project ~50% past the wire, against
+a 35% deadband, on footage where the F4d-era margin happened to sit at
+~30%. Any future attempt targets landmark-side bias (a different problem
+class) and requires its own design; deadband/threshold moves remain
+rejected as fishing.
+
+**Instrument sealed.** With the labels verified content-correct and the
+031 miss mechanically explained, position_benchmark_v1.json now pins
+sha256 for all twelve sources (via --write-hashes against the hybrid
+cache: annotation-era 360p files for the eight scored sources, 720p for
+the four timing-insensitive negative controls). The benchmark refuses
+mutated inputs from now on. **Recorded new baseline on the pinned bytes:**
+displayed precision 0.324 (22/68), coverage 0.410 (66/161), false locks
+44/161, negative control 0/120 - with the F6 fallback: 0.333 (22/66),
+42/161, 0/120. The F5c-era 1.000 line is historical: correct for bytes
+that no longer exist, unreachable on these. F6's gate reading
+(non-degrading on identical inputs, negative control clean) stands.

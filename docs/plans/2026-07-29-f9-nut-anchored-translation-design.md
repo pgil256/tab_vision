@@ -1,7 +1,14 @@
 # F9 — nut-anchored translation correction (design, pre-registered)
 
-**Status: DESIGN — awaiting sign-off.** Scoped fix for the 031 barre
-boundary regression (loop-state F9; DECISIONS 2026-07-29 correction).
+**Status: REFUTED AND REVERTED 2026-07-29.** Implemented to spec (260
+tests green), acceptance run per §4: `dev_031_barre_i` unchanged (0/55).
+Live instrumentation showed the premise is wrong: the detected nut
+(canonical 0.9958) agrees with the map's nut (1.0) to within 0.004 — the
+canonical frame is NOT translated; the half-cell shift lives in the hand
+landmarks themselves on this encode, which frame anchoring cannot reach.
+The §3 gates behaved exactly as designed, including refusing a ~full-cell
+"correction" when the boundary detector grabbed wire 1 (0.918) as the nut.
+Implementation reverted per §4; findings recorded in DECISIONS 2026-07-29.
 
 ## 1. Verified diagnosis
 
