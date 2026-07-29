@@ -5798,3 +5798,106 @@ supervisor's first version was itself broken - a `Type=oneshot` systemd service
 tears down its cgroup on exit and killed the jobs it had just launched;
 `KillMode=process` fixed it, caught only by testing the automatic path rather
 than trusting the manual one.
+
+## 2026-07-29 - F6 approved: hand-bbox x fret-zone IoU fallback, gate frozen before the build
+
+**L2 attempt 2 (clean environment) failed A2 and routed here per the
+pre-registered protocol.** With Phase D finished and load ~0, the run scored:
+A1 pass (both lightings; low light ~50% more error), A3 pass (labels <= 0.5 s
+after arrival), A4 pass (10-100 FPS) - and A2 at <= 10/15 sustained readouts
+against the >= 14/15 bar. Two properties of the failure matter: zero wrong
+displays across all holds (live precision matched the frozen benchmark's
+1.000 - every miss was an abstention), and misses concentrated in
+single-finger holds while barre chords read reliably. The F4c
+>= 3-fretting-fingertip validity gate is the dominant mechanism, measured
+clean for the first time.
+
+**The user approved F6 (2026-07-29).** Dataset acquired the same day:
+ghaleb/guitar-fretboard v5 via the parameterised Roboflow acquirer
+(scripts.acquire.datasets roboflow-guitar --workspace ghaleb
+--project guitar-fretboard --version 5), 922 images on disk (the 384 source
+frames plus Roboflow augmentation), classes Hand + Zone1..Zone12, at
+~/.tabvision/data/datasets/roboflow-ghaleb-guitar-fretboard-v5. License:
+CC BY 4.0 as verified on the Universe page 2026-07-22; the download API
+reported license unknown, so re-verify the page before this dataset feeds any
+public artifact. Attribution owed to ghaleb. Role: offline validation of the
+IoU mechanism; it trains nothing yet.
+
+**A premise revision worth recording.** The 2026-07-22 design scoped F6 for
+MediaPipe *dropout* (palm behind the neck, motion blur). Attempt 2 showed the
+actual failure mode is different: MediaPipe tracked the hand visibly and
+continuously through the silent misses; it is the contact/fingertip gate that
+abstains. F6 therefore lands as a *gated fallback observation*: when the
+composite solver abstains with the board locked, geometry fresh, and the hand
+tracked, emit a whole-hand-bbox x fret-zone observation at reduced
+confidence. Zones derive from the existing calibrated fret map; no landmarks
+beyond the bbox are required. The Stairway probe (44/44 zone-correct
+stabilised observations from whole-hand geometry on oblique framing) is the
+supporting anecdote, not evidence.
+
+**Gate, frozen before any code (wire-sparse rule).** With the fallback
+active, the frozen dev position benchmark must hold: displayed precision
+1.000, stable false locks 0/161, and negative-control displays 0/120 - the
+negative control is the load-bearing line, because F4c exists precisely
+because whole-hand evidence false-locked on picking-hand clips (077/105).
+Coverage must improve or the fallback is pointless; no numeric coverage bar
+is set because precision is the constraint. Pass -> the single permitted L2
+re-run (Pat). A second L2 failure closes the FretCam side quest with an
+honest negative, per the 2026-07-22 design section 6.
+
+**Spend:** $0 (dataset download only; no training).
+
+## 2026-07-29 - The frozen position benchmark was destroyed by a cache rebuild, not by code
+
+**F6 was built and its gate run - and the gate reading is invalid, for a
+reason that matters beyond F6.** The fallback implementation landed cleanly
+(gated whole-hand bbox observation in `fretcam/src/fretcam/detection.py`,
+confidence capped at 0.449, distinct `bbox_fallback` blocker marker; 254
+fretcam tests + 8 subtests pass). The first frozen-benchmark run then read
+displayed precision **0.123** against a recorded 1.000 - and a three-step
+decomposition shows the instrument, not the code, is broken:
+
+1. Same cache, fallback disabled at runtime: **0.127** - F6 is not the cause.
+2. Hybrid cache using annotation-era 360p files for every scored sequence:
+   **0.324** both arms - still nothing like 1.000.
+3. **Pristine F5c code** (all session changes stashed), same cache:
+   **0.324 (22/68), 44 false locks - identical to the OFF arm.** The code
+   is fully exonerated.
+
+**Root cause: the Phase A cache rebuild (2026-07-27 18:27-18:36) re-downloaded
+every file in `~/.tabvision/cache/gaps_video/` in place**, five days after
+`position_benchmark_v1.json` was annotated against the then-cached files
+(2026-07-22). YouTube serves different encodes across days - a recorded
+phenomenon in this repo ("within-report deltas are valid but single-clip
+comparisons against the June column are not"; 212 -0.266, 294 -0.137). The
+manifest's frame-timestamp labels now index different footage, so a solver
+with measured-perfect live precision (L2 attempt 2: zero wrong displays)
+scores 0.32 against misaligned labels. The negative control - "display
+nothing, ever, on picking-hand footage" - is timing-insensitive and passes
+**0/120 in every configuration, including with F6 active**. That is the one
+gate leg that survives the instrument's destruction, and F6 passes it.
+
+**Consequences.** F5c's frozen line (precision 1.000 / coverage 0.416 /
+false locks 0) is no longer reproducible by anyone; four of the manifest's
+twelve sources (077/105/178/238) no longer exist at any resolution matching
+the annotation era; the F6 gate's precision and coverage legs are
+unevaluable until the instrument is repaired.
+
+**Lesson (instrument integrity):** a frozen benchmark must pin the content
+hashes of its input media. The manifest records none, and the benchmark
+runs happily on mutated files - silent input corruption reads as
+measurement. Same failure class as the empty-`_raw_cv_cache`-scores-0.000
+bug Phase A fixed. Any repaired or future manifest should embed per-file
+SHA-256 and the benchmark should refuse on mismatch.
+
+**Proposed repair - pre-registered here, needs user approval because it
+modifies a frozen artifact.** Derive per-source timestamp corrections
+purely from audio: onset-envelope cross-correlation of each current file
+against the stable local GAPS reference audio (the 2026-06-22 sub-frame
+alignment method), compared with the offsets recorded then; apply the delta
+to the manifest's timestamps; embed content hashes. **Acceptance:** pristine
+F5c code must recover the frozen line (precision 1.000, coverage
+0.416 +/- 0.02, false locks 0, negative control 0) on the corrected
+manifest. Only after that recovery are F6's two arms readable. The
+correction never consults position labels, so it cannot tune the instrument
+toward any desired F6 outcome.

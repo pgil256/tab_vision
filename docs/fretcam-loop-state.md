@@ -22,10 +22,36 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F5 | accuracy/performance/product overhaul | passed | 106 tests; dev precision 76/80; coverage 71/161; stable false locks 0/161; negative displays 0/120 | preserve and run L2 only if Pat reopens formal acceptance | — |
 | F5b | neck/landmark/contact/upper-neck accuracy phase | passed | 172 tests + 5 subtests; dev precision 77/77; coverage 72/161; stable false locks 0/161; negative displays 0/120 | preserve; do not open held-out split | — |
 | F5c | exact trace + pose identity + adaptive search + failure marker | passed | 223 tests + 5 subtests; dev precision 67/67; coverage 67/161; stable false locks 0/161; negative displays 0/120 | preserve diagnostics privacy; do not open held-out split | — |
-| L2 | full §6 acceptance (Pat) | attempt 1 (2026-07-28) — A2 fail as run, A4 inconclusive (CPU contention) | ≈0/15 sustained readouts; correct position flashes ±1; "no hand" despite visible tracking; board re-entry → degenerate quad | fix reset + guidance text; pause Phase D; clean re-run | — |
-| F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
+| L2 | full §6 acceptance (Pat) | **attempt 2 (2026-07-29) — FAIL on A2, clean environment** | ≤10/15 sustained readouts; 0 wrong displays (precision held); misses concentrated in single-finger holds; A1/A3/A4 pass (A3 ≤0.5 s; 10–100 FPS; low light ≈ +50% error) | F6 decision: approve ghaleb acquisition, or close the side quest | Pat decision |
+| F6 | IoU fallback (gated whole-hand observation) | **built (254 tests pass); neg-control gate leg PASSES 0/120; precision/coverage legs BLOCKED — frozen benchmark invalidated** | Phase A's 2026-07-27 cache re-download destroyed manifest-v1 label alignment (pristine F5c code now scores 0.324 vs its recorded 1.000; see DECISIONS 2026-07-29) | Pat: approve the audio-realignment instrument repair (pre-registered in DECISIONS); then read F6's arms; then the single L2 re-run | instrument repair approval |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | implemented-tested-opt-in | source-disjoint real-prediction macro Tab F1 0.623750→0.624586 (+0.000836, paired 95% CI 0.000000–0.001994); wrong-position 1,021→1,014; 2 improved / 8 unchanged / 0 regressed | preserve explicit rollback; effect is too small for default promotion | L2 + larger frozen promotion evidence |
+
+### L2 — 2026-07-29 (attempt 2 — clean environment; FAIL on A2)
+setup: webcam via Chrome → WSL server; two lightings; Phase D complete
+(load ≈ 0, no contention); re-acquire button + fingertip guidance live
+(243 fretcam tests passing). duration: ~15 min
+A1 lock: PASS — locks under both lightings; low light costs roughly 50%
+more error/loss (noted; within protocol).
+A2 positions: **≤10/15 sustained readouts → FAIL** (bar ≥14/15). Zero
+wrong displays — every miss was an abstention, so precision 1.0 held live,
+matching the frozen dev benchmark. Misses concentrated in the single-finger
+column; barre-chord holds read reliably. The F4c ≥3-fretting-fingertip
+validity gate is the dominant mechanism, now measured in a clean
+environment.
+A3 shifts: PASS — correct label ≤0.5 s after arrival across I→V→IX.
+A4 feel: 10–100 FPS (≥10 bar met); no contention this run.
+calibration: could not complete — the 0.45 sample-collection floor was
+never met at combined confidence ≈0.2–0.35 (Board 0.85, Stability 0.55,
+Landmarks 0.62, Finger agreement 0.57 at Position I). Workaround now in
+the run sheet: calibrate while holding a barre in the brighter lighting.
+Optional; did not affect scoring.
+verdict: **FAIL on A2 → per §5, F6 opens**, pending explicit approval to
+acquire `ghaleb/guitar-fretboard` (CC BY 4.0). F6's hand-bbox × fret-zone
+mechanism requires no fingertips and targets exactly the observed
+abstention mode. Any F6 build must hold the frozen dev benchmark's
+precision/false-lock line (1.000 / 0) before the single permitted L2
+re-run; a second L2 failure closes the side quest with an honest negative.
 
 ### L2 — 2026-07-28 (attempt 1 — environment-contaminated; clean re-run needed)
 setup: webcam via Chrome → WSL server; per-protocol lightings; **Phase D

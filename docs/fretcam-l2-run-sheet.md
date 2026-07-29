@@ -40,18 +40,12 @@ then 0.10 s / 0.06 s. So the WebSocket, decode and inference path are known-good
 before you pick up the guitar — if nothing appears, suspect the *camera
 permission*, not the server. The WSL IP is still `172.24.194.6`.
 
-> ⚠️ **Free the CPU before A4 (and A1).** This box has 6 cores and the Phase D
-> extraction saturates most of them for ~18 h, which would understate FPS and
-> lock time. Suspend it for the session and resume after — `SIGSTOP` freezes the
-> run in place, so no clip is lost or repeated:
->
-> ```bash
-> ~/phaseD_pause.sh     # before the session
-> ~/phaseD_resume.sh    # after
-> ```
->
-> If you skip this, treat a failing A4 as inconclusive rather than a FAIL — per
-> §5 an A4 failure is an environment verdict, not an accuracy one.
+> **CPU note (updated 2026-07-28):** Phase D completed and its extraction no
+> longer runs — the contention that invalidated attempt 1's A4 is gone. Check
+> `uptime` shows a low load before starting anyway; if anything heavy is
+> running, pause it first, or treat a failing A4 as inconclusive rather than
+> a FAIL — per §5 an A4 failure is an environment verdict, not an accuracy
+> one.
 
 Model prewarm runs automatically on connect (`app.py:149` → `processor.warmup`),
 so A1 measures camera acquisition rather than a one-time model load — this is
@@ -88,6 +82,22 @@ The frozen dev benchmark (F5c) reads **precision 1.000 at coverage 0.416** —
 the build is tuned to abstain rather than guess. So the expected failure mode is
 **no readout**, not a wrong readout. A hold with no position displayed counts as
 a miss for A2, because the bar is "readout correct in ≥90% of holds."
+
+Two changes landed after attempt 1 (2026-07-28):
+
+- **Re-acquire board button** (first button in the settings row). If the
+  overlay ever shows a garbage non-rectangular quad — the known failure when
+  the guitar enters the frame mid-session — click it and re-frame the neck
+  instead of restarting the camera. It clears tracking and the position
+  estimator; handedness and session calibration are preserved.
+- **Honest fingertip guidance.** When a hand is visible but fewer than 3
+  fretting fingertips are on the neck, the HUD now says so explicitly
+  ("place 3 or more fingertips on the neck to lock") instead of the generic
+  hand message. Single-finger holds may not lock **by design** (the F4c
+  validity gate). Score them per the protocol regardless — a no-readout hold
+  is still a miss — and note in the report how many misses were
+  single-finger cells, so the protocol/build collision recorded in
+  `docs/fretcam-loop-state.md` gets its number.
 
 Known weak spots from the F4d category breakdown, listed so you can report
 against them rather than rediscover them: **full-neck framing** had far lower
