@@ -1,5 +1,5 @@
 # FretCam-loop state
-last_updated: 2026-07-24
+last_updated: 2026-07-28
 current_branch: codex/fretcam-accuracy-phase-2
 
 Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
@@ -22,10 +22,44 @@ Loop protocol: `docs/prompts/fretcam-loop.md`. Design:
 | F5 | accuracy/performance/product overhaul | passed | 106 tests; dev precision 76/80; coverage 71/161; stable false locks 0/161; negative displays 0/120 | preserve and run L2 only if Pat reopens formal acceptance | — |
 | F5b | neck/landmark/contact/upper-neck accuracy phase | passed | 172 tests + 5 subtests; dev precision 77/77; coverage 72/161; stable false locks 0/161; negative displays 0/120 | preserve; do not open held-out split | — |
 | F5c | exact trace + pose identity + adaptive search + failure marker | passed | 223 tests + 5 subtests; dev precision 67/67; coverage 67/161; stable false locks 0/161; negative displays 0/120 | preserve diagnostics privacy; do not open held-out split | — |
-| L2 | full §6 acceptance (Pat) | blocked | A2 ≥90% of holds | — | F5 |
+| L2 | full §6 acceptance (Pat) | attempt 1 (2026-07-28) — A2 fail as run, A4 inconclusive (CPU contention) | ≈0/15 sustained readouts; correct position flashes ±1; "no hand" despite visible tracking; board re-entry → degenerate quad | fix reset + guidance text; pause Phase D; clean re-run | — |
 | F6 | IoU fallback (TapToTab mechanism) | conditional | — | needs ghaleb dataset → STOP first | opens on L2 fail |
 | F7 | GAPS anchor probe (cache-only, fill-in) | completed-positive | corrected 1195/1566 = 0.763 (CI 0.741–0.783); +0.478 vs 0.285; old 0.247 preserved as superseded | preserve fixed result; no tuning | — |
 | F8 | M4 bridge verdict | implemented-tested-opt-in | source-disjoint real-prediction macro Tab F1 0.623750→0.624586 (+0.000836, paired 95% CI 0.000000–0.001994); wrong-position 1,021→1,014; 2 improved / 8 unchanged / 0 regressed | preserve explicit rollback; effect is too small for default promotion | L2 + larger frozen promotion evidence |
+
+### L2 — 2026-07-28 (attempt 1 — environment-contaminated; clean re-run needed)
+setup: webcam via Chrome → WSL server; per-protocol lightings; **Phase D
+extraction was running during the window** (~2.5 cores of 6; the box also
+rebooted ~16:55 and the extraction auto-restarted 16:54). duration: ~15 min
+A1 lock: PASS on protocol — locks quickly and accurately when the guitar is
+in frame at camera start. DEFECT (outside protocol, load-independent):
+bringing the guitar into frame while the session is running produces a
+degenerate non-rectangular quad with no recovery; no reset/re-acquire
+control exists. Every frozen benchmark clip starts with the board in frame,
+so this path was never exercised before a live run.
+A2 positions: ≈0/15 sustained readouts → FAIL as run. Persistent "no hand
+available, keep fingertips visible" while fingertip tracking is visibly
+accurate; the correct position flashes momentarily (sometimes off by one)
+but never stabilizes for a 5 s hold. Index-only single-note fretting is the
+worst case — consistent with the F4c ≥3-fretting-fingertip validity gate
+rejecting the single-note column of this grid **by design** (protocol/build
+collision: F4c post-dates the §6 protocol and was never re-checked against
+it; recorded, not re-scored). The flicker is also consistent with degraded
+FPS stretching the 10-frame agreement window (contention caveat).
+A3 shifts: not evaluable — the readout never stabilized long enough to
+judge shift labeling or occlusion recovery.
+A4 feel: latency jumping 10–300 (as reported); INCONCLUSIVE per §0/§5 —
+the extraction was not paused.
+top annoyances: 1) no reset/re-acquire when the board enters mid-session;
+2) "no hand available" conflates no-detection with fingertip-gate rejection
+while tracking dots are visibly correct; 3) readouts flash instead of hold.
+verdict: fix first — (a) reset/re-acquire control, (b) guidance text that
+distinguishes "need ≥3 fingertips on the neck" from "no hand detected" —
+then pause Phase D (`~/phaseD_pause.sh`) and re-run L2 clean. If A2 still
+fails clean, route to F6 per §5; note F6's hand-bbox × fret-zone mechanism
+does not require fingertips and matches the observed failure mode exactly.
+Decide separately whether the single-note column stays in the protocol (as
+a dated amendment) or whether F6 is the answer to it.
 
 **Live checkpoint.** F5c is complete. The final dev-only frozen benchmark
 reached displayed precision 67/67 (1.000), stable coverage 67/161 (0.416),
