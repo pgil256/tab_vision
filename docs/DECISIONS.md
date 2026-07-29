@@ -5901,3 +5901,53 @@ F5c code must recover the frozen line (precision 1.000, coverage
 manifest. Only after that recovery are F6's two arms readable. The
 correction never consults position labels, so it cannot tune the instrument
 toward any desired F6 outcome.
+
+## 2026-07-29 - Correction: not timing drift. One boundary case flipped, and the instrument was only ever pinned to exact bytes
+
+**The pre-registered audio repair ran and refuted its own premise.** All
+eight scored sources reproduce June's video-to-reference-audio offsets to
+six decimal places (same values, same xcorr peak ratios); every measured
+delta is 0.000. The realigned manifest
+(`fretcam/data/position_benchmark_v1_realigned.json`) is committed as
+evidence and changes nothing. "The re-download shifted timing" - the
+previous entry's mechanism - is refuted. Also exonerated by direct check:
+committed code (only additive bridge files landed on `fretcam/src` since
+F5c), environment (every vision package dated 2026-05-07), and chain
+determinism (`background_detector` defaults to False).
+
+**The decomposition that ends the mystery.** Per-sequence scoring of the
+baseline arm: `dev_031_barre_i` contributes **40 of the ~50 wrong
+displays - every scored frame reads Position II against the labeled
+Position I barre**; `dev_104_ii_to_vi` adds 3 fret-15 spike frames;
+`dev_142_chord_iii` 2 boundary frames; **118, 142-note-V and 341 score
+perfectly**. A frame pulled from the current file at t=2.4 confirms the
+label is right (close-framed Position I barre). The instrument is not
+globally broken; a single boundary-sitting case flipped by one position.
+
+**Why (circumstantial - the old bytes are gone and this cannot be fully
+verified):** F4d documented this exact barre at canonical tip-x
+1.656-1.977, within a hair of the fret-1/2 cell boundary; its correct
+Position-I reading was contact-semantics surgery on that margin. yt-dlp
+selects video and audio streams independently, and format selection varies
+across downloads (the recorded 142/AV1 incident). The 2026-07-27
+re-download plausibly muxed the identical audio stream (hence perfect
+offset reproduction) with a different video variant, and a slight spatial
+re-encode pushed the barre across the boundary.
+
+**Lessons.** (1) Hash pinning (landed 2026-07-29) is the right and
+sufficient fix: a frozen instrument is its exact bytes, and this episode
+shows a file can change decisively while every timing check passes.
+(2) A case that needed F4d surgery to score is fragile by construction;
+the 031 barre off-by-one is now a tracked solver-robustness item, not a
+benchmark artifact to be hidden.
+
+**F6 gate, re-read honestly.** The pre-registered bar ("hold 1.000 / 0 /
+0") is unmeetable by ANY code on the current files - pristine F5c scores
+0.324 - so the bar collapses to its substance: on identical inputs F6 must
+not degrade the baseline, and the negative control must hold. Measured on
+identical inputs (hybrid cache, dev split): baseline 0.324 precision
+(22/68), 44 false locks; **F6 0.333 (22/66), 42 false locks; negative
+control 0/120 in both arms.** F6 does not degrade the instrument - it
+marginally improves both lines - and passed the one leg that survived
+intact. Routing decision (accept this reading and proceed to the L2
+re-run, or demand the 031 regression fixed first) rests with the user.
