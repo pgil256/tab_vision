@@ -234,6 +234,56 @@ Pure measurement on GuitarSet dev, no mechanism, no gate on Tab F1:
 propagation is pointless, and the program stops here with a banked negative
 for the cost of one afternoon.
 
+#### Frozen A0 constants (written before the first run, 2026-07-29)
+
+**Notes.** Gold-timed notes from the GuitarSet JAMS, not the detected
+stream. A0 is a feasibility ceiling: gold onsets/offsets remove transcription
+error and mistimed isolation as confounders, so the coverage it reports is an
+**upper bound** on what the detected stream can reach. If A0 fails on gold it
+cannot pass on detected. A1 measures on the detected stream.
+
+**Physics settings** are read from the registered `acoustic-physics-v1`
+artifact via `load_string_evidence`, never hardcoded, so a later artifact
+change cannot silently alter what A0 measured. At time of freezing these
+resolve to `min_r2 = 0.5`, `isolation = "partial_aware"`, `sigma = 0.35`,
+`weight = 1.0`, `fret_exponent = 1.0`, `MIN_CLEAN_PARTIALS = 4`.
+
+**Readable note.** `measure_events` returns a fit for the note and that fit's
+`r2 >= min_r2`. Nothing else counts as readable.
+
+**Implied position of a readable note.** The playable candidate for its pitch
+minimising `|fit.log_b − model.predicted_log_b(string, fret)|`. This is the
+physics channel's own scoring, so A0 cannot flatter the channel with a
+different rule than production uses.
+
+**Windows.** `fixed_window_groups` from
+`tabvision/scripts/eval/string_assignment_oracles.py` at its default
+`cluster_gap_s = 0.080`, so A0's windows are bit-identical to the windows the
++0.2756 oracle was measured over. Primary `window_s = 1.0`; 2.0 and 4.0
+reported as secondary.
+
+**Zones.** `FRET_ZONES = ((0,4), (3,7), (5,9), (7,12), (10,15))`, unchanged
+from the oracle. Open notes (`fret == 0`) are excluded from every zone
+determination — the open-string exemption is inherited, not relitigated.
+
+- *Gold zone set* of a window = the zones containing **every** gold fretted
+  fret in it. Windows where no single zone covers all of them are counted and
+  reported separately as **hand-moved windows**, and excluded from the
+  agreement denominator — the single-zone assumption is false there by
+  construction, and §10 already names this as a failure mode.
+- *Implied zone set* = the zones containing every implied fret of the
+  window's readable fretted notes.
+- **Agreement** iff the two sets intersect.
+
+**Splits.** dev = players {00, 01, 02, 03, 05} only. **Sealed player 04 is
+not read in A0.** Tiers split by track-id suffix (`_solo` / `_comp`) and
+always reported separately; the gate is read off **solo**.
+
+**Reported alongside (not gated):** per-note implied-position accuracy on
+readable notes, as a sanity check against the channel's documented 0.92 on
+isolated notes — a materially different number means A0's harness is wrong,
+not that the channel changed.
+
 ### A1 — the propagation itself
 
 Implement §5 and measure on dev, both tiers.
