@@ -80,16 +80,35 @@ those notes would have been actively harmful, and the design's §10 named this
 ("propagation would then actively mislead"). A0 cost 291 s of CPU to find out
 instead of a build.
 
-## A spin-off worth a separate look (not proposed here)
+## The 0.3437 → 0.7797 gap is a banked negative, not a lead
+
+*Corrected 2026-07-29, same day: an earlier revision of this report flagged
+this gap as "worth a separate look". It is not — the experiment has already
+been run and reverted, and this section now says so, so no one re-walks it.*
 
 The gap between the shipped table's per-note top-1 (**0.3437**) and a
-gold-calibrated refit (**0.7797**) is large, and it is a property of the
-*existing, shipped* physics channel rather than of the window idea. The
-channel currently earns +0.0522 on sealed player 04 with a table whose argmax
-is wrong two thirds of the time. Whether a better-centred table lifts the
-channel is a distinct question with its own cost and its own gate — and note
-that q6 already refuted the obvious label-free routes. **Recorded as an
-observation, not a recommendation; it needs its own pre-registration.**
+gold-calibrated refit (**0.7797**) is a **level** error, and the level error
+is real, known, and measured three independent ways: Q6's LOPO residual
+−0.566, N5's perturbation sweep, and N4's direct hex measurement +0.780.
+A0's measured +0.52 is a fourth measurement of the same quantity.
+
+**Correcting it was tried and reverted the same day (2026-07-24).** A uniform
++0.60 log-B level correction gained **+0.0160 [+0.0088, +0.0233]** on
+GuitarSet dev and then measured **−0.0066 [−0.0224, +0.0079]** on sealed
+player 05 — the dev and held-out intervals do not overlap
+(`docs/EVAL_REPORTS/player05_batched_confirm_2026-07-24.md`).
+
+**Why no constant can work:** N4 measured the per-player offset at
+**+0.514, +0.748, +0.780, +0.794, +1.092** — a spread wider than the
+correction itself. The level error is genuine but *instrument-specific*,
+which is also why N4's per-instrument ritual lost to a fixed constant, and
+why q6's self-calibration arms land at +0.0000 (blind), −0.0029 (pooled) and
++0.0388 (self-seeded) against an incumbent worth +0.0522.
+
+`tabvision/tabvision/fusion/string_physics.py` carries the standing
+instruction in-source: *"Do not re-derive this constant from dev clips; the
+negative is banked."* A0 changes none of that — it re-measures the offset on
+a fourth occasion and lands inside the known range.
 
 ## Honest limits
 
