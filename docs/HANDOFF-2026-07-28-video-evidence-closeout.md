@@ -155,10 +155,29 @@ Suite: **1149 passed, 3 skipped**; ruff clean.
 
 ## 5. Still open
 
-- **L2** — the only thing needing a human. ~15 min with a guitar; the server is
-  up and its live WebSocket path was verified end to end this time, not just the
-  HTTP endpoint. `docs/fretcam-l2-run-sheet.md` now carries a CPU-contention
-  guard. Everything downstream of FretCam is blocked on this.
+- **L2 — attempt 1 was run (by a concurrent session) and needs a clean re-run.**
+  Log: `docs/fretcam-loop-state.md`, commit `afd8d6a`. Outcome: A1 pass on
+  protocol, **A2 ≈0/15 → fail as run**, A3 not evaluable, A4 **inconclusive**.
+  Two findings matter more than the score:
+  - **A protocol/build collision.** The F4c ≥3-fretting-fingertip validity gate
+    rejects the single-note column of the A2 grid **by design**. F4c postdates
+    the §6 protocol and was never re-checked against it, so part of that grid was
+    unscoreable before anyone picked up a guitar. Recorded, not re-scored.
+  - **A board re-acquisition defect**, load-independent and outside the protocol:
+    bringing the guitar into frame *after* the session starts yields a degenerate
+    quad with no recovery and no reset control. Every frozen benchmark clip
+    starts with the board already in frame, so this path had never been
+    exercised live.
+
+  A4 was contaminated because the Phase D extraction was not paused — the exact
+  confound `docs/fretcam-l2-run-sheet.md` now warns about, and the reason
+  `~/phaseD_pause.sh` exists. **That caveat is now moot: Phase D is finished, so
+  a re-run gets the whole box.** Fix the reset control and the guidance text
+  first (the "no hand available" message conflates no-detection with
+  fingertip-gate rejection while the tracking dots are visibly correct), then
+  re-run clean. Only if A2 still fails clean does F6 routing open — and note F6's
+  hand-bbox × fret-zone mechanism needs no fingertips and matches the observed
+  failure mode exactly.
 - **C1 is unblocked but not run.** `string_assignment_phase6.py` now loads the
   regenerated table; producing the actual 38.76% comparison is a multi-hour CPU
   run that has not been done. Results from it must be reported as **"near-exact,
