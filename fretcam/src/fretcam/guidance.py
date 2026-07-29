@@ -67,6 +67,17 @@ def assess_guidance(
             "warning",
         )
 
+    if (
+        detection.hand_points
+        and "off_neck" in detection.confidence_factors.blockers
+        and estimate.state in {"acquiring", "lost"}
+    ):
+        return Guidance(
+            "few_fingertips_on_neck",
+            "Hand seen - place 3 or more fingertips on the neck to lock; "
+            "single-finger notes may not lock",
+            "warning",
+        )
     if detection.hand_points and (
         estimate.reason == "low_confidence"
         or "low_confidence" in detection.confidence_factors.blockers

@@ -54,6 +54,7 @@ TRACE_MUTATING_CONTROL_TYPES = frozenset(
         "calibrate_two_point",
         "continue_calibration",
         "reset_calibration",
+        "reacquire",
     }
 )
 

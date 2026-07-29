@@ -248,6 +248,32 @@ def test_session_reset_starts_a_new_mediapipe_video_stream() -> None:
     assert chain.runtime_resets == [False, True]
 
 
+def test_processor_reacquire_resets_tracking_but_keeps_session_settings() -> None:
+    class RuntimeAwareChain(FakeChain):
+        def __init__(self) -> None:
+            super().__init__()
+            self.runtime_resets: list[bool] = []
+
+        def reset_tracking(self, *, reset_hand_runtime: bool = False) -> None:
+            self.runtime_resets.append(reset_hand_runtime)
+
+    chain = RuntimeAwareChain()
+    processor = HudFrameProcessor(chain=chain)  # type: ignore[arg-type]
+
+    try:
+        processor.handle_control({"type": "settings", "player_handedness": "left"})
+        processor.handle_control({"type": "calibrate"})
+        response = processor.handle_control({"type": "reacquire"})
+    finally:
+        processor.close()
+
+    assert response["status"] == "board_reacquired"
+    assert chain.runtime_resets == [True]
+    assert chain.player_handedness == "left"
+    # A live re-frame must not silently discard session calibration state.
+    assert response["calibration"]["status"] == "collecting"  # type: ignore[index]
+
+
 def test_processor_controls_handedness_and_session_calibration() -> None:
     chain = FakeChain()
     processor = HudFrameProcessor(chain=chain)  # type: ignore[arg-type]

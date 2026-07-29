@@ -95,6 +95,48 @@ def test_guidance_distinguishes_weak_lock_missing_hand_and_transition() -> None:
     )
 
 
+def test_guidance_names_the_fingertip_gate_instead_of_a_generic_hand_message() -> None:
+    off_neck = replace(
+        _detection(),
+        confidence_factors=ConfidenceFactors(
+            board=0.8,
+            freshness=1.0,
+            stability=0.8,
+            landmark_quality=0.7,
+            on_neck=0.25,
+            finger_agreement=0.5,
+            coarse_agreement=0.8,
+            support_sufficiency=0.2,
+            combined=0.2,
+            blockers=("off_neck",),
+        ),
+    )
+
+    gated = assess_guidance(
+        off_neck, _estimate("acquiring"), frame_width=100, frame_height=50
+    )
+    assert gated.code == "few_fingertips_on_neck"
+    assert "3 or more fingertips" in gated.message
+
+    # An established lock is not overridden by one off-neck frame.
+    assert (
+        assess_guidance(
+            off_neck, _estimate("locked"), frame_width=100, frame_height=50
+        ).code
+        == "locked"
+    )
+    # With no hand at all the plain show_hand message still wins.
+    assert (
+        assess_guidance(
+            replace(off_neck, hand_points=()),
+            _estimate("lost"),
+            frame_width=100,
+            frame_height=50,
+        ).code
+        == "show_hand"
+    )
+
+
 def test_guidance_exposes_stale_geometry_and_low_composite_confidence() -> None:
     stale = replace(_detection(), geometry_status="stale")
     low_confidence = replace(

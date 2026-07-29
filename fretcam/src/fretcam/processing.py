@@ -410,6 +410,18 @@ class HudFrameProcessor:
                     "status": "calibration_continued",
                     "calibration": self.calibration.state().as_dict(),
                 }
+            if message_type == "reacquire":
+                # Live board re-acquisition: clear tracking and estimator state
+                # (a stale quad from a mid-session guitar entry has no other
+                # recovery) while preserving handedness and any accepted
+                # session calibration.
+                self._reset_tracking(reset_hand_runtime=True)
+                self.estimator.reset()
+                return {
+                    "type": "control",
+                    "status": "board_reacquired",
+                    "calibration": self.calibration.state().as_dict(),
+                }
             if message_type == "reset_calibration":
                 self.calibration.reset()
                 self.estimator.reset()
