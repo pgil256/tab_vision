@@ -287,6 +287,27 @@ def main(argv: list[str] | None = None) -> int:
             if (b.string_idx, b.fret) != (a.string_idx, a.fret)
         )
 
+        # Headroom diagnostic: if the retained paths carry identical
+        # string/fret assignments, reranking among them cannot move Tab F1 at
+        # all and a null result says nothing about window evidence. Recorded
+        # so a null is attributable rather than merely reported.
+        keys = {tuple((e.string_idx, e.fret) for e in path.events) for path in decoded.paths}
+        reachable = max(
+            (
+                sum(
+                    1
+                    for b, a in zip(base_events, path.events, strict=True)
+                    if (b.string_idx, b.fret) != (a.string_idx, a.fret)
+                )
+                for path in decoded.paths[1:]
+            ),
+            default=0,
+        )
+        best_reachable = max(
+            (float(tab_f1(path.events, gold).f1) for path in decoded.paths),
+            default=float(base.f1),
+        )
+
         rows.append(
             {
                 "clip": clip,
@@ -302,6 +323,9 @@ def main(argv: list[str] | None = None) -> int:
                 "winner_path": winner,
                 "abstained": winner == 0,
                 "notes_changed": changed,
+                "distinct_path_assignments": len(keys),
+                "notes_reachable_by_rerank": reachable,
+                "best_reachable_tab_f1": best_reachable,
                 "base_tab_f1": float(base.f1),
                 "arm_tab_f1": float(arm.f1),
                 "delta": float(arm.f1 - base.f1),
@@ -341,6 +365,10 @@ def main(argv: list[str] | None = None) -> int:
         },
         "base_aggregate_tab_f1": sum(r["base_tab_f1"] for r in rows) / len(rows),
         "arm_aggregate_tab_f1": sum(r["arm_tab_f1"] for r in rows) / len(rows),
+        # Upper bound on ANY reranker over these retained paths: pick the
+        # best of the k paths per clip with gold in hand. Separates "the
+        # window evidence is too weak" from "there was nothing to pick".
+        "oracle_path_selection_tab_f1": sum(r["best_reachable_tab_f1"] for r in rows) / len(rows),
         "mean_delta": mean_delta,
         "ci95": [ci.lower, ci.upper],
         "clips_reranked": fired,
