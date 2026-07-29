@@ -58,9 +58,7 @@ def test_oracle_precision_is_one_by_construction():
         near = [
             event
             for event in gold
-            if -stage1.LOOKBEHIND_S
-            <= event.onset_s - observation.timestamp_s
-            <= stage1.LOOKAHEAD_S
+            if -stage1.LOOKBEHIND_S <= event.onset_s - observation.timestamp_s <= stage1.LOOKAHEAD_S
             and event.fret > 0
         ]
         for event in near:
@@ -180,7 +178,5 @@ def test_open_notes_are_excluded_from_agreement():
     """The open-string exemption is inherited, not relitigated (design §3.2)."""
     segments = _segments()
     slices = [(0, 1)]
-    raw, count = stage1.path_raw_score(
-        (_tab(0.5, 2, 0),), segments, slices, [_observation(5)], CFG
-    )
+    raw, count = stage1.path_raw_score((_tab(0.5, 2, 0),), segments, slices, [_observation(5)], CFG)
     assert (raw, count) == (0.0, 0)
