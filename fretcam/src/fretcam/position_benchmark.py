@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import statistics
@@ -65,6 +66,11 @@ class BenchmarkManifest:
     sample_fps: float
     annotation_policy: str
     sequences: tuple[BenchmarkSequence, ...]
+    # Content hashes of the exact source files the labels were annotated
+    # against. When present, run_inference refuses mutated inputs: the
+    # 2026-07-27 in-place cache re-download silently destroyed label-to-frame
+    # alignment for five days before anyone noticed (DECISIONS 2026-07-29).
+    source_sha256: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -123,6 +129,7 @@ def load_manifest(path: Path) -> BenchmarkManifest:
                 labels=labels,
             )
         )
+    source_sha256 = raw.get("source_sha256")
     manifest = BenchmarkManifest(
         version=raw["version"],
         name=raw["name"],
@@ -132,9 +139,40 @@ def load_manifest(path: Path) -> BenchmarkManifest:
         sample_fps=raw["sample_fps"],
         annotation_policy=raw["annotation_policy"],
         sequences=tuple(sequences),
+        source_sha256=dict(source_sha256) if source_sha256 is not None else None,
     )
     validate_manifest(manifest)
     return manifest
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def verify_source_file(
+    manifest: BenchmarkManifest, source: str, video_path: Path
+) -> None:
+    """Refuse a source file whose content differs from the pinned hash."""
+    if manifest.source_sha256 is None:
+        return
+    expected = manifest.source_sha256.get(source)
+    if expected is None:
+        raise ValueError(
+            f"manifest pins source hashes but has none for {source}; "
+            "refusing to score an unpinned input"
+        )
+    actual = _sha256_file(video_path)
+    if actual != expected:
+        raise ValueError(
+            f"{video_path} does not match the manifest's pinned sha256 for "
+            f"{source} (expected {expected[:12]}..., got {actual[:12]}...). "
+            "The frozen benchmark refuses mutated inputs - see DECISIONS "
+            "2026-07-29 (cache rebuild destroyed label alignment)."
+        )
 
 
 def validate_manifest(manifest: BenchmarkManifest) -> None:
@@ -295,6 +333,7 @@ def run_inference(
     """Run unchanged F4d inference over the selected frozen public windows."""
     selected = splits or {"dev", "test"}
     predictions: list[FramePrediction] = []
+    verified_sources: set[str] = set()
     with chain_factory() as chain:
         for sequence in manifest.sequences:
             if sequence.split not in selected:
@@ -302,6 +341,9 @@ def run_inference(
             video_path = video_cache / f"{sequence.source}.mp4"
             if not video_path.exists():
                 raise FileNotFoundError(video_path)
+            if sequence.source not in verified_sources:
+                verify_source_file(manifest, sequence.source, video_path)
+                verified_sources.add(sequence.source)
             capture = cv2.VideoCapture(str(video_path))
             if not capture.isOpened():
                 raise RuntimeError(f"could not open {video_path}")
@@ -938,9 +980,30 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     parser.add_argument("--output-json", type=Path)
     parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--write-hashes",
+        action="store_true",
+        help="pin the current video-cache files' sha256 into the manifest "
+        "and exit without scoring; only run this on an instrument whose "
+        "labels are known to match these exact files",
+    )
     args = parser.parse_args(argv)
 
     manifest = load_manifest(args.manifest)
+    if args.write_hashes:
+        raw = json.loads(args.manifest.read_text(encoding="utf-8"))
+        hashes: dict[str, str] = {}
+        for source in sorted({s.source for s in manifest.sequences}):
+            video_path = args.video_cache / f"{source}.mp4"
+            if not video_path.exists():
+                raise FileNotFoundError(video_path)
+            hashes[source] = _sha256_file(video_path)
+        raw["source_sha256"] = hashes
+        args.manifest.write_text(
+            json.dumps(raw, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"pinned {len(hashes)} source hashes into {args.manifest}")
+        return
     splits: set[Split] = {"dev", "test"} if args.split == "all" else {args.split}
     predictions = run_inference(
         manifest,

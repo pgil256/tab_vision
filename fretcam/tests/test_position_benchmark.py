@@ -446,3 +446,28 @@ def test_cli_defaults_to_dev_without_opening_the_heldout_split(
     position_benchmark.main(["--manifest", str(default_manifest_path())])
 
     assert observed["splits"] == {"dev"}
+
+
+def test_source_hash_pinning_refuses_mutated_and_unpinned_inputs(tmp_path) -> None:
+    import hashlib as _hashlib
+
+    video = tmp_path / 'clipA.mp4'
+    video.write_bytes(b'annotation-era bytes')
+    good = _hashlib.sha256(b'annotation-era bytes').hexdigest()
+    seq = _sequence('s1', 'clipA', 'dev', (_label(0.0, 1.0),))
+    pinned = replace(_manifest(seq), source_sha256={'clipA': good})
+
+    # Matching content passes silently.
+    position_benchmark.verify_source_file(pinned, 'clipA', video)
+
+    # A mutated file is refused - the 2026-07-27 cache re-download class.
+    video.write_bytes(b're-downloaded different bytes')
+    with pytest.raises(ValueError, match='pinned sha256'):
+        position_benchmark.verify_source_file(pinned, 'clipA', video)
+
+    # Pinning present but this source missing from the map: refused.
+    with pytest.raises(ValueError, match='unpinned'):
+        position_benchmark.verify_source_file(pinned, 'clipB', video)
+
+    # Legacy manifests without pinning still run.
+    position_benchmark.verify_source_file(_manifest(seq), 'clipA', video)
