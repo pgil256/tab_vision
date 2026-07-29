@@ -1,9 +1,13 @@
 # Segment-level position-window fusion — design (pre-registration draft)
 
-**Status: DESIGN — awaiting sign-off. No build until approved** (SPEC §0
-rule 8; plan-doc-first workflow). Gates in §5 are written before any run and
+**Status: STAGE 1 APPROVED 2026-07-29 (user sign-off). Stage 2 still
+requires G1 to pass first.** Gates in §5 are written before any run and
 must not be edited after numbers are seen, per the wire-sparse precedent
-(`a8f5f2e`).
+(`a8f5f2e`). §5a below freezes every remaining free parameter — the
+aggregation form §3.2 deferred "to implementation time", the bonus cap §3.3
+referred to §5, and the gold-window degradation of §4 — and was committed
+**before the Stage 1 script was run**, so no constant in it can have been
+chosen with a number in view.
 
 ## 1. Problem
 
@@ -100,6 +104,80 @@ runs (no new inference needed). Same reranker, same gates.
   Same CI and no-regression bars. Passing G2 but not G3 ships nothing.
 - Decision tree is exhaustive: any outcome not matching a gate above is a
   banked negative. No post-hoc statistic substitution (wire-sparse rule).
+
+## 5a. Frozen Stage 1 constants (written before the first run, 2026-07-29)
+
+**Corpus and inputs.** GAPS clean-12, all twelve clips present (47.1 min of
+audio); gold from the `gaps_musicxml_tab` parser. Audio events come from
+`highres-ensemble` and are cached once at
+`$TABVISION_DATA_ROOT/models/q6_gaps_cache/{clip}.ensemble.json` (the q6
+gate's convention); **both arms read the identical cached events**, so the
+audio half cannot differ between them.
+
+**Session and routing.** `SessionConfig(instrument="acoustic", tone="clean",
+style="fingerstyle")`, `GuitarConfig()` (standard tuning, capo 0), `gaps-v1`
+pitch-position prior, `gaps-seq-v1` sequence context — q6's exact
+configuration. Recorded caveat: `segment-v1` is admitted only by
+`_automatic_acoustic_domain`, so this probe measures the mechanism under the
+q6 session, **not** under a session explicitly tagged classical/nylon, where
+the decoder abstains to `baseline` by construction and the delta is exactly
+zero.
+
+**Decoder.** `decode_segment_v1_with_analysis(..., k_paths=3)` with
+`DEFAULT_SEGMENT_CONFIG`, which is bit-identical to the frozen Phase 1
+winner `prior_0p5`. Baseline arm = `paths[0].events`, unmodified.
+
+**Gold-window synthesis (the oracle, degraded).** Candidate observations on a
+fixed **4.0 Hz** grid. At timestamp `t` the gold notes with onset in
+`[t-0.25, t+0.35]` and `fret > 0` define the hand: `P = min(fret)`; the
+observation is **dropped** when that set is empty or when `max(fret) > P+4`
+(one window cannot cover the span, where real FretCam destabilises). Emitted
+window is exactly the validity contract
+`(0, *range(max(1, P-1), min(max_fret, P+4)+1))`, `state="locked"`,
+`confidence=0.26` — the documented FretCam median from Appendix A.
+Confidence enters **only** the `>= 0.20` validity gate and never the
+reranker score, which is the design's whole point (§1.3), so this constant is
+inert by construction. Coverage is then degraded to the F5c frozen figure
+**0.416** by a deterministic Bresenham retention (`floor((i+1)*0.416) >
+floor(i*0.416)`) — no RNG, no seed. Precision is 1.0 by construction.
+
+**Reranker (the form §3.2 deferred).** Observation `o` is attributed to
+segment `s` when `s.start_onset_s - 0.18 <= o.timestamp_s <= s.end_onset_s`
+(0.18 = the bridge's 0.03 lead + 0.15 lookback, so an observation just before
+a segment's first onset still counts). For retained path `p`:
+
+```
+agreement(p, s, o) = |{fretted notes of p in s with fret in o.window_frets}|
+                     / |{fretted notes of p in s}|        # skip if denom 0
+raw(p)             = median over all (s, o) of agreement  *  log(1 + n_obs)
+```
+
+Open/capo notes are excluded from numerator and denominator, inherited
+unchanged from the bridge. `n_obs` is the number of contributing `(s, o)`
+pairs and is common to all paths, so the log factor scales the *separation*
+between paths rather than any single path's score — which is the
+"consistency of consecutive agreeing observations" the design argues carries
+the signal.
+
+**Rerank and cap.** Applied as a capped *penalty* relative to the
+best-agreeing path, so the cap bounds video's total influence without
+saturating every path into a tie:
+
+```
+penalty(p)       = min(CAP, WEIGHT * (max_q raw(q) - raw(p)))
+adjusted_cost(p) = p.cost + penalty(p)
+CAP = 1.0 nat   (inherited from MAX_POSITION_LOG_BONUS)
+WEIGHT = 1.0
+```
+
+Winner is `argmin adjusted_cost`, ties resolved to the lowest original index
+so an exact tie keeps the baseline path. **Abstain — bit-identical output —**
+when the clip yields no valid observations, when all `raw(p)` are equal, or
+when the winner is already `paths[0]`.
+
+**Scoring.** Per-clip `tab_f1(predicted, gold)`; aggregate = unweighted mean
+over the twelve clips; delta = arm − baseline. G1 is read off exactly these
+numbers, with no post-hoc statistic substitution.
 
 ## 6. Non-goals (standing evidence against each)
 
