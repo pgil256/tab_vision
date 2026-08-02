@@ -6160,3 +6160,44 @@ question - and q6 already refuted the obvious label-free routes, so it is not
 a free win.
 
 **Spend:** $0. 291 s CPU total.
+
+## 2026-08-02 - TabCNN complementarity CLOSED: neither family earns integration
+
+**Experiment:** frozen
+`docs/plans/2026-07-29-tabcnn-complementarity-experiment.md`.
+**Decision tree:** does a framewise TabCNN fix wrong playable positions while
+preserving banked onset/pitch, transferring beyond overlap, and staying inside
+the frozen accuracy, provenance, license, determinism, and CPU gates?
+**Branch taken:** **`do_not_integrate` for both DAFx-24 GuitarProFX TabCNN and
+SynthTab TabCNN x4.** Report:
+`docs/EVAL_REPORTS/tabcnn_complementarity_2026-08-02.md`.
+
+**DAFx:** the descriptive 466-clip aggregate is +0.0658 Tab F1, but GuitarSet
+is development-overlapped and EGSet12 is reproduction. The eligible pool is
+GAPS alone: **+0.0052 [+0.0012, +0.0089]**, solo wrong-position reduction
+**2.06%**. Both miss +0.020 / +0.030 / 10%. The hash-pinned ONNX transport also
+lacks verified equivalence to the unavailable official checkpoint, so status
+is `blocked_protocol_evidence`. Its projected 60-second CPU total passes at
+266.011 s.
+
+**SynthTab:** GAPS plus sealed GuitarSet is **+0.0048 [-0.0046, +0.0156]**;
+solo is **+0.0028** with **1.09%** wrong-position reduction. It also fails
+performance: +23.68% added CPU and **324.646 s per 60 s**, above the five-minute
+limit. Provenance for the executed checkpoint passes, but redistribution
+remains uncleared under the ambiguous CC-BY/CC-BY-NC weight posture.
+
+**Integrity:** 466 complete clips per model, 932/932 unique rows, 932/932 exact
+onset/pitch invariance, 932/932 deterministic repeat posteriors. Protocol hash
+`7d7aa1dd...94d5`, scoring hash `f6b6f476...7e8f`, posterior hash
+`f3268756...15e4`. Results JSON `b7ccf23e...246a`; per-clip CSV
+`a4b67aa5...cdda`. No production dependency, artifact, route, or default was
+added.
+
+**What is refuted.** Both models contain position information, but neither
+turns it into enough eligible fixed-alpha improvement. DAFx's large headline
+gain does not survive the overlap rule; SynthTab's small positive aggregate
+does not survive the eligible confidence, solo-effect, wrong-position, or CPU
+gates. Per the frozen protocol, the negative completes the experiment and
+does not authorize post-result tuning.
+
+**Spend:** $0. All computation was local CPU.
