@@ -6099,3 +6099,105 @@ mean second-path margin (0.1826 nats) than the margins seen here.
 **Spend:** $0. 90 min CPU to cache `highres-ensemble` events for clean-12
 (2.7x realtime, reused by both arms and by the q6 gate), 55.7 s for the
 Stage 1 decode, 445.9 s for the headroom sweep.
+
+## 2026-07-29 - Per-window fret-zone evidence CLOSED at A0: the channel covers the window but cannot aim it
+
+**Phase:** per-window fret-zone evidence, Phase A0 (coverage-and-aim probe).
+**Decision tree:** A0 - solo 1 s windows with >= 1 readable note >= 0.60, and
+implied-zone agreement with gold on those windows >= 0.75?
+**Branch taken:** **Coverage yes (0.7940), aim no (0.5816). Bank the negative,
+close the program; A1 is not built and Phase B is not entered.** Report:
+`docs/EVAL_REPORTS/window_zone_a0_2026-07-29.md`. 300 GuitarSet dev tracks
+(players 00,01,02,03,05), 52,223 notes, 291 s CPU, $0, sealed 04 not read.
+
+**The arithmetic bet was right and did not matter.** Per-note readability is
+12,978/52,223 = **0.2485**, yet **79.4%** of solo 1 s windows hold at least one
+readable note - sparse per-note coverage really does become dense per-window,
+which was the whole premise. 5,265 unreadable solo notes sit inside covered
+windows, **5,217 of them ambiguous**: a large, precisely-targeted population.
+
+**Why it fails.** Measured `log B` sits a systematic **+0.52** above the
+reference table's prediction *at the gold position* (residual std 0.582 to
+gold vs 1.487 to alternatives - the shape is right, the centre is not).
++0.52 in log B is a **1.68x** ratio, almost exactly the 1.59-1.78x that
+separates candidates 4-5 frets apart (`q6_separability_2026-07-22.md`), so a
+whole-table offset of one candidate-step moves the argmax off gold nearly
+every time. Per-note implied-position accuracy: shipped table raw **0.3437**,
+label-free session refit **0.5830**, gold-calibrated refit **0.7797**.
+
+**This is not a defect in the shipping channel, and the distinction is the
+lesson.** `apply_fits` multiplies a Gaussian likelihood into the prior, so
+*soft, mis-centred evidence still helps* (+0.0522 on sealed 04) even when its
+top-1 is wrong two thirds of the time. **Propagation is a different contract:
+it pushes the argmax zone onto neighbours that have no evidence of their own,
+so it needs the top-1 to be right.** A channel can be worth shipping as
+evidence and worthless as a source of labels for other notes.
+
+**No window size rescues it.** 1 s -> 4 s buys coverage 0.794 -> 0.971 but
+agreement collapses 0.582 -> 0.359 while hand-moved windows rise 8.7% -> 42%.
+Strummed is worse at every size (1 s: 0.4267 self-seeded), as predicted.
+
+**Section 8's decision tree did not cover this outcome** - it anticipated "A0
+passes but A1 fails" and "A0 fails on coverage but not agreement". Passing
+coverage and failing agreement is a third case, and it argues *against* Phase
+B: a learned model would fit the same mis-centred evidence, and the only arm
+that reached 0.7797 needed gold labels. Recorded rather than reinterpreted
+after the fact.
+
+**Process note.** A two-track harness check returned per-note accuracy 0.1975
+against the ~0.92 anchor section 7a had named, which by that section's own
+rule meant the harness was wrong - and it was: 0.92 came from a per-player
+*calibrated* table, and citing it as the raw table's argmax anchor was an
+error. The arm definition was corrected before the full run (`08207ca`,
+`821b13e`); **neither gate value was touched**, and the correction is what
+turned an uninterpretable 0.20 into the three-arm decomposition above.
+
+**Spin-off, observation only, needs its own pre-registration.** The gap
+between the shipped table's per-note top-1 (0.3437) and a gold-calibrated
+refit (0.7797) is a property of the *existing shipped* physics channel, not
+of the window idea. Whether better centring lifts the channel is a distinct
+question - and q6 already refuted the obvious label-free routes, so it is not
+a free win.
+
+**Spend:** $0. 291 s CPU total.
+
+## 2026-08-02 - TabCNN complementarity CLOSED: neither family earns integration
+
+**Experiment:** frozen
+`docs/plans/2026-07-29-tabcnn-complementarity-experiment.md`.
+**Decision tree:** does a framewise TabCNN fix wrong playable positions while
+preserving banked onset/pitch, transferring beyond overlap, and staying inside
+the frozen accuracy, provenance, license, determinism, and CPU gates?
+**Branch taken:** **`do_not_integrate` for both DAFx-24 GuitarProFX TabCNN and
+SynthTab TabCNN x4.** Report:
+`docs/EVAL_REPORTS/tabcnn_complementarity_2026-08-02.md`.
+
+**DAFx:** the descriptive 466-clip aggregate is +0.0658 Tab F1, but GuitarSet
+is development-overlapped and EGSet12 is reproduction. The eligible pool is
+GAPS alone: **+0.0052 [+0.0012, +0.0089]**, solo wrong-position reduction
+**2.06%**. Both miss +0.020 / +0.030 / 10%. The hash-pinned ONNX transport also
+lacks verified equivalence to the unavailable official checkpoint, so status
+is `blocked_protocol_evidence`. Its projected 60-second CPU total passes at
+266.011 s.
+
+**SynthTab:** GAPS plus sealed GuitarSet is **+0.0048 [-0.0046, +0.0156]**;
+solo is **+0.0028** with **1.09%** wrong-position reduction. It also fails
+performance: +23.68% added CPU and **324.646 s per 60 s**, above the five-minute
+limit. Provenance for the executed checkpoint passes, but redistribution
+remains uncleared under the ambiguous CC-BY/CC-BY-NC weight posture.
+
+**Integrity:** 466 complete clips per model, 932/932 unique rows, 932/932 exact
+onset/pitch invariance, 932/932 deterministic repeat posteriors. Protocol hash
+`7d7aa1dd...94d5`, scoring hash `f6b6f476...7e8f`, posterior hash
+`f3268756...15e4`. Results JSON `b7ccf23e...246a`; per-clip CSV
+`a4b67aa5...cdda`. No production dependency, artifact, route, or default was
+added.
+
+**What is refuted.** Both models contain position information, but neither
+turns it into enough eligible fixed-alpha improvement. DAFx's large headline
+gain does not survive the overlap rule; SynthTab's small positive aggregate
+does not survive the eligible confidence, solo-effect, wrong-position, or CPU
+gates. Per the frozen protocol, the negative completes the experiment and
+does not authorize post-result tuning.
+
+**Spend:** $0. All computation was local CPU.

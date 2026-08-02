@@ -1,9 +1,31 @@
 # Per-window fret-zone evidence — design (pre-registration draft)
 
-**Status: DESIGN — awaiting sign-off. No build until approved** (SPEC §0
-rule 8; plan-doc-first workflow). Gates in §7 and §8 are written before any
-run and must not be edited after numbers are seen, per the wire-sparse
-precedent (`a8f5f2e`) and the Stage 1 precedent (`d6c4c89`).
+**Status: CLOSED 2026-07-29 — Gate A0 FAILED. A1 is not built, Phase B is
+not entered.** Approved and run the same day. The channel **covers** the
+window (solo 1 s coverage **0.7940** against a 0.60 bar — the arithmetic bet
+in §3 was right) but cannot **aim** it (zone agreement **0.5816** against a
+0.75 bar). Report:
+`docs/EVAL_REPORTS/window_zone_a0_2026-07-29.md`.
+
+**Why, in one line:** measured `log B` sits a systematic +0.52 above the
+reference table at the gold position — a 1.68× ratio, almost exactly the
+one-candidate-step separation — so the table is mis-*centred*, not
+mis-shaped. Soft evidence multiplied into the prior survives that (the
+shipped channel still earns +0.0522); propagation does not, because it needs
+the argmax to be right and the shipped argmax is 0.3437.
+
+**§8's decision tree did not cover this outcome.** It anticipated "A0 passes
+but A1 fails" and "A0 fails on coverage but not agreement". The actual result
+— passes coverage, fails agreement — is a third case, and it argues *against*
+Phase B rather than for it: a learned model would be fitting the same
+mis-centred evidence, and the one route that reached 0.7797 needed gold
+labels. Recorded rather than reinterpreted after the fact.
+
+Gates in §7 and §8 were written before any run and were not edited after
+numbers were seen, per the wire-sparse precedent (`a8f5f2e`) and the Stage 1
+precedent (`d6c4c89`). §7a's arm definition was corrected mid-flight
+(`08207ca`, `821b13e`) after a two-track harness check caught a mis-specified
+sanity anchor; **neither gate value was touched**.
 
 **Read §3 before §5.** This program was requested as "the learned per-window
 fret-zone predictor". The headroom is real and the gap is real, but four
