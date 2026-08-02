@@ -11,11 +11,13 @@ bound and degrade safely when there is nothing to measure.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from tabvision.fusion.inharmonicity import StringStiffnessModel
 from tabvision.preflight.capo import (
     detect_capo_from_inharmonicity,
     detect_capo_from_pitches,
+    detect_capo_from_video,
 )
 from tabvision.types import AudioEvent, GuitarConfig
 
@@ -65,3 +67,64 @@ def test_inharmonicity_declines_without_enough_measurable_notes() -> None:
     assert estimate.capo == 0
     assert estimate.confidence == 0.0
     assert "insufficient" in estimate.method
+
+
+# --- video estimator (FretCam) -------------------------------------------
+
+
+def _low_events(lowest_midi: int, count: int = 40) -> list[AudioEvent]:
+    """Events whose lowest pitch fixes the physical capo upper bound."""
+    return [
+        AudioEvent(
+            onset_s=0.1 * index,
+            offset_s=0.1 * index + 0.05,
+            pitch_midi=lowest_midi + (index % 12),
+            velocity=0.8,
+            confidence=0.9,
+        )
+        for index in range(count)
+    ]
+
+
+def test_video_estimate_is_reported_when_the_bound_allows_it():
+    cfg = GuitarConfig()
+    # Lowest note well above open low E, so a capo at 3 is physically possible.
+    events = _low_events(min(cfg.tuning_midi) + 5)
+    estimate = detect_capo_from_video(3, 0.8, events, cfg)
+    assert estimate.capo == 3
+    assert estimate.method == "video"
+    assert estimate.confidence == pytest.approx(0.8)
+
+
+def test_video_estimate_above_the_physical_bound_is_refuted():
+    """The bound cannot locate a capo but it can refute one; it must win."""
+    cfg = GuitarConfig()
+    # Open low E is played, so no capo is possible at all.
+    events = _low_events(min(cfg.tuning_midi))
+    estimate = detect_capo_from_video(5, 0.95, events, cfg)
+    assert estimate.capo == 0
+    assert estimate.method == "video-refuted-by-bound"
+    assert estimate.confidence == 0.0
+
+
+def test_video_abstention_yields_no_capo():
+    cfg = GuitarConfig()
+    estimate = detect_capo_from_video(None, 0.0, _low_events(60), cfg)
+    assert estimate.capo == 0
+    assert estimate.confidence == 0.0
+    assert estimate.method == "video"
+
+
+@pytest.mark.parametrize("bad", [-1, 99])
+def test_video_estimate_out_of_range_is_rejected(bad):
+    cfg = GuitarConfig()
+    estimate = detect_capo_from_video(bad, 0.9, _low_events(60), cfg)
+    assert estimate.capo == 0
+    assert estimate.method == "video-out-of-range"
+
+
+def test_video_confidence_is_clamped():
+    cfg = GuitarConfig()
+    events = _low_events(min(cfg.tuning_midi) + 5)
+    assert detect_capo_from_video(2, 5.0, events, cfg).confidence == 1.0
+    assert detect_capo_from_video(2, -3.0, events, cfg).confidence == 0.0

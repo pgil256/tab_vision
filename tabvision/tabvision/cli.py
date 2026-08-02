@@ -229,6 +229,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--video-contact-evidence",
+        action="store_true",
+        help=(
+            "EXPERIMENTAL: with --video-backend fretcam, also apply FretCam's "
+            "per-finger (string, fret) contacts as a capped fusion prior. Off "
+            "by default; see docs/EVAL_REPORTS/fretcam_contact_evidence_2026-07-25.md"
+        ),
+    )
+    t.add_argument(
         "--video-stride",
         type=_video_stride_arg,
         default=3,
@@ -453,6 +462,7 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
         "video_stride": args.video_stride,
         "video_enabled": not args.no_video,
         "video_backend": args.video_backend,
+        "contact_evidence": args.video_contact_evidence,
         "position_prior": args.position_prior,
         "sequence_prior": args.sequence_prior,
         "string_evidence": args.string_evidence,

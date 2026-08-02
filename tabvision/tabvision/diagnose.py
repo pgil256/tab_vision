@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from tabvision.types import GuitarConfig, SessionConfig, TabEvent
+from tabvision.video.position import SessionCapoObservation
 
 if TYPE_CHECKING:
     from tabvision.audio.filters import AudioFilterConfig
@@ -129,9 +130,29 @@ def _run_pipeline_for_report(
                 f" Accepted position observations: {result.position_observation_count}; "
                 f"audio events affected: {result.notes_affected_by_video}."
             )
+            message += " " + _describe_video_capo(result.video_capo)
         return events, message
     except Exception as exc:  # noqa: BLE001 - a diagnostic report is still useful.
         return [], f"Pipeline unavailable: {exc}"
+
+
+def _describe_video_capo(capo: SessionCapoObservation | None) -> str:
+    """Phrase the camera's capo estimate as a suggestion, never as a fact.
+
+    Audio provably cannot recover a capo (q7_capo_detect_2026-07-23.md), so
+    this is the only evidence available — but its accuracy on real capo
+    footage is unmeasured, so the wording must invite a human check rather
+    than assert. Nothing in the pipeline routes on it.
+    """
+    if capo is None:
+        return "Capo (video): not analysed."
+    if capo.fret is None:
+        return f"Capo (video): none detected ({capo.reason}, {capo.frames_observed} frames)."
+    return (
+        f"Capo (video): possibly fret {capo.fret} "
+        f"(confidence {capo.confidence:.2f}, {capo.frames_observed} frames) — "
+        f"unverified; re-run with --capo {capo.fret} if that is right."
+    )
 
 
 def _render_html(

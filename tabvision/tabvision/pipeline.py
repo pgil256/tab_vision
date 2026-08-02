@@ -36,6 +36,7 @@ import numpy as np
 from tabvision.demux import demux
 from tabvision.errors import BackendError
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
+from tabvision.fusion.contact_prior import apply_contact_priors
 from tabvision.fusion.inference_policy import ResolvedInferencePolicy, resolve_inference_policy
 from tabvision.fusion.melodic_prior import apply_melodic_segment_prior
 from tabvision.fusion.neck_prior import NeckAnchorLike
@@ -60,7 +61,14 @@ from tabvision.types import (
     SessionConfig,
     TabEvent,
 )
-from tabvision.video.position import PositionAnalyzer, PositionWindowObservation
+from tabvision.video.position import (
+    ContactAwarePositionAnalyzer,
+    FingerContactObservation,
+    PositionAnalyzer,
+    PositionWindowObservation,
+    SessionCapoObservation,
+    supports_contacts,
+)
 
 if TYPE_CHECKING:
     from tabvision.audio.filters import AudioFilterConfig
@@ -152,6 +160,12 @@ class PipelineArtifacts:
     resolved_video_backend: str = "none"
     position_observation_count: int = 0
     notes_affected_by_video: int = 0
+    # Additive (2026-07-26): whole-session capo estimate from video, when the
+    # FretCam route ran. Reporting only — nothing in this pipeline routes on it,
+    # because its field accuracy on real capo footage is unmeasured. Cross-check
+    # it with `tabvision.preflight.capo.detect_capo_from_video` before showing a
+    # number to a user; that refutes estimates the audio bound rules out.
+    video_capo: SessionCapoObservation | None = None
 
 
 def run_pipeline_with_artifacts(
@@ -167,6 +181,7 @@ def run_pipeline_with_artifacts(
     video_stride: int = 3,
     video_enabled: bool = True,
     video_backend: str = "legacy",
+    contact_evidence: bool = False,
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
@@ -194,6 +209,13 @@ def run_pipeline_with_artifacts(
     see :func:`_install_sequence_prior` for why the coupling is mandatory;
     ``"none"`` disables it; an artifact name forces it on.
 
+    ``contact_evidence`` (default ``False``, experimental) additionally applies
+    FretCam's per-finger ``(string, fret)`` contacts as a capped fusion prior.
+    It requires ``video_backend="fretcam"`` and an analyzer that can return
+    contacts from the same traversal. Off by default: the channel is measured
+    but not gated — see
+    ``docs/EVAL_REPORTS/fretcam_contact_evidence_2026-07-25.md``.
+
     ``progress_callback``, when given, is invoked with a stage name as each
     pipeline stage *starts*: ``demux`` → ``model_load`` → ``audio_inference``
     → ``video_analysis`` (only when the video stack runs) → ``decode``.
@@ -215,6 +237,8 @@ def run_pipeline_with_artifacts(
         raise ValueError(f"video_backend must be 'legacy' or 'fretcam', got {video_backend!r}")
     if position_analyzer is not None and video_backend != "fretcam":
         raise ValueError("position_analyzer requires video_backend='fretcam'")
+    if contact_evidence and video_backend != "fretcam":
+        raise ValueError("contact_evidence requires video_backend='fretcam'")
     if isinstance(video_stride, bool) or not isinstance(video_stride, int) or video_stride < 1:
         raise ValueError(f"video_stride must be a positive integer, got {video_stride!r}")
     if isinstance(lambda_vision, bool):
@@ -319,6 +343,8 @@ def run_pipeline_with_artifacts(
     fingerings: list[FrameFingering] = []
     neck_anchors: list[TimedNeckAnchor] = []
     position_observations: list[PositionWindowObservation] = []
+    contact_observations: list[FingerContactObservation] = []
+    video_capo: SessionCapoObservation | None = None
     resolved_video_backend = "none"
     if video_enabled:
         _notify("video_analysis")
@@ -326,12 +352,27 @@ def run_pipeline_with_artifacts(
             if video_backend == "fretcam":
                 if resolved_position_analyzer is None:  # pragma: no cover - guarded above
                     raise AssertionError("FretCam analyzer was not resolved")
-                position_observations = list(
-                    resolved_position_analyzer.analyze(
+                if contact_evidence and supports_contacts(resolved_position_analyzer):
+                    # One traversal, both evidence types: frame decode and
+                    # inference dominate the cost, so contacts must not cost a
+                    # second pass.
+                    contact_analyzer = cast(
+                        ContactAwarePositionAnalyzer, resolved_position_analyzer
+                    )
+                    bundle = contact_analyzer.analyze_all(
                         demuxed.frame_iterator,
                         stride=video_stride,
                     )
-                )
+                    position_observations = list(bundle.windows)
+                    contact_observations = list(bundle.contacts)
+                    video_capo = bundle.capo
+                else:
+                    position_observations = list(
+                        resolved_position_analyzer.analyze(
+                            demuxed.frame_iterator,
+                            stride=video_stride,
+                        )
+                    )
                 resolved_video_backend = "fretcam"
             else:
                 try:
@@ -377,6 +418,25 @@ def run_pipeline_with_artifacts(
             notes_affected_by_video,
         )
 
+    if lambda_vision > 0.0 and contact_observations:
+        enriched_audio_events = apply_contact_priors(
+            audio_events,
+            contact_observations,
+            cfg,
+            vision_weight=lambda_vision,
+        )
+        notes_affected_by_contacts = sum(
+            before is not after
+            for before, after in zip(audio_events, enriched_audio_events, strict=True)
+        )
+        notes_affected_by_video += notes_affected_by_contacts
+        audio_events = enriched_audio_events
+        logger.info(
+            "attached %d FretCam contact observations to %d ambiguous audio events",
+            len(contact_observations),
+            notes_affected_by_contacts,
+        )
+
     _notify("decode")
     logger.info(
         "running fuse() with %d audio events, %d fingerings, lambda_vision=%.2f",
@@ -402,6 +462,7 @@ def run_pipeline_with_artifacts(
         resolved_video_backend=resolved_video_backend,
         position_observation_count=len(position_observations),
         notes_affected_by_video=notes_affected_by_video,
+        video_capo=video_capo,
     )
 
 

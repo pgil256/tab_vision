@@ -44,12 +44,13 @@ from tabvision.eval.error_decomposition import (
 )
 from tabvision.eval.metrics import TabF1Result, tab_f1
 from tabvision.eval.parsers.gaps_musicxml_tab import parse as parse_gaps
+from tabvision.fusion.contact_prior import apply_contact_priors
 from tabvision.fusion.inference_policy import ResolvedInferencePolicy, resolve_inference_policy
 from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.viterbi import fuse
 from tabvision.pipeline import SEQUENCE_PRIOR_WEIGHT, run_pipeline_with_artifacts
 from tabvision.types import AudioEvent, GuitarConfig, SessionConfig, TabEvent
-from tabvision.video.position import PositionWindowObservation
+from tabvision.video.position import PositionWindowObservation, VideoObservations
 
 SCHEMA_VERSION = 2
 POSITION_PRIOR_NAME = "gaps-v1"
@@ -195,6 +196,22 @@ class GoldClockPositionAnalyzer:
         return align_observations_to_gold_clock(
             observations,
             video_minus_gold_offset_s=self._offset_s,
+        )
+
+    def analyze_all(self, frames: Any, *, stride: int = 1) -> VideoObservations:
+        """Shift both evidence types onto the gold clock from one traversal."""
+        bundle = self._inner.analyze_all(frames, stride=stride)
+        return VideoObservations(
+            windows=tuple(
+                align_observations_to_gold_clock(
+                    list(bundle.windows),
+                    video_minus_gold_offset_s=self._offset_s,
+                )
+            ),
+            contacts=tuple(
+                replace(contact, timestamp_s=float(contact.timestamp_s) - self._offset_s)
+                for contact in bundle.contacts
+            ),
         )
 
 
@@ -614,6 +631,7 @@ def evaluate_clip(
     audio_source: str,
     video_stride: int,
     vision_weight: float,
+    contact_evidence: bool,
     cfg: GuitarConfig,
     session: SessionConfig,
     policy: ResolvedInferencePolicy,
@@ -669,6 +687,7 @@ def evaluate_clip(
         audio_source=audio_source,
         video_stride=video_stride,
         vision_weight=vision_weight,
+        contact_evidence=contact_evidence,
         offset_s=offset_s,
     )
     cache_path = result_cache / f"{stem}.{signature[:16]}.json"
@@ -716,6 +735,7 @@ def evaluate_clip(
         video_stride=video_stride,
         video_enabled=True,
         video_backend="fretcam",
+        contact_evidence=contact_evidence,
         position_prior="auto",
         sequence_prior="auto",
         string_evidence="auto",
@@ -831,6 +851,7 @@ def run_evaluation(
     audio_source: str = "production-tab-cache",
     video_stride: int = 3,
     vision_weight: float = 1.0,
+    contact_evidence: bool = False,
     n_bootstrap: int = 10_000,
     bootstrap_seed: int = 42,
     refresh_video: bool = False,
@@ -889,6 +910,7 @@ def run_evaluation(
             audio_source=audio_source,
             video_stride=video_stride,
             vision_weight=float(vision_weight),
+            contact_evidence=contact_evidence,
             cfg=cfg,
             session=session,
             policy=policy,
@@ -921,6 +943,7 @@ def run_evaluation(
         "assignment_decoder": policy.resolved_assignment_decoder,
         "video_stride": video_stride,
         "vision_weight": float(vision_weight),
+        "contact_evidence": bool(contact_evidence),
         "onset_tolerance_s": ONSET_TOLERANCE_S,
         "bootstrap_n": n_bootstrap,
         "bootstrap_seed": bootstrap_seed,
@@ -937,12 +960,14 @@ def _clip_signature(
     audio_source: str,
     video_stride: int,
     vision_weight: float,
+    contact_evidence: bool,
     offset_s: float,
 ) -> str:
     code_paths = (
         Path(__file__),
         Path(inspect.getsourcefile(FretCamPositionAnalyzer) or ""),
         Path(inspect.getsourcefile(apply_position_window_priors) or ""),
+        Path(inspect.getsourcefile(apply_contact_priors) or ""),
         Path(inspect.getsourcefile(fuse) or ""),
         Path(inspect.getsourcefile(run_pipeline_with_artifacts) or ""),
     )
@@ -968,6 +993,7 @@ def _clip_signature(
         "audio_source": audio_source,
         "video_stride": video_stride,
         "vision_weight": vision_weight,
+        "contact_evidence": bool(contact_evidence),
         "offset_s": offset_s,
     }
     raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -1125,6 +1151,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--vision-weight", type=float, default=1.0)
     parser.add_argument("--bootstrap-n", type=int, default=10_000)
     parser.add_argument("--bootstrap-seed", type=int, default=42)
+    parser.add_argument(
+        "--contact-evidence",
+        action="store_true",
+        help="also apply FretCam per-finger (string, fret) contacts as a capped prior",
+    )
     parser.add_argument("--refresh-video", action="store_true")
     parser.add_argument("--output-json", type=Path, default=DEFAULT_OUTPUT_JSON)
     parser.add_argument("--output-report", type=Path, default=None)
@@ -1148,6 +1179,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         audio_source=args.audio_source,
         video_stride=args.video_stride,
         vision_weight=args.vision_weight,
+        contact_evidence=args.contact_evidence,
         n_bootstrap=args.bootstrap_n,
         bootstrap_seed=args.bootstrap_seed,
         refresh_video=args.refresh_video,
