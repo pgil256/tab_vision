@@ -21,7 +21,7 @@ def write_diagnose_report(
     audio_backend_name: str = "basicpitch",
     lambda_vision: float = 1.0,
     video_stride: int = 3,
-    video_enabled: bool = True,
+    video_enabled: bool = False,
     video_backend: str = "legacy",
     preflight_enabled: bool = True,
     audio_filters: bool | AudioFilterConfig | None = None,

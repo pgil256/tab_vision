@@ -1,0 +1,130 @@
+{
+  "clips": 300,
+  "extra_detection": {
+    "total": 3324,
+    "by_interval": {
+      "other": {
+        "count": 1310,
+        "share": 0.3941034897713598
+      },
+      "fifth_fourth": {
+        "count": 983,
+        "share": 0.2957280385078219
+      },
+      "octave": {
+        "count": 340,
+        "share": 0.1022864019253911
+      },
+      "semitone": {
+        "count": 235,
+        "share": 0.07069795427196149
+      },
+      "unison": {
+        "count": 231,
+        "share": 0.06949458483754513
+      },
+      "orphan": {
+        "count": 178,
+        "share": 0.05354993983152828
+      },
+      "ring_out": {
+        "count": 47,
+        "share": 0.014139590854392299
+      }
+    },
+    "by_mode": {
+      "comp": {
+        "count": 2619,
+        "share": 0.7879061371841155
+      },
+      "solo": {
+        "count": 705,
+        "share": 0.21209386281588447
+      }
+    },
+    "ring_out": 47,
+    "orphan": 178
+  },
+  "missed_onset": {
+    "total": 4371,
+    "by_concurrency": {
+      "3+ others": {
+        "count": 2142,
+        "share": 0.4900480439258751
+      },
+      "1-2 others": {
+        "count": 1638,
+        "share": 0.3747426218256692
+      },
+      "alone": {
+        "count": 591,
+        "share": 0.13520933424845574
+      }
+    },
+    "by_register": {
+      "mid (E3-E4)": {
+        "count": 2137,
+        "share": 0.4889041409288492
+      },
+      "low (<E3)": {
+        "count": 1151,
+        "share": 0.2633264699153512
+      },
+      "high (>=E4)": {
+        "count": 1083,
+        "share": 0.2477693891557996
+      }
+    },
+    "by_mode": {
+      "comp": {
+        "count": 3557,
+        "share": 0.8137725920841913
+      },
+      "solo": {
+        "count": 814,
+        "share": 0.18622740791580875
+      }
+    },
+    "short_notes": 1484
+  },
+  "base_rates": {
+    "gold_notes": 52223,
+    "by_concurrency": {
+      "1-2 others": {
+        "count": 20745,
+        "share": 0.39723876452903895
+      },
+      "alone": {
+        "count": 15767,
+        "share": 0.3019167799628516
+      },
+      "3+ others": {
+        "count": 15711,
+        "share": 0.30084445550810945
+      }
+    },
+    "by_interval": {
+      "other": {
+        "count": 20115,
+        "share": 0.4286536248561565
+      },
+      "fifth_fourth": {
+        "count": 17447,
+        "share": 0.37179815027916296
+      },
+      "semitone": {
+        "count": 5165,
+        "share": 0.11006691386438222
+      },
+      "unison": {
+        "count": 2128,
+        "share": 0.04534799471508332
+      },
+      "octave": {
+        "count": 2071,
+        "share": 0.04413331628521502
+      }
+    },
+    "short_notes": 11032
+  }
+}

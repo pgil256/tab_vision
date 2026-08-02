@@ -6,7 +6,13 @@ single call returning ``list[TabEvent]``. The video stack runs in a
 single forward pass over frames (subsampled by ``video_stride``); audio
 is processed in parallel from the same demux result.
 
-Graceful degradation:
+The video stack is **opt-in** (``video_enabled=False`` by default since
+2026-07-28): the ungated legacy chain measured −0.15 to −0.20 aggregate
+Tab F1 against the audio-only decode, its gated form is a measured
+no-op, and every published Tab F1 figure is audio-only. See
+DECISIONS.md 2026-07-28.
+
+Graceful degradation (once video is enabled):
 
 - **Missing import** (e.g. ``mediapipe`` or ``cv2`` not installed) →
   audio-only fallback with a logged warning. Caller still gets tab events.
@@ -179,7 +185,7 @@ def run_pipeline_with_artifacts(
     position_analyzer: PositionAnalyzer | None = None,
     lambda_vision: float = 1.0,
     video_stride: int = 3,
-    video_enabled: bool = True,
+    video_enabled: bool = False,
     video_backend: str = "legacy",
     contact_evidence: bool = False,
     position_prior: str | None = "auto",
@@ -196,6 +202,13 @@ def run_pipeline_with_artifacts(
 
     Backends are injectable for testing; when omitted, the function
     constructs production backends on demand.
+
+    ``video_enabled`` defaults to ``False`` (audio-only): the default
+    decode then matches the published eval convention exactly — with no
+    fingerings and no anchors the vision term in
+    :func:`tabvision.fusion.playability.emission_cost` never fires, so
+    ``lambda_vision`` is inert. Pass ``video_enabled=True`` to opt in to
+    a video backend (DECISIONS.md 2026-07-28).
 
     ``audio_filters`` controls the constructed backend's post-detection
     filtering (``tabvision.audio.filters``): ``None`` (default) keeps each
@@ -477,7 +490,7 @@ def run_pipeline(
     position_analyzer: PositionAnalyzer | None = None,
     lambda_vision: float = 1.0,
     video_stride: int = 3,
-    video_enabled: bool = True,
+    video_enabled: bool = False,
     video_backend: str = "legacy",
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",

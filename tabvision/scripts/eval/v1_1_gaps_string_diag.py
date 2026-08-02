@@ -158,6 +158,7 @@ def _diagnose_clip(
     window_s: float,
     max_frames: int,
     calibrate: CalibrateFn | None = None,
+    cache_suffix: str = "",
 ) -> ClipStringDiag | None:
     gaps = data_root / "gaps"
     xml = gaps / "musicxml" / f"{stem}.xml"
@@ -181,7 +182,13 @@ def _diagnose_clip(
     _dur, fps = _probe_metadata(vid)
     try:
         per_frame = load_frame_fingerings(
-            cache_dir, stem, conf=conf, cfg=cfg, fps=fps, calibrate=calibrate
+            cache_dir,
+            stem,
+            conf=conf,
+            cfg=cfg,
+            fps=fps,
+            calibrate=calibrate,
+            cache_suffix=cache_suffix,
         )
     except FileNotFoundError as exc:
         print(f"  [skip] {stem}: {exc}")
@@ -210,6 +217,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--clips", default="clean12", help="'clean12' or comma-separated stems")
     ap.add_argument("--conf", type=float, default=0.25, help="YOLO conf (cache key)")
+    ap.add_argument(
+        "--cache-suffix",
+        default="",
+        help="rich-cache filename suffix (e.g. '.crop' for the Phase A crop-then-detect cache)",
+    )
     ap.add_argument("--vote-frames", type=int, default=1, help="frames per onset (chunk-5 used 1)")
     ap.add_argument("--vote-window-s", type=float, default=0.06)
     ap.add_argument(
@@ -258,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
             window_s=args.vote_window_s,
             max_frames=args.vote_frames,
             calibrate=calibrate,
+            cache_suffix=args.cache_suffix,
         )
         if d is None:
             continue

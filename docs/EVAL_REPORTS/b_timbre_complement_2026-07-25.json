@@ -1,0 +1,61 @@
+{
+  "clips": 300,
+  "counts": {
+    "ambiguous": 49268,
+    "covered": 11528,
+    "abstain": 37740,
+    "abstain_no_gold": 4132
+  },
+  "population": {
+    "covered": {
+      "n": 11528,
+      "median_duration_s": 0.296875,
+      "mean_concurrency": 2.0693095072866066,
+      "share_short": 0.0,
+      "share_masked": 0.3570437196391395
+    },
+    "abstain": {
+      "n": 37740,
+      "median_duration_s": 0.3046875,
+      "mean_concurrency": 3.7188659247482776,
+      "share_short": 0.172284048754637,
+      "share_masked": 0.6629570747217806
+    }
+  },
+  "arms": {
+    "baseline": {
+      "tab_f1": 0.6083004259366556,
+      "delta_vs_shipped": -0.07176831097138006,
+      "lo95": -0.08854557608915067,
+      "hi95": -0.055805801596805975
+    },
+    "shipped": {
+      "tab_f1": 0.6800687369080357,
+      "delta_vs_shipped": 0.0,
+      "lo95": 0.0,
+      "hi95": 0.0
+    },
+    "oracle_abstain": {
+      "tab_f1": 0.8734860229648397,
+      "delta_vs_shipped": 0.19341728605680406,
+      "lo95": 0.17678124333206702,
+      "hi95": 0.21006358017840093
+    },
+    "oracle_covered": {
+      "tab_f1": 0.7855461603707895,
+      "delta_vs_shipped": 0.1054774234627539,
+      "lo95": 0.09520258508928209,
+      "hi95": 0.1162824979264704
+    },
+    "oracle_all": {
+      "tab_f1": 0.9049352809581837,
+      "delta_vs_shipped": 0.22486654405014786,
+      "lo95": 0.20831286070543684,
+      "hi95": 0.24155281091706526
+    }
+  },
+  "frozen_drift": {
+    "baseline": 4.2593665561252436e-07,
+    "shipped": -3.126309196432864e-05
+  }
+}

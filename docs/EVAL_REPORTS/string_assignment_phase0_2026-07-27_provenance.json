@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "benchmark_source": {
+    "commit": "8633a1004ba911a8d2a2894c6eb13d1eb3dec45d",
+    "tracked_worktree_clean": true,
+    "script": "tabvision/scripts/eval/string_assignment_phase0.py",
+    "command": [
+      "/home/gilhooleyp/projects/tab_vision/tabvision/.venv/bin/python",
+      "-m",
+      "scripts.eval.string_assignment_phase0",
+      "--data-home",
+      "/home/gilhooleyp/mir_datasets/guitarset",
+      "--output-dir",
+      "/home/gilhooleyp/projects/tab_vision/docs/EVAL_REPORTS",
+      "--date",
+      "2026-07-27"
+    ]
+  },
+  "dataset": "GuitarSet",
+  "dataset_version": "original public 360-track mono-mic/JAMS release",
+  "dataset_reference": "Xi et al., ISMIR 2018",
+  "license": "CC-BY-4.0",
+  "split": {
+    "training_players": [
+      "00",
+      "01",
+      "02",
+      "03",
+      "04"
+    ],
+    "held_out_player": "05"
+  },
+  "training_tracks": 300,
+  "training_track_ids_sha256": "544d51c3fec3f95c9d165501cb4a4bf55ae7092a9cbe422d2737a9ebbd331ca9",
+  "training_annotations_sha256": "0a7e5529854e8eb548f6d1116acc5d9eaf608b7a94542e7b10f5a5478f189c99",
+  "all_tracks": 360,
+  "all_track_ids_sha256": "5b808a1de16fa4cca25ff734a0ff1ae87d284d41f757378a5b737a30c14d1fbf",
+  "all_annotations_sha256": "29bc1d8c9e0fd5a83c28e425021676c7f095feca19a13f2de4512df3e3afb416",
+  "audio_event_cache": {
+    "backend": "highres",
+    "key_schema": "sha1-16(canonical absolute media path, backend, media mtime_ns)",
+    "entries": 360,
+    "total_bytes": 9331747,
+    "manifest_sha256": "be3105538477930a868ca19e3b4407ebda8476f792e6e15a76de2c4fff4c33bb"
+  },
+  "artifacts": [
+    {
+      "artifact": "guitarset_v1.json",
+      "canonical_json_sha256": "71f491cb7d377c163b5d08cbea69ebc7c47783059bf06eb727b9a66e8f7fd003",
+      "source_commit": "936a5ccf2b4ecbb9d79bddb38c2d0115d471fc7b",
+      "construction_command": "python -m scripts.eval.build_guitarset_v1_prior --data-home <GUITARSET> --validation-player 05 --output <OUTPUT>",
+      "constants": {
+        "alpha": 1.0,
+        "power": 2.0
+      },
+      "declared_validation_player": "05",
+      "declared_training_tracks": 300,
+      "rebuild_status": "semantic and canonical-LF byte match in this run"
+    },
+    {
+      "artifact": "guitarset_seq_v1.json",
+      "canonical_json_sha256": "3c657db2891f6e22f4fae4c6c9025551b197218c7165779fa8712ce9f40f5e8e",
+      "source_commit": "e6244c5e132cbc8b2816da67b8d70a73df6a8e5d",
+      "construction_command": "python -m scripts.eval.build_guitarset_seq_v1_prior --data-home <GUITARSET> --validation-player 05 --scheme delta_fret --alpha 0.5 --backoff-kappa 8.0 --output <OUTPUT>",
+      "constants": {
+        "scheme": "delta_fret",
+        "alpha": 0.5,
+        "backoff_kappa": 8.0,
+        "singleton_only": true
+      },
+      "declared_validation_player": "05",
+      "declared_training_tracks": 300,
+      "rebuild_status": "semantic and canonical-LF byte match in this run"
+    }
+  ],
+  "environment": {
+    "python": "3.12.3",
+    "python_implementation": "CPython",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "packages": {
+      "numpy": "2.4.4",
+      "mir_eval": "0.8.2",
+      "hf-midi-transcription": "0.1.1",
+      "pytest": "9.0.3",
+      "ruff": "0.15.12",
+      "mypy": "2.0.0"
+    }
+  },
+  "performance_observation": {
+    "wall_seconds": 9569.294768,
+    "peak_process_memory_bytes": 2237452288,
+    "artifact_bytes": 70350877,
+    "note": "observational metadata; excluded from deterministic report/CSV hashes"
+  },
+  "deterministic_outputs": {
+    "string_assignment_phase0_2026-07-27.md": {
+      "sha256": "5471b4ac44c37151634b9b976d9ffa2623e62bb8e8574920c715371d75003481",
+      "bytes": 6353,
+      "tracked": true
+    },
+    "string_assignment_phase0_2026-07-27_summary.csv": {
+      "sha256": "836a6499aeafb16683c3fad49194c6d6a745fddb164179a5c8822cb4baea64e7",
+      "bytes": 446240,
+      "tracked": true
+    },
+    "string_assignment_phase0_2026-07-27_notes.csv": {
+      "sha256": "7d460bb702ecda81385b35bc5a6493919989f5bf1c89f85dbc1b1874ec50c974",
+      "bytes": 69898284,
+      "tracked": false
+    }
+  }
+}

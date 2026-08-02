@@ -11,10 +11,15 @@ input.
 from __future__ import annotations
 
 import numpy as np
-import torch
+import pytest
 
-from scripts.eval.s1b_rescore_lattice import LatticeNote, Track
-from scripts.eval.s1b_train_context import (
+# The contextual model is a torch transformer; torch ships in the
+# audio-highres/train extras, not in [dev]. Guard the import the way
+# test_review_queue.py does so CI collection does not abort.
+torch = pytest.importorskip("torch", reason="the Q2 context scorer is a torch model.")
+
+from scripts.eval.s1b_rescore_lattice import LatticeNote, Track  # noqa: E402
+from scripts.eval.s1b_train_context import (  # noqa: E402
     PITCH_LOW,
     WINDOW,
     ContextScorer,

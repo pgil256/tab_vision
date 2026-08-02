@@ -1,0 +1,453 @@
+{
+  "version": 1,
+  "name": "fretcam-public-position-v1",
+  "corpus": "GAPS",
+  "corpus_license": "CC-BY-NC-SA-4.0",
+  "public_only": true,
+  "sample_fps": 10.0,
+  "annotation_policy": "Stable intervals require a visually countable nut-to-index fret relationship; shifts and deterministic public-frame occlusions have explicit ground-truth boundaries; uncertain ranges are omitted from scoring. Realigned 2026-07-29 by onset-envelope cross-correlation against the unchanged GAPS reference audio (same aligner as v1_1_gaps_video_chain_2026-06-22.md; convention video_time = gold_time + offset; delta = offset_now - offset_june): per-source deltas 027/031/104/118/142/179/235/341 all +0.000 s (offsets and peak ratios reproduce the June values exactly on the 2026-07-27 re-downloaded files); negative controls 077/105/178/238 delta 0.000 by policy (timing-insensitive).",
+  "sequences": [
+    {
+      "sequence_id": "dev_031_barre_i",
+      "source": "031_vpswc",
+      "split": "dev",
+      "start_s": 2.0,
+      "end_s": 8.0,
+      "labels": [
+        {
+          "start_s": 2.4,
+          "end_s": 7.8,
+          "state": "stable",
+          "position": 1,
+          "technique": "barre",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "user_verified",
+          "notes": "Previously reviewed first-position barre; index shaft contact is behind fret wire 1 although the angled tip enters the next cell."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_104_ii_to_vi",
+      "source": "104_xf1wc",
+      "split": "dev",
+      "start_s": 12.0,
+      "end_s": 17.8,
+      "labels": [
+        {
+          "start_s": 12.0,
+          "end_s": 13.2,
+          "state": "stable",
+          "position": 2,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "user_verified",
+          "notes": "Previously verified Position II origin hold before the deterministic occlusion."
+        },
+        {
+          "start_s": 13.2,
+          "end_s": 14.2,
+          "state": "dropout",
+          "position": 2,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "user_verified",
+          "notes": "A deterministic mask hides the fretting hand and adjacent neck over public frames; the end boundary is the annotated valid return.",
+          "occlusion_rect": [
+            0.48,
+            0.0,
+            0.88,
+            0.72
+          ]
+        },
+        {
+          "start_s": 14.2,
+          "end_s": 15.8,
+          "state": "stable",
+          "position": 2,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "user_verified",
+          "notes": "Verified Position II resumes when the deterministic mask is removed."
+        },
+        {
+          "start_s": 15.8,
+          "end_s": 16.4,
+          "state": "shifting",
+          "position": null,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "user_verified",
+          "notes": "Hand is visibly in transit; no position is forced."
+        },
+        {
+          "start_s": 16.4,
+          "end_s": 17.8,
+          "state": "stable",
+          "position": 6,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "user_verified",
+          "notes": "Previously verified stable arrival in Position VI."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_142_chord_iii",
+      "source": "142_GD1wc",
+      "split": "dev",
+      "start_s": 192.1,
+      "end_s": 193.7,
+      "labels": [
+        {
+          "start_s": 192.15,
+          "end_s": 193.65,
+          "state": "stable",
+          "position": 3,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Seven raw frames retain the same chord shape; index contact is visually counted from the nut at fret 3."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_142_note_v",
+      "source": "142_GD1wc",
+      "split": "dev",
+      "start_s": 136.9,
+      "end_s": 138.5,
+      "labels": [
+        {
+          "start_s": 136.93,
+          "end_s": 138.43,
+          "state": "stable",
+          "position": 5,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Seven raw frames show a stable fifth-position hand shape with the nut and fret wires visible."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_118_note_vii",
+      "source": "118_VD1wc",
+      "split": "dev",
+      "start_s": 80.3,
+      "end_s": 81.9,
+      "labels": [
+        {
+          "start_s": 80.33,
+          "end_s": 81.83,
+          "state": "stable",
+          "position": 7,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "frame_reviewed",
+          "notes": "Stable upper-neck note run; the nut-to-index wire count remains Position VII across seven reviewed frames."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_341_shift_to_ix",
+      "source": "341_1M1wc",
+      "split": "dev",
+      "start_s": 59.5,
+      "end_s": 61.9,
+      "labels": [
+        {
+          "start_s": 59.5,
+          "end_s": 61.1,
+          "state": "stable",
+          "position": 2,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Seven reviewed frames show the index holding Position II before the large relocation."
+        },
+        {
+          "start_s": 61.1,
+          "end_s": 61.45,
+          "state": "shifting",
+          "position": null,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Large low-to-high relocation; blurred transit frames are not assigned a position."
+        },
+        {
+          "start_s": 61.45,
+          "end_s": 61.9,
+          "state": "stable",
+          "position": 9,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Short but visually stable Position IX arrival before the return shift."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_077_off_neck_negative",
+      "source": "077_vV1wc",
+      "split": "dev",
+      "start_s": 18.0,
+      "end_s": 24.0,
+      "labels": [
+        {
+          "start_s": 18.0,
+          "end_s": 24.0,
+          "state": "invalid",
+          "position": null,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "mixed",
+          "verification": "frame_reviewed",
+          "notes": "F4c negative control: detected landmarks are off the canonical neck, so displaying a position is a false lock."
+        }
+      ]
+    },
+    {
+      "sequence_id": "dev_105_boundary_negative",
+      "source": "105_Qf1wc",
+      "split": "dev",
+      "start_s": 10.0,
+      "end_s": 16.0,
+      "labels": [
+        {
+          "start_s": 10.0,
+          "end_s": 16.0,
+          "state": "invalid",
+          "position": null,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "F4c negative control: boundary-clipped geometry must abstain instead of locking."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_179_chord_i",
+      "source": "179_pM1wc",
+      "split": "test",
+      "start_s": 34.4,
+      "end_s": 36.0,
+      "labels": [
+        {
+          "start_s": 34.41,
+          "end_s": 35.91,
+          "state": "stable",
+          "position": 1,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "frame_reviewed",
+          "notes": "Stable first-position chord; nut, first wire, and index contact remain visible across seven frames."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_235_chord_iii",
+      "source": "235_Ny1wc",
+      "split": "test",
+      "start_s": 315.8,
+      "end_s": 317.5,
+      "labels": [
+        {
+          "start_s": 315.88,
+          "end_s": 317.38,
+          "state": "stable",
+          "position": 3,
+          "technique": "chord",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Stable third-position shape with a clear full-neck view and countable fret wires."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_179_note_v",
+      "source": "179_pM1wc",
+      "split": "test",
+      "start_s": 58.2,
+      "end_s": 59.8,
+      "labels": [
+        {
+          "start_s": 58.23,
+          "end_s": 59.73,
+          "state": "stable",
+          "position": 5,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "mixed",
+          "verification": "frame_reviewed",
+          "notes": "Stable Position V passage; independently compared with the same source's first-position window."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_235_note_vii",
+      "source": "235_Ny1wc",
+      "split": "test",
+      "start_s": 252.1,
+      "end_s": 253.8,
+      "labels": [
+        {
+          "start_s": 252.18,
+          "end_s": 253.68,
+          "state": "stable",
+          "position": 7,
+          "technique": "note",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Stable Position VII upper-neck passage across seven reviewed frames."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_027_note_ix",
+      "source": "027_Zpswc",
+      "split": "test",
+      "start_s": 336.9,
+      "end_s": 338.6,
+      "labels": [
+        {
+          "start_s": 336.96,
+          "end_s": 338.46,
+          "state": "stable",
+          "position": 9,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "Close, sharp view of a stable Position IX passage with nut-to-index fret count visible."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_178_ii_to_v",
+      "source": "178_SM1wc",
+      "split": "test",
+      "start_s": 17.0,
+      "end_s": 19.35,
+      "labels": [
+        {
+          "start_s": 17.0,
+          "end_s": 18.55,
+          "state": "stable",
+          "position": 2,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The close raw view shows a sustained Position II origin before the upward relocation."
+        },
+        {
+          "start_s": 18.55,
+          "end_s": 18.8,
+          "state": "shifting",
+          "position": null,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The fretting hand is visibly in transit; no position is forced."
+        },
+        {
+          "start_s": 18.8,
+          "end_s": 19.35,
+          "state": "stable",
+          "position": 5,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The index settles at Position V before the next visible movement."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_178_crossfade_invalid",
+      "source": "178_SM1wc",
+      "split": "test",
+      "start_s": 19.9,
+      "end_s": 20.7,
+      "labels": [
+        {
+          "start_s": 19.9,
+          "end_s": 20.7,
+          "state": "invalid",
+          "position": null,
+          "technique": "note",
+          "visibility": "close",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The public edit double-exposes incompatible performers, necks, and hands; any single position display is invalid."
+        }
+      ]
+    },
+    {
+      "sequence_id": "test_238_barre_ii_occlusion",
+      "source": "238_My1wc",
+      "split": "test",
+      "start_s": 16.0,
+      "end_s": 18.5,
+      "labels": [
+        {
+          "start_s": 16.0,
+          "end_s": 16.8,
+          "state": "stable",
+          "position": 2,
+          "technique": "barre",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The full-neck view shows a stable Position II barre before the deterministic occlusion."
+        },
+        {
+          "start_s": 16.8,
+          "end_s": 17.5,
+          "state": "dropout",
+          "position": 2,
+          "technique": "barre",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "A deterministic mask hides the fretting hand and adjacent neck over public frames; the end boundary is the annotated valid return.",
+          "occlusion_rect": [
+            0.51,
+            0.0,
+            0.9,
+            0.68
+          ]
+        },
+        {
+          "start_s": 17.5,
+          "end_s": 18.5,
+          "state": "stable",
+          "position": 2,
+          "technique": "barre",
+          "visibility": "full_neck",
+          "lighting": "bright",
+          "verification": "frame_reviewed",
+          "notes": "The same Position II barre is visibly valid when the deterministic mask is removed."
+        }
+      ]
+    }
+  ]
+}

@@ -25,6 +25,7 @@ const calibrateTwoPointButton = document.querySelector("#calibrate-two-point");
 const continueCalibrationButton = document.querySelector("#continue-calibration");
 const calibrationUpperPosition = document.querySelector("#calibration-upper-position");
 const resetCalibrationButton = document.querySelector("#reset-calibration");
+const reacquireButton = document.querySelector("#reacquire");
 const exportDiagnosticsButton = document.querySelector("#export-diagnostics");
 const lockReason = document.querySelector("#lock-reason");
 const calibrationStatus = document.querySelector("#calibration-status");
@@ -89,6 +90,7 @@ function setLiveControls(enabled) {
   continueCalibrationButton.disabled = true;
   calibrationUpperPosition.disabled = !inferenceControlsEnabled;
   resetCalibrationButton.disabled = !inferenceControlsEnabled;
+  reacquireButton.disabled = !inferenceControlsEnabled;
   exportDiagnosticsButton.disabled = !enabled;
   setCaptureControls(enabled);
 }
@@ -255,7 +257,7 @@ function updateLiveReadouts(detection, position) {
     positionDetail.textContent = "Hand briefly hidden; holding the last position.";
   } else {
     positionReadout.dataset.state = "active";
-    positionDetail.textContent = "Keep several fingertips and the full neck visible.";
+    positionDetail.textContent = "Locks need 3+ fingertips on the neck; single-finger notes may not lock.";
   }
 }
 
@@ -759,6 +761,10 @@ mirrorPreview.addEventListener("change", () => {
   video.classList.toggle("mirrored", mirrorPreview.checked);
   savePreferences();
   if (lastHud) drawHud(lastHud);
+});
+reacquireButton.addEventListener("click", () => {
+  sendControl({ type: "reacquire" });
+  statusLine.textContent = "Re-acquiring the board - re-frame the neck.";
 });
 calibrateButton.addEventListener("click", () => sendControl({ type: "calibrate" }));
 calibrateTwoPointButton.addEventListener("click", () => sendControl({

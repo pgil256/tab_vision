@@ -4995,3 +4995,1321 @@ by re-running the dev benchmark to identical numbers.
 other caller or test double is affected.
 
 ---
+## 2026-07-25 — rotate the sealed confirmation set from player 05 to player 04
+
+**Phase:** Parallel improvement program, Phase 0 (P0.1)
+**Decision tree:** Player 05 had been opened twice for `acoustic-physics-v1` and
+four incoming workstreams all wanted confirmation against it. Either keep using
+a spent set, relabel it development-adjacent and have no sealed set at all, or
+rotate to a fresh player and accept a one-time re-base.
+**Branch taken:** Rotate. Sealed = player **04**, chosen by a mechanical rule
+(next player index below the burned one) fixed before any per-player score was
+inspected. Player 05 returns to development, so dev keeps 300 clips and only the
+roles swap. Every clip — dev and sealed alike — is now scored under
+leave-one-player-out priors rebuilt from a six-player pool at the registered
+artifacts' hyper-parameters, so no clip is ever scored under a prior that
+memorized its own player. The shipped artifacts are unmodified.
+**Evidence:** `docs/EVAL_REPORTS/phase0_rotation_baseline_2026-07-25.md` (+
+`.json`). The harness reproduces `player05_batched_confirm_2026-07-24`'s
+published 0.6340 / 0.7346 to −0.0000 drift on both arms, asserted at runtime.
+On the new sealed player 04 the shipped default measures aggregate **0.6609**
+(single-line 0.6686, strummed 0.6533) against a no-physics baseline of 0.6087 —
+Δ **+0.0522 [+0.0259, +0.0809]**, PASS. Dev over the remaining five players:
+0.6801 vs 0.6083, Δ +0.0718 [+0.0558, +0.0885].
+**Reasoning:** A sealed set that has been opened twice cannot support a
+program's worth of incoming confirmations, and the alternative — discovering
+later that nothing is confirmable — is far more expensive than one re-base. The
+mechanical selection rule matters as much as the rotation: a player chosen after
+seeing scores would bias every confirmation the rotation exists to protect.
+
+---
+
+## 2026-07-25 — the physics channel is worth +0.05 to +0.07, not +0.10
+
+**Phase:** Parallel improvement program, Phase 0 (P0.3/P0.4)
+**Decision tree:** Establish the frozen baseline the parallel tracks measure
+against, and decide whether the published headline can stand as the reference.
+**Branch taken:** Re-base the published numbers. Report the channel's value as a
+range with the per-player spread attached, and treat the dev figure over five
+players as the population estimate rather than any single held-out player.
+**Evidence:** Measured on all six players under leave-one-out priors, the
+channel's aggregate gain is +0.0468 (03), +0.0522 (04), +0.0603 (01), +0.0671
+(02), +0.0841 (00), +0.1006 (05) — a **2.15× spread, with the previously sealed
+player 05 at the maximum**. The Q6 and 2026-07-24 measurements are reproduced
+exactly, so nothing was mis-measured; the single-player estimate was simply the
+top of a wide range. Shipped aggregate on the new sealed player is 0.6609 versus
+the 0.7346 the README carried.
+**Reasoning:** A held-out player estimates a population mean only as tightly as
+the population is uniform, and this one is not. Publishing the maximum of six
+draws as the headline overstates what a new user should expect. The range is
+still a clear win and the channel still passes its gate on a fresh sealed
+player; only the point estimate was too generous.
+
+---
+
+## 2026-07-25 — Track D promoted; no accuracy track is cut
+
+**Phase:** Parallel improvement program, Phase 0 (P0.3)
+**Decision tree:** Phase 0's decomposition was explicitly allowed to kill a
+track — if `wrong_position_same_pitch` had fallen below `missed_onset`, Tracks
+A/B/C would have been chasing a bucket that was no longer dominant.
+**Branch taken:** Keep all four accuracy tracks; promote Track D from
+"measurement, probably only measurement" to a first-class track.
+**Evidence:** Shipped-arm decomposition. `wrong_position_same_pitch` is still
+the largest bucket at **47.6%** of dev loss (63.6% on single-line), down from
+57.3% pre-physics and 51.9% in this run's own baseline arm. But `missed_onset` +
+`extra_detection` together are **33.3%** of dev loss and **39.4%** of sealed
+loss, against 38.6% for wrong position on the sealed player — effectively tied.
+Also measured: between the two arms `pitch_off`, `timing_only`, `missed_onset`
+and `extra_detection` are identical to the event, and only
+`wrong_position_same_pitch` moves (13,088 → 10,999), converting 1:1 into
+`correct`. This directly verifies the claim that the channel cannot add, remove,
+or retime a note.
+**Reasoning:** The dominant bucket is still dominant, so the string-assignment
+tracks keep their justification, but the detection buckets are within striking
+distance and have had a fraction of the investment. Track D keeps its
+measurement-first discipline — the A10 precedent, where decomposing `pitch_off`
+closed it and saved the build, is the model — but it is no longer a side quest.
+
+---
+
+## 2026-07-25 — close three deployment branches as already-merged-by-content
+
+**Phase:** Parallel improvement program, Track E (hygiene)
+**Decision tree:** Three branches had sat unmerged for two weeks
+(`codex/fix-live-deployment`, `codex/record-live-shutdown`,
+`docs/prod-repoint-2026-07-09`). Merge them, or establish that they are not
+pending work.
+**Branch taken:** Close all three without merging. Their content is already in
+`main`, so the merges were noise — an attempt to merge the first produced a
+2,700-line `docs/DECISIONS.md` conflict purely because the branch predates every
+subsequent entry. Local branches deleted (SHAs recorded below; all three still
+exist on `origin`, so deleting the remote copies is left to the user).
+**Evidence:** `git cherry -v main codex/record-live-shutdown` reports `3992d88`
+as already upstream by patch-id. The other two are upstream by *content* rather
+than patch-id, having landed via PR #34 (`6a34c26`, "fix(web): refresh
+production and keep landing controls reachable"): `main` contains the
+landing-scroll and tooltip-placement fixes in both `web-client/src/App.tsx` and
+`index.css`, the full 2026-07-09 production-repoint entry, and the 2026-07-13
+Modal-retirement entry. Deleted refs: `codex/fix-live-deployment` @ `43b77a4`,
+`codex/record-live-shutdown` @ `3992d88`, `docs/prod-repoint-2026-07-09` @
+`87ec076`.
+**Reasoning:** A branch whose content has landed by another route is not
+outstanding work, and treating it as such generates conflicts that look like
+real disagreements. Patch-id equality is the cheap test; when it fails because a
+PR squashed or amended the change, the content test is the correct fallback
+rather than a merge attempt.
+
+**Incidental finding worth recording:** the retirement entry retires the *old*
+`pgil256` Modal workspace, not the deployment. The active `pgilhooley95` app is
+unaffected, so the README's claim that the project ships via a Modal production
+deploy remains accurate. This was checked because the branch name
+("record-live-shutdown") suggested otherwise.
+
+---
+
+## 2026-07-25 — freeze `accuracy-loop-state.md` as historical rather than update it
+
+**Phase:** Parallel improvement program, Track E (hygiene)
+**Decision tree:** The accuracy loop's state file is stale and self-
+contradicting. Either bring it current, or mark it closed.
+**Branch taken:** Freeze it with a prominent header enumerating exactly which
+claims are wrong, and point readers at `parallel-program-state.md` and the
+Phase 0 report. Do not update the queue table — the program it describes is
+closed, and a refreshed table would imply it is live.
+**Evidence:** The header names `accuracy/n4-ritual-validation` as the current
+branch; the real tip was `accuracy/level-correction-0.60`, four commits later.
+The Q6 row still reads "opt-in" though the channel became the default on
+2026-07-24, and the Q7 row still requests a capo-routing decision that shipped
+the same day. Nothing in the file records the +0.60 level correction being
+built, refuted on held-out data, and reverted, nor N1 being confirmed and
+shipped.
+**Reasoning:** The file's remaining value is its account of what was tried and
+why, which is intact and worth keeping. Its queue state is worse than useless
+because it reads as current. Marking the boundary precisely is more honest than
+a refresh that would blur which parts were contemporaneous. The successor
+program keeps its numbers in a generated report and uses prose only for
+narrative, so it cannot drift the same way.
+
+---
+
+## 2026-07-25 — close `extra_detection`, open `missed_onset`
+
+**Phase:** Parallel improvement program, Track D (detection buckets)
+**Decision tree:** Phase 0 promoted the detection buckets to a first-class track
+(33.3% of dev loss, 39.4% of sealed). Following the A10 precedent, decompose
+before building: look for a dominant fixable mode in each bucket and build only
+if one survives.
+**Branch taken:** **Close `extra_detection`** as a fix target. **Keep
+`missed_onset` open**, with a masking-aware detection pass as the single build
+candidate this probe supports. Build nothing yet.
+**Evidence:** 300 development clips, current default, residuals read from the
+shipped matcher via a new out-parameter rather than a reimplementation.
+Report: `docs/EVAL_REPORTS/d_detection_probe_2026-07-25.md`.
+
+`extra_detection` (3,324), against the interval content of the music: fifths and
+fourths are 29.6% of spurious detections and **37.2% of the intervals the music
+contains** — lift **0.80×**, i.e. depleted. `other` 0.92×, `semitone` 0.64×.
+Only octaves (10.2%, **2.32×**) and unisons (6.9%, **1.53×**) are genuinely
+enriched, together ~17% of the bucket and ~2.5% of total loss. Ring-out is 1.4%,
+so offset handling is not the problem either.
+
+`missed_onset` (4,371), against all gold notes: 3+ simultaneous neighbours
+**49.0% vs 30.1% base (1.63×)**; sounding alone **13.5% vs 30.2% (0.45×)**;
+short notes < 150 ms **34.0% vs 21.1% (1.61×)**. Register shows no
+concentration.
+**Reasoning:** The two buckets look similar in the Phase 0 totals and are not
+alike at all. `extra_detection`'s attractive harmonic-leakage story is a
+base-rate artifact — the largest identified class in the bucket is the one class
+the model is *under*-represented in — and what remains genuinely enriched is too
+small to build against. That reproduces A10's `pitch_off` outcome for the same
+reason, so two of the three non-position buckets are now closed on the same
+finding. `missed_onset` is the opposite: both hypotheses clear their base rates
+decisively and point the same way. The detector is not failing at recall
+generally — a note sounding alone is missed at less than half the base rate — it
+is failing inside dense simultaneity and on very short notes.
+
+**Method note worth carrying:** without the base-rate columns this probe would
+have reported "harmonic leakage is the dominant mode of `extra_detection`",
+which is precisely backwards. The repo has made the conditional-without-marginal
+error before (A14 read 0.285 without its 0.382 marginal; F7 repeated the shape).
+The probe now computes both by construction and prints them adjacently, so the
+conditional cannot be read without its marginal.
+
+---
+
+## 2026-07-25 — expose matcher residuals instead of reimplementing the matcher
+
+**Phase:** Parallel improvement program, Track D (prerequisite)
+**Decision tree:** Characterising missed and spurious events needs the events
+themselves; `decompose_errors` computes exactly which they are and returns only
+counts. Either reimplement the matching in the probe, or have the matcher hand
+them out.
+**Branch taken:** Add an optional `Residuals` out-parameter to
+`decompose_errors`, following the A10 precedent (which added `pitch_off_deltas`
+to the same function for the same reason). Omitting it changes nothing.
+**Evidence:** 39 existing `error_decomposition` tests pass unchanged, plus 4 new
+ones asserting the residuals agree with the counts they accompany, that omitting
+the parameter is a no-op, and that a fresh instance starts empty. 1113 tests,
+ruff and mypy clean.
+**Reasoning:** A second copy of the matching would drift from the scored one,
+and a diagnosis computed against a different matcher describes a pipeline that
+does not ship. This is the same argument that split the physics channel in
+Track A: derive the diagnostic from the production path rather than beside it.
+
+---
+
+## 2026-07-25 — coverage is not the lever; the binary admission gate is
+
+**Phase:** Parallel improvement program, Track A (physics-channel coverage)
+**Decision tree:** Phase 0 measured the channel's coverage at 22.4% of events
+and named coverage the binding constraint. Test whether the 77.6% of notes
+currently receiving no evidence are a reservoir of unused signal, by relaxing
+the `min_r2` admission threshold; and separately whether the threshold should be
+a threshold at all.
+**Branch taken:** Reject every hard-threshold relaxation. Adopt
+confidence-weighted admission (`confidence ≥ 0.30`) as the candidate for
+promotion, pending the cross-domain leg and the Phase 2 sealed confirmation.
+The shipped default is unchanged by this entry.
+**Evidence:** 300 development clips, leave-one-player-out priors, banked
+partial-aware fits, paired bootstrap N=10,000 seed 42, replay verified against
+the Phase 0 frozen baseline at ±0.0000 drift.
+
+Hard-threshold relaxation is **CI-significantly worse at every step**, with all
+five intervals entirely below zero: `min_r2` 0.40 −0.0050 [−0.0087, −0.0014],
+0.30 −0.0088, 0.20 −0.0135, 0.10 −0.0192, 0.00 −0.0206 [−0.0293, −0.0120].
+Coverage nearly doubled (22.4% → 43.1%) and Tab F1 fell 0.6801 → 0.6595.
+
+Confidence weighting (weight ∝ `(r2 − floor)/(1 − floor)`) passes:
+`≥0.30` **+0.0071 [+0.0021, +0.0122]** at 28.0% coverage; `≥0.10` +0.0068
+[+0.0016, +0.0122]; `≥0.00` +0.0052 [−0.0004, +0.0109], inconclusive.
+Report: `docs/EVAL_REPORTS/a_physics_coverage_2026-07-25.md`.
+**Reasoning:** The two results are only apparently contradictory. Admitting a
+marginal fit at *full* weight asserts confidence the fit does not support, and
+that corrupts more than the fit contributes — which is why every threshold
+relaxation loses. Admitting the same fit at *its own* weight contributes
+proportionally, which is why the soft rule gains accuracy and coverage at once.
+The motivating hypothesis — that uncovered notes hold usable signal — is
+therefore refuted in its stated form and true in a weaker one. The actionable
+statement is not "raise coverage" but "stop treating a continuous quality
+measure as a binary".
+
+---
+
+## 2026-07-25 — split the physics channel into a measurement half and a scoring half
+
+**Phase:** Parallel improvement program, Track A (prerequisite)
+**Decision tree:** Phase 0 found that `measure_events` had no isolation
+parameter and was always strict, so banked fits could not express the shipped
+`partial_aware` configuration — and that this had already caused a run to
+measure the wrong arm while reporting itself as shipped. Fix the parameter
+only, or split the channel at its seam.
+**Branch taken:** Split. `measure_events(..., isolation=, min_clean_partials=)`
+is now the whole spectral half; `apply_fits(...)` is the scoring half;
+`attach_inharmonicity_evidence` is their composition. The contamination check
+moves into the measurement half, where it is part of deciding whether a fit
+exists. `min_r2` stays in the scoring half because it is an admission threshold
+rather than a measurement, which is precisely what made this track's sweep
+possible.
+**Evidence:** Verified bit-identical rather than merely green — the Phase 0
+runner reproduces its pinned player-05 numbers at −0.0000 drift on both arms and
+the sealed decomposition matches to the event; 1109 tests, ruff, mypy clean.
+Banking 22,694 partial-aware fits over 300 clips costs 2.9 min once, after which
+nine admission arms swept in 2.2 min total.
+**Reasoning:** Adding the parameter alone would have left two separate
+implementations of the same gates — which is what allowed one of them to be
+silently missing a mode. Composing the shipped path from the same two halves the
+replay uses makes that class of divergence unrepresentable rather than merely
+unlikely.
+
+---
+
+## 2026-07-25 — Track B CLOSED: do not build `guitarset-timbre-v1`
+
+**Phase:** Parallel improvement program, Track B (timbral string classifier)
+**Decision tree:** The `guitarset-timbre-v1` slot is registered in the CLI and
+empty. Two prior closures (Phase 2 2026-07-14, Phase 4 2026-07-16) rejected
+timbral models over *all* ambiguous notes; neither asked about the population
+the physics channel created. Establish whether a timbral model has a niche on
+the ~77% of ambiguous notes where physics abstains, without re-running anything
+those closures forbade.
+**Branch taken:** **Close Track B.** Do not register the artifact, do not train,
+do not spend. `--string-evidence auto` continues to resolve to the physics
+channel or `none`. The slot stays empty.
+**Evidence:** 300 development clips, leave-one-player-out, sealed player not
+opened, frozen-baseline drift ±0.0000.
+
+*Where a timbral model would work:* abstain is 37,740 of 49,268 ambiguous notes
+(76.6%), at 1.8× the concurrency and 1.9× the masking of the covered population
+(mean concurrency 3.72 vs 2.07; masked 66.3% vs 35.7%). Median duration is
+equal, so physics abstains under **simultaneity**, not brevity.
+
+*Ceiling:* gold-string oracle on the abstain population alone is **+0.1934
+[+0.1768, +0.2101]** over shipped (0.6801 → 0.8735). Large, so — per the
+pre-declared reading — it does not close the track by itself.
+
+*Signal:* leave-one-player-out pairwise separability (same pitch, different
+string, Fisher direction, plain spectral features) is **AUC 0.7060 on abstain**
+against 0.6633 on covered.
+
+*Realised extraction, from the prior closures:* Phase 2's audio ranker scored
+0.6331 against a 0.6548 prior-only comparator (**worse**) with healthy
+calibration; Phase 4's native-rate model with inharmonicity reached **+0.0072
+[−0.0152, +0.0291]** against a +0.05 gate.
+Report: `docs/EVAL_REPORTS/b_timbre_complement_2026-07-25.md`.
+**Reasoning:** The constraint is the conversion, not the ingredients. Ceiling is
+large and signal is present, so neither explains the failure — but a pairwise
+AUC of 0.71 is substantially overlapping distributions, and it must improve a
+position prior already at ~0.65 top-1 on the same notes. Weak evidence competing
+against a strong prior on a six-way decision is exactly where added channels
+wash out, and "healthy calibration, no lift" is that regime's signature — which
+is precisely what Phase 2 reported.
+
+This also explains why *physics* succeeded where fitted timbral models failed
+even though Phase 4 included inharmonicity as a feature. The physics channel is
+**specification-derived**, contributing an absolute physical prediction per
+candidate, rather than a discriminative direction learned from the same
+distribution the position prior already models. Its evidence is independent of
+the prior in a way a fitted timbral direction is not.
+
+**A hypothesis was refuted along the way, and it is worth recording because it
+was the attractive one.** The probe was built to confirm that masking destroys
+timbral information — which would have explained both prior closures at once
+and made the complement provably hopeless. Measurement says the opposite:
+separability on the heavily-masked abstain population is *slightly better* than
+on the covered one. The tidy mechanism was wrong, and the closure rests on the
+weak-evidence-versus-strong-prior account instead.
+
+**If reopened,** the evidence says the productive question is not better
+features — Phase 4 already went to Nyquist — but how weak per-note evidence is
+*combined*. Track A's result is the precedent: the same evidence admitted at its
+own confidence rather than at full weight turned a regression into a gain. That
+is the only version of this idea the measurements support, and it needs its own
+gate.
+
+---
+
+## 2026-07-25 — personal-prior lever priced at +0.0305; within-session self-adaptation not promoted
+
+**Phase:** Parallel improvement program, Track C (session-adaptive position prior)
+**Decision tree:** The shipped position prior is population statistics; a player
+whose habits differ is systematically mis-assigned and nothing notices. Price
+the ceiling before building an estimator (the N4 rule), then measure the
+achievable no-gold version.
+**Branch taken:** **Justify sub-item (ii)** — build a personal prior from
+accumulated user data — with a measured ceiling of **+0.0305**. **Do not promote
+sub-item (i)**, within-session self-adaptation, despite a CI-significant
+aggregate gain. Shipped default unchanged; no artifact registered.
+**Evidence:** 300 dev clips, leave-one-player-out, sealed player not opened,
+frozen drift ±0.0000. Report:
+`docs/EVAL_REPORTS/c_prior_adaptation_2026-07-25.md`.
+
+- `oracle_player` (the player's own in-sample prior): 0.6801 → **0.7106**,
+  **+0.0305 [+0.0183, +0.0430]**. Positive for all five players and largest
+  where the system is weakest (player 01 **+0.0762** off the worst baseline).
+- `oracle_clip` (the clip's own gold): +0.1527 — a loose bound, unreachable.
+- `self_adapt` (no gold; harvest the decode's own confident assignments, learn a
+  session prior, blend, re-decode): +0.0022 / +0.0040 / +0.0062 / +0.0087 /
+  **+0.0101 [+0.0036, +0.0166]** at blend weights 0.15 → 1.00, monotone.
+- **Control — mismatched session prior at the same weight: −0.0250
+  [−0.0334, −0.0171]**, a decisive regression against the matched arm's +0.0062.
+- Per-player, self-adaptation helps 00 (+0.0271), 01 (+0.0216), 03 (+0.0117) and
+  **hurts 02 (−0.0039) and 05 (−0.0060)** — 05 being the strongest player.
+- Mean total-variation distance between per-player priors: **0.197**.
+
+**Reasoning:** The control is what makes the self-adaptive result readable at
+all. At a 92% harvest rate the session prior is close to a restatement of the
+decode, so the gain could have been pure self-confirmation; a mismatched session
+prior regressing four times as hard as the matched one helps proves the effect
+is session-specific. It also carries a production warning: adapting to the
+*wrong* session is far more harmful than adapting to the right one is helpful.
+
+λ=1.00 scoring best is not the degenerate reading it appears to be — pass 1 used
+the population prior, so its information is baked into the session prior rather
+than discarded. The monotone trend is a statement about intra-session
+consistency, not about the population prior being worthless.
+
+The gate is failed on its second leg, deliberately kept: an adaptive prior that
+lifts the aggregate by hurting the players who already do well is not a default,
+whatever the mean says. The `oracle_player` arm has the opposite and much better
+shape — positive everywhere, largest where need is greatest.
+
+**Why (ii) is the recommendation:** it is the only lever in this program whose
+production form is *easier* than its experimental form. TabVision is a personal
+application, so the same player recurs across sessions, and the assisted-review
+queue already collects confirmed (string, fret) labels and discards them. The
+ingredient exists and is being thrown away.
+
+**Method note:** a 10-clip smoke of this probe covered only player 00 and showed
+the player oracle at **−0.0084**, i.e. the exact opposite conclusion. Player 00's
+own prior is worth +0.0010 — that player *is* the population average. A
+single-player pilot would have closed this track wrongly, which is an argument
+for pricing ceilings on the full development set even when the pilot looks
+decisive.
+
+---
+
+## 2026-07-27 - Phase A lifts the video channel but not Tab F1; the gate stays
+
+**Phase:** Video evidence roadmap Phase A
+(`docs/plans/2026-07-27-video-evidence-roadmap-design.md`)
+**Decision tree:** A5 — 720p / conf-0.10 / crop-then-detect, keyed on the WS1
+leading indicator against the 0.574 baseline.
+**Branch taken:** The **>= 0.65** branch fires (0.720) with no gated regression,
+so WS5 is formally authorized — but its premise is **re-scoped**: do NOT lower
+`min_clip_coverage`. Phase A is banked as a channel improvement, explicitly not
+as a Tab F1 improvement, and source-disjoint-10 stays untouched until a *Tab F1*
+gain exists.
+
+**Evidence:** Report `docs/EVAL_REPORTS/phaseA_720p_cache_rebuild_2026-07-27.md`.
+
+Positive: the fret-detection wall is essentially eliminated — WS3 statistic
+**0.650 -> 0.081**, zero-median-fret clips **8/12 -> 1/12** (only `063_bV1wc`
+survives, and there the *neck* is barely detected at homography confidence
+0.406, so crop-then-detect cannot reach it). Ambiguous-note string accuracy
+**0.568 -> 0.720 (+0.151)**, 9 clips gaining / 3 regressing; best `142_GD1wc`
++0.347, worst `118_VD1wc` -0.150. Calibration fit rate rises in lockstep
+(e.g. `027` 36.1% -> 88.2%, `043` 0.0% -> 85.1%), and the uniform-partition
+control is **-0.007** — resolution alone buys nothing; the gain is entirely the
+rule-of-18 map becoming able to fit.
+
+Negative: gated Tab F1 is **unchanged** (0.8147 -> 0.8147, +0.0000 on 12/12;
+measured coverage 0.48-0.52 against the 0.71 gate). Ungated it is **worse** —
+mean **0.6142 (-0.2006)**, no-regression violated on **10/12**, worst
+`294_BSswc` -0.6624 — and even the best-fixed-orientation ceiling (**0.7635**)
+sits below audio-only 0.8147. Against the banked chunk-6 sweep the lagging
+indicator did not move at all (oracle-orientation 0.7632 banked vs 0.7635 here).
+
+Control fidelity: the 360p arm reproduces the banked figures on a from-scratch
+data root — uniform 0.543 vs 0.544, WS1 0.568 vs 0.574, gated audio-only 0.8147
+vs 0.8148, oracle 0.9728 vs 0.9726. Per-*clip* agreement is much looser
+(`212` -0.266, `294` -0.137), attributed to YouTube re-encoding between June and
+today; within-report deltas are valid, single-clip comparisons against the June
+column are not.
+
+**Reasoning:** The A5 threshold was pre-registered and 0.720 clears it, so the
+formal branch is not in question. But the ungated measurement — which the tree
+did not anticipate — establishes that the coverage gate is not withholding a
+win. At 0.720 the video channel is still below the **0.778** audio playability
+prior it would displace, so admitting it costs more than it gains wherever it is
+applied; the gate has been protecting Tab F1, not obstructing it. Loosening it
+would import a 0.05-0.20 Tab F1 loss. WS5 is therefore re-scoped from
+"re-derive the threshold" to "admit video only where it is expected to beat
+audio", and note that confidence-keyed routing of the *360p-era* evidence is a
+recorded do-not-retry (A14) — any revival must be justified by the new evidence
+quality and pre-registered afresh.
+
+The measurement also surfaced a larger, cheaper lever that was not on the plan:
+ungated auto-orientation scores 0.6142 against a 0.7635 best-fixed-orientation
+ceiling, a **0.149 Tab F1 gap from orientation selection alone** (`294_BSswc`:
+auto `none` 0.2658 vs `flip-both` 0.8080). `choose_orientation` resolves the
+string-axis mirror from audio-pitch agreement and is wrong on most clips. Fixing
+it is pure offline work on the existing cache and closes more than the gate does,
+so it takes priority over both gate work and further data acquisition.
+
+Two engineering fixes landed alongside: the >360p yt-dlp selector now pins
+`vcodec^=avc1` (for `142_GD1wc` it had selected AV1, which this OpenCV build
+decodes as **zero frames** while ffprobe reports a healthy stream), and
+`_raw_cv_cache` now raises rather than persisting an empty cache — that empty
+cache had scored as 0.000 and would have been silently reused on rerun.
+
+---
+
+## 2026-07-27 - Orientation selection is confidently wrong, not tied, and is not the win
+
+**Phase:** Video evidence roadmap Phase A, follow-up diagnostic
+**Decision tree:** Which lever to pursue after Phase A moved the leading
+indicator (+0.151) without moving Tab F1.
+**Branch taken:** **Correct the previous entry's emphasis.** Orientation
+selection is worth fixing but is NOT the route to a Tab F1 gain; deprioritize
+gate work and orientation work relative to closing the channel's remaining
+deficit against the audio prior.
+
+**Evidence:** `scripts/eval/phasea_orientation_diag.py` (new, cache-only) over
+clean-12 on the 720p crop cache. The selector agrees with the gold-best
+orientation on **5/12** clips, but the mean ambiguous-note string accuracy lost
+to its choice is only **0.031**. The four orientation scores are **well
+separated** (median relative spread **0.545**; 0.21-1.00 on ten clips), so the
+hypothesis that `candidate_support` is mirror-invariant and the argmax falls back
+to `ORIENTATIONS` order is **refuted** except on `063` (0.002) and `212` (0.051).
+Decisively: with a perfect gold-chosen orientation the ungated arm still scores
+**0.7635 vs audio-only 0.8147**.
+
+**Reasoning:** The ungated table (auto 0.6142 vs best-orientation 0.7635) made
+orientation look like a 0.149 Tab F1 lever, and the preceding DECISIONS entry
+said so. That reading was too strong. The 0.149 arises because ungated fusion
+applies the video posterior to *every* note, so a systematically mirrored
+posterior damages notes audio already decoded correctly — the orientation error
+is amplified by ungated application rather than being large in itself. Fixing it
+takes the ungated arm from -0.201 to -0.051 versus audio-only: less harmful,
+still not a gain.
+
+This also forces an honest restatement of the Phase A headline: the leading
+indicator is computed at the **best orientation**, so **0.720 is not deployable**
+- the auto-orientation equivalent is ~**0.689**, widening the gap to the 0.778
+audio prior from ~0.058 to ~0.089. The banked 0.574 baseline uses the same
+best-orientation convention, so the +0.151 delta stands; only the absolute
+deployable level is lower than the headline implies.
+
+Net: Phase A moved the channel from decisively-worse-than-audio to
+close-to-audio and removed the detection wall, but Tab F1 cannot improve while
+the channel sits below the prior it displaces. Effort should go to closing that
+last ~0.089 (learned fret keypoints; the `118`-class partial-evidence fix), not
+to gate tuning or orientation polish.
+
+---
+
+## 2026-07-27 - C1 regenerates, but 4 rows short of the pinned assertion
+
+**Phase:** C1 (offline assisted-review ranker), execution of the feasibility
+verdict recorded earlier today.
+**Decision tree:** Can the exact 38.76% comparison be restored on this machine?
+**Branch taken:** **Partially — and the remaining obstacle is real, unlike the
+three the n3 report gave.** Regeneration ran end to end; the blocker is now a
+4-row drift against a hard assertion. **STOP for a user decision** rather than
+relaxing a provenance-pinned assertion unilaterally.
+
+**Evidence:** `scripts.eval.string_assignment_phase0` and `...phase1` both ran to
+completion against `~/mir_datasets/guitarset` (written under `--date 2026-07-27`
+so the seven tracked 2026-07-15 artifacts were not overwritten), producing
+`string_assignment_phase0_..._notes.csv` (67 MB) and `phase1_..._notes.csv`
+(34.0 MB) - sizes essentially matching the recorded 69.9 MB / 34.0 MB.
+
+**Not bit-identical:** phase0 sha256 `7d460bb7...` vs recorded `6f067585...`;
+phase1 `c09c467a...` vs recorded `541220a6...`.
+
+**Structure is 4 rows short.** The regenerated table holds **51,126**
+`development_oof` rows per condition against the **51,130** asserted at
+`string_assignment_phase6.py:145`. Observed, not inferred - phase6 exits with
+`RuntimeError: expected 51,130 development rows per condition, got 51126 and
+51126`. Both conditions (`production_equivalent`, `segment-v1`) agree at 51,126,
+and each carries 8,600 `held_out_05` rows.
+
+**Reasoning:** The feasibility analysis predicted exactly this class of drift
+(torch 2.12->2.11, numpy 2.4.6->2.4.4, Windows->Linux, a different ffmpeg
+resampler on the 44.1k->22.05k path) and predicted it would fail loudly rather
+than silently. It did, which is the design working: a drifted decode cannot
+quietly produce a wrong 38.76% comparison.
+
+The drift is **4 rows in 51,130 = 0.008%**, far below any effect size that could
+move a wrong-reduction metric, and the ranker uses player-held nested OOF, so
+four notes cannot swing the comparison. Relaxing the assertion to a small
+tolerance would therefore yield a *materially* valid comparison - but it is not
+bit-exact, and `string_assignment_phase6.py` sits in a SHA-pinned provenance
+chain, so loosening it is a user call, not an implementation detail. The
+alternative (pinning the exact original toolchain) is unbounded work with an
+uncertain outcome.
+
+**Recommendation:** relax the assertion to a tolerance (e.g. +-0.05% of 51,130)
+with the observed count recorded in the run's provenance, and report the result
+as "near-exact, 4/51,130 rows drifted" rather than as the frozen comparison.
+
+## 2026-07-28 - C1 unblocked: the 4-row drift is one track, and the tolerance is now +-0.05%
+
+**Phase:** C1 (offline assisted-review ranker), resolving the STOP recorded
+2026-07-27.
+**Decision tree:** Relax the pinned 51,130-row assertion, or leave C1 blocked?
+**Branch taken:** **Localise first, then relax.** The user declined to loosen a
+provenance-pinned assertion on a blind tolerance and asked which rows drifted.
+They were identified, so the tolerance now rests on a named cause.
+
+**Evidence — the deficit is one track, not a diffuse decode wobble.** Diffing
+the tracked 2026-07-15 summaries against the 2026-07-27 regeneration over every
+`(condition, evaluation_split, dimension, value)` cell: the key sets are
+identical (4,068 phase0 / 1,877 phase1 cells, nothing appeared or vanished), and
+**every count difference traces to the single track `03_Rock3-148-C_comp`**
+(player 03 / style Rock3 / mode comp): `predicted_notes` 323 -> 319,
+`ambiguous_pitch_matches` 202 -> 200, `correct_notes` 197 -> 195 (phase0) and
+138 -> 136 (phase1). The four are predicted events at MIDI **52, 57, 60, 64**,
+one each. Every other player, style, mode and track cell reproduces the banked
+counts exactly; dev rows by player are 00=11,963 01=11,462 02=8,375 03=9,224
+04=10,102, summing to the observed 51,126.
+
+**Cause — gold annotations, not the decode.** Upstream provenance separates the
+candidates cleanly: `development_track_ids_sha256` is **identical**
+(`544d51c3...`) and the runtime-benchmark `prediction_sha256` is **identical**
+(`9788d929...`, i.e. the transcriber is deterministic and reproduces bit-exactly
+on fixed input), while `development_annotations_sha256` **differs**
+(`ae67ab86...` -> `0a7e5529...`). That hash is taken over the raw JAMS bytes
+(`string_assignment_phase0.py:988` `_source_hash`), so the GuitarSet annotation
+files on this Linux box differ in bytes from the Windows run's copy. The
+300-entry `audio_manifest` in the phase4 provenance still matches 300/300, so
+the audio is not implicated.
+
+**Honest limit:** the banked runs recorded **no per-file annotation manifest**,
+only a single running digest over all dev tracks, so *which* JAMS differ cannot
+be recovered from banked artifacts — the localisation above is behavioural (one
+track moved) rather than a byte-level identification. The original
+2026-07-15 `*_notes.csv` are git-ignored (`.gitignore:76-77`) and the copies on
+disk under both dates are bit-identical regenerations, so there is no baseline
+table on disk to diff. Recording a per-file annotation manifest alongside the
+audio manifest would make this localisable next time; not done here to avoid
+touching the pinned chain further.
+
+**Change:** `string_assignment_phase6.py` gains `EXPECTED_DEV_ROWS = 51_130` and
+`DEV_ROW_TOLERANCE = 25` (= floor(0.05% of 51,130); 26 was rejected because
+26/51,130 = 0.0509% exceeds the stated bound). `_load_note_rows` now accepts
+counts within that band and still raises outside it. Six unit tests in
+`tests/unit/test_string_assignment_phase6_rows.py` pin both directions —
+including that a drift one row beyond tolerance still fails loudly, so a real
+decode regression cannot be absorbed. Verified against the actual regenerated
+table: loads at 51,126 (-4, 0.0078%).
+
+**Consequence:** the C1 comparison must be reported as **"near-exact, 4/51,130
+rows drifted, all in `03_Rock3-148-C_comp`"** — never as the frozen 2026-07-15
+comparison. Modifying phase6 also breaks its recorded script sha against the
+Phase 6/7 provenance chain; that is expected and is the price of the tolerance.
+
+## 2026-07-28 - Phase D was blocked on data acquisition, not CPU
+
+**Phase:** D (WS4 learned string resolver retrain), execution.
+**Decision tree:** Is Phase D's extraction runnable as the handoff claimed?
+**Branch taken:** **No — the handoff was wrong, and the gap was closed.**
+
+**Evidence:** `docs/HANDOFF-2026-07-27-video-evidence.md` records Phase D as
+"code + 11 tests landed; 252/270 train clips acquired", blocked on "CPU, then
+Gate 1". The 252 figure is **video only**. A 2-clip smoke run of
+`extract_string_dataset --hand-tight --sustain` returned **0 crops in 3.6 s** —
+`extract_clip` early-returns when the musicxml/wav siblings are missing, and
+`~/.tabvision/data/gaps/{musicxml,audio}` held only the **clean-12** eval clips.
+`parse_gaps` additionally derives `midi/` and `syncpoints/` siblings and raises
+without them. So the train split had no gold annotations and no reference audio
+at all; the extraction could never have produced a single training crop.
+
+**Fix:** new `scripts.acquire.datasets gaps-annotations` subcommand pulling from
+the HF mirror `xavriley/GAPS`, whose layout matches `scan_gaps` (the Zenodo
+archive strips the `NNN_` stem prefix, which is why the local
+`*_zenodo_naming/` dirs were unusable for lookups). It is split-filtered via
+`read_split_stems`, which is the eval-leakage guard — clean-12 is a subset of
+`test`, so a `train` fetch cannot pull an eval clip (LICENSES.md:72). Default
+`--include` is all four subdirs precisely so the midi/syncpoints footgun cannot
+recur. Acquired **1008/1008 files, zero failures** (252 stems x 4), 9.5 GB.
+
+**Validation before committing ~18 h of CPU:** the 2-clip smoke then produced
+**2,035 crops**, 100% of them clearing the frozen `--min-peak-ratio 2.0`
+alignment filter (per-clip peak_ratio 2.938 and 7.719), string labels spread
+across all six strings (152-423), fret range 0-17. Crops eyeballed per the F2b
+rule: hand-tight on the fretting hand with individual strings resolvable; one of
+five sampled frames caught the picking hand, which is the documented hand-dropout
+fallback rather than a coordinate bug.
+
+**Cost measured, not estimated:** 8m29s for 2 clips => ~4.2 min/clip => **~18 h**
+for 252 clips, ~256k crops. Free (local CPU), resumable at clip granularity via
+the manifest.
+
+**Lesson recorded:** "N clips acquired" in a handoff should name *which artifact*
+was acquired. Video, gold annotation and reference audio are three separate
+acquisitions here, and only one had happened.
+
+## 2026-07-28 - Training moves to Modal L4; E2 keypoint model trained (bar not yet tested)
+
+**Phase:** D + E2, execution.
+**Decision tree:** local CPU or paid GPU for the two training runs?
+**Branch taken:** **Modal L4 for both**, reversing the earlier same-day choice of
+local CPU. User direction, so operating rule 8's STOP is satisfied. Both runs sit
+in the ~$0.40-$5 band the plan pre-registered.
+
+**Scope correction that shaped the plan.** The ~11 h local job is *extraction*,
+not training - MediaPipe hand-finding per frame to cut crops. Moving training to
+GPU does not remove it, so it stays local (MediaPipe is CPU-bound; a GPU buys
+little, and relocating it would mean pushing 7 GB of cached video). E2, by
+contrast, has no dependency on it at all and went straight to the GPU.
+
+**New:** `scripts/train/yolo_fret_keypoints_modal.py`, adapted from the OBB
+runner. Volume `tabvision-yolo-fret-6pt` (1,855 files, 55.1 MB).
+
+**Trap caught before it corrupted the run.** `guitar-fret-6pt`'s `data.yaml`
+declares `flip_idx: [0, 1, 2, 3, 4, 5]` - an **identity** mapping. The six
+keypoints are the wire's intersections with the six strings, so a horizontal
+mirror reverses them and the correct mapping is `[5, 4, 3, 2, 1, 0]`. Under
+ultralytics' default `fliplr=0.5` roughly half of every epoch would have carried
+silently transposed string labels. `fliplr` is pinned to **0.0**, for the same
+reason WS4 banned flips (string identity is encoded in across-neck position).
+The runner also rewrites the Roboflow `data.yaml` with absolute split paths,
+because `train: ../train/images` resolves outside the dataset dir.
+
+**E2 result (yolo11n-pose, 100 epochs, batch 16, imgsz 640, seed 0, L4):**
+
+| metric | value |
+|---|---:|
+| pose mAP50 | **0.7399** |
+| pose mAP50-95 | 0.6951 |
+| box mAP50 | 0.7265 |
+| box mAP50-95 | 0.5183 |
+| `fret` pose mAP50 | **0.854** (1,736 instances) |
+| `nut` pose mAP50 | 0.626 (143 instances) |
+
+A 3-epoch smoke already reached pose mAP50 0.643; the curve peaks near epoch 50
+(box mAP50 0.715) and is flat-to-slightly-down by 100, so ~50 epochs suffices
+next time. The `fret` class - the one that carries the lattice - is the strong
+one; `nut` is weaker but there is only one instance per image.
+
+⚠️ **This does NOT clear the E2 go bar.** The pre-registered bar is
+"keypoint-derived fret registration **beats `calibrate.py`'s consensus fit on
+wire-sparse clips**". What is measured here is the model's accuracy at *its own*
+detection task on the Roboflow validation split. The comparison against
+`calibrate.py` over the Phase A cache has not been run, so E2 is **"model
+trained"**, not "E2 passed". Treating 0.7399 as an E2 result would be exactly
+the category error this repo keeps having to correct.
+
+**Phase D Gate 1 chained.** The GPU path was validated end to end *before* the
+data exists, using the 30 clips extracted so far (199 MB tarball): the volume
+round-trip, CUDA training and checkpoint return all work, and 2 epochs on a
+clip-disjoint split (n_train 17,738 / n_val 1,968) reached **val_acc 0.3135**
+against 0.167 chance. That is 12% of the data and 2 epochs already matching the
+banked WS4 plateau of ~0.30 - a promising early signal, explicitly **not** a
+Gate 1 reading. `~/phaseD_gate1.sh` now waits on the extraction, refuses to
+train on fewer than 200 clips, then tars, uploads and runs 20 epochs, printing
+the Gate 1 verdict against the >= 0.45 bar.
+
+## 2026-07-28 - E2 FAILS its go bar: learned keypoints lose to the OBB fit by 0.089
+
+**Phase:** E2, evaluation.
+**Decision tree:** does keypoint-derived fret registration beat
+`calibrate.py`'s consensus fit on wire-sparse clips?
+**Branch taken:** **No. Bank the negative.** Full report:
+`docs/EVAL_REPORTS/e2_fret_keypoints_2026-07-28.md`.
+
+**Result** (clean-12, 8,539 ambiguous notes, ambiguous-note string accuracy,
+best orientation): `uniform` 0.5365, `obb` **0.7195**, `keypoint` 0.6305. The
+keypoint arm is **0.089 worse** than the geometry it was meant to replace. The
+pre-registered bar is a conjunction — beat OBB on wire-sparse **and** no overall
+regression — and the second clause fails decisively.
+
+**One-variable swap.** Both arms shared the cached homography (never re-fit),
+`fit_fret_map`, the nut anchoring, the canonical window, `_MIN_WIRES`, the same
+frames, and — after a correction — the same 0.10 detection floor. Only the wire
+*source* differed. The first keypoint cache was built at 0.25 while Phase A's
+OBB fret pass ran at 0.10; that handicap was found and fixed before any verdict,
+and the cache path now encodes the floor so the two cannot be confused.
+
+**A harness asymmetry corrected after a FAIL was already visible.** The keypoint
+arm's detection was never the problem (comparable wire counts to OBB, in-window)
+— `fit_fret_map` was rejecting its wires. Cause: Phase A's crop pass dedupes
+detections "by center distance < half the local fret pitch" before they reach
+`calibrate_fret_xs`, so the OBB arm arrives deduped and the keypoint arm did not.
+Measured: median minimum adjacent canonical gap 0.003 vs 0.024, median one
+clustered pair per frame vs zero. Adding an equivalent dedupe moved keypoint
+0.5745 -> 0.6305 pooled. Recorded explicitly because the change came after
+seeing a failure: it is justified by the mechanism diagnostic and by symmetry
+with what the OBB arm already receives, not by the metric. **Both numbers are in
+the report**; the verdict is identical either way.
+
+**The pre-dedupe "win" on the wire-sparse subset was an artifact** — on
+`118_VD1wc` the keypoint arm never fired and simply inherited `uniform`'s 0.895.
+Post-dedupe the subset gain (0.7222 vs obb 0.6603) is carried by `179_pM1wc`,
+where the keypoint model genuinely fires more than OBB (0.796 vs 0.311) and
+beats both it and the control. That is mechanism-consistent and is the behaviour
+E2 predicted — but it is **one clip**, and two of the four subset clips have the
+keypoint arm firing at 0.000. Too thin to build on.
+
+**Separate finding, independent of E2 and worth acting on.** On the wire-sparse
+subset the *current* OBB calibration is **net-harmful**: 0.6603 against the
+uncalibrated control's 0.6915 (-0.031 over 1,987 notes), and on `118_VD1wc`
+0.766 calibrated vs **0.895** uncalibrated (-0.129) where it fires on 28% of
+frames. When wire evidence is thin the maps it does produce are bad often enough
+to cost more than they gain, and the per-frame `None` fallback misses it because
+those maps still pass the consensus check. This does not overturn Phase A's
++0.151 pooled gain — the harm is confined to the sparse tail. Suggested lever:
+gate calibration on a per-clip fit-rate/quality floor. **Untested, and it needs
+its own pre-registration before anyone runs it.**
+
+**Limits recorded, not glossed:** clean-12 is dev data; the subset is 4 clips
+with 1-2 contributing; one nano model, one seed, one config; the model fails
+outright on `118` (~0.02 instances/frame) and under-detects on `043` (3.16, below
+the 4-wire floor), neither diagnosed; best-orientation convention; and
+registration was never scored against ground-truth fret pixel positions because
+GAPS has none.
+
+## 2026-07-28 - Wire-sparse calibration gate REFUTED: an outlier, not a threshold effect
+
+**Phase:** follow-up to E2 §6.
+**Decision tree:** does per-clip calibration fire rate predict, out of sample,
+whether calibrating that clip helps?
+**Branch taken:** **No. Bank the negative and close the line.** Report:
+`docs/EVAL_REPORTS/wire_sparse_calibration_gate_2026-07-28.md`. Pre-registration
+committed as `a8f5f2e` **before** the run.
+
+**Result:** leave-one-clip-out gating 0.7152 vs ungated 0.7195, gain
+**-0.0043**. The pre-registered tree routes <= 0 to "bank the negative".
+
+**The design existed to avoid a circular result, and that mattered.** The
+tempting experiment - gate at the same 0.50 threshold that *defined* the
+wire-sparse subset, score the same twelve clips - reduces to the already-measured
+subset difference and would have come out positive even if fire rate carried no
+information. LOO, with each held-out clip's threshold fitted only on the other
+eleven, tests generalisation instead. Had the circular version been run it would
+have "confirmed" the lever and a useless gate would have gone into the pipeline.
+
+**Why it fails - the trend is real, the harm is not.** Spearman(fire, d) =
+**+0.797**, and note-weighted mean d is +0.072 in the low-fire half vs +0.281 in
+the high-fire half, so calibration genuinely helps more when it fires more. But a
+gate needs a region where calibration *hurts*, and there is none: calibration is
+net-positive even in the low-fire half. Exactly **one clip of twelve** has
+d < 0 - `118_VD1wc` at -0.129 - and the four-clip subset average in E2 §6 was
+dragged negative by it alone.
+
+Mechanically, for held-out `118_VD1wc` (fire 0.280) the other eleven chose
+T = 0.15, which does **not** gate it, so the harm survives; while for
+`179_pM1wc` (fire 0.311, d **+0.065**) they chose T = 0.50, which **does** gate
+it, discarding a real gain. The rule transfers backwards.
+
+**Correction applied to the E2 report.** §6 said "on wire-sparse clips the
+current OBB calibration is net-harmful". Accurate about that subset, but it
+invited reading sparseness as the cause. A warning box now sits at the top of
+that section pointing here. The correct statement is that one clip is harmed and
+it happens to sit in the sparse subset.
+
+**`118_VD1wc` is now flagged by three independent measurements** - Phase A's
+largest per-clip regression (-0.150), the only clip harmed by calibration here
+(-0.129, and uncalibrated it is the best clip in the set at 0.895), and the clip
+where E2's keypoint model detects almost nothing (~0.02 instances/frame). A
+clip-specific pathology worth one rendered overlay, and **not** a basis for any
+general rule.
+
+**Deliberately not tried:** homography confidence, inlier counts, fit RMS,
+per-frame gating. The pre-registration fixed fire rate as *the* statistic so a
+failure could be banked cleanly; searching over statistics after it failed is the
+fishing the document was written to prevent. Any successor needs its own
+pre-registration.
+
+**Phase A's +0.151 pooled calibration gain is unaffected and reinforced** -
+calibration helps on 11 of 12 clips, by up to +0.385.
+
+## 2026-07-28 - 118_VD1wc diagnosed: foreshortening, not detector quality
+
+**Phase:** follow-up to the wire-sparse gate refutation.
+**Decision tree:** why do three independent measurements single out this clip?
+**Branch taken:** **Root cause found; no code change made.** Report section:
+`docs/EVAL_REPORTS/wire_sparse_calibration_gate_2026-07-28.md` §5. Tool:
+`scripts/eval/diag_118_pathology.py`.
+
+**Cause: an extreme foreshortening camera angle**, not a weak detector. The neck
+is found perfectly well (homography confidence 0.878, unremarkable against the
+0.84-1.00 healthy range). What differs is geometry - the neck is angled steeply
+up and away from the camera and compressed into a narrow diagonal band, with the
+headstock small and frequently out of frame. Verified by rendering the overlay
+and comparing against `104_xf1wc`, which presents the neck nearly flat.
+
+| statistic | 118_VD1wc | healthy range |
+|---|---:|---|
+| fret wires per frame | **2.99** | 14.2-23.2 |
+| nut detected (share of frames) | **0.04** | 0.38-1.00 |
+| `nut_at_high_canonical_x` share | **0.60** | 0.01-0.38 |
+
+**The failure chain:** perspective compresses wire spacing so only ~3 wires are
+found (barely the `_MIN_WIRES = 4` floor); the nut is too small and too often
+occluded to anchor the fit (4% of frames); with neither, `nut_at_high_canonical_x`
+has almost no signal and **degenerates to a coin flip** (0.60 against a decisive
+0.01-0.38 elsewhere); so about half the fitted maps come out **end-for-end
+reversed** - the median map runs fret 0 at canonical 0.961 *descending* to fret 24
+at 0.029, against uniform's 0.02 -> 0.98. Reversing fret 0 with fret 24 corrupts
+the fingering and therefore the string attribution, and the 28% of frames that
+fire drag the clip from 0.895 (best in clean-12 uncalibrated) to 0.766.
+
+**`063_bV1wc` is the instructive contrast:** it sees even less (0.01 wires/frame,
+hconf 0.443), fires **0.000**, and is therefore harmless at d = +0.000. 118 is
+worse precisely because it has *just enough* evidence to fire and not enough to
+orient. "Sees nothing" is safe; "sees a little" is not.
+
+**Candidate deliberately left untested.** The precondition separating 118 from
+the healthy clips is **orientation determinacy** - no nut anchor plus too few
+wires to read the spacing decay - not the per-clip fire rate refuted earlier
+today. Refusing a fitted map when the nut side cannot be established is a
+per-frame precondition and a better-targeted hypothesis. Arriving at it by
+inspecting the clip that failed is exactly the post-hoc search the gate
+pre-registration was written to prevent, so it is recorded here and **needs its
+own pre-registration** before anyone runs it.
+
+**No media committed.** GAPS is CC-BY-NC-SA and LICENSES.md:72 forbids
+redistribution; the overlay renders and extracted frames were inspected locally
+and discarded.
+
+## 2026-07-28 - Phase D Gate 1 FAILS: the documented WS4 root cause was not the cause
+
+**Phase:** D (WS4 learned string resolver retrain), Gate 1.
+**Decision tree:** clip-disjoint val 6-way accuracy >= 0.45?
+**Branch taken:** **No - 0.2919. Bank the negative; no pipeline A/B, no further
+spend.** Report: `docs/EVAL_REPORTS/phaseD_gate1_2026-07-28.md`.
+
+**Result:** best val accuracy **0.2919** (epoch 3 of 20) against a 0.45 bar and
+0.167 chance, on 159,381 train / 22,556 val crops from **241 clips**. Training
+loss falls monotonically 1.62 -> 0.34 while val accuracy peaks early and drifts
+down - textbook overfitting.
+
+**What this refutes.** The banked WS4 run plateaued at ~0.30 and had a documented
+root cause with a committed fix: the whole-neck crop starves the model
+(-> `--hand-tight`), and onset-frame labels are misaligned (-> `--sustain`). Both
+were executed here for the first time, everything else frozen (clip-disjoint
+split, peak_ratio >= 2.0 filter, no flips). The plateau did not move. **Crop
+framing and onset-frame label noise are therefore not what limits this model** -
+a plausible, committed diagnosis that turns out to be wrong, which is worth
+recording as such rather than quietly re-scoping.
+
+**A caution the pre-registration earned.** The partial-data smoke earlier the
+same day (30 clips, 2 epochs) hit **0.3135**, *higher* than the full run's best,
+and it would have been easy to read as encouraging. It was reported at the time
+as explicitly "not a Gate 1 reading". Small easy val splits flatter.
+
+**Not established:** that learned string resolution is impossible. One backbone
+(ResNet-18), one crop policy, one sampling policy, one seed, 20 epochs. The
+overfitting signature points at capacity/regularisation/augmentation as untested
+variables - and the epoch-3 peak suggests a shorter, more regularised schedule is
+the obvious next configuration. **Untested, and it needs its own
+pre-registration** rather than an open hyperparameter search.
+
+**Spend:** ~$1 for the Gate 1 run. The larger fine-tune this gate existed to
+authorise is not justified and was not run.
+
+**Operational:** the extraction was interrupted twice by WSL restarts (14:36 and
+~16:54). The first was manual to recover; the second was recovered automatically
+by the supervisor installed in between (systemd user timer inside WSL plus a
+Windows-side keeper, since a supervisor inside WSL cannot survive WSL dying).
+Manifest-level resumability capped each interruption at one clip. Note the
+supervisor's first version was itself broken - a `Type=oneshot` systemd service
+tears down its cgroup on exit and killed the jobs it had just launched;
+`KillMode=process` fixed it, caught only by testing the automatic path rather
+than trusting the manual one.
+
+## 2026-07-28 - The shipped default is now audio-only; video is explicit opt-in
+
+**Phase:** production default hygiene (follow-up to the Phase A video-evidence
+work).
+**Decision tree:** eval/production parity. `run_pipeline` shipped with
+`video_enabled=True, video_backend="legacy", lambda_vision=1.0`, feeding raw
+per-frame fingerings straight into `fuse()` - while the chunk-3 protective
+layer (`choose_orientation`, `combine_fingerings`, `gate_fingering_to_audio`,
+the 0.71 coverage fallback in `fusion/vision_evidence.py`) was called only
+from eval scripts and tests, and every published Tab F1 number is computed
+audio-only (`eval/guitarset_audio.py`, `eval/string_assignment.py` both use
+`lambda_vision=0.0` with no fingerings). The shipped default matched no
+reported metric. Two candidate fixes: (a) wire the chunk-3 protections into
+the default legacy route, or (b) make audio-only the default and quarantine
+video behind explicit opt-in.
+**Branch taken:** **(b) - audio-only default.** `video_enabled` now defaults
+to `False` in `run_pipeline` / `run_pipeline_with_artifacts` /
+`write_diagnose_report`. The CLI grows `--video` (opt-in); an explicit
+`--video-backend` also opts in so pre-flip `--video-backend fretcam`
+invocations keep their meaning; `--no-video` stays accepted (the desktop
+shell passes it) and still wins. A non-default `--fusion-lambda-vision`
+without `--video` logs a warning instead of silently doing nothing. `fuse()`
+and every other SPEC section 8 signature are unchanged.
+**Evidence:** Ungated legacy video measured **-0.2006 aggregate Tab F1 on
+GAPS clean-12** (10/12 clips harmed) even after the 720p detection-wall fix,
+and -0.15 to -0.20 in the June chain
+(`phaseA_720p_cache_rebuild_2026-07-27.md`,
+`v1_1_gaps_video_chain_2026-06-22.md`); an uncorrected orientation inversion
+took a clip from 0.96 to 0.17 (`v1_1_chunk2_cv_chain_2026-06-10.md`). The
+decisive fact against (a): **gated video is exactly +0.0000** - measured clip
+coverage (0.48-0.52) never clears the 0.71 threshold, so wiring the
+protections in ships a configuration whose measured best case is doing
+nothing at full YOLO + MediaPipe runtime on every transcription. Deployable
+video string accuracy (0.689) remains below the audio prior it would displace
+(0.778); the best end-to-end video delta anywhere is +0.000836 (FretCam,
+95% CI lower bound exactly 0).
+**Reasoning:** Audio-only is the configuration every published number was
+measured under, so the default now matches the reported metrics, removes a
+0.15-0.20 regression exposure, and skips the vision-stack runtime. With no
+fingerings and no anchors the vision term in `playability.emission_cost`
+never fires, so the default decode is bit-identical to the eval convention
+regardless of `lambda_vision`. The legacy route stays reachable (`--video`)
+as measured evidence and rollback; FretCam stays opt-in. **Revisit** when
+FretCam passes the L2 controlled-live promotion gate plus a larger frozen
+result, or if Phase D/E2 lift video string accuracy above the audio prior -
+promotion then needs its own pre-registered end-to-end gate, not a default
+flip.
+
+## 2026-07-29 - F6 approved: hand-bbox x fret-zone IoU fallback, gate frozen before the build
+
+**L2 attempt 2 (clean environment) failed A2 and routed here per the
+pre-registered protocol.** With Phase D finished and load ~0, the run scored:
+A1 pass (both lightings; low light ~50% more error), A3 pass (labels <= 0.5 s
+after arrival), A4 pass (10-100 FPS) - and A2 at <= 10/15 sustained readouts
+against the >= 14/15 bar. Two properties of the failure matter: zero wrong
+displays across all holds (live precision matched the frozen benchmark's
+1.000 - every miss was an abstention), and misses concentrated in
+single-finger holds while barre chords read reliably. The F4c
+>= 3-fretting-fingertip validity gate is the dominant mechanism, measured
+clean for the first time.
+
+**The user approved F6 (2026-07-29).** Dataset acquired the same day:
+ghaleb/guitar-fretboard v5 via the parameterised Roboflow acquirer
+(scripts.acquire.datasets roboflow-guitar --workspace ghaleb
+--project guitar-fretboard --version 5), 922 images on disk (the 384 source
+frames plus Roboflow augmentation), classes Hand + Zone1..Zone12, at
+~/.tabvision/data/datasets/roboflow-ghaleb-guitar-fretboard-v5. License:
+CC BY 4.0 as verified on the Universe page 2026-07-22; the download API
+reported license unknown, so re-verify the page before this dataset feeds any
+public artifact. Attribution owed to ghaleb. Role: offline validation of the
+IoU mechanism; it trains nothing yet.
+
+**A premise revision worth recording.** The 2026-07-22 design scoped F6 for
+MediaPipe *dropout* (palm behind the neck, motion blur). Attempt 2 showed the
+actual failure mode is different: MediaPipe tracked the hand visibly and
+continuously through the silent misses; it is the contact/fingertip gate that
+abstains. F6 therefore lands as a *gated fallback observation*: when the
+composite solver abstains with the board locked, geometry fresh, and the hand
+tracked, emit a whole-hand-bbox x fret-zone observation at reduced
+confidence. Zones derive from the existing calibrated fret map; no landmarks
+beyond the bbox are required. The Stairway probe (44/44 zone-correct
+stabilised observations from whole-hand geometry on oblique framing) is the
+supporting anecdote, not evidence.
+
+**Gate, frozen before any code (wire-sparse rule).** With the fallback
+active, the frozen dev position benchmark must hold: displayed precision
+1.000, stable false locks 0/161, and negative-control displays 0/120 - the
+negative control is the load-bearing line, because F4c exists precisely
+because whole-hand evidence false-locked on picking-hand clips (077/105).
+Coverage must improve or the fallback is pointless; no numeric coverage bar
+is set because precision is the constraint. Pass -> the single permitted L2
+re-run (Pat). A second L2 failure closes the FretCam side quest with an
+honest negative, per the 2026-07-22 design section 6.
+
+**Spend:** $0 (dataset download only; no training).
+
+## 2026-07-29 - The frozen position benchmark was destroyed by a cache rebuild, not by code
+
+**F6 was built and its gate run - and the gate reading is invalid, for a
+reason that matters beyond F6.** The fallback implementation landed cleanly
+(gated whole-hand bbox observation in `fretcam/src/fretcam/detection.py`,
+confidence capped at 0.449, distinct `bbox_fallback` blocker marker; 254
+fretcam tests + 8 subtests pass). The first frozen-benchmark run then read
+displayed precision **0.123** against a recorded 1.000 - and a three-step
+decomposition shows the instrument, not the code, is broken:
+
+1. Same cache, fallback disabled at runtime: **0.127** - F6 is not the cause.
+2. Hybrid cache using annotation-era 360p files for every scored sequence:
+   **0.324** both arms - still nothing like 1.000.
+3. **Pristine F5c code** (all session changes stashed), same cache:
+   **0.324 (22/68), 44 false locks - identical to the OFF arm.** The code
+   is fully exonerated.
+
+**Root cause: the Phase A cache rebuild (2026-07-27 18:27-18:36) re-downloaded
+every file in `~/.tabvision/cache/gaps_video/` in place**, five days after
+`position_benchmark_v1.json` was annotated against the then-cached files
+(2026-07-22). YouTube serves different encodes across days - a recorded
+phenomenon in this repo ("within-report deltas are valid but single-clip
+comparisons against the June column are not"; 212 -0.266, 294 -0.137). The
+manifest's frame-timestamp labels now index different footage, so a solver
+with measured-perfect live precision (L2 attempt 2: zero wrong displays)
+scores 0.32 against misaligned labels. The negative control - "display
+nothing, ever, on picking-hand footage" - is timing-insensitive and passes
+**0/120 in every configuration, including with F6 active**. That is the one
+gate leg that survives the instrument's destruction, and F6 passes it.
+
+**Consequences.** F5c's frozen line (precision 1.000 / coverage 0.416 /
+false locks 0) is no longer reproducible by anyone; four of the manifest's
+twelve sources (077/105/178/238) no longer exist at any resolution matching
+the annotation era; the F6 gate's precision and coverage legs are
+unevaluable until the instrument is repaired.
+
+**Lesson (instrument integrity):** a frozen benchmark must pin the content
+hashes of its input media. The manifest records none, and the benchmark
+runs happily on mutated files - silent input corruption reads as
+measurement. Same failure class as the empty-`_raw_cv_cache`-scores-0.000
+bug Phase A fixed. Any repaired or future manifest should embed per-file
+SHA-256 and the benchmark should refuse on mismatch.
+
+**Proposed repair - pre-registered here, needs user approval because it
+modifies a frozen artifact.** Derive per-source timestamp corrections
+purely from audio: onset-envelope cross-correlation of each current file
+against the stable local GAPS reference audio (the 2026-06-22 sub-frame
+alignment method), compared with the offsets recorded then; apply the delta
+to the manifest's timestamps; embed content hashes. **Acceptance:** pristine
+F5c code must recover the frozen line (precision 1.000, coverage
+0.416 +/- 0.02, false locks 0, negative control 0) on the corrected
+manifest. Only after that recovery are F6's two arms readable. The
+correction never consults position labels, so it cannot tune the instrument
+toward any desired F6 outcome.
+
+## 2026-07-29 - Correction: not timing drift. One boundary case flipped, and the instrument was only ever pinned to exact bytes
+
+**The pre-registered audio repair ran and refuted its own premise.** All
+eight scored sources reproduce June's video-to-reference-audio offsets to
+six decimal places (same values, same xcorr peak ratios); every measured
+delta is 0.000. The realigned manifest
+(`fretcam/data/position_benchmark_v1_realigned.json`) is committed as
+evidence and changes nothing. "The re-download shifted timing" - the
+previous entry's mechanism - is refuted. Also exonerated by direct check:
+committed code (only additive bridge files landed on `fretcam/src` since
+F5c), environment (every vision package dated 2026-05-07), and chain
+determinism (`background_detector` defaults to False).
+
+**The decomposition that ends the mystery.** Per-sequence scoring of the
+baseline arm: `dev_031_barre_i` contributes **40 of the ~50 wrong
+displays - every scored frame reads Position II against the labeled
+Position I barre**; `dev_104_ii_to_vi` adds 3 fret-15 spike frames;
+`dev_142_chord_iii` 2 boundary frames; **118, 142-note-V and 341 score
+perfectly**. A frame pulled from the current file at t=2.4 confirms the
+label is right (close-framed Position I barre). The instrument is not
+globally broken; a single boundary-sitting case flipped by one position.
+
+**Why (circumstantial - the old bytes are gone and this cannot be fully
+verified):** F4d documented this exact barre at canonical tip-x
+1.656-1.977, within a hair of the fret-1/2 cell boundary; its correct
+Position-I reading was contact-semantics surgery on that margin. yt-dlp
+selects video and audio streams independently, and format selection varies
+across downloads (the recorded 142/AV1 incident). The 2026-07-27
+re-download plausibly muxed the identical audio stream (hence perfect
+offset reproduction) with a different video variant, and a slight spatial
+re-encode pushed the barre across the boundary.
+
+**Lessons.** (1) Hash pinning (landed 2026-07-29) is the right and
+sufficient fix: a frozen instrument is its exact bytes, and this episode
+shows a file can change decisively while every timing check passes.
+(2) A case that needed F4d surgery to score is fragile by construction;
+the 031 barre off-by-one is now a tracked solver-robustness item, not a
+benchmark artifact to be hidden.
+
+**F6 gate, re-read honestly.** The pre-registered bar ("hold 1.000 / 0 /
+0") is unmeetable by ANY code on the current files - pristine F5c scores
+0.324 - so the bar collapses to its substance: on identical inputs F6 must
+not degrade the baseline, and the negative control must hold. Measured on
+identical inputs (hybrid cache, dev split): baseline 0.324 precision
+(22/68), 44 false locks; **F6 0.333 (22/66), 42 false locks; negative
+control 0/120 in both arms.** F6 does not degrade the instrument - it
+marginally improves both lines - and passed the one leg that survived
+intact. Routing decision (accept this reading and proceed to the L2
+re-run, or demand the 031 regression fixed first) rests with the user.
+
+
+## 2026-07-29 - F9 refuted by its own acceptance run; instrument re-baselined and hash-pinned
+
+**The nut-anchored translation fix was implemented exactly to spec, passed
+its unit suite (260 tests), and failed its pre-registered acceptance:**
+dev_031_barre_i unchanged at 0/55 correct, every other sequence
+byte-identical. Per the design's own terms the implementation was reverted
+the same hour.
+
+**Why it failed - and why the failure is informative.** Live
+instrumentation of the gate inputs showed the design's premise is wrong:
+when the boundary detector finds the true nut it reads canonical 0.9958
+against the map's 1.0 - a 0.004 disagreement, i.e. the canonical frame is
+NOT translated. The coherent half-cell shift that moves all four fingers
+of the Position-I chord one cell body-side lives in the hand-landmark
+measurements themselves on this encode, which no frame-level anchoring can
+reach. Two gate behaviors worth keeping: the correction correctly measured
+"nothing to correct" when it saw the real nut, and when the detector
+instead grabbed wire 1 (0.918) as the right boundary, the 0.6-first-cell
+cap refused the resulting ~full-cell pseudo-correction that would have
+shifted every contact a fret. The safety design did its job; the mechanism
+was aimed at the wrong layer.
+
+**Disposition.** 031 stands as a known, explained solver limitation on the
+current encode: a barre whose landmarks project ~50% past the wire, against
+a 35% deadband, on footage where the F4d-era margin happened to sit at
+~30%. Any future attempt targets landmark-side bias (a different problem
+class) and requires its own design; deadband/threshold moves remain
+rejected as fishing.
+
+**Instrument sealed.** With the labels verified content-correct and the
+031 miss mechanically explained, position_benchmark_v1.json now pins
+sha256 for all twelve sources (via --write-hashes against the hybrid
+cache: annotation-era 360p files for the eight scored sources, 720p for
+the four timing-insensitive negative controls). The benchmark refuses
+mutated inputs from now on. **Recorded new baseline on the pinned bytes:**
+displayed precision 0.324 (22/68), coverage 0.410 (66/161), false locks
+44/161, negative control 0/120 - with the F6 fallback: 0.333 (22/66),
+42/161, 0/120. The F5c-era 1.000 line is historical: correct for bytes
+that no longer exist, unreachable on these. F6's gate reading
+(non-degrading on identical inputs, negative control clean) stands.
+
+## 2026-07-29 - Segment position-window fusion CLOSED: the retained paths were the same tab
+
+**Phase:** segment-level position-window fusion, Stage 1 ceiling probe.
+**Decision tree:** G1 - gold-window rerank aggregate Tab F1 delta on GAPS
+clean-12 >= +0.010, no per-clip regression worse than -0.002?
+**Branch taken:** **No - +0.0000. Bank the negative, close the line; Stage 2
+is not run.** Report: `docs/EVAL_REPORTS/segment_window_stage1_2026-07-29.md`.
+
+**Process.** The user approved Stage 1 on 2026-07-29. Every remaining free
+parameter - the aggregation form section 3.2 had deferred "to implementation
+time", the bonus cap 3.3 pointed at 5, and the gold-window degradation of 4 -
+was frozen in a new section 5a and committed (`d6c4c89`) **before** the script
+first ran, so no constant could be chosen with a number in view.
+
+**Result:** aggregate Tab F1 0.766423 in both arms; mean delta **+0.0000
+[+0.0000, +0.0000]**; the reranker abstained on **12 of 12 clips**.
+
+**Why - and this matters more than the gate.** The evidence channel was not
+the binding constraint. Of an 11,028-tick candidate grid, 3,589 windows
+survived the frozen 0.416 coverage degradation (measured 0.4153), every one
+passed the production validity contract, and they contributed 3,187
+(segment, observation) pairs at precision 1.0 by construction. **The paths
+they were asked to choose between were the same tab.** On 11 of 12 clips all
+three retained paths carry identical string/fret assignments; on the twelfth
+they differ on 2 notes of 976. `decode_segment_clusters` runs its K-best over
+the product space of *latent hand state x chord state*, and only the
+chord-state half reaches the emitted `TabEvent` - so alternatives are
+overwhelmingly hand-state relabelings of one tab, several at cost delta
+exactly 0.0000.
+
+**Ceiling for any reranker over this path set** (`segment_window_headroom`,
+best-of-k chosen with gold in hand): k=3 **+0.000087** (115x below the gate),
+k=10 +0.000262, k=25 +0.000385 (26x below). Distinct assignments per clip
+1.08 / 1.25 / 1.67; only 1/12 clips has any alternative at the design's k=3.
+
+**What is refuted.** Section 2's premise - that segment aggregation could
+separate "retained candidate paths whose margins average ~0.18 nats" - is
+wrong on this corpus: those margins separate hand-state hypotheses, not tabs.
+This is also why the per-note bridge's +0.000836 and this mechanism's +0.0000
+are consistent with one underlying fact rather than two independent
+disappointments. The negative holds **regardless of detector quality**, so no
+FretCam improvement can revive it, and it applies to any reranker over this
+K-best, not only a vision-driven one.
+
+**Honest limits.** The oracle is generous (0.35 s lookahead, precision 1.0,
+no drift) and still changed nothing, so real observations cannot rescue
+Stage 2. An assignment-deduplicated K-best is a *different* experiment, not
+registered here; the k=25 column is the best available estimate of its
+ceiling and does not motivate one. Ran under q6's acoustic/clean session,
+because `segment-v1` is admitted only by `_automatic_acoustic_domain`; a
+session tagged classical/nylon abstains to `baseline` and is zero by
+construction. GuitarSet's strummed material is untested and reported a larger
+mean second-path margin (0.1826 nats) than the margins seen here.
+
+**Spend:** $0. 90 min CPU to cache `highres-ensemble` events for clean-12
+(2.7x realtime, reused by both arms and by the q6 gate), 55.7 s for the
+Stage 1 decode, 445.9 s for the headroom sweep.
+
+## 2026-07-29 - Per-window fret-zone evidence CLOSED at A0: the channel covers the window but cannot aim it
+
+**Phase:** per-window fret-zone evidence, Phase A0 (coverage-and-aim probe).
+**Decision tree:** A0 - solo 1 s windows with >= 1 readable note >= 0.60, and
+implied-zone agreement with gold on those windows >= 0.75?
+**Branch taken:** **Coverage yes (0.7940), aim no (0.5816). Bank the negative,
+close the program; A1 is not built and Phase B is not entered.** Report:
+`docs/EVAL_REPORTS/window_zone_a0_2026-07-29.md`. 300 GuitarSet dev tracks
+(players 00,01,02,03,05), 52,223 notes, 291 s CPU, $0, sealed 04 not read.
+
+**The arithmetic bet was right and did not matter.** Per-note readability is
+12,978/52,223 = **0.2485**, yet **79.4%** of solo 1 s windows hold at least one
+readable note - sparse per-note coverage really does become dense per-window,
+which was the whole premise. 5,265 unreadable solo notes sit inside covered
+windows, **5,217 of them ambiguous**: a large, precisely-targeted population.
+
+**Why it fails.** Measured `log B` sits a systematic **+0.52** above the
+reference table's prediction *at the gold position* (residual std 0.582 to
+gold vs 1.487 to alternatives - the shape is right, the centre is not).
++0.52 in log B is a **1.68x** ratio, almost exactly the 1.59-1.78x that
+separates candidates 4-5 frets apart (`q6_separability_2026-07-22.md`), so a
+whole-table offset of one candidate-step moves the argmax off gold nearly
+every time. Per-note implied-position accuracy: shipped table raw **0.3437**,
+label-free session refit **0.5830**, gold-calibrated refit **0.7797**.
+
+**This is not a defect in the shipping channel, and the distinction is the
+lesson.** `apply_fits` multiplies a Gaussian likelihood into the prior, so
+*soft, mis-centred evidence still helps* (+0.0522 on sealed 04) even when its
+top-1 is wrong two thirds of the time. **Propagation is a different contract:
+it pushes the argmax zone onto neighbours that have no evidence of their own,
+so it needs the top-1 to be right.** A channel can be worth shipping as
+evidence and worthless as a source of labels for other notes.
+
+**No window size rescues it.** 1 s -> 4 s buys coverage 0.794 -> 0.971 but
+agreement collapses 0.582 -> 0.359 while hand-moved windows rise 8.7% -> 42%.
+Strummed is worse at every size (1 s: 0.4267 self-seeded), as predicted.
+
+**Section 8's decision tree did not cover this outcome** - it anticipated "A0
+passes but A1 fails" and "A0 fails on coverage but not agreement". Passing
+coverage and failing agreement is a third case, and it argues *against* Phase
+B: a learned model would fit the same mis-centred evidence, and the only arm
+that reached 0.7797 needed gold labels. Recorded rather than reinterpreted
+after the fact.
+
+**Process note.** A two-track harness check returned per-note accuracy 0.1975
+against the ~0.92 anchor section 7a had named, which by that section's own
+rule meant the harness was wrong - and it was: 0.92 came from a per-player
+*calibrated* table, and citing it as the raw table's argmax anchor was an
+error. The arm definition was corrected before the full run (`08207ca`,
+`821b13e`); **neither gate value was touched**, and the correction is what
+turned an uninterpretable 0.20 into the three-arm decomposition above.
+
+**Spin-off, observation only, needs its own pre-registration.** The gap
+between the shipped table's per-note top-1 (0.3437) and a gold-calibrated
+refit (0.7797) is a property of the *existing shipped* physics channel, not
+of the window idea. Whether better centring lifts the channel is a distinct
+question - and q6 already refuted the obvious label-free routes, so it is not
+a free win.
+
+**Spend:** $0. 291 s CPU total.
+
+## 2026-08-02 - TabCNN complementarity CLOSED: neither family earns integration
+
+**Experiment:** frozen
+`docs/plans/2026-07-29-tabcnn-complementarity-experiment.md`.
+**Decision tree:** does a framewise TabCNN fix wrong playable positions while
+preserving banked onset/pitch, transferring beyond overlap, and staying inside
+the frozen accuracy, provenance, license, determinism, and CPU gates?
+**Branch taken:** **`do_not_integrate` for both DAFx-24 GuitarProFX TabCNN and
+SynthTab TabCNN x4.** Report:
+`docs/EVAL_REPORTS/tabcnn_complementarity_2026-08-02.md`.
+
+**DAFx:** the descriptive 466-clip aggregate is +0.0658 Tab F1, but GuitarSet
+is development-overlapped and EGSet12 is reproduction. The eligible pool is
+GAPS alone: **+0.0052 [+0.0012, +0.0089]**, solo wrong-position reduction
+**2.06%**. Both miss +0.020 / +0.030 / 10%. The hash-pinned ONNX transport also
+lacks verified equivalence to the unavailable official checkpoint, so status
+is `blocked_protocol_evidence`. Its projected 60-second CPU total passes at
+266.011 s.
+
+**SynthTab:** GAPS plus sealed GuitarSet is **+0.0048 [-0.0046, +0.0156]**;
+solo is **+0.0028** with **1.09%** wrong-position reduction. It also fails
+performance: +23.68% added CPU and **324.646 s per 60 s**, above the five-minute
+limit. Provenance for the executed checkpoint passes, but redistribution
+remains uncleared under the ambiguous CC-BY/CC-BY-NC weight posture.
+
+**Integrity:** 466 complete clips per model, 932/932 unique rows, 932/932 exact
+onset/pitch invariance, 932/932 deterministic repeat posteriors. Protocol hash
+`7d7aa1dd...94d5`, scoring hash `f6b6f476...7e8f`, posterior hash
+`f3268756...15e4`. Results JSON `b7ccf23e...246a`; per-clip CSV
+`a4b67aa5...cdda`. No production dependency, artifact, route, or default was
+added.
+
+**What is refuted.** Both models contain position information, but neither
+turns it into enough eligible fixed-alpha improvement. DAFx's large headline
+gain does not survive the overlap rule; SynthTab's small positive aggregate
+does not survive the eligible confidence, solo-effect, wrong-position, or CPU
+gates. Per the frozen protocol, the negative completes the experiment and
+does not authorize post-result tuning.
+
+**Spend:** $0. All computation was local CPU.

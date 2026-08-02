@@ -82,6 +82,11 @@ dev = [
     # the full Basic Pitch / MediaPipe / ultralytics stacks.
     "soundfile>=0.12.0",
     "opencv-python-headless>=4.8.0",
+    # Same rationale: scipy.stats.rankdata backs the tie-corrected AUC in
+    # scripts/eval/n3_physics_review_probe.py, and that statistic is what the
+    # reported separability numbers rest on. Cheap enough to test in CI without
+    # pulling librosa/basic-pitch.
+    "scipy>=1.10.0",
 ]
 
 [project.scripts]

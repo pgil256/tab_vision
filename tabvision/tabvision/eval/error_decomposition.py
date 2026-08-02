@@ -172,12 +172,32 @@ class ErrorDecomposition:
         return {f.name: getattr(self, f.name) for f in fields(self) if f.name != "pitch_off_deltas"}
 
 
+@dataclass
+class Residuals:
+    """Optional out-parameter carrying the events the buckets only counted.
+
+    ``decompose_errors`` already knows exactly which gold notes went unmatched
+    and which predictions were never claimed — it just throws them away and
+    returns totals. Track D needs those events themselves to ask *what kind* of
+    note goes missing and *what* the spurious detections are near, so the
+    matcher hands them out on request rather than being reimplemented (a second
+    copy of this matching would drift from the scored one, and then the
+    diagnosis would describe a pipeline that does not ship).
+
+    Pass an instance to :func:`decompose_errors` and read the fields after.
+    """
+
+    missed: tuple[TabEvent, ...] = ()
+    extra: tuple[TabEvent, ...] = ()
+
+
 def decompose_errors(
     predicted: Sequence[TabEvent],
     gold: Sequence[TabEvent],
     *,
     onset_tolerance_s: float = DEFAULT_ONSET_TOLERANCE_S,
     timing_extended_tolerance_s: float = DEFAULT_TIMING_EXTENDED_TOLERANCE_S,
+    residuals: Residuals | None = None,
 ) -> ErrorDecomposition:
     """Bucket the events into the six-bucket Phase 0 schema.
 
@@ -221,6 +241,7 @@ def decompose_errors(
     timing_only = 0
     missed = 0
     pitch_off_deltas: list[int] = []
+    missed_events: list[TabEvent] = []
 
     gold_sorted = sorted(gold, key=lambda g: g.onset_s)
 
@@ -288,8 +309,15 @@ def decompose_errors(
             continue
 
         missed += 1
+        missed_events.append(g)
 
     extra = sum(1 for used in pred_used if not used)
+
+    if residuals is not None:
+        residuals.missed = tuple(missed_events)
+        residuals.extra = tuple(
+            event for index, event in enumerate(predicted) if not pred_used[index]
+        )
 
     return ErrorDecomposition(
         correct=correct,
@@ -323,6 +351,7 @@ __all__ = [
     "DEFAULT_TIMING_EXTENDED_TOLERANCE_S",
     "PITCH_OFF_DELTA_CLASSES",
     "ErrorDecomposition",
+    "Residuals",
     "aggregate_decompositions",
     "classify_pitch_off_delta",
     "decompose_errors",

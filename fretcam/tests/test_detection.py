@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
@@ -9,6 +10,7 @@ import cv2
 import numpy as np
 
 from fretcam.detection import (
+    BBOX_FALLBACK_MAX_CONFIDENCE,
     DetectionChain,
     HandObservation,
     HandSearchHint,
@@ -16,9 +18,11 @@ from fretcam.detection import (
     _adaptive_detector_imgsz,
     _extract_candidates,
     _fret_cell_from_canonical_x,
+    _fret_positions_from_canonical_x,
     _fret_wire_xs,
     _hand_overlaps_neck,
     _has_outward_longitudinal_wrist,
+    compute_bbox_fallback,
     compute_finger_contacts,
     compute_index_fret,
     compute_index_fret_raw,
@@ -2156,6 +2160,230 @@ class AdaptiveDetectorScaleTest(unittest.TestCase):
         chain.process_frame(frame, timestamp_s=0.5)
 
         self.assertEqual(detector.scales, [None, None])
+
+
+def _single_finger_hand(
+    *,
+    on_neck_x: float = 0.30,
+    off_neck_y: float = 1.15,
+    confidence: float = 0.9,
+) -> HandSample:
+    """A tracked hand with only the index fingertip on the canonical neck."""
+    fingers = {
+        "index": FingerSample("index", _image_point(on_neck_x, 0.5), 0.0, 0.70),
+        "middle": FingerSample(
+            "middle", _image_point(on_neck_x + 0.03, off_neck_y), 0.0, 0.70
+        ),
+        "ring": FingerSample(
+            "ring", _image_point(on_neck_x + 0.06, off_neck_y), 0.0, 0.70
+        ),
+        "pinky": FingerSample(
+            "pinky", _image_point(on_neck_x + 0.09, off_neck_y), 0.0, 0.70
+        ),
+    }
+    return HandSample(
+        wrist_xy=_image_point(on_neck_x + 0.04, 0.9),
+        wrist_z=0.0,
+        is_left_hand=True,
+        confidence=confidence,
+        fingers=fingers,
+    )
+
+
+def _hovering_hand(position: int) -> HandSample:
+    """All four fingertips over the neck but hovering (no pressing contacts)."""
+    base = _position_hand(position)
+    fingers = {
+        name: FingerSample(name, finger.tip_xy, finger.tip_z, 0.99)
+        for name, finger in base.fingers.items()
+    }
+    return HandSample(
+        wrist_xy=base.wrist_xy,
+        wrist_z=base.wrist_z,
+        is_left_hand=base.is_left_hand,
+        confidence=base.confidence,
+        fingers=fingers,
+    )
+
+
+class BboxFallbackTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.cfg = GuitarConfig()
+        self.homography, self.centers = _calibrator(OBBPredictions(), self.cfg)
+
+    def _fallback(
+        self,
+        hand: HandSample | None,
+        *,
+        homography: Homography | None = None,
+        geometry_status: str = "detected",
+        freshness: float = 1.0,
+        geometry_stability: float = 1.0,
+    ):
+        return compute_bbox_fallback(
+            hand,
+            self.homography if homography is None else homography,
+            self.cfg,
+            self.centers,
+            geometry_status=geometry_status,
+            freshness=freshness,
+            geometry_stability=geometry_stability,
+        )
+
+    def test_single_on_neck_fingertip_yields_a_low_confidence_observation(
+        self,
+    ) -> None:
+        result = self._fallback(_single_finger_hand())
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        fret, confidence = result
+        self.assertTrue(math.isfinite(fret))
+        self.assertGreater(confidence, 0.0)
+        self.assertLessEqual(confidence, BBOX_FALLBACK_MAX_CONFIDENCE)
+        self.assertLess(confidence, 0.45)
+        # Half the landmark-quality confidence chain the solver would use.
+        self.assertAlmostEqual(confidence, 0.5 * 0.9 * 0.8, places=6)
+
+    def test_fallback_fret_uses_the_calibrated_fret_map_interpolation(self) -> None:
+        x = _physical_fret_x(5)
+        fingers = {
+            name: FingerSample(name, _image_point(x, 0.2 + index * 0.2), 0.0, 0.99)
+            for index, name in enumerate(("index", "middle", "ring", "pinky"))
+        }
+        hand = HandSample(
+            wrist_xy=_image_point(x, 0.5),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=0.9,
+            fingers=fingers,
+        )
+
+        result = self._fallback(hand)
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        fret, _ = result
+        expected, method = _fret_positions_from_canonical_x(
+            np.asarray([x], dtype=np.float64), self.cfg, self.centers
+        )
+        self.assertEqual(method, "calibrated_fret_map")
+        self.assertAlmostEqual(fret, float(expected[0]), places=9)
+
+    def test_confidence_is_capped_below_the_calibration_floor(self) -> None:
+        strong_board = Homography(
+            H=self.homography.H,
+            confidence=1.0,
+            method=self.homography.method,
+        )
+
+        result = self._fallback(
+            _single_finger_hand(confidence=1.0),
+            homography=strong_board,
+        )
+
+        self.assertIsNotNone(result)
+        assert result is not None
+        _, confidence = result
+        self.assertEqual(confidence, BBOX_FALLBACK_MAX_CONFIDENCE)
+        self.assertLess(confidence, 0.45)
+
+    def test_stale_geometry_abstains(self) -> None:
+        for status in ("stale", "held", "missing"):
+            with self.subTest(status=status):
+                self.assertIsNone(
+                    self._fallback(_single_finger_hand(), geometry_status=status)
+                )
+
+    def test_zero_on_neck_fingertips_abstains(self) -> None:
+        hand = _hand_at(50.0, 55.0)  # every fingertip beyond the neck edge
+
+        self.assertIsNone(self._fallback(hand))
+
+    def test_outward_longitudinal_wrist_abstains(self) -> None:
+        fingers = {
+            name: FingerSample(name, _image_point(0.95, 0.2 + index * 0.2), 0.0, 0.70)
+            for index, name in enumerate(("index", "middle", "ring", "pinky"))
+        }
+        picking = HandSample(
+            wrist_xy=_image_point(1.25, 0.5),
+            wrist_z=0.0,
+            is_left_hand=True,
+            confidence=0.9,
+            fingers=fingers,
+        )
+        self.assertTrue(_has_outward_longitudinal_wrist(picking, self.homography))
+
+        self.assertIsNone(self._fallback(picking))
+
+    def test_low_neck_overlap_abstains(self) -> None:
+        hand = _single_finger_hand(off_neck_y=2.6)
+
+        self.assertIsNone(self._fallback(hand))
+
+    def test_missing_hand_or_board_abstains(self) -> None:
+        self.assertIsNone(self._fallback(None))
+        empty_board = Homography(
+            H=np.eye(3, dtype=np.float64), confidence=0.0, method="missing"
+        )
+        self.assertIsNone(self._fallback(_single_finger_hand(), homography=empty_board))
+
+    def test_chain_emits_fallback_when_composite_abstains(self) -> None:
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(_hovering_hand(5)),
+            calibrator=_calibrator,
+        )
+
+        result = chain.process_frame(
+            np.zeros((50, 100, 3), dtype=np.uint8), timestamp_s=0
+        )
+
+        self.assertTrue(result.neck_locked)
+        self.assertIn("too_few_contacts", result.confidence_factors.blockers)
+        self.assertIn("bbox_fallback", result.confidence_factors.blockers)
+        self.assertFalse(result.composite_available)
+        self.assertIsNotNone(result.position_fret)
+        self.assertGreater(result.observation_confidence, 0.0)
+        self.assertLessEqual(
+            result.observation_confidence, BBOX_FALLBACK_MAX_CONFIDENCE
+        )
+        self.assertGreaterEqual(result.position_fret or 0.0, 1.0)
+        self.assertLessEqual(result.position_fret or 0.0, 12.0)
+
+    def test_chain_composite_path_is_unchanged(self) -> None:
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(_position_hand(5)),
+            calibrator=_calibrator,
+        )
+
+        result = chain.process_frame(
+            np.zeros((50, 100, 3), dtype=np.uint8), timestamp_s=0
+        )
+
+        self.assertTrue(result.composite_available)
+        self.assertNotIn("bbox_fallback", result.confidence_factors.blockers)
+        self.assertAlmostEqual(result.position_fret or 0.0, 5.0, places=6)
+        self.assertEqual(
+            result.observation_confidence, result.confidence_factors.combined
+        )
+        self.assertGreater(result.observation_confidence, 0.20)
+
+    def test_chain_without_board_lock_does_not_emit_fallback(self) -> None:
+        chain = DetectionChain(
+            detector=FakeDetector(),
+            hand_extractor=FakeHandExtractor(_single_finger_hand()),
+            calibrator=_missing_calibrator,
+        )
+
+        result = chain.process_frame(
+            np.zeros((50, 100, 3), dtype=np.uint8), timestamp_s=0
+        )
+
+        self.assertFalse(result.neck_locked)
+        self.assertIsNone(result.position_fret)
+        self.assertNotIn("bbox_fallback", result.confidence_factors.blockers)
 
 
 if __name__ == "__main__":
