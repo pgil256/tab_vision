@@ -1,6 +1,6 @@
 // tabvision-client/src/components/TabCanvas.tsx
 import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react';
-import { useAppStore } from '../store/appStore';
+import { pitchPreservingFret, useAppStore } from '../store/appStore';
 import { TabNote } from '../types/tab';
 import { BeatGrid, getBeatGrid } from '../utils/beatGrid';
 
@@ -209,7 +209,32 @@ interface NotesState {
   reviewActive: boolean;
   reviewIds: string[];
   currentTime: number;
+  /** Note whose in-flight drag targets an unplayable pitch (red ring). */
+  invalidNoteId: string | null;
 }
+
+// In-flight mouse drag (M4): preview state only — the store is written once,
+// on pointer-up, via applyNoteDrag. `invalid` means the vertical component
+// was rejected (pitch unplayable on the target string) and the note is shown
+// at its original string with a red ring; the horizontal retime still applies.
+interface DragPreview {
+  noteId: string;
+  timestamp: number;
+  string: number;
+  fret: number | 'X';
+  invalid: boolean;
+}
+
+interface DragGesture {
+  pointerId: number;
+  noteId: string;
+  startX: number;
+  startY: number;
+  orig: { timestamp: number; string: number; fret: number | 'X' };
+  dragging: boolean;
+}
+
+const DRAG_THRESHOLD_PX = 4;
 
 const NOTE_FONT = 'bold 11px "SF Mono", monospace';
 
@@ -297,6 +322,18 @@ function drawNotes(
       ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = 2;
       ctx.stroke();
+    }
+
+    // Drag targeting an unplayable pitch: dashed red ring at the original
+    // string until the pointer reaches a playable one.
+    if (note.id === s.invalidNoteId) {
+      ctx.strokeStyle = COLORS.noteLow;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2 - 3, y - NOTE_SIZE / 2 - 3, w + 6, NOTE_SIZE + 6, 7);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     // Edited indicator (top-right dot)
@@ -398,6 +435,11 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const scrollTimeoutRef = useRef<number | null>(null);
   const fretInputTimeoutRef = useRef<number | null>(null);
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
+  // Drag gesture + preview. The ref is authoritative (pointer-up commits from
+  // it); the state mirror only exists to trigger redraws per move event.
+  const dragGestureRef = useRef<DragGesture | null>(null);
+  const dragPreviewRef = useRef<DragPreview | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
 
   const {
     tabDocument,
@@ -419,6 +461,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     commitPendingEdit,
     updateNoteFret,
     moveNoteString,
+    applyNoteDrag,
     deleteNote,
     insertNote,
     startReview,
@@ -494,14 +537,34 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
 
     drawStringsAndLabels(ctx, layout);
     drawTimeGrid(ctx, layout, beatGrid);
+
+    // Substitute the in-flight drag preview so the note (and its duration
+    // tail) follows the pointer without touching the store.
+    const preview = dragPreviewRef.current;
+    let notes = [...tabDocument.notes].sort((a, b) => a.timestamp - b.timestamp);
+    if (preview) {
+      notes = notes.map(n => {
+        if (n.id !== preview.noteId) return n;
+        const delta = preview.timestamp - n.timestamp;
+        return {
+          ...n,
+          timestamp: preview.timestamp,
+          endTime: typeof n.endTime === 'number' ? n.endTime + delta : n.endTime,
+          string: preview.string as TabNote['string'],
+          fret: preview.fret,
+        };
+      });
+    }
+
     noteHitboxesRef.current = drawNotes(ctx, layout, {
-      notes: [...tabDocument.notes].sort((a, b) => a.timestamp - b.timestamp),
+      notes,
       selectedNoteId,
       hoveredNoteId,
       pendingFretInput,
       reviewActive,
       reviewIds,
       currentTime,
+      invalidNoteId: preview?.invalid ? preview.noteId : null,
     });
     drawPlayhead(ctx, layout, currentTime);
   }, [
@@ -516,6 +579,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     reviewActive,
     reviewIds,
     beatGrid,
+    dragPreview,
     timestampToX,
     stringToY,
     pps,
@@ -566,75 +630,171 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     }
   }, [zoomIn, zoomOut]);
 
-  // Handle canvas click
-  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Canvas-space coordinates for a pointer event (same math the old click
+  // handler used; DPR cancels out of the hitbox space).
+  const canvasCoords = useCallback(
+    (e: { clientX: number; clientY: number }): { x: number; y: number } | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: ((e.clientX - rect.left) * canvasWidth) / rect.width,
+        y: ((e.clientY - rect.top) * CANVAS_HEIGHT) / rect.height,
+      };
+    },
+    [canvasWidth]
+  );
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const scaleX = (canvasWidth * dpr) / rect.width;
-    const scaleY = (CANVAS_HEIGHT * dpr) / rect.height;
-    const clickX = (e.clientX - rect.left) * scaleX / dpr;
-    const clickY = (e.clientY - rect.top) * scaleY / dpr;
-
-    // Check if click is on a note
+  const hitTest = useCallback((x: number, y: number): NoteHitbox | null => {
     for (const hitbox of noteHitboxesRef.current) {
       if (
-        clickX >= hitbox.x &&
-        clickX <= hitbox.x + hitbox.width &&
-        clickY >= hitbox.y &&
-        clickY <= hitbox.y + hitbox.height
+        x >= hitbox.x &&
+        x <= hitbox.x + hitbox.width &&
+        y >= hitbox.y &&
+        y <= hitbox.y + hitbox.height
       ) {
-        selectNote(hitbox.id);
-        if (videoRef.current) {
-          videoRef.current.currentTime = hitbox.note.timestamp;
-          setCurrentTime(hitbox.note.timestamp);
-        }
+        return hitbox;
+      }
+    }
+    return null;
+  }, []);
+
+  const clearDrag = useCallback(() => {
+    dragGestureRef.current = null;
+    dragPreviewRef.current = null;
+    setDragPreview(null);
+  }, []);
+
+  // Pointer state machine (M4): press on a note arms a drag; moving past the
+  // threshold previews retime (horizontal) + pitch-preserving restring
+  // (vertical); release commits once via applyNoteDrag. A press that never
+  // crosses the threshold is the old click (select / seek). Drag is disabled
+  // in review mode — review owns navigation and scroll.
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (e.button !== 0) return;
+      const coords = canvasCoords(e);
+      if (!coords) return;
+      const hit = hitTest(coords.x, coords.y);
+      if (!hit || reviewActive || hit.note.fret === 'X') return;
+      dragGestureRef.current = {
+        pointerId: e.pointerId,
+        noteId: hit.id,
+        startX: coords.x,
+        startY: coords.y,
+        orig: {
+          timestamp: hit.note.timestamp,
+          string: hit.note.string,
+          fret: hit.note.fret,
+        },
+        dragging: false,
+      };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Untracked pointer id (synthetic events); drag still works while the
+        // pointer stays over the canvas.
+      }
+    },
+    [canvasCoords, hitTest, reviewActive]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      const coords = canvasCoords(e);
+      if (!coords) return;
+      const gesture = dragGestureRef.current;
+
+      if (!gesture) {
+        // Plain hover
+        const hit = hitTest(coords.x, coords.y);
+        const id = hit?.id ?? null;
+        if (id !== hoveredNoteId) setHoveredNoteId(id);
         return;
       }
-    }
 
-    // Click on empty area - deselect and seek
-    selectNote(null);
-    const clickedTime = (clickX - STRING_LABEL_WIDTH - CANVAS_PADDING) / pps;
-    if (clickedTime >= 0 && clickedTime <= safeDuration && videoRef.current) {
-      videoRef.current.currentTime = clickedTime;
-      setCurrentTime(clickedTime);
-    }
-  }, [selectNote, setCurrentTime, safeDuration, videoRef, canvasWidth, pps]);
-
-  // Handle mouse move for hover effects
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const scaleX = (canvasWidth * dpr) / rect.width;
-    const scaleY = (CANVAS_HEIGHT * dpr) / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX / dpr;
-    const mouseY = (e.clientY - rect.top) * scaleY / dpr;
-
-    let found = false;
-    for (const hitbox of noteHitboxesRef.current) {
-      if (
-        mouseX >= hitbox.x &&
-        mouseX <= hitbox.x + hitbox.width &&
-        mouseY >= hitbox.y &&
-        mouseY <= hitbox.y + hitbox.height
-      ) {
-        if (hoveredNoteId !== hitbox.id) {
-          setHoveredNoteId(hitbox.id);
-        }
-        found = true;
-        break;
+      if (!gesture.dragging) {
+        const dist = Math.hypot(coords.x - gesture.startX, coords.y - gesture.startY);
+        if (dist < DRAG_THRESHOLD_PX) return;
+        gesture.dragging = true;
       }
-    }
-    if (!found && hoveredNoteId) {
-      setHoveredNoteId(null);
-    }
-  }, [hoveredNoteId, canvasWidth]);
+
+      const dt = (coords.x - gesture.startX) / pps;
+      const timestamp = Math.max(0, Math.min(safeDuration, gesture.orig.timestamp + dt));
+      const stringDelta = Math.round((coords.y - gesture.startY) / STRING_HEIGHT);
+      const targetString = Math.max(1, Math.min(6, gesture.orig.string + stringDelta));
+
+      let string = gesture.orig.string;
+      let fret = gesture.orig.fret;
+      let invalid = false;
+      if (targetString !== gesture.orig.string) {
+        const nextFret = pitchPreservingFret(gesture.orig.string, targetString, gesture.orig.fret);
+        if (nextFret === null) {
+          invalid = true; // vertical rejected, horizontal still applies
+        } else {
+          string = targetString;
+          fret = nextFret;
+        }
+      }
+
+      const preview: DragPreview = { noteId: gesture.noteId, timestamp, string, fret, invalid };
+      dragPreviewRef.current = preview;
+      setDragPreview(preview);
+    },
+    [canvasCoords, hitTest, hoveredNoteId, pps, safeDuration]
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      const coords = canvasCoords(e);
+      const gesture = dragGestureRef.current;
+      const preview = dragPreviewRef.current;
+
+      if (gesture?.dragging && preview) {
+        applyNoteDrag(gesture.noteId, {
+          timestamp: preview.timestamp,
+          string: preview.string,
+          fret: preview.fret,
+        });
+        selectNote(gesture.noteId);
+        clearDrag();
+        return;
+      }
+      clearDrag();
+
+      // Click semantics (unchanged): select + seek on a note, deselect + seek
+      // on empty canvas.
+      if (!coords) return;
+      const hit = hitTest(coords.x, coords.y);
+      if (hit) {
+        selectNote(hit.id);
+        if (videoRef.current) {
+          videoRef.current.currentTime = hit.note.timestamp;
+        }
+        setCurrentTime(hit.note.timestamp);
+        return;
+      }
+      selectNote(null);
+      const clickedTime = (coords.x - STRING_LABEL_WIDTH - CANVAS_PADDING) / pps;
+      if (clickedTime >= 0 && clickedTime <= safeDuration) {
+        if (videoRef.current) {
+          videoRef.current.currentTime = clickedTime;
+        }
+        setCurrentTime(clickedTime);
+      }
+    },
+    [
+      applyNoteDrag,
+      canvasCoords,
+      clearDrag,
+      hitTest,
+      pps,
+      safeDuration,
+      selectNote,
+      setCurrentTime,
+      videoRef,
+    ]
+  );
 
   // Handle keyboard input
   useEffect(() => {
@@ -895,13 +1055,21 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       >
         <canvas
           ref={canvasRef}
-          onClick={handleClick}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredNoteId(null)}
-          className="cursor-pointer block"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={clearDrag}
+          onPointerLeave={() => setHoveredNoteId(null)}
+          className="block"
           style={{
             width: `${canvasWidth}px`,
             height: `${CANVAS_HEIGHT}px`,
+            cursor: dragPreview
+              ? 'grabbing'
+              : hoveredNoteId && !reviewActive
+                ? 'grab'
+                : 'pointer',
+            touchAction: 'pan-x',
           }}
         />
       </div>

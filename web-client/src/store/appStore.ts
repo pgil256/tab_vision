@@ -14,8 +14,12 @@ type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
 // Only the fields an edit mutates are snapshotted, so undo/redo restore them
 // exactly (including isEdited / originalFret bookkeeping) rather than trying to
-// recompute derived flags.
-type NoteMutableFields = Pick<TabNote, 'string' | 'fret' | 'isEdited' | 'originalFret'>;
+// recompute derived flags. timestamp/endTime joined for drag-retiming (M4);
+// history is in-memory only, so extending the snapshot needs no migration.
+type NoteMutableFields = Pick<
+  TabNote,
+  'string' | 'fret' | 'isEdited' | 'originalFret' | 'timestamp' | 'endTime'
+>;
 
 type EditAction =
   | { kind: 'position'; noteId: string; before: NoteMutableFields; after: NoteMutableFields }
@@ -124,6 +128,10 @@ interface AppState {
   // Editing actions
   updateNoteFret: (noteId: string, newFret: number | "X") => void;
   updateNotePosition: (noteId: string, newString: number, newFret: number | "X") => void;
+  applyNoteDrag: (
+    noteId: string,
+    next: { timestamp: number; string: number; fret: number | "X" },
+  ) => void;
   moveNoteString: (direction: 'up' | 'down') => void;
   deleteNote: (noteId: string) => void;
   insertNote: (opts: { timestamp: number; string: number; fret?: number | "X" }) => void;
@@ -395,6 +403,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       fret: note.fret,
       isEdited: note.isEdited,
       originalFret: note.originalFret,
+      timestamp: note.timestamp,
+      endTime: note.endTime,
     };
     const updated: TabNote = {
       ...note,
@@ -408,6 +418,66 @@ export const useAppStore = create<AppState>((set, get) => ({
       fret: updated.fret,
       isEdited: updated.isEdited,
       originalFret: updated.originalFret,
+      timestamp: updated.timestamp,
+      endTime: updated.endTime,
+    };
+
+    const updatedNotes = [...tabDocument.notes];
+    updatedNotes[noteIndex] = updated;
+
+    const newHistory = editHistory.slice(0, editHistoryIndex + 1);
+    newHistory.push({ kind: 'position', noteId, before, after });
+
+    set({
+      tabDocument: { ...tabDocument, notes: updatedNotes },
+      editHistory: newHistory,
+      editHistoryIndex: newHistory.length - 1,
+    });
+    persistSession(get().tabDocument!, get().currentJobId);
+  },
+
+  // Mouse-drag commit (M4): one history entry for retime + restring together,
+  // so a single Ctrl+Z reverses the whole gesture. endTime shifts with the
+  // timestamp to preserve the note's duration. The notes array is deliberately
+  // left unsorted after a retime — every consumer sorts on read, and
+  // re-sorting here would break the index semantics of delete/insert history
+  // entries.
+  applyNoteDrag: (noteId, next) => {
+    const { tabDocument, editHistory, editHistoryIndex } = get();
+    if (!tabDocument) return;
+
+    const noteIndex = tabDocument.notes.findIndex(n => n.id === noteId);
+    if (noteIndex === -1) return;
+    const note = tabDocument.notes[noteIndex];
+
+    const newTimestamp = Math.max(0, next.timestamp);
+    const delta = newTimestamp - note.timestamp;
+    if (delta === 0 && note.string === next.string && note.fret === next.fret) return;
+
+    const before: NoteMutableFields = {
+      string: note.string,
+      fret: note.fret,
+      isEdited: note.isEdited,
+      originalFret: note.originalFret,
+      timestamp: note.timestamp,
+      endTime: note.endTime,
+    };
+    const updated: TabNote = {
+      ...note,
+      string: next.string as TabNote['string'],
+      fret: next.fret,
+      timestamp: newTimestamp,
+      endTime: typeof note.endTime === 'number' ? note.endTime + delta : note.endTime,
+      isEdited: true,
+      originalFret: note.originalFret ?? note.fret,
+    };
+    const after: NoteMutableFields = {
+      string: updated.string,
+      fret: updated.fret,
+      isEdited: updated.isEdited,
+      originalFret: updated.originalFret,
+      timestamp: updated.timestamp,
+      endTime: updated.endTime,
     };
 
     const updatedNotes = [...tabDocument.notes];
