@@ -7,6 +7,7 @@ import { TabToolbar } from './components/TabToolbar';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { RestoreBanner } from './components/RestoreBanner';
 import { useAppStore } from './store/appStore';
+import { useAudition } from './hooks/useAudition';
 import './index.css';
 
 type InputMode = 'upload' | 'record';
@@ -14,8 +15,12 @@ type InputMode = 'upload' | 'record';
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
-  const { jobStatus, videoUrl, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
+  const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
+
+  // M6 — audition engine: synth playback of the notes + fallback transport
+  // for sessions without a recording.
+  useAudition(videoRef);
 
   // B5 — on mount, surface an autosaved edited session (if any) for restore.
   useEffect(() => {
@@ -139,7 +144,7 @@ function App() {
             <div className="shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <div className="flex items-stretch">
                 <div className="shrink-0">
-                  {videoUrl && <VideoPlayer videoRef={videoRef} />}
+                  <VideoPlayer videoRef={videoRef} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <TabToolbar />

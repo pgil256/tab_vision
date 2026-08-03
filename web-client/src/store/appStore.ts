@@ -13,6 +13,10 @@ import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
+// What the user hears during playback: the original recording, the pluck-synth
+// rendition of the (edited) notes, or both layered.
+export type AuditionMode = 'original' | 'synth' | 'both';
+
 // Only the fields an edit mutates are snapshotted, so undo/redo restore them
 // exactly (including isEdited / originalFret bookkeeping) rather than trying to
 // recompute derived flags. timestamp/endTime joined for drag-retiming (M4);
@@ -90,6 +94,7 @@ interface AppState {
   isVideoCollapsed: boolean;
   showShortcutsModal: boolean;
   playbackRate: number;
+  auditionMode: AuditionMode;
 
   // Edit history
   editHistory: EditAction[];
@@ -162,6 +167,7 @@ interface AppState {
   toggleVideoCollapsed: () => void;
   setShowShortcutsModal: (show: boolean) => void;
   setPlaybackRate: (rate: number) => void;
+  setAuditionMode: (mode: AuditionMode) => void;
 }
 
 const initialState = {
@@ -203,6 +209,7 @@ const initialState = {
   isVideoCollapsed: false,
   showShortcutsModal: false,
   playbackRate: 1.0,
+  auditionMode: 'original' as AuditionMode,
 
   // Edit history
   editHistory: [] as EditAction[],
@@ -713,4 +720,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowShortcutsModal: (show) => set({ showShortcutsModal: show }),
 
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
+
+  setAuditionMode: (mode) => set({ auditionMode: mode }),
 }));

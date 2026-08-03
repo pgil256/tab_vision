@@ -12,6 +12,9 @@ export function TabToolbar() {
     editHistoryIndex,
     editHistory,
     zoomLevel,
+    videoUrl,
+    auditionMode,
+    setAuditionMode,
     setFollowingPlayback,
     undo,
     redo,
@@ -232,6 +235,43 @@ export function TabToolbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
             </button>
+          </div>
+
+          {/* Audition mode: what plays back — the recording, the synth
+              rendition of the notes, or both. Recording options disabled when
+              no recording is available (restored session without a blob). */}
+          <div
+            className="flex items-center rounded-lg overflow-hidden"
+            style={{ border: '1px solid var(--border-subtle)' }}
+            data-testid="audition-toggle"
+          >
+            {([
+              ['original', 'Rec'],
+              ['synth', 'Synth'],
+              ['both', 'Both'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setAuditionMode(mode)}
+                disabled={!videoUrl && mode !== 'synth'}
+                className="text-[11px] px-2 py-1 transition-colors"
+                data-tooltip={
+                  mode === 'original'
+                    ? 'Play the recording'
+                    : mode === 'synth'
+                      ? 'Play the transcribed notes'
+                      : 'Play both'
+                }
+                style={{
+                  color: auditionMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+                  background: auditionMode === mode ? 'var(--accent-glow)' : 'transparent',
+                  fontWeight: auditionMode === mode ? 600 : 400,
+                  opacity: !videoUrl && mode !== 'synth' ? 0.4 : 1,
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Follow playback */}
