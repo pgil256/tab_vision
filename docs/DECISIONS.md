@@ -6313,3 +6313,57 @@ gates. Per the frozen protocol, the negative completes the experiment and
 does not authorize post-result tuning.
 
 **Spend:** $0. All computation was local CPU.
+
+---
+
+## 2026-08-02 — SPEC §1.5 carve-out: FretCam becomes a labeller for a local personal position prior
+
+**Context:** Track C priced giving a player their own position prior at
+**+0.0305 [+0.0183, +0.0430]** aggregate Tab F1 — the largest remaining
+production lever — and noted the assisted-review queue collects exactly the
+needed labels and discards them (`c_prior_adaptation_2026-07-25.md`). Every
+attempt to use FretCam as *decode-time evidence* measured ≈0 (per-note bridge
++0.000836; contact prior −0.000362; segment windows +0.0000, where even a
+gold-window oracle could gain only +0.000087 because the decoder's retained
+paths are the same tab). FretCam's measured profile — position on 27% of
+stable frames, correct on 100% of them — is wrong for a witness and right
+for a labeller: labelling needs precision, not coverage. SPEC §1.5 banned
+private/user recordings from all training/eval/label roles.
+
+**Decision:** The user directed (chat, 2026-08-02) a narrow §1.5 carve-out
+and its implementation. `tabvision transcribe --video-backend fretcam
+--harvest-personal-labels STORE.jsonl` joins the audio backend's pitches
+against FretCam's locked position windows and appends a `(pitch, string,
+fret)` label **only when exactly one playable candidate is consistent with
+the window** (a fretted candidate inside it, or an open string when nothing
+else fits — open strings are playable from any hand position, so any
+open/fretted ambiguity abstains). `scripts/train/build_personal_prior.py`
+aggregates the store into a schema-1 counts artifact; `--position-prior
+<path>.json` consumes it via a new inference-policy branch that hashes the
+file into the policy's artifact identities. Personal artifacts stay local:
+never shipped, never defaults, never in eval corpora or published figures.
+
+**Non-obvious branches taken:**
+- **Per-pitch switching, not count blending.** A pitch with ≥
+  `min_labels_per_pitch` (default 5, never swept) personal labels uses
+  *only* its personal counts; every other pitch keeps the population
+  artifact's counts. This is the shape of Track C's `oracle_player` arm and
+  avoids inventing an unmeasured blend weight. The loader's `alpha`
+  smoothing keeps thin personal evidence appropriately weak.
+- **Harvest refuses capo sessions.** The counts artifact is capo-0 indexed;
+  re-indexing happens at load time (`capo_covariant_prior`), so capo-time
+  harvesting would mix coordinate systems.
+- **Sequence prior forced off with a personal position prior.** The
+  registered sequence artifacts were gated *coupled to* their named
+  position priors; no pairing with a personal artifact has been validated.
+- **Both join channels gated at 0.5 confidence** (Track C's harvest floor)
+  and 0.25 s onset-to-window gap; only `state == "locked"` windows count —
+  "holding" is a display affordance carrying a stale estimate.
+
+**What this is not:** an accuracy claim. +0.0305 is the *in-sample ceiling*
+for a perfectly estimated personal prior; what a finite label store reaches
+is unmeasured, and measuring it on the user's own recordings would itself
+violate the eval half of the ban — the honest check is whether the user's
+own review-queue correction rate drops.
+
+**Spend:** $0. Local implementation and unit tests only.

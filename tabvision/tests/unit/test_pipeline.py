@@ -454,6 +454,9 @@ def test_fretcam_zero_weight_is_exact_audio_only_prior(monkeypatch):
     assert captured["events"][0] is original
     assert result.notes_affected_by_video == 0
     assert result.position_observation_count == 1
+    # Additive 2026-08-02: the observations themselves ride along for the
+    # opt-in personal-label harvest.
+    assert result.position_observations == tuple(analyzer.observations)
 
 
 def test_fretcam_route_closes_frame_iterator_when_analyzer_returns_early(monkeypatch):

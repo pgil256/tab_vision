@@ -172,6 +172,11 @@ class PipelineArtifacts:
     # it with `tabvision.preflight.capo.detect_capo_from_video` before showing a
     # number to a user; that refutes estimates the audio bound rules out.
     video_capo: SessionCapoObservation | None = None
+    # Additive (2026-08-02): the stabilized window observations themselves, for
+    # the opt-in personal-label harvest (SPEC §1.5 carve-out). Empty whenever
+    # the FretCam route did not run; the count field above stays for callers
+    # that only report.
+    position_observations: tuple[PositionWindowObservation, ...] = ()
 
 
 def run_pipeline_with_artifacts(
@@ -476,6 +481,7 @@ def run_pipeline_with_artifacts(
         position_observation_count=len(position_observations),
         notes_affected_by_video=notes_affected_by_video,
         video_capo=video_capo,
+        position_observations=tuple(position_observations),
     )
 
 

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from tabvision.errors import ConfigurationError
 from tabvision.fusion.artifact_registry import ArtifactManifest, load_artifact_manifest
@@ -60,8 +63,16 @@ def resolve_inference_policy(
     requested_timbre = _choice(requested_string_evidence, default="none")
     reasons: list[str] = []
 
+    # SPEC §1.5 carve-out (2026-08-02): an explicit position prior may be a
+    # local personal artifact file rather than a registered name. Detected on
+    # the *raw* argument — ``_choice`` lowercases, which would corrupt a path.
+    personal_position = _personal_position_prior_path(requested_position_prior)
+
     position_manifest: ArtifactManifest | None = None
-    if requested_position == "auto":
+    if personal_position is not None:
+        requested_position = str(personal_position)
+        reasons.append("explicit personal position-prior artifact (local file)")
+    elif requested_position == "auto":
         if _automatic_position_domain(cfg, session):
             try:
                 position_manifest = load_artifact_manifest("guitarset-v1", expected_kind="position")
@@ -82,11 +93,21 @@ def resolve_inference_policy(
             reasons.append("session is outside the validated acoustic prior domain")
     elif requested_position != "none":
         position_manifest = load_artifact_manifest(requested_position, expected_kind="position")
-    resolved_position = position_manifest.name if position_manifest else "none"
+    if personal_position is not None:
+        resolved_position = str(personal_position)
+    else:
+        resolved_position = position_manifest.name if position_manifest else "none"
 
     sequence_manifest: ArtifactManifest | None = None
     if requested_sequence == "auto":
         paired = position_manifest.compatible_sequence_prior if position_manifest else None
+        if personal_position is not None:
+            # The registered sequence artifacts were gated *coupled to* their
+            # named position priors; a personal prior has no validated pairing.
+            reasons.append(
+                "personal position prior has no validated sequence pairing; sequence prior off"
+            )
+            paired = None
         if paired and cfg.capo > 0:
             # The registered sequence artifact uses the ``delta_fret`` scheme,
             # which conditions on the *absolute* previous-fret region and is
@@ -154,6 +175,15 @@ def resolve_inference_policy(
         for item in manifests
         if item is not None
     )
+    if personal_position is not None:
+        identities = (
+            ArtifactIdentity(
+                name=f"personal:{personal_position.name}",
+                version="local",
+                sha256=hashlib.sha256(personal_position.read_bytes()).hexdigest(),
+            ),
+            *identities,
+        )
     return ResolvedInferencePolicy(
         requested_position_prior=requested_position,
         resolved_position_prior=resolved_position,
@@ -172,6 +202,38 @@ def resolve_inference_policy(
 def _choice(value: str | None, *, default: str) -> str:
     text = (value or default).strip().lower()
     return text or default
+
+
+def _personal_position_prior_path(requested: str | None) -> Path | None:
+    """Return the path when an explicit position prior is a local artifact.
+
+    Personal artifacts (SPEC §1.5 carve-out, 2026-08-02;
+    ``scripts/train/build_personal_prior.py``) are addressed by filesystem
+    path, distinguished from registered names by the ``.json`` suffix — no
+    registered artifact name carries one. The file is validated *here*, at
+    policy time, so a bad path fails before minutes of audio inference
+    rather than after. Structural validation of the counts stays in
+    :func:`tabvision.fusion.position_prior.load_pitch_position_prior`.
+    """
+    if not requested:
+        return None
+    text = requested.strip()
+    if not text.lower().endswith(".json"):
+        return None
+    path = Path(text)
+    if not path.is_file():
+        raise ConfigurationError(f"personal position-prior file not found: {text}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ConfigurationError(f"personal position-prior file is unreadable: {text}") from exc
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != 1
+        or not isinstance(payload.get("counts"), list)
+    ):
+        raise ConfigurationError(f"personal position-prior file has an unsupported schema: {text}")
+    return path
 
 
 def _automatic_acoustic_domain(cfg: GuitarConfig, session: SessionConfig) -> bool:
