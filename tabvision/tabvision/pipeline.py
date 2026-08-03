@@ -55,9 +55,11 @@ from tabvision.fusion.position_prior import (
 from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.transition_prior import load_transition_prior
 from tabvision.fusion.viterbi import assignment_decoder_context
+from tabvision.audio.beats import detect_beat_grid
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
+    BeatGrid,
     FrameFingering,
     FretboardBackend,
     GuitarBackend,
@@ -177,6 +179,12 @@ class PipelineArtifacts:
     # the FretCam route did not run; the count field above stays for callers
     # that only report.
     position_observations: tuple[PositionWindowObservation, ...] = ()
+    # Additive (2026-08-02): real clip length from the demuxer (0.0 on legacy
+    # constructors) and an advisory tempo/beat grid for display and export-time
+    # quantization only — detected note times are never moved by it (SPEC §9.2).
+    # ``None`` when detection failed or was unreliable.
+    clip_duration_s: float = 0.0
+    beat_grid: BeatGrid | None = None
 
 
 def run_pipeline_with_artifacts(
@@ -280,6 +288,12 @@ def run_pipeline_with_artifacts(
     _notify("demux")
     logger.info("demuxing %s", video_path)
     demuxed = demux(video_path)
+    clip_duration_s = float(demuxed.duration_s)
+    try:
+        beat_grid = detect_beat_grid(demuxed.wav, demuxed.sample_rate)
+    except Exception as exc:  # noqa: BLE001 — advisory metadata must never fail a job
+        logger.warning("beat-grid detection failed: %s", exc)
+        beat_grid = None
 
     # Tone toggle: "auto" routes to the backend for the session's instrument
     # (electric → highres-electric, else acoustic highres). Explicit names pass through.
@@ -482,6 +496,8 @@ def run_pipeline_with_artifacts(
         notes_affected_by_video=notes_affected_by_video,
         video_capo=video_capo,
         position_observations=tuple(position_observations),
+        clip_duration_s=clip_duration_s,
+        beat_grid=beat_grid,
     )
 
 

@@ -230,12 +230,20 @@ def tab_events_to_tab_document(
     diagnostics: dict[str, Any] | None = None,
     inference_policy: dict[str, Any] | None = None,
     note_candidates: list[list[dict[str, Any]] | None] | None = None,
+    clip_duration_s: float = 0.0,
+    beat_grid: Any = None,
 ) -> dict[str, Any]:
     """Convert v1 TabEvents to the existing frontend TabDocument JSON.
 
     ``note_candidates``, when given, is aligned to the onset-sorted note order
     (the same sort applied here) and carries each note's ranked
     pitch-preserving alternatives for the review UI.
+
+    ``clip_duration_s`` (real demuxed length) replaces the max-endTime
+    ``duration`` heuristic when positive. ``beat_grid`` (a
+    ``tabvision.types.BeatGrid`` or duck-typed equivalent) is advisory
+    display/export metadata; its fields are omitted entirely when ``None``
+    so old documents and legacy runners keep the current shape.
     """
     event_list = sorted(list(events), key=lambda event: event.onset_s)
     notes_data: list[dict[str, Any]] = []
@@ -257,6 +265,9 @@ def tab_events_to_tab_document(
             "confidenceLevel": _confidence_level(confidence),
             "isEdited": False,
         }
+        pitch_midi = getattr(event, "pitch_midi", None)
+        if pitch_midi is not None:
+            note["detectedMidiNote"] = int(pitch_midi)
         if note_candidates and index < len(note_candidates) and note_candidates[index]:
             note["candidates"] = note_candidates[index]
         techniques = tuple(getattr(event, "techniques", ()) or ())
@@ -278,10 +289,21 @@ def tab_events_to_tab_document(
         merged_diagnostics.update(diagnostics)
 
     policy = inference_policy or _fallback_policy_metadata(config)
+    beat_metadata: dict[str, Any] = {}
+    if beat_grid is not None:
+        beat_metadata = {
+            "tempoBpm": round(float(beat_grid.tempo_bpm), 2),
+            "beatTimes": [round(float(t), 3) for t in beat_grid.beat_times],
+            "beatsPerBar": int(beat_grid.beats_per_bar),
+            "beatDetectionSource": str(beat_grid.source),
+        }
     return {
         "id": job.id,
         "createdAt": job.created_at.isoformat(),
-        "duration": max_time + 1,
+        "duration": (
+            float(clip_duration_s) if clip_duration_s and clip_duration_s > 0
+            else max_time + 1
+        ),
         "capoFret": job.capo_fret,
         "tuning": ["E", "B", "G", "D", "A", "E"],
         "notes": notes_data,
@@ -304,6 +326,7 @@ def tab_events_to_tab_document(
             "accuracyMode": config.accuracy_mode,
             "noteCountRatio": None,
             "assistCandidateNotes": candidate_notes,
+            **beat_metadata,
             "diagnostics": merged_diagnostics,
         },
     }
@@ -391,6 +414,8 @@ def run_v1_transcription(
         diagnostics=diagnostics,
         inference_policy=inference_policy,
         note_candidates=note_candidates,
+        clip_duration_s=float(getattr(pipeline_result, "clip_duration_s", 0.0) or 0.0),
+        beat_grid=getattr(pipeline_result, "beat_grid", None),
     )
 
     os.makedirs(output_dir, exist_ok=True)
