@@ -15,16 +15,22 @@ import pytest
 
 import tabvision.pipeline as pipeline
 from tabvision.errors import BackendError
+from tabvision.fusion.candidates import candidate_positions
 from tabvision.types import (
     AudioEvent,
     DemuxResult,
     FrameFingering,
     GuitarBBox,
+    GuitarConfig,
     Homography,
     SessionConfig,
 )
 from tabvision.video.hand.neck_anchor import HandNeckAnchor
-from tabvision.video.position import PositionWindowObservation
+from tabvision.video.position import (
+    FingerContactObservation,
+    PositionWindowObservation,
+    VideoObservations,
+)
 
 # ---------- fakes ----------
 
@@ -448,6 +454,9 @@ def test_fretcam_zero_weight_is_exact_audio_only_prior(monkeypatch):
     assert captured["events"][0] is original
     assert result.notes_affected_by_video == 0
     assert result.position_observation_count == 1
+    # Additive 2026-08-02: the observations themselves ride along for the
+    # opt-in personal-label harvest.
+    assert result.position_observations == tuple(analyzer.observations)
 
 
 def test_fretcam_route_closes_frame_iterator_when_analyzer_returns_early(monkeypatch):
@@ -1004,3 +1013,174 @@ def test_run_pipeline_ignores_audio_filters_when_backend_injected(monkeypatch):
         audio_filters=True,
     )
     assert len(out) == 1
+
+
+class _FakeContactAnalyzer(_FakePositionAnalyzer):
+    """A position analyzer that can also return contacts from one traversal."""
+
+    def __init__(self, observations=(), contacts=()):
+        super().__init__(observations)
+        self.contacts = list(contacts)
+        self.analyze_all_calls = 0
+
+    def analyze_all(self, frames, *, stride):
+        self.analyze_all_calls += 1
+        materialized = list(frames)
+        self.calls.append((materialized, stride))
+        return VideoObservations(windows=tuple(self.observations), contacts=tuple(self.contacts))
+
+
+def test_contact_evidence_requires_the_fretcam_backend():
+    with pytest.raises(ValueError, match="contact_evidence requires"):
+        pipeline.run_pipeline_with_artifacts(
+            "ignored.mp4",
+            video_backend="legacy",
+            contact_evidence=True,
+        )
+
+
+def test_contact_evidence_defaults_off_and_takes_the_single_pass_route(monkeypatch):
+    """Off by default; on, both evidence types come from one traversal."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=6))
+    monkeypatch.setattr(pipeline, "fuse", lambda *a, **k: [])
+
+    contacts = (FingerContactObservation(timestamp_s=0.45, positions=((1, 10),), confidence=0.9),)
+
+    off = _FakeContactAnalyzer(contacts=contacts)
+    pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend([]),
+        position_analyzer=off,
+        video_backend="fretcam",
+        video_enabled=True,
+    )
+    assert off.analyze_all_calls == 0
+
+    on = _FakeContactAnalyzer(contacts=contacts)
+    pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend([]),
+        position_analyzer=on,
+        video_backend="fretcam",
+        video_enabled=True,
+        contact_evidence=True,
+    )
+    assert on.analyze_all_calls == 1
+    # One traversal only: frame decode and inference must not be paid twice.
+    assert len(on.calls) == 1
+
+
+def test_contact_evidence_reranks_an_ambiguous_same_pitch_event(monkeypatch):
+    """The channel exists to move wrong_position_same_pitch; prove it does."""
+    monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=6))
+    captured: dict[str, object] = {}
+
+    def fake_fuse(events, fingerings, cfg, session, *, lambda_vision=1.0):
+        captured["events"] = list(events)
+        return []
+
+    monkeypatch.setattr(pipeline, "fuse", fake_fuse)
+
+    cfg = GuitarConfig()
+    candidates = candidate_positions(69, cfg)
+    fretted = [c for c in candidates if c.fret != 0]
+    target = fretted[-1]  # deliberately not the decoder's usual low-fret pick
+
+    analyzer = _FakeContactAnalyzer(
+        contacts=(
+            FingerContactObservation(
+                timestamp_s=0.45,
+                positions=((target.string_idx, target.fret),),
+                confidence=1.0,
+            ),
+        )
+    )
+    pipeline.run_pipeline_with_artifacts(
+        "ignored.mp4",
+        audio_backend=_FakeAudioBackend(
+            [
+                AudioEvent(
+                    onset_s=0.5,
+                    offset_s=0.75,
+                    pitch_midi=69,
+                    velocity=0.8,
+                    confidence=0.8,
+                )
+            ]
+        ),
+        position_analyzer=analyzer,
+        video_backend="fretcam",
+        video_enabled=True,
+        contact_evidence=True,
+        position_prior="none",
+        sequence_prior="none",
+        cfg=cfg,
+    )
+    events = captured["events"]
+    assert len(events) == 1
+    prior = events[0].fret_prior
+    assert prior is not None
+    named = float(prior[target.string_idx, target.fret])
+    rival = max(
+        float(prior[c.string_idx, c.fret])
+        for c in fretted
+        if (c.string_idx, c.fret) != (target.string_idx, target.fret)
+    )
+    assert named > rival
+
+
+def test_contact_evidence_changes_only_assignment_not_the_event_stream(monkeypatch):
+    """The paired harness asserts pitch/timing/count invariance between arms.
+
+    Verify that here, without patching ``fuse``, so a real decode has to agree.
+    """
+    cfg = GuitarConfig()
+    events = [
+        AudioEvent(
+            onset_s=0.5,
+            offset_s=0.75,
+            pitch_midi=69,
+            velocity=0.8,
+            confidence=0.8,
+        ),
+        AudioEvent(
+            onset_s=0.8,
+            offset_s=1.0,
+            pitch_midi=64,
+            velocity=0.7,
+            confidence=0.7,
+        ),
+    ]
+    candidates = candidate_positions(69, cfg)
+    target = [c for c in candidates if c.fret != 0][-1]
+    contacts = (
+        FingerContactObservation(
+            timestamp_s=0.45,
+            positions=((target.string_idx, target.fret),),
+            confidence=1.0,
+        ),
+    )
+
+    def run(contact_evidence: bool):
+        monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=6))
+        return pipeline.run_pipeline_with_artifacts(
+            "ignored.mp4",
+            audio_backend=_FakeAudioBackend(events),
+            position_analyzer=_FakeContactAnalyzer(contacts=contacts),
+            video_backend="fretcam",
+            video_enabled=True,
+            contact_evidence=contact_evidence,
+            position_prior="none",
+            sequence_prior="none",
+            string_evidence="none",
+            cfg=cfg,
+        )
+
+    off = run(False)
+    on = run(True)
+
+    def stream(result):
+        return [(e.onset_s, e.duration_s, e.pitch_midi) for e in result.tab_events]
+
+    assert len(on.tab_events) == len(off.tab_events)
+    assert stream(on) == stream(off)

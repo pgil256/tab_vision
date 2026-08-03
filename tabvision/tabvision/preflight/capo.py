@@ -65,6 +65,57 @@ def _physical_upper_bound(events: Sequence[AudioEvent], cfg: GuitarConfig, max_c
     return int(max(0, min(max_capo, math.floor(floor - min(cfg.tuning_midi)))))
 
 
+def detect_capo_from_video(
+    video_capo: int | None,
+    video_confidence: float,
+    events: Sequence[AudioEvent],
+    cfg: GuitarConfig | None = None,
+    *,
+    max_capo: int = DEFAULT_MAX_CAPO,
+) -> CapoEstimate:
+    """Combine a camera's capo estimate with the audio physical bound.
+
+    Q7 refuted pitch-based detection from first principles — a capo at ``C``
+    and a transposition up ``C`` have identical note sets — so the only audio
+    signal that survives is the *upper bound* from the lowest pitch heard,
+    which is sound but weak (it held 60/60, but a piece avoiding low notes
+    permits a capo it does not have).
+
+    A camera supplies what audio cannot: a point estimate. A capo is a large,
+    static, full-width bar, which is the one fretboard feature low-resolution
+    video resolves well. The two evidence types are complementary in exactly
+    the right way — **the bound cannot locate a capo, but it can refute one.**
+    A video estimate above the physical bound is impossible, so it is rejected
+    rather than reported.
+
+    ``video_capo`` is a plain fret number so this module stays independent of
+    the quarantined FretCam package; the caller adapts.
+
+    Reports only. Its field accuracy on real capo footage is unmeasured — no
+    such footage with ground truth exists in this repository — so callers must
+    confirm with a human rather than route on it silently.
+    """
+    cfg = cfg or GuitarConfig()
+    bound = _physical_upper_bound(events, cfg, max_capo)
+    scores = [0.0] * (max_capo + 1)
+
+    if video_capo is None:
+        return CapoEstimate(0, 0.0, "video", bound, tuple(scores))
+
+    capo = int(video_capo)
+    if not 0 <= capo <= max_capo:
+        return CapoEstimate(0, 0.0, "video-out-of-range", bound, tuple(scores))
+
+    confidence = float(max(0.0, min(1.0, video_confidence)))
+    if capo > bound:
+        # The recording contains pitches this capo makes unplayable. The bound
+        # is a hard physical constraint; the camera is not. Believe the bound.
+        return CapoEstimate(0, 0.0, "video-refuted-by-bound", bound, tuple(scores))
+
+    scores[capo] = confidence
+    return CapoEstimate(capo, confidence, "video", bound, tuple(scores))
+
+
 def detect_capo_from_pitches(
     events: Sequence[AudioEvent],
     cfg: GuitarConfig | None = None,
@@ -174,4 +225,5 @@ __all__ = [
     "DEFAULT_MAX_CAPO",
     "detect_capo_from_inharmonicity",
     "detect_capo_from_pitches",
+    "detect_capo_from_video",
 ]

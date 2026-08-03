@@ -41,6 +41,11 @@
                               Header="_Repair / Re-download"
                               IsEnabled="False"
                               ToolTip="Revalidate setup and download only missing or corrupt files." />
+                    <MenuItem x:Name="RestoreEditorMenuItem"
+                              AutomationProperties.Name="Restore editor session"
+                              Click="RestoreEditorMenuItem_Click"
+                              Header="_Restore editor session"
+                              IsEnabled="False" />
                 </MenuItem>
             </Menu>
         </Grid>
@@ -375,6 +380,14 @@
                                 AutomationProperties.Name="Export completed transcription"
                                 Click="Export_Click"
                                 Content="Export..."
+                                IsEnabled="False" />
+                        <Button x:Name="OpenEditorButton"
+                                Margin="8,0,0,0"
+                                MinWidth="78"
+                                Padding="12,6"
+                                AutomationProperties.Name="Open assisted editor"
+                                Click="OpenEditor_Click"
+                                Content="Edit..."
                                 IsEnabled="False" />
                     </StackPanel>
                 </Grid>

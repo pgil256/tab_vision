@@ -90,4 +90,18 @@ public sealed class SidecarCommandBuilderTests
             )
         );
     }
+
+    [Fact]
+    public void EditorJobRequestsStructuredDocumentAdditively()
+    {
+        var arguments = SidecarCommandBuilder.BuildAsciiArguments(
+            "input.mp4",
+            "output.tab",
+            TranscriptionOptions.Default,
+            "editor.json"
+        );
+
+        Assert.Equal("--editor-output", arguments[^2]);
+        Assert.Equal("editor.json", arguments[^1]);
+    }
 }

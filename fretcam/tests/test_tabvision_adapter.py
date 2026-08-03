@@ -57,6 +57,15 @@ class _EstimatorFactory:
         return self.estimator
 
 
+@dataclass(frozen=True)
+class _Contact:
+    """Minimal stand-in for :class:`fretcam.detection.FingerContact`."""
+
+    string: int | None
+    fret: int
+    visible: bool = True
+
+
 def _detection(
     timestamp_s: float,
     *,
@@ -66,6 +75,10 @@ def _detection(
     index_fret: float | None = 7.0,
     anchor_confidence: float = 0.9,
     neck_locked: bool = True,
+    finger_contacts: tuple[_Contact, ...] = (),
+    fret_ticks: tuple[object, ...] = (),
+    neck_quad: tuple[tuple[float, float], ...] = (),
+    body_joint_fret: int | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         timestamp_s=timestamp_s,
@@ -75,6 +88,10 @@ def _detection(
         index_fret=index_fret,
         anchor=SimpleNamespace(confidence=anchor_confidence),
         neck_locked=neck_locked,
+        finger_contacts=finger_contacts,
+        fret_ticks=fret_ticks,
+        neck_quad=neck_quad,
+        body_joint_fret=body_joint_fret,
         confidence_factors=SimpleNamespace(
             landmark_quality=0.73,
             blockers=("fixture_blocker",),
@@ -275,3 +292,162 @@ def test_analyzer_closes_chain_when_inference_raises() -> None:
         analyzer.analyze(_frames((0.0, 0.1)))
 
     assert chain.closed
+
+
+def test_contacts_use_tab_string_numbering_not_low_e_first() -> None:
+    """FretCam numbers strings 1 = high E; TabVision uses 0 = low E.
+
+    Getting this backwards does not crash — it silently produces evidence with
+    a likelihood ratio of exactly 1.00 (see
+    ``docs/EVAL_REPORTS/fretcam_contact_evidence_2026-07-25.md``), so it is
+    pinned here rather than left to a reviewer to notice.
+    """
+    config = GuitarConfig()
+    chain = _FakeChain(
+        detections=[
+            _detection(
+                0.0,
+                finger_contacts=(
+                    _Contact(string=1, fret=5),  # high E  -> string_idx 5
+                    _Contact(string=6, fret=3),  # low E   -> string_idx 0
+                ),
+            )
+        ]
+    )
+    analyzer, _, _ = _analyzer(chain, config=config)
+
+    bundle = analyzer.analyze_all(_frames((0.0,)))
+
+    assert len(bundle.contacts) == 1
+    assert bundle.contacts[0].positions == ((0, 3), (5, 5))
+
+
+def test_contacts_are_emitted_without_a_position_lock() -> None:
+    """The estimator's lock gate is a display requirement, not an evidence one.
+
+    The shipped window reached only 2.6% of target notes because it inherits
+    that gate. Contacts must not.
+    """
+    chain = _FakeChain(
+        detections=[
+            _detection(0.0, finger_contacts=(_Contact(string=3, fret=7),)),
+            _detection(0.1, finger_contacts=(_Contact(string=3, fret=7),)),
+        ]
+    )
+    estimator = _FakeEstimator(
+        [
+            _EstimateSpec(state="lost", position=None, confidence=0.0),
+            _EstimateSpec(state="acquiring", position=None, confidence=0.0),
+        ]
+    )
+    analyzer, _, _ = _analyzer(chain, estimator)
+
+    bundle = analyzer.analyze_all(_frames((0.0, 0.1)))
+
+    assert bundle.windows == ()
+    assert len(bundle.contacts) == 2
+
+
+def test_invisible_and_unassigned_contacts_are_dropped() -> None:
+    chain = _FakeChain(
+        detections=[
+            _detection(
+                0.0,
+                finger_contacts=(
+                    _Contact(string=None, fret=4),
+                    _Contact(string=2, fret=6, visible=False),
+                    _Contact(string=2, fret=9),
+                ),
+            )
+        ]
+    )
+    analyzer, _, _ = _analyzer(chain)
+
+    bundle = analyzer.analyze_all(_frames((0.0,)))
+
+    assert bundle.contacts[0].positions == ((4, 9),)
+
+
+def test_out_of_range_contacts_are_dropped_not_clamped() -> None:
+    """A clamp would invent a plausible-looking position out of a bad one."""
+    config = GuitarConfig(max_fret=12)
+    chain = _FakeChain(
+        detections=[
+            _detection(
+                0.0,
+                finger_contacts=(
+                    _Contact(string=99, fret=4),
+                    _Contact(string=2, fret=40),
+                    _Contact(string=2, fret=8),
+                ),
+            )
+        ]
+    )
+    analyzer, _, _ = _analyzer(chain, config=config)
+
+    bundle = analyzer.analyze_all(_frames((0.0,)))
+
+    assert bundle.contacts[0].positions == ((4, 8),)
+
+
+def test_analyze_returns_only_windows_and_matches_analyze_all() -> None:
+    """``analyze`` stays the narrow contract the PositionAnalyzer protocol needs."""
+    chain = _FakeChain(
+        detections=[_detection(0.0, finger_contacts=(_Contact(string=3, fret=7),))]
+    )
+    analyzer, _, _ = _analyzer(chain)
+    windows = analyzer.analyze(_frames((0.0,)))
+
+    chain2 = _FakeChain(
+        detections=[_detection(0.0, finger_contacts=(_Contact(string=3, fret=7),))]
+    )
+    analyzer2, _, _ = _analyzer(chain2)
+    bundle = analyzer2.analyze_all(_frames((0.0,)))
+
+    assert windows == list(bundle.windows)
+    assert bundle.contacts
+
+
+@dataclass(frozen=True)
+class _Tick:
+    fret: int
+    start: tuple[float, float]
+    end: tuple[float, float]
+
+
+def _straight_ticks(count: int = 10) -> tuple[_Tick, ...]:
+    return tuple(
+        _Tick(
+            fret=index, start=(4.0 + 6.0 * index, 10.0), end=(4.0 + 6.0 * index, 40.0)
+        )
+        for index in range(count)
+    )
+
+
+def test_capo_estimate_is_surfaced_and_abstains_without_evidence() -> None:
+    """A capo-free session must report an abstention, never a fret."""
+    chain = _FakeChain(
+        detections=[
+            _detection(index * 0.1, fret_ticks=_straight_ticks()) for index in range(30)
+        ]
+    )
+    analyzer, _, _ = _analyzer(chain)
+
+    bundle = analyzer.analyze_all(_frames(tuple(index * 0.1 for index in range(30))))
+
+    assert bundle.capo is not None
+    assert bundle.capo.fret is None
+    assert bundle.capo.confidence == 0.0
+
+
+def test_capo_estimate_is_present_even_with_no_fret_ticks() -> None:
+    """The record is always emitted so callers can distinguish 'no capo' from
+    'never looked'."""
+    chain = _FakeChain(detections=[_detection(index * 0.1) for index in range(5)])
+    analyzer, _, _ = _analyzer(chain)
+
+    bundle = analyzer.analyze_all(_frames(tuple(index * 0.1 for index in range(5))))
+
+    assert bundle.capo is not None
+    assert bundle.capo.frames_observed == 0
+    assert bundle.capo.reason == "insufficient_frames"

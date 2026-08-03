@@ -1,0 +1,23 @@
+{
+  "id": "desktop-editor-fixture",
+  "createdAt": "2026-07-25T00:00:00Z",
+  "duration": 12.0,
+  "capoFret": 0,
+  "tuning": ["E", "B", "G", "D", "A", "E"],
+  "sourcePath": null,
+  "notes": [
+    {"id":"n0","timestamp":0.0,"endTime":0.3,"string":1,"fret":0,"confidence":0.94,"confidenceLevel":"high","isEdited":false,"detectedMidiNote":64,"candidates":[{"string":1,"fret":0},{"string":2,"fret":5}]},
+    {"id":"n1","timestamp":0.6,"endTime":0.9,"string":2,"fret":2,"confidence":0.67,"confidenceLevel":"medium","isEdited":false,"detectedMidiNote":61,"candidates":[{"string":2,"fret":2},{"string":3,"fret":6}]},
+    {"id":"n2","timestamp":1.2,"endTime":1.5,"string":3,"fret":3,"confidence":0.28,"confidenceLevel":"low","isEdited":false,"detectedMidiNote":58,"candidates":[{"string":3,"fret":3},{"string":4,"fret":8}]},
+    {"id":"n3","timestamp":2.1,"endTime":2.4,"string":4,"fret":5,"confidence":0.91,"confidenceLevel":"high","isEdited":false,"detectedMidiNote":55,"candidates":[{"string":4,"fret":5},{"string":5,"fret":10}]},
+    {"id":"n4","timestamp":3.0,"endTime":3.3,"string":5,"fret":7,"confidence":0.58,"confidenceLevel":"medium","isEdited":false,"detectedMidiNote":52,"candidates":[{"string":5,"fret":7},{"string":6,"fret":12}]},
+    {"id":"n5","timestamp":4.0,"endTime":4.3,"string":6,"fret":9,"confidence":0.19,"confidenceLevel":"low","isEdited":false,"detectedMidiNote":49,"candidates":[{"string":6,"fret":9},{"string":5,"fret":4}]},
+    {"id":"n6","timestamp":5.0,"endTime":5.3,"string":1,"fret":3,"confidence":0.86,"confidenceLevel":"high","isEdited":false,"detectedMidiNote":67,"candidates":[{"string":1,"fret":3},{"string":2,"fret":8}]},
+    {"id":"n7","timestamp":6.0,"endTime":6.3,"string":2,"fret":5,"confidence":0.46,"confidenceLevel":"low","isEdited":false,"detectedMidiNote":64,"candidates":[{"string":2,"fret":5},{"string":1,"fret":0},{"string":3,"fret":9}]}
+  ],
+  "metadata": {
+    "audioBackend": "highres-ensemble",
+    "pipelineVersion": "v1",
+    "assistCandidateNotes": 8
+  }
+}

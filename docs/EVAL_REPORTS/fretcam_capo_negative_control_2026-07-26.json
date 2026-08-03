@@ -1,0 +1,116 @@
+{
+  "population": "gaps-clean12-known-capo-free",
+  "sample_hz": 2.0,
+  "max_frames": 240,
+  "false_positives": 0,
+  "clips": [
+    {
+      "clip": "027_Zpswc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 132,
+      "frames_supporting": 32,
+      "margin": 0.1079,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "031_vpswc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 93,
+      "frames_supporting": 19,
+      "margin": 0.0624,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "043_bc1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 4,
+      "frames_supporting": 0,
+      "margin": 0.0,
+      "reason": "insufficient_frames"
+    },
+    {
+      "clip": "063_bV1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 30,
+      "frames_supporting": 10,
+      "margin": 0.0046,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "104_xf1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 185,
+      "frames_supporting": 37,
+      "margin": 0.0267,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "118_VD1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 97,
+      "frames_supporting": 27,
+      "margin": 0.1645,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "142_GD1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 77,
+      "frames_supporting": 22,
+      "margin": 0.1652,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "179_pM1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 228,
+      "frames_supporting": 52,
+      "margin": 0.1108,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "212_y41wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 28,
+      "frames_supporting": 9,
+      "margin": 0.0734,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "235_Ny1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 114,
+      "frames_supporting": 25,
+      "margin": 0.0617,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "294_BSswc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 119,
+      "frames_supporting": 60,
+      "margin": 0.0835,
+      "reason": "not_persistent"
+    },
+    {
+      "clip": "341_1M1wc",
+      "fret": null,
+      "confidence": 0.0,
+      "frames_observed": 44,
+      "frames_supporting": 7,
+      "margin": 0.0458,
+      "reason": "not_persistent"
+    }
+  ]
+}

@@ -86,6 +86,25 @@ def _capo_arg(value: str) -> int:
     return capo
 
 
+_POSITION_PRIOR_CHOICES = ("auto", "none", "guitarset-v1", "gaps-v1")
+
+
+def _position_prior_arg(value: str) -> str:
+    """argparse type for ``--position-prior``: a named choice or a .json path.
+
+    The named set matches the registered artifacts. A ``.json`` path selects
+    a local personal artifact (SPEC §1.5 carve-out, 2026-08-02); existence
+    and schema are validated by the inference-policy resolver so parsing
+    stays filesystem-free.
+    """
+    if value in _POSITION_PRIOR_CHOICES or value.lower().endswith(".json"):
+        return value
+    raise argparse.ArgumentTypeError(
+        f"must be one of {', '.join(_POSITION_PRIOR_CHOICES)} or a path to a "
+        "personal position-prior .json artifact"
+    )
+
+
 def _video_stride_arg(value: str) -> int:
     """argparse type for ``--video-stride``: an integer frame stride >= 1.
 
@@ -244,6 +263,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     t.add_argument(
+        "--video-contact-evidence",
+        action="store_true",
+        help=(
+            "EXPERIMENTAL: with --video-backend fretcam, also apply FretCam's "
+            "per-finger (string, fret) contacts as a capped fusion prior. Off "
+            "by default; see docs/EVAL_REPORTS/fretcam_contact_evidence_2026-07-25.md"
+        ),
+    )
+    t.add_argument(
         "--video-stride",
         type=_video_stride_arg,
         default=3,
@@ -256,7 +284,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     t.add_argument(
         "--position-prior",
-        choices=["auto", "none", "guitarset-v1", "gaps-v1"],
+        type=_position_prior_arg,
         default="auto",
         help=(
             "pitch-to-string/fret prior. 'auto' (default) uses the "
@@ -264,7 +292,26 @@ def _build_parser() -> argparse.ArgumentParser:
             "acoustic, standard-tuning, capo-zero domain, and the "
             "GAPS-trained 'gaps-v1' for clean classical sessions "
             "(2026-07-20). 'none' disables it; "
-            "an explicit artifact is for reproducible evaluation or rollback."
+            "an explicit artifact is for reproducible evaluation or rollback. "
+            "A path to a personal .json artifact built by "
+            "scripts/train/build_personal_prior.py is also accepted "
+            "(SPEC §1.5 carve-out, 2026-08-02)."
+        ),
+    )
+    t.add_argument(
+        "--harvest-personal-labels",
+        type=Path,
+        default=None,
+        metavar="STORE.jsonl",
+        help=(
+            "opt-in personal-prior label harvest (SPEC §1.5 carve-out, "
+            "2026-08-02): append high-confidence (pitch, string, fret) labels "
+            "— audio pitches joined against FretCam's locked position "
+            "windows, kept only when exactly one playable candidate is "
+            "consistent — to this JSONL store. Requires --video-backend "
+            "fretcam and capo 0. Build the artifact with "
+            "scripts/train/build_personal_prior.py, then use it via "
+            "--position-prior."
         ),
     )
     t.add_argument(
@@ -469,12 +516,29 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
 
     pipeline_started = time.perf_counter()
     video_enabled, video_backend = _resolve_video_args(args)
+    if args.harvest_personal_labels is not None:
+        # The harvest joins audio pitches against FretCam windows, so both
+        # chains must actually run; and the label store is capo-0 indexed
+        # (see tabvision.fusion.personal_prior.harvest_position_labels).
+        if not video_enabled or video_backend != "fretcam":
+            print(
+                "--harvest-personal-labels requires --video-backend fretcam",
+                file=sys.stderr,
+            )
+            return 2
+        if cfg.capo != 0:
+            print(
+                "--harvest-personal-labels requires capo 0; the label store is capo-0 indexed",
+                file=sys.stderr,
+            )
+            return 2
     pipeline_kwargs = {
         "audio_backend_name": args.audio_backend,
         "lambda_vision": args.fusion_lambda_vision,
         "video_stride": args.video_stride,
         "video_enabled": video_enabled,
         "video_backend": video_backend,
+        "contact_evidence": args.video_contact_evidence,
         "position_prior": args.position_prior,
         "sequence_prior": args.sequence_prior,
         "string_evidence": args.string_evidence,
@@ -484,13 +548,37 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
         "progress_callback": report_progress if args.progress else None,
     }
     pipeline_result = None
-    if args.editor_output is not None:
+    if args.editor_output is not None or args.harvest_personal_labels is not None:
         pipeline_result = run_pipeline_with_artifacts(args.input, **pipeline_kwargs)
         tab_events = list(pipeline_result.tab_events)
     else:
         tab_events = run_pipeline(args.input, **pipeline_kwargs)
     pipeline_s = time.perf_counter() - pipeline_started
     logger.info("pipeline produced %d tab events", len(tab_events))
+
+    if args.harvest_personal_labels is not None and pipeline_result is not None:
+        from tabvision.fusion.personal_prior import (
+            append_personal_labels,
+            harvest_position_labels,
+        )
+
+        harvested = harvest_position_labels(
+            pipeline_result.audio_events,
+            pipeline_result.position_observations,
+            cfg,
+        )
+        append_personal_labels(
+            args.harvest_personal_labels,
+            harvested,
+            source_media=str(args.input),
+        )
+        # stderr: stdout may be carrying the rendered tab or the JSON envelope.
+        print(
+            f"harvested {len(harvested)} personal labels from "
+            f"{len(pipeline_result.position_observations)} position windows "
+            f"-> {args.harvest_personal_labels}",
+            file=sys.stderr,
+        )
 
     report_progress("render")
     render_started = time.perf_counter()

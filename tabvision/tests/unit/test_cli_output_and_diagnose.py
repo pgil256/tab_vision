@@ -470,6 +470,7 @@ def test_diagnose_surfaces_fretcam_observation_and_effect_counts(
             resolved_video_backend="fretcam",
             position_observation_count=12,
             notes_affected_by_video=3,
+            video_capo=None,
         ),
     )
     output_path = tmp_path / "fretcam-counts.html"
@@ -486,3 +487,75 @@ def test_diagnose_surfaces_fretcam_observation_and_effect_counts(
     assert "Resolved video backend: fretcam" in report
     assert "Accepted position observations: 12" in report
     assert "audio events affected: 3" in report
+
+
+def test_diagnose_reports_a_video_capo_as_a_suggestion_not_a_fact(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Audio cannot recover a capo, so video is the only evidence — but its
+    field accuracy is unmeasured, so the wording must invite a human check."""
+    from types import SimpleNamespace
+
+    from tabvision.diagnose import write_diagnose_report
+    from tabvision.video.position import SessionCapoObservation
+
+    monkeypatch.setattr(
+        "tabvision.pipeline.run_pipeline_with_artifacts",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            tab_events=(),
+            resolved_video_backend="fretcam",
+            position_observation_count=12,
+            notes_affected_by_video=3,
+            video_capo=SessionCapoObservation(
+                fret=3, confidence=0.82, frames_observed=200, reason="detected"
+            ),
+        ),
+    )
+    output_path = tmp_path / "fretcam-capo.html"
+    write_diagnose_report(
+        tmp_path / "input.mov",
+        output_path,
+        video_enabled=True,
+        video_backend="fretcam",
+        preflight_enabled=False,
+    )
+
+    report = output_path.read_text(encoding="utf-8")
+    assert "possibly fret 3" in report
+    assert "unverified" in report
+    # It must not read as a settled fact, and must not claim to have applied it.
+    assert "Capo: 3" not in report
+
+
+def test_diagnose_reports_no_capo_without_inventing_one(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from tabvision.diagnose import write_diagnose_report
+    from tabvision.video.position import SessionCapoObservation
+
+    monkeypatch.setattr(
+        "tabvision.pipeline.run_pipeline_with_artifacts",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            tab_events=(),
+            resolved_video_backend="fretcam",
+            position_observation_count=12,
+            notes_affected_by_video=3,
+            video_capo=SessionCapoObservation(
+                fret=None, confidence=0.0, frames_observed=180, reason="not_persistent"
+            ),
+        ),
+    )
+    output_path = tmp_path / "fretcam-nocapo.html"
+    write_diagnose_report(
+        tmp_path / "input.mov",
+        output_path,
+        video_enabled=True,
+        video_backend="fretcam",
+        preflight_enabled=False,
+    )
+
+    report = output_path.read_text(encoding="utf-8")
+    assert "none detected" in report
+    assert "not_persistent" in report

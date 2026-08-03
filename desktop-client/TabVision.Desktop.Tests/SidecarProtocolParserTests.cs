@@ -20,6 +20,7 @@ public sealed class SidecarProtocolParserTests
                 }
               ],
               "output_path": "C:\\TabVision\\result.tab",
+              "editor_path": "C:\\TabVision\\editor.json",
               "status": "ok",
               "timings": {
                 "pipeline_s": 1.25,
@@ -34,6 +35,7 @@ public sealed class SidecarProtocolParserTests
 
         Assert.Equal("ok", envelope.Status);
         Assert.Equal("C:\\TabVision\\result.tab", envelope.OutputPath);
+        Assert.Equal("C:\\TabVision\\editor.json", envelope.EditorPath);
         var flag = Assert.Single(envelope.LowConfidenceFlags);
         Assert.Equal("low_confidence_note", flag.Type);
         Assert.Equal(4, flag.EventIndex);

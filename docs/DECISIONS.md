@@ -4883,6 +4883,118 @@ existing rollback.
 
 ---
 
+## 2026-07-25 — WPF D2 adopts the stabilized web editor contract
+
+**Context:** The disposable desktop plan deferred D2 until the web editor
+stabilized. The user explicitly directed the desktop app to inspect and emulate
+the current web editor.
+
+**Decision:** Treat the frozen web editor's structured `TabDocument`, review
+queue, keyboard map, and text export as the D2 interaction reference. The
+Python CLI additively emits `--editor-output` with production min-marginal,
+pitch-preserving candidates. WPF owns only selection, reversible local edits,
+playback/timeline presentation, autosave, and text export; it does not rank or
+transcribe. The editor opens as a separate work-area-bounded window so the
+record/upload shell stays cheap to rebuild.
+
+**Reasoning:** A shared document contract gives desktop parity without reviving
+or modifying the frozen web/server applications. Candidate order remains tied
+to the production decoder, while the desktop stays a thin client. The separate
+window preserves the existing capture/transcription workflow and prevents the
+short-screen clipping previously reported by the user.
+
+---
+
+## 2026-07-26 — FretCam position accuracy is a coverage problem, not an error problem
+
+**Context:** FretCam's live position HUD was assumed to be limited by fret/neck
+detection quality, and the standing accuracy handoff
+(`docs/plans/2026-07-22-fretcam-accuracy-improvement-handoff.md` §6) recommended
+against a dedicated fret CV model until an error breakdown justified one. No
+breakdown had been run against the frozen F4e-A benchmark.
+
+**Decision:** Diagnose by blocker before changing anything, then fix the four
+causes the data actually named — none of which was fret/neck detection.
+Report: `docs/EVAL_REPORTS/fretcam_coverage_decomposition_2026-07-26.md`.
+
+**Reasoning:** On the frozen benchmark the shipped build displays a position on
+0.272 of stable frames and **every displayed position is correct** (precision
+1.000, false-lock 0.000, negative-control 0.000). The lever is therefore
+coverage at fixed precision. Blocker tabulation put `no_hand` first (60% dev /
+68% test of uncovered stable frames) and `no_board` at **zero** — board
+confidence stays 0.88–0.92 even on failing frames. Three of the four fixes are
+recalibrations of quantities that were measured to be mis-specified rather than
+threshold tuning:
+
+- an uncropped still MediaPipe pass finds a hand on **100%** of the frames the
+  chain calls `no_hand`, with 61% already placing three fingertips on the neck,
+  and the neck **crop scores worse than the whole frame** (0.481 vs 0.610) — so
+  the crop-first search, and its deferral of recovery to the next frame, was the
+  cause, not detector recall;
+- `geometry_stability` used a fixed 2-pixel flow-residual scale, giving median
+  0.113 on healthy tracked boards and a *higher* mean on failing frames than on
+  passing ones — anti-correlated with the outcome it gates;
+- the contact-support gate normalised by 1.5 when a useful contact's median
+  weight is 0.571 and 72% of frames carry exactly one, i.e. it demanded roughly
+  three contacts, which is why barre (with its hard-coded 0.85 bypass) covered
+  0.75 while chord and note covered 0.08 and 0.12.
+
+Dev coverage 0.4161 → 0.4783 at unchanged 0.000 false-lock and 0.000
+negative-control display; held-out test coverage 0.0696 → 0.1130 at the cost of
+one adjacent-position lock event (2 frames). Both splits are small and the test
+column was visible during screening, so test is recorded as an audit figure, not
+a clean held-out result.
+
+**Also recorded:** detector inference scale is now measured and is the lever on
+the remaining fret-geometry weakness (the calibrated fret map is absent on 51%
+of frames). At full-neck framing `imgsz` 640 → 960 more than doubles fret-wire
+detections; at close framing the same change starts losing the neck OBB itself.
+The fix is scale-adaptive inference, and it is **not** taken here because
+`imgsz` lives in `tabvision/`, outside FretCam's work scope.
+
+---
+
+## 2026-07-26 — Adaptive detector scale closed negative; fret-map fit rate is not fret-map correctness
+
+**Context:** The coverage decomposition left the calibrated fret map absent on
+51% of benchmark frames as the largest fret-geometry weakness, and identified
+detector inference scale as the cheapest untried lever. `YoloOBBBackend` ran at
+ultralytics' default `imgsz=640` and `HudFrameProcessor` caps live frames at
+640×480, so fret wires were never detected above native resolution.
+
+**Decision:** Implement scale-adaptive inference, measure it, and **leave it off
+by default**. Report: `docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md`.
+
+**Reasoning:** The intermediate result was strong and reproducible. At full-neck
+framing `imgsz` 640 → 960 more than doubles fret-wire detections (6.56 → 14.42)
+and lifts the fret-map fit rate 0.333 → 0.667, while at close framing the same
+change loses the **neck OBB itself** (1.000 → 0.611 at 1280). Measuring the
+detected neck's long edge separates the framings cleanly (close median 433 px,
+full-neck 250 px), so one constant — render the neck at ~430 px in the model
+input — reproduces both optima and is resolution-independent.
+
+It still regressed the end metric. Dev coverage moved 0.4783 → 0.4845 (noise)
+while the false-lock rate went **0.000 → 0.0497** and valid observations *fell*
+0.056. All eight false locks are at full-neck framing, and four are off by
+**seven positions** — a mis-anchored axis, not a noisy contact.
+`calibrate_fret_xs` picks the first visible wire's index by inlier count alone
+over `k0 ∈ 1..6`; the extra high-neck wires upscaling provides let a wrong `k0`
+win consensus, shifting the entire fret axis, and the displaced neck quad then
+degrades hand selection too (`no_hand` 26 → 37).
+
+The lesson is the transferable part: **optimising the fret-map *fit rate* moved
+the end metric backwards, because the fit fails silently rather than declining.**
+Lead 2's blocker is the `k0` anchor — which has no temporal agreement, no
+nut-anchored cross-check, and no penalty for disagreeing with the previous
+frame — not wire yield. Retained behind `adaptive_detector_scale=False` because
+the wire-yield measurement is reusable once the anchor is fixed; verified inert
+by re-running the dev benchmark to identical numbers.
+
+`YoloOBBBackend.predict_all` gains an additive optional `imgsz=None`; the
+`Detector` protocol is unchanged and FretCam feature-detects the keyword, so no
+other caller or test double is affected.
+
+---
 ## 2026-07-25 — rotate the sealed confirmation set from player 05 to player 04
 
 **Phase:** Parallel improvement program, Phase 0 (P0.1)
@@ -6201,3 +6313,57 @@ gates. Per the frozen protocol, the negative completes the experiment and
 does not authorize post-result tuning.
 
 **Spend:** $0. All computation was local CPU.
+
+---
+
+## 2026-08-02 — SPEC §1.5 carve-out: FretCam becomes a labeller for a local personal position prior
+
+**Context:** Track C priced giving a player their own position prior at
+**+0.0305 [+0.0183, +0.0430]** aggregate Tab F1 — the largest remaining
+production lever — and noted the assisted-review queue collects exactly the
+needed labels and discards them (`c_prior_adaptation_2026-07-25.md`). Every
+attempt to use FretCam as *decode-time evidence* measured ≈0 (per-note bridge
++0.000836; contact prior −0.000362; segment windows +0.0000, where even a
+gold-window oracle could gain only +0.000087 because the decoder's retained
+paths are the same tab). FretCam's measured profile — position on 27% of
+stable frames, correct on 100% of them — is wrong for a witness and right
+for a labeller: labelling needs precision, not coverage. SPEC §1.5 banned
+private/user recordings from all training/eval/label roles.
+
+**Decision:** The user directed (chat, 2026-08-02) a narrow §1.5 carve-out
+and its implementation. `tabvision transcribe --video-backend fretcam
+--harvest-personal-labels STORE.jsonl` joins the audio backend's pitches
+against FretCam's locked position windows and appends a `(pitch, string,
+fret)` label **only when exactly one playable candidate is consistent with
+the window** (a fretted candidate inside it, or an open string when nothing
+else fits — open strings are playable from any hand position, so any
+open/fretted ambiguity abstains). `scripts/train/build_personal_prior.py`
+aggregates the store into a schema-1 counts artifact; `--position-prior
+<path>.json` consumes it via a new inference-policy branch that hashes the
+file into the policy's artifact identities. Personal artifacts stay local:
+never shipped, never defaults, never in eval corpora or published figures.
+
+**Non-obvious branches taken:**
+- **Per-pitch switching, not count blending.** A pitch with ≥
+  `min_labels_per_pitch` (default 5, never swept) personal labels uses
+  *only* its personal counts; every other pitch keeps the population
+  artifact's counts. This is the shape of Track C's `oracle_player` arm and
+  avoids inventing an unmeasured blend weight. The loader's `alpha`
+  smoothing keeps thin personal evidence appropriately weak.
+- **Harvest refuses capo sessions.** The counts artifact is capo-0 indexed;
+  re-indexing happens at load time (`capo_covariant_prior`), so capo-time
+  harvesting would mix coordinate systems.
+- **Sequence prior forced off with a personal position prior.** The
+  registered sequence artifacts were gated *coupled to* their named
+  position priors; no pairing with a personal artifact has been validated.
+- **Both join channels gated at 0.5 confidence** (Track C's harvest floor)
+  and 0.25 s onset-to-window gap; only `state == "locked"` windows count —
+  "holding" is a display affordance carrying a stale estimate.
+
+**What this is not:** an accuracy claim. +0.0305 is the *in-sample ceiling*
+for a perfectly estimated personal prior; what a finite label store reaches
+is unmeasured, and measuring it on the user's own recordings would itself
+violate the eval half of the ban — the honest check is whether the user's
+own review-queue correction rate drops.
+
+**Spend:** $0. Local implementation and unit tests only.

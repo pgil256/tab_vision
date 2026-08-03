@@ -31,7 +31,10 @@ def _atomic_text(path: Path, text: str) -> None:
         dir=path.parent,
     )
     try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        # newline="\n" keeps the on-disk bytes identical to the hashed
+        # canonical-JSON bytes on Windows, where text mode would otherwise
+        # translate "\n" to "\r\n" and break the content address.
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
         os.replace(raw_temp, path)
     finally:

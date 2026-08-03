@@ -73,6 +73,24 @@ LONGITUDINAL_WRIST_OUTWARD_MARGIN = 0.15
 ROI_CROP_COOLDOWN_FRAMES = 10
 HAND_SEARCH_UPSCALE_MIN_LONG_EDGE = 512
 HAND_SEARCH_UPSCALE_MAX_SCALE = 2.5
+# Ordinary per-frame MediaPipe budget, plus one reserve call that only a
+# would-be-empty frame may spend on an uncropped still-image recovery pass.
+HAND_DETECTOR_CALLS_PER_FRAME = 2
+HAND_DETECTOR_RECOVERY_CALLS = 3
+# Rendered neck long edge, in detector-input pixels, that the OBB model wants.
+# Measured on the frozen benchmark at native scale: close framing presents a
+# 433 px neck and fits a rule-of-18 fret map on 1.000 of frames with 14.4 wires
+# detected, while full-neck framing presents 250 px and fits one on 0.333 with
+# 6.6 wires. Fret wires are small objects, so what matters is their size *in the
+# model's input* -- which makes the target an absolute pixel extent rather than
+# a fraction of the frame.
+DETECTOR_TARGET_NECK_PX = 430.0
+# Never go below ultralytics' default (also the detector's training scale) and
+# never above 1280: past that the close-framing sweep started losing the neck
+# OBB itself (1.000 -> 0.611), which costs far more than the extra wires gain.
+DETECTOR_MIN_IMGSZ = 640
+DETECTOR_MAX_IMGSZ = 1280
+DETECTOR_IMGSZ_STRIDE = 32
 GEOMETRY_REFINE_INTERVAL_S = 0.20
 FULL_HAND_VIDEO_REFRESH_INTERVAL_S = 0.50
 LOCKED_HAND_DETECTOR_HZ = 5.0
@@ -110,6 +128,15 @@ FINGER_BASE_WEIGHTS = {
     "pinky": 0.74,
 }
 MIN_POSITION_OBSERVATION_CONFIDENCE = 0.20
+# Total contact weight at which support saturates. Each contact's weight is a
+# product of four [0, 1] terms, so on the frozen benchmark a *useful* contact
+# carries a median weight of 0.571 and 72% of frames with any useful contact
+# have exactly one. Normalising by 0.9 means "two typical contacts saturate,
+# one typical contact clears the sufficiency gate" -- the reading the gate was
+# written for. The previous 1.5 demanded roughly three, which is why barre (the
+# one technique with a hard-coded 0.85 bypass) covered 0.75 of its frames while
+# note and chord covered 0.12 and 0.08.
+CONTACT_SUPPORT_NORMALIZER = 0.9
 # F6 whole-hand fallback (TapToTab-style coarse observation).  When the
 # composite solver abstains but a fretting hand is tracked on locked, fresh
 # geometry, the hand bounding box projected into canonical fretboard space
@@ -698,6 +725,34 @@ def _fret_ticks(
         )
         for fret, line in enumerate(projected)
     )
+
+
+def _adaptive_detector_imgsz(
+    frame_shape: tuple[int, ...],
+    neck_quad: tuple[Point, ...],
+) -> int | None:
+    """Pick an inference scale that renders the neck near its measured optimum.
+
+    ``rendered_neck_px = neck_px * imgsz / frame_long_px``, so solving for the
+    target extent gives the scale directly. Returns ``None`` when there is no
+    usable neck yet, which leaves the detector at its default — the first pass
+    has to find a neck before its size can inform anything.
+    """
+    if len(neck_quad) != 4 or len(frame_shape) < 2:
+        return None
+    quad = np.asarray(neck_quad, dtype=np.float64)
+    if not np.all(np.isfinite(quad)):
+        return None
+    edges = np.linalg.norm(np.roll(quad, -1, axis=0) - quad, axis=1)
+    neck_px = float(np.max(edges)) if edges.size else 0.0
+    frame_long_px = float(max(frame_shape[0], frame_shape[1]))
+    if neck_px <= 1.0 or frame_long_px <= 1.0:
+        return None
+    ideal = DETECTOR_TARGET_NECK_PX * frame_long_px / neck_px
+    if not math.isfinite(ideal):
+        return None
+    snapped = int(round(ideal / DETECTOR_IMGSZ_STRIDE) * DETECTOR_IMGSZ_STRIDE)
+    return int(np.clip(snapped, DETECTOR_MIN_IMGSZ, DETECTOR_MAX_IMGSZ))
 
 
 def _hand_points(hand: HandSample | None) -> tuple[HandPoint, ...]:
@@ -1594,7 +1649,7 @@ def solve_hand_position(
         runner_up = scored[1][0] if len(scored) > 1 else 0.0
         separation = float(np.clip((best_score - runner_up) / 0.20, 0.0, 1.0))
         finger_agreement = best_score * (0.5 + 0.5 * separation)
-        support = float(np.clip(total_weight / 1.5, 0.0, 1.0))
+        support = float(np.clip(total_weight / CONTACT_SUPPORT_NORMALIZER, 0.0, 1.0))
         if any(
             contact.name == "index" and contact.barre and contact.weight >= 0.5
             for contact in useful
@@ -2243,6 +2298,7 @@ class DetectionChain:
         crop_hand: bool = True,
         board_tracker: OpticalBoardTracker | None = None,
         hand_tracker: TemporalHandLandmarkTracker | None = None,
+        adaptive_detector_scale: bool = False,
     ) -> None:
         if detector_hz <= 0.0:
             raise ValueError("detector_hz must be positive")
@@ -2262,6 +2318,7 @@ class DetectionChain:
         self.calibrator = calibrator
         self.background_detector = background_detector
         self.crop_hand = crop_hand
+        self.adaptive_detector_scale = adaptive_detector_scale
         self.board_tracker = board_tracker or OpticalBoardTracker()
         self.hand_tracker = hand_tracker or TemporalHandLandmarkTracker()
         self._lock = RLock()
@@ -2626,12 +2683,18 @@ class DetectionChain:
                     frame.copy(),
                     now_s,
                     self._generation,
+                    self._detector_imgsz(frame.shape, snapshot),
                 )
                 self._last_detection_s = now_s
                 self._last_detector_request_s = now_s
         elif self._should_detect(now_s, snapshot):
             detector_requested = True
-            result = self._run_detector_job(frame.copy(), now_s, self._generation)
+            result = self._run_detector_job(
+                frame.copy(),
+                now_s,
+                self._generation,
+                self._detector_imgsz(frame.shape, snapshot),
+            )
             detector_result_consumed = True
             detector_ran = self._apply_detector_result(result, frame, now_s)
             detector_result_accepted = detector_ran
@@ -3332,6 +3395,12 @@ class DetectionChain:
             )
             self._last_hand_source = "neck_recovery"
             if selected is None:
+                selected = self._full_frame_recovery(
+                    frame,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
+            if selected is None:
                 self._force_full_hand_frame = True
                 self._force_hand_detection = True
             else:
@@ -3384,6 +3453,13 @@ class DetectionChain:
                         else "full_video_refresh"
                     )
                     self._roi_misses = 0
+                    return selected
+                selected = self._full_frame_recovery(
+                    frame,
+                    homography,
+                    timestamp_s=timestamp_s,
+                )
+                if selected is not None:
                     return selected
                 # A scheduled identity refresh plus one tight fallback already
                 # used this frame's two-call budget. Widen on the next frame.
@@ -3439,6 +3515,13 @@ class DetectionChain:
                     self._last_hand_source = "full_reacquire"
                 return selected
 
+            selected = self._full_frame_recovery(
+                frame,
+                homography,
+                timestamp_s=timestamp_s,
+            )
+            if selected is not None:
+                return selected
             self._roi_misses += 1
             if self._roi_misses < 2:
                 return None
@@ -3468,11 +3551,61 @@ class DetectionChain:
             homography,
             timestamp_s=timestamp_s,
         )
+        if selected is None and crop_rect is not None:
+            # Bootstrap alternates a neck crop with the whole image, so a crop
+            # miss otherwise costs a full frame before the wider search runs.
+            selected = self._full_frame_recovery(
+                frame,
+                homography,
+                timestamp_s=timestamp_s,
+            )
         if selected is not None:
-            self._last_hand_source = source
+            self._last_hand_source = (
+                self._last_hand_source
+                if self._last_hand_source == "full_still_recovery"
+                else source
+            )
             self._roi_misses = 0
             if self._last_full_hand_video_s is None:
                 self._last_full_hand_video_s = timestamp_s
+        return selected
+
+    def _full_frame_recovery(
+        self,
+        frame: np.ndarray,
+        homography: Homography,
+        *,
+        timestamp_s: float,
+    ) -> HandObservation | HandSample | None:
+        """Spend the reserve budget on one uncropped still pass for this frame.
+
+        Measured on the frozen benchmark: on the stable frames the chain reports
+        as ``no_hand``, an uncropped still-image pass finds a hand on every one
+        of them, and on 61% that hand already puts three or more fingertips on
+        the canonical neck. The crop-first search is what loses them -- at this
+        framing the crop removes the body context the palm detector uses, so a
+        neck crop scores *worse* than the whole frame (0.52 vs 0.61). Deferring
+        recovery to the next frame therefore throws away a hand that is visible
+        right now, which is why this runs in-frame rather than setting a flag.
+        """
+        candidates = self._extract_hand_candidates(
+            frame,
+            timestamp_s=timestamp_s,
+            crop_rect=None,
+            source="full_still_recovery",
+            use_video=False,
+            reserve=True,
+        )
+        if not candidates:
+            return None
+        selected = self._select_neck_hand(
+            candidates,
+            homography,
+            timestamp_s=timestamp_s,
+        )
+        if selected is not None:
+            self._last_hand_source = "full_still_recovery"
+            self._roi_misses = 0
         return selected
 
     def _extract_hand_candidates(
@@ -3482,8 +3615,13 @@ class DetectionChain:
         timestamp_s: float,
         crop_rect: tuple[int, int, int, int] | None,
         source: str,
+        use_video: bool = True,
+        reserve: bool = False,
     ) -> tuple[HandObservation | HandSample, ...]:
-        if self._frame_hand_detector_calls >= 2:
+        budget = (
+            HAND_DETECTOR_RECOVERY_CALLS if reserve else HAND_DETECTOR_CALLS_PER_FRAME
+        )
+        if self._frame_hand_detector_calls >= budget:
             self._force_full_hand_frame = True
             self._force_hand_detection = True
             self._last_hand_source = "full_recovery_pending"
@@ -3496,6 +3634,7 @@ class DetectionChain:
                 self.hand_extractor,
                 frame,
                 timestamp_s=timestamp_s,
+                use_video=use_video,
             )
         crop, scale_x, scale_y = _prepare_hand_crop(frame, crop_rect)
         crop_width = max(1, crop_rect[2] - crop_rect[0])
@@ -3633,9 +3772,16 @@ class DetectionChain:
         frame: np.ndarray,
         timestamp_s: float,
         generation: int,
+        imgsz: int | None = None,
     ) -> _DetectorJobResult:
         detector_started = time.perf_counter()
-        predictions = self.detector.predict_all(frame)
+        predictions = self.detector.predict_all(
+            frame,
+            **_supported_extractor_kwargs(
+                self.detector.predict_all,
+                **({} if imgsz is None else {"imgsz": imgsz}),
+            ),
+        )
         detector_ms = (time.perf_counter() - detector_started) * 1000.0
         homography_started = time.perf_counter()
         homography, centers = self.calibrator(predictions, self.guitar_config)
@@ -3730,6 +3876,36 @@ class DetectionChain:
                 return
 
         future.add_done_callback(discard_result)
+
+    def _detector_imgsz(
+        self,
+        frame_shape: tuple[int, ...],
+        snapshot: TrackingSnapshot,
+    ) -> int | None:
+        """Scale the next detector pass to the neck the tracker already holds.
+
+        This is deliberately one pass behind: the size of the neck is what sets
+        the scale, so the first detection has to happen at the default before
+        anything can be adapted. Once a board is held the estimate is stable,
+        and a neck that is too small to yield fret wires simply gets a larger
+        input on the following pass.
+
+        **Off by default — it was measured and it regressed.** Upscaling does
+        deliver the wires it promises, but more wires let ``calibrate_fret_xs``
+        win a rule-of-18 consensus at the *wrong* first-wire index, shifting the
+        whole fret axis: dev coverage moved 0.4783 -> 0.4845 while false locks
+        went 0.000 -> 0.0497, every one of them at full-neck framing and several
+        off by seven positions. Retained behind the flag because the wire-yield
+        result is real and reusable once the fret-map fit is anchored well
+        enough to consume it. See
+        ``docs/EVAL_REPORTS/fretcam_adaptive_imgsz_2026-07-26.md``.
+        """
+        if not self.adaptive_detector_scale:
+            return None
+        homography = snapshot.homography
+        if homography.confidence <= 0.0:
+            return None
+        return _adaptive_detector_imgsz(frame_shape, _neck_quad(homography))
 
     def _should_detect(
         self,

@@ -54,6 +54,10 @@ public sealed class PythonEnvironmentBootstrapperTests
         Assert.Contains(fixture.Layout.PipCacheDirectory, installCommand.Arguments);
         Assert.Contains(fixture.Payloads.RequirementsLock, installCommand.Arguments);
         Assert.Equal(
+            Path.GetDirectoryName(fixture.Payloads.RequirementsLock),
+            installCommand.WorkingDirectory
+        );
+        Assert.Equal(
             [fixture.Payloads.PipZipApp, "check"],
             runner.Commands[1].Arguments
         );

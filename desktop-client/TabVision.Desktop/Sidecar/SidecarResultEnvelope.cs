@@ -11,6 +11,9 @@ public sealed record SidecarResultEnvelope
     [JsonPropertyName("output_path")]
     public required string OutputPath { get; init; }
 
+    [JsonPropertyName("editor_path")]
+    public string? EditorPath { get; init; }
+
     [JsonPropertyName("low_confidence_flags")]
     public required IReadOnlyList<SidecarLowConfidenceFlag> LowConfidenceFlags { get; init; }
 

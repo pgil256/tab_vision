@@ -273,8 +273,9 @@ soxr==1.1.0
     # via librosa
 sympy==1.14.0
     # via torch
-tabvision @ https://github.com/pgil256/tab_vision/releases/download/desktop-shell-assets-v0/tabvision-1.0.0-py3-none-any.whl#sha256=fe250480e4b530d5cd93b7a45e06a1aef1de1eb653c4019c39fa4727d9f46918
-    # desktop sidecar wheel built from fixed commit b2368c114bad9472f1ebcd782a805620d6215fd9
+./wheels/tabvision-1.0.0-py3-none-any.whl \
+    --hash=sha256:382eef68bd506db27fbe99936228c957505d19d9296e5cc985367341914ccb80
+    # app-bundled desktop sidecar wheel built from tracked tree 53f3393
 threadpoolctl==3.6.0
     # via scikit-learn
 torch==2.13.0

@@ -15,6 +15,7 @@ from fretcam.detection import (
     HandObservation,
     HandSearchHint,
     MediaPipeHandExtractor,
+    _adaptive_detector_imgsz,
     _extract_candidates,
     _fret_cell_from_canonical_x,
     _fret_positions_from_canonical_x,
@@ -738,7 +739,13 @@ class DetectionChainTest(unittest.TestCase):
         self.assertGreaterEqual(hands.shapes[3][1], hands.shapes[2][1])
         self.assertTrue(result.hand_points)
 
-    def test_acquired_search_never_exceeds_two_hand_detector_calls(self) -> None:
+    def test_acquired_search_stays_within_two_calls_plus_one_reserve(self) -> None:
+        """Per-frame MediaPipe work stays bounded, reserve call included.
+
+        Two ordinary searches plus at most one uncropped still recovery: the
+        reserve is only reachable on a frame that would otherwise publish
+        nothing, so a healthy frame still costs the same as before.
+        """
         hands = SelectableFakeHandExtractor(None)
         chain = DetectionChain(
             detector=FakeDetector(),
@@ -756,14 +763,13 @@ class DetectionChainTest(unittest.TestCase):
         chain._last_hand_timestamp_s = 0.1
         second_miss = chain.process_frame(frame, timestamp_s=0.2)
 
-        self.assertEqual(first_miss.hand_detector_calls, 2)
-        self.assertEqual(second_miss.hand_detector_calls, 2)
+        self.assertLessEqual(first_miss.hand_detector_calls, 3)
+        self.assertLessEqual(second_miss.hand_detector_calls, 3)
         self.assertEqual(
             second_miss.hand_search_attempts,
-            ("last_hand_crop", "neck_crop"),
+            ("last_hand_crop", "neck_crop", "full_still_recovery"),
         )
         self.assertEqual(second_miss.hand_search_source, "full_recovery_pending")
-        self.assertEqual(hands.calls, 5)
 
     def test_chain_rescales_crop_and_stillness_state_with_inference_size(self) -> None:
         chain = DetectionChain(
@@ -781,7 +787,14 @@ class DetectionChainTest(unittest.TestCase):
         self.assertEqual(chain._last_finger_tips["index"], (160.0, 200.0))
         self.assertEqual(chain._last_hand_frame_shape, (480, 640))
 
-    def test_neck_search_starts_immediately_then_alternates_full_frame(self) -> None:
+    def test_neck_search_recovers_on_the_full_frame_within_one_frame(self) -> None:
+        """A crop miss must not cost a frame the whole image could have served.
+
+        Bootstrap starts on the neck crop, but on the frozen benchmark the crop
+        is the weaker search at real framing, so a miss spends the reserve call
+        on the uncropped still pass immediately instead of alternating.
+        """
+
         class AcquireOnFullFrame:
             def __init__(self) -> None:
                 self.shapes: list[tuple[int, ...]] = []
@@ -803,12 +816,12 @@ class DetectionChainTest(unittest.TestCase):
         frame = np.zeros((200, 400, 3), dtype=np.uint8)
 
         first = chain.process_frame(frame, timestamp_s=0.0)
-        second = chain.process_frame(frame, timestamp_s=0.1)
 
-        self.assertFalse(first.hand_points)
         self.assertNotEqual(hands.shapes[0], frame.shape)
         self.assertEqual(hands.shapes[1], frame.shape)
-        self.assertTrue(second.hand_points)
+        self.assertTrue(first.hand_points)
+        self.assertEqual(first.hand_search_source, "full_still_recovery")
+        self.assertEqual(first.hand_detector_calls, 2)
 
     def test_neck_geometry_selects_best_hand_before_handedness(self) -> None:
         class TwoHands:
@@ -2032,6 +2045,121 @@ class MultiFingerPositionSolverTest(unittest.TestCase):
         self.assertEqual(aged.freshness, 0.25)
         self.assertEqual(unstable.stability, 0.40)
         self.assertEqual(weak_board.board, 0.40)
+
+
+class AdaptiveDetectorScaleTest(unittest.TestCase):
+    """The inference scale must track the neck's rendered size, both ways."""
+
+    @staticmethod
+    def _quad(long_edge_px: float) -> tuple[tuple[float, float], ...]:
+        return (
+            (0.0, 0.0),
+            (long_edge_px, 0.0),
+            (long_edge_px, 40.0),
+            (0.0, 40.0),
+        )
+
+    def test_close_framing_stays_at_the_default_scale(self) -> None:
+        # A 433 px neck in a 640 px frame is the framing that already fits a
+        # fret map on every frame; upscaling it is what loses the neck OBB.
+        self.assertEqual(
+            _adaptive_detector_imgsz((360, 640, 3), self._quad(433.0)), 640
+        )
+
+    def test_full_neck_framing_upscales(self) -> None:
+        # A 250 px neck fits a fret map on only a third of frames at native
+        # scale, and lands in the measured 960-1280 band once rendered larger.
+        imgsz = _adaptive_detector_imgsz((360, 640, 3), self._quad(250.0))
+        assert imgsz is not None
+        self.assertGreaterEqual(imgsz, 960)
+        self.assertLessEqual(imgsz, 1280)
+
+    def test_scale_is_clamped_and_stride_aligned(self) -> None:
+        for long_edge in (20.0, 120.0, 250.0, 433.0, 600.0, 5000.0):
+            imgsz = _adaptive_detector_imgsz((360, 640, 3), self._quad(long_edge))
+            assert imgsz is not None
+            self.assertGreaterEqual(imgsz, 640)
+            self.assertLessEqual(imgsz, 1280)
+            self.assertEqual(imgsz % 32, 0)
+
+    def test_scale_is_resolution_independent(self) -> None:
+        # The same framing at a different capture resolution must resolve to the
+        # same scale: it is the *rendered* neck that the detector responds to.
+        small = _adaptive_detector_imgsz((360, 640, 3), self._quad(250.0))
+        large = _adaptive_detector_imgsz((1080, 1920, 3), self._quad(750.0))
+        self.assertEqual(small, large)
+
+    def test_no_board_yet_keeps_the_detector_default(self) -> None:
+        self.assertIsNone(_adaptive_detector_imgsz((360, 640, 3), ()))
+        self.assertIsNone(
+            _adaptive_detector_imgsz((360, 640, 3), self._quad(float("nan")))
+        )
+
+    def test_chain_passes_the_scale_once_a_board_is_held(self) -> None:
+        # Opt-in: the scale regressed on the frozen benchmark and ships off.
+        class ScaleRecordingDetector:
+            def __init__(self) -> None:
+                self.scales: list[int | None] = []
+
+            def predict_all(
+                self, _frame: np.ndarray, *, imgsz: int | None = None
+            ) -> OBBPredictions:
+                self.scales.append(imgsz)
+                return OBBPredictions()
+
+        detector = ScaleRecordingDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+            adaptive_detector_scale=True,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        # The second pass must land inside the tracker's hard expiry, or the
+        # board it would have been scaled from is already gone.
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertIsNone(detector.scales[0])
+        self.assertIsNotNone(detector.scales[-1])
+
+    def test_a_detector_without_the_keyword_still_runs(self) -> None:
+        detector = FakeDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertEqual(detector.calls, 2)
+
+    def test_adaptive_scale_is_off_by_default(self) -> None:
+        """It regressed the frozen benchmark, so the default must stay off."""
+
+        class ScaleRecordingDetector:
+            def __init__(self) -> None:
+                self.scales: list[int | None] = []
+
+            def predict_all(
+                self, _frame: np.ndarray, *, imgsz: int | None = None
+            ) -> OBBPredictions:
+                self.scales.append(imgsz)
+                return OBBPredictions()
+
+        detector = ScaleRecordingDetector()
+        chain = DetectionChain(
+            detector=detector,
+            hand_extractor=FakeHandExtractor(None),
+            calibrator=_calibrator,
+        )
+        frame = np.zeros((200, 400, 3), dtype=np.uint8)
+        chain.process_frame(frame, timestamp_s=0.0)
+        chain.process_frame(frame, timestamp_s=0.5)
+
+        self.assertEqual(detector.scales, [None, None])
 
 
 def _single_finger_hand(
