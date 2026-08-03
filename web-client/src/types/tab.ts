@@ -55,6 +55,13 @@ export interface TabDocument {
     accuracyMode?: string;
     noteCountRatio?: number | null;
     assistCandidateNotes?: number;
+    // Advisory tempo/beat grid (2026-08-02): drives measure/beat lines and
+    // export-time quantization only — note timestamps are never moved by it.
+    // All absent when server-side detection failed or on older documents.
+    tempoBpm?: number;
+    beatTimes?: number[];
+    beatsPerBar?: number;
+    beatDetectionSource?: string;
     diagnostics?: Record<string, unknown>;
   };
 }
