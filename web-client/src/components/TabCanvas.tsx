@@ -433,7 +433,6 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const noteHitboxesRef = useRef<NoteHitbox[]>([]);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<number | null>(null);
-  const fretInputTimeoutRef = useRef<number | null>(null);
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   // Drag gesture + preview. The ref is authoritative (pointer-up commits from
   // it); the state mirror only exists to trigger redraws per move event.
@@ -454,23 +453,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     reviewIds,
     reviewIndex,
     selectNote,
-    selectAdjacentNote,
     setCurrentTime,
     setFollowingPlayback,
-    setPendingFretInput,
-    commitPendingEdit,
-    updateNoteFret,
-    moveNoteString,
     applyNoteDrag,
-    deleteNote,
-    insertNote,
-    startReview,
-    exitReview,
-    reviewNext,
-    reviewPrev,
-    cycleNoteCandidate,
-    undo,
-    redo,
     zoomIn,
     zoomOut,
   } = useAppStore();
@@ -796,198 +781,8 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     ]
   );
 
-  // Handle keyboard input
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      // Undo/Redo
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-        return;
-      }
-
-      // Zoom shortcuts
-      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
-        e.preventDefault();
-        zoomIn();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === '-') {
-        e.preventDefault();
-        zoomOut();
-        return;
-      }
-
-      // Navigation
-      if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        commitPendingEdit();
-        selectAdjacentNote('left');
-        return;
-      }
-      if (e.key === 'ArrowRight' || e.key === 'Tab') {
-        e.preventDefault();
-        commitPendingEdit();
-        selectAdjacentNote('right');
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        commitPendingEdit();
-        // Shift+Up moves the selected note to the adjacent (higher) string,
-        // fret recomputed to keep the pitch — the fix for the #1 wrong-string
-        // error. Plain Up navigates.
-        if (e.shiftKey) {
-          moveNoteString('up');
-        } else {
-          selectAdjacentNote('up');
-        }
-        return;
-      }
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        commitPendingEdit();
-        if (e.shiftKey) {
-          moveNoteString('down');
-        } else {
-          selectAdjacentNote('down');
-        }
-        return;
-      }
-
-      // Review mode (2026-07-20): R toggles, N/P step the queue, C cycles the
-      // selected note through its ranked pitch-preserving alternatives.
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        commitPendingEdit();
-        if (reviewActive) {
-          exitReview();
-        } else {
-          startReview();
-        }
-        return;
-      }
-      if ((e.key === 'c' || e.key === 'C') && selectedNoteId) {
-        e.preventDefault();
-        setPendingFretInput('');
-        cycleNoteCandidate(e.shiftKey ? -1 : 1);
-        return;
-      }
-      if ((e.key === 'n' || e.key === 'N') && reviewActive) {
-        e.preventDefault();
-        commitPendingEdit();
-        reviewNext();
-        return;
-      }
-      if ((e.key === 'p' || e.key === 'P') && reviewActive) {
-        e.preventDefault();
-        commitPendingEdit();
-        reviewPrev();
-        return;
-      }
-
-      // Escape — leaves review mode first, then clears selection.
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setPendingFretInput('');
-        if (reviewActive) {
-          exitReview();
-          return;
-        }
-        selectNote(null);
-        return;
-      }
-
-      // Enter
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        commitPendingEdit();
-        selectNote(null);
-        return;
-      }
-
-      // Delete/Backspace -> true removal (B3). Mute lives on 'x'.
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNoteId) {
-        e.preventDefault();
-        setPendingFretInput('');
-        deleteNote(selectedNoteId);
-        return;
-      }
-
-      // 'x' -> mute the selected note (fret = "X"), distinct from delete.
-      if ((e.key === 'x' || e.key === 'X') && selectedNoteId) {
-        e.preventDefault();
-        setPendingFretInput('');
-        updateNoteFret(selectedNoteId, 'X');
-        return;
-      }
-
-      // 'i' / Insert -> insert a note at the playhead (B3), on the selected
-      // note's string (or the G string by default), open, and select it.
-      if (e.key === 'i' || e.key === 'Insert') {
-        e.preventDefault();
-        const anchor = selectedNoteId
-          ? tabDocument?.notes.find(n => n.id === selectedNoteId)
-          : undefined;
-        insertNote({ timestamp: currentTime, string: anchor?.string ?? 3, fret: 0 });
-        return;
-      }
-
-      // Number input (0-9)
-      if (selectedNoteId && /^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        const newInput = pendingFretInput + e.key;
-        const fretValue = parseInt(newInput, 10);
-
-        if (fretValue > 24) {
-          setPendingFretInput(e.key);
-        } else {
-          setPendingFretInput(newInput);
-        }
-
-        if (fretInputTimeoutRef.current) {
-          clearTimeout(fretInputTimeoutRef.current);
-        }
-        fretInputTimeoutRef.current = window.setTimeout(() => {
-          commitPendingEdit();
-        }, 500);
-
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    tabDocument,
-    currentTime,
-    selectedNoteId,
-    pendingFretInput,
-    reviewActive,
-    selectNote,
-    selectAdjacentNote,
-    setPendingFretInput,
-    commitPendingEdit,
-    updateNoteFret,
-    moveNoteString,
-    deleteNote,
-    insertNote,
-    startReview,
-    exitReview,
-    reviewNext,
-    reviewPrev,
-    cycleNoteCandidate,
-    undo,
-    redo,
-    zoomIn,
-    zoomOut,
-  ]);
+  // Keyboard handling lives in hooks/useEditorHotkeys.ts (M7), mounted once
+  // in App — one window listener for the whole editor.
 
   // Review mode: keep the note under review in view. Runs on queue-step (and
   // on entering review); manual scrolling stays free between steps.
@@ -1008,7 +803,6 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   useEffect(() => {
     return () => {
       if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      if (fretInputTimeoutRef.current) clearTimeout(fretInputTimeoutRef.current);
     };
   }, []);
 

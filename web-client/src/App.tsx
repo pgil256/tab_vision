@@ -8,6 +8,7 @@ import { ShortcutsModal } from './components/ShortcutsModal';
 import { RestoreBanner } from './components/RestoreBanner';
 import { useAppStore } from './store/appStore';
 import { useAudition } from './hooks/useAudition';
+import { useEditorHotkeys } from './hooks/useEditorHotkeys';
 import './index.css';
 
 type InputMode = 'upload' | 'record';
@@ -21,6 +22,9 @@ function App() {
   // M6 — audition engine: synth playback of the notes + fallback transport
   // for sessions without a recording.
   useAudition(videoRef);
+
+  // M7 — the one keyboard dispatcher for the whole editor.
+  useEditorHotkeys();
 
   // B5 — on mount, surface an autosaved edited session (if any) for restore.
   useEffect(() => {

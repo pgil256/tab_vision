@@ -95,20 +95,7 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
     }
   }, [auditionMode, videoRef, videoUrl]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        togglePlay();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay]);
+  // Space is handled by the app-wide useEditorHotkeys dispatcher (M7).
 
   // Close rate menu on outside click
   useEffect(() => {
