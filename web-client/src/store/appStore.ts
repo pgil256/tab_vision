@@ -12,25 +12,28 @@ import {
   loadSession,
   persistSession,
 } from '../utils/editPersistence';
+import { MAX_FRET, MAX_STRING, MIN_STRING, STRING_OPEN_MIDI } from '../utils/pitch';
+import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
+// What the user hears during playback: the original recording, the pluck-synth
+// rendition of the (edited) notes, or both layered.
+export type AuditionMode = 'original' | 'synth' | 'both';
+
 // Only the fields an edit mutates are snapshotted, so undo/redo restore them
 // exactly (including isEdited / originalFret bookkeeping) rather than trying to
-// recompute derived flags.
-type NoteMutableFields = Pick<TabNote, 'string' | 'fret' | 'isEdited' | 'originalFret'>;
+// recompute derived flags. timestamp/endTime joined for drag-retiming (M4);
+// history is in-memory only, so extending the snapshot needs no migration.
+type NoteMutableFields = Pick<
+  TabNote,
+  'string' | 'fret' | 'isEdited' | 'originalFret' | 'timestamp' | 'endTime'
+>;
 
 type EditAction =
   | { kind: 'position'; noteId: string; before: NoteMutableFields; after: NoteMutableFields }
   | { kind: 'delete'; note: TabNote; index: number }
   | { kind: 'insert'; note: TabNote; index: number };
-
-// Standard-tuning open-string MIDI, keyed by the client's string number
-// (1 = high E … 6 = low E — see tab_events_to_tab_document `6 - string_idx`).
-const STRING_OPEN_MIDI: Record<number, number> = { 1: 64, 2: 59, 3: 55, 4: 50, 5: 45, 6: 40 };
-const MIN_STRING = 1;
-const MAX_STRING = 6;
-const MAX_FRET = 24;
 
 /**
  * Fret on `toString` that sounds the same pitch as `fret` on `fromString`
@@ -95,6 +98,7 @@ interface AppState {
   isVideoCollapsed: boolean;
   showShortcutsModal: boolean;
   playbackRate: number;
+  auditionMode: AuditionMode;
 
   // Edit history
   editHistory: EditAction[];
@@ -143,6 +147,10 @@ interface AppState {
   // Editing actions
   updateNoteFret: (noteId: string, newFret: number | "X") => void;
   updateNotePosition: (noteId: string, newString: number, newFret: number | "X") => void;
+  applyNoteDrag: (
+    noteId: string,
+    next: { timestamp: number; string: number; fret: number | "X" },
+  ) => void;
   moveNoteString: (direction: 'up' | 'down') => void;
   deleteNote: (noteId: string) => void;
   insertNote: (opts: { timestamp: number; string: number; fret?: number | "X" }) => void;
@@ -172,6 +180,7 @@ interface AppState {
   toggleVideoCollapsed: () => void;
   setShowShortcutsModal: (show: boolean) => void;
   setPlaybackRate: (rate: number) => void;
+  setAuditionMode: (mode: AuditionMode) => void;
 }
 
 const initialState = {
@@ -216,6 +225,7 @@ const initialState = {
   isVideoCollapsed: false,
   showShortcutsModal: false,
   playbackRate: 1.0,
+  auditionMode: 'original' as AuditionMode,
 
   // Edit history
   editHistory: [] as EditAction[],
@@ -244,6 +254,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setVideoUrl: (url) => set({ videoUrl: url }),
 
   reset: () => {
+    const jobId = get().currentJobId;
+    if (jobId) void deleteRecordingBlob(jobId); // best-effort cleanup
     clearSession(); // "New transcription" discards the autosaved session
     // The backend's personal-ingest capability doesn't change per job.
     set({ ...initialState, personalIngestAvailable: get().personalIngestAvailable });
@@ -268,9 +280,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistory: [],
       editHistoryIndex: -1,
     });
+    // Recover the recording from IndexedDB so the restored session keeps real
+    // playback. Async and fail-open: no blob just means no video pane (the
+    // synth transport still plays the notes).
+    const jobId = session.jobId;
+    if (jobId) {
+      void loadRecordingBlob(jobId).then(blob => {
+        if (blob && get().currentJobId === jobId) {
+          set({ videoUrl: URL.createObjectURL(blob) });
+        }
+      });
+    }
   },
 
   discardPersistedSession: () => {
+    const jobId = get().restorable?.jobId;
+    if (jobId) void deleteRecordingBlob(jobId); // best-effort cleanup
     clearSession();
     set({ restorable: null });
   },
@@ -451,6 +476,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       fret: note.fret,
       isEdited: note.isEdited,
       originalFret: note.originalFret,
+      timestamp: note.timestamp,
+      endTime: note.endTime,
     };
     const updated: TabNote = {
       ...note,
@@ -464,6 +491,66 @@ export const useAppStore = create<AppState>((set, get) => ({
       fret: updated.fret,
       isEdited: updated.isEdited,
       originalFret: updated.originalFret,
+      timestamp: updated.timestamp,
+      endTime: updated.endTime,
+    };
+
+    const updatedNotes = [...tabDocument.notes];
+    updatedNotes[noteIndex] = updated;
+
+    const newHistory = editHistory.slice(0, editHistoryIndex + 1);
+    newHistory.push({ kind: 'position', noteId, before, after });
+
+    set({
+      tabDocument: { ...tabDocument, notes: updatedNotes },
+      editHistory: newHistory,
+      editHistoryIndex: newHistory.length - 1,
+    });
+    persistSession(get().tabDocument!, get().currentJobId);
+  },
+
+  // Mouse-drag commit (M4): one history entry for retime + restring together,
+  // so a single Ctrl+Z reverses the whole gesture. endTime shifts with the
+  // timestamp to preserve the note's duration. The notes array is deliberately
+  // left unsorted after a retime — every consumer sorts on read, and
+  // re-sorting here would break the index semantics of delete/insert history
+  // entries.
+  applyNoteDrag: (noteId, next) => {
+    const { tabDocument, editHistory, editHistoryIndex } = get();
+    if (!tabDocument) return;
+
+    const noteIndex = tabDocument.notes.findIndex(n => n.id === noteId);
+    if (noteIndex === -1) return;
+    const note = tabDocument.notes[noteIndex];
+
+    const newTimestamp = Math.max(0, next.timestamp);
+    const delta = newTimestamp - note.timestamp;
+    if (delta === 0 && note.string === next.string && note.fret === next.fret) return;
+
+    const before: NoteMutableFields = {
+      string: note.string,
+      fret: note.fret,
+      isEdited: note.isEdited,
+      originalFret: note.originalFret,
+      timestamp: note.timestamp,
+      endTime: note.endTime,
+    };
+    const updated: TabNote = {
+      ...note,
+      string: next.string as TabNote['string'],
+      fret: next.fret,
+      timestamp: newTimestamp,
+      endTime: typeof note.endTime === 'number' ? note.endTime + delta : note.endTime,
+      isEdited: true,
+      originalFret: note.originalFret ?? note.fret,
+    };
+    const after: NoteMutableFields = {
+      string: updated.string,
+      fret: updated.fret,
+      isEdited: updated.isEdited,
+      originalFret: updated.originalFret,
+      timestamp: updated.timestamp,
+      endTime: updated.endTime,
     };
 
     const updatedNotes = [...tabDocument.notes];
@@ -683,4 +770,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowShortcutsModal: (show) => set({ showShortcutsModal: show }),
 
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
+
+  setAuditionMode: (mode) => set({ auditionMode: mode }),
 }));

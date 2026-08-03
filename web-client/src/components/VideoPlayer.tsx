@@ -1,6 +1,7 @@
 // tabvision-client/src/components/VideoPlayer.tsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
+import { audition } from '../utils/auditionEngine';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -16,6 +17,7 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
     isPlaying,
     isVideoCollapsed,
     playbackRate,
+    auditionMode,
     setCurrentTime,
     setDuration,
     setIsPlaying,
@@ -63,53 +65,37 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
   const handlePlay = useCallback(() => setIsPlaying(true), [setIsPlaying]);
   const handlePause = useCallback(() => setIsPlaying(false), [setIsPlaying]);
 
-  const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
-    if (isPlaying) {
-      videoRef.current.pause();
-    } else {
-      videoRef.current.play();
-    }
-  }, [isPlaying, videoRef]);
+  // All transport actions route through the audition engine — it drives the
+  // video element when one exists and its own clock when one doesn't (M6).
+  const togglePlay = useCallback(() => audition.togglePlay(), []);
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressRef.current || !videoRef.current || duration === 0) return;
+    if (!progressRef.current || duration === 0) return;
     const rect = progressRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percentage = clickX / rect.width;
-    const newTime = percentage * duration;
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, [duration, setCurrentTime, videoRef]);
+    audition.seek(percentage * duration);
+  }, [duration]);
 
   const skip = useCallback((seconds: number) => {
-    if (!videoRef.current) return;
-    const newTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, [duration, setCurrentTime, videoRef]);
+    audition.seek(currentTime + seconds);
+  }, [currentTime]);
 
   // Apply playback rate to video element
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
-  }, [playbackRate, videoRef]);
+  }, [playbackRate, videoRef, videoUrl]);
 
-  // Keyboard shortcuts
+  // Synth-only mode mutes the recording (both layers otherwise).
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (videoRef.current) {
+      videoRef.current.muted = auditionMode === 'synth';
+    }
+  }, [auditionMode, videoRef, videoUrl]);
 
-      if (e.code === 'Space' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        togglePlay();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [togglePlay]);
+  // Space is handled by the app-wide useEditorHotkeys dispatcher (M7).
 
   // Close rate menu on outside click
   useEffect(() => {
@@ -119,21 +105,22 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
     return () => window.removeEventListener('click', handleClick);
   }, [showRateMenu]);
 
-  if (!videoUrl) return null;
-
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  // Without a recording (restored session whose blob is gone) the controls
+  // still render — they drive the audition engine's internal transport so the
+  // synth playback has play/pause/seek and a moving playhead.
   return (
     <div
       className="flex flex-col"
       style={{
         background: 'var(--bg-surface)',
-        width: isVideoCollapsed ? '48px' : '340px',
+        width: isVideoCollapsed && videoUrl ? '48px' : '340px',
         transition: 'width var(--transition-normal)',
       }}
     >
       {/* Collapse toggle */}
-      {isVideoCollapsed ? (
+      {isVideoCollapsed && videoUrl ? (
         <button
           className="w-full h-full flex items-center justify-center btn-ghost"
           onClick={toggleVideoCollapsed}
@@ -146,30 +133,32 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
         </button>
       ) : (
         <>
-          {/* Video element */}
-          <div className="relative">
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              className="w-full bg-black"
-              style={{ aspectRatio: '16/9' }}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onPlay={handlePlay}
-              onPause={handlePause}
-            />
-            {/* Collapse button overlay */}
-            <button
-              className="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center transition-opacity opacity-0 hover:opacity-100"
-              style={{ background: 'rgba(0,0,0,0.6)' }}
-              onClick={toggleVideoCollapsed}
-              title="Hide video"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
-          </div>
+          {/* Video element (absent when no recording is available) */}
+          {videoUrl && (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                src={videoUrl}
+                className="w-full bg-black"
+                style={{ aspectRatio: '16/9' }}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onPlay={handlePlay}
+                onPause={handlePause}
+              />
+              {/* Collapse button overlay */}
+              <button
+                className="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center transition-opacity opacity-0 hover:opacity-100"
+                style={{ background: 'rgba(0,0,0,0.6)' }}
+                onClick={toggleVideoCollapsed}
+                title="Hide video"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* Controls */}
           <div className="px-3 py-2 space-y-1.5">

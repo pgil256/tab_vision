@@ -471,6 +471,87 @@ def test_note_candidates_computed_and_serialized_for_review_ui():
     assert document["metadata"]["assistCandidateNotes"] == len(document["notes"])
 
 
+def test_beat_grid_and_clip_duration_flow_into_document(tmp_path):
+    """2026-08-02: real clip length replaces the max-endTime duration
+    heuristic, the advisory beat grid lands in metadata, and every note
+    carries its detected MIDI pitch."""
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+
+    def fake_runner(video_path, **kwargs):
+        return SimpleNamespace(
+            tab_events=(
+                _TabEvent(
+                    onset_s=0.0,
+                    duration_s=0.4,
+                    string_idx=4,
+                    fret=3,
+                    pitch_midi=62,
+                    confidence=0.8,
+                ),
+            ),
+            policy=SimpleNamespace(
+                requested_position_prior="none",
+                resolved_position_prior="none",
+                requested_sequence_prior="none",
+                resolved_sequence_prior="none",
+                requested_string_evidence="none",
+                resolved_string_evidence="none",
+                requested_assignment_decoder="auto",
+                resolved_assignment_decoder="baseline",
+                assignment_decoder_reason="",
+                artifacts=(),
+            ),
+            clip_duration_s=12.345,
+            beat_grid=SimpleNamespace(
+                tempo_bpm=96.4361,
+                beat_times=(0.5115, 1.1349, 1.7601, 2.3812),
+                beats_per_bar=4,
+                source="librosa-beat-track",
+            ),
+        )
+
+    result_path = run_v1_transcription(
+        job, str(tmp_path), config=V1PipelineConfig(), pipeline_runner=fake_runner
+    )
+    with open(result_path) as handle:
+        document = json.load(handle)
+
+    assert document["duration"] == 12.345
+    assert document["notes"][0]["detectedMidiNote"] == 62
+    metadata = document["metadata"]
+    assert metadata["tempoBpm"] == 96.44
+    assert metadata["beatTimes"] == [0.511, 1.135, 1.76, 2.381]
+    assert metadata["beatsPerBar"] == 4
+    assert metadata["beatDetectionSource"] == "librosa-beat-track"
+
+
+def test_documents_without_beat_grid_keep_legacy_shape(tmp_path):
+    """Legacy bare-list runners: old max-endTime duration and no beat keys."""
+    job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
+
+    def fake_runner(video_path, **kwargs):
+        return [
+            _TabEvent(
+                onset_s=1.0,
+                duration_s=0.5,
+                string_idx=0,
+                fret=5,
+                pitch_midi=45,
+                confidence=0.9,
+            )
+        ]
+
+    result_path = run_v1_transcription(
+        job, str(tmp_path), config=V1PipelineConfig(), pipeline_runner=fake_runner
+    )
+    with open(result_path) as handle:
+        document = json.load(handle)
+
+    assert document["duration"] == 2.5  # max endTime (1.5) + 1
+    for key in ("tempoBpm", "beatTimes", "beatsPerBar", "beatDetectionSource"):
+        assert key not in document["metadata"]
+
+
 def test_note_candidates_degrade_to_none_on_legacy_results():
     from app.v1_adapter import _compute_note_candidates
 

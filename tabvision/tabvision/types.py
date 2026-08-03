@@ -153,6 +153,22 @@ class TabEvent:
     techniques: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class BeatGrid:
+    """Advisory tempo/beat grid for display and export-time quantization.
+
+    Never used to move detected note times — SPEC §9.2 metrics are defined
+    on raw onsets. ``beats_per_bar`` is an assumption, not detected; measure
+    lines are drawn every ``beats_per_bar``-th beat starting at
+    ``beat_times[0]`` (first tracked beat treated as a downbeat).
+    """
+
+    tempo_bpm: float
+    beat_times: tuple[float, ...]
+    beats_per_bar: int = 4
+    source: str = "librosa-beat-track"
+
+
 # ----- Backend protocols -----
 
 
