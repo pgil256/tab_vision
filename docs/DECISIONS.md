@@ -6367,3 +6367,59 @@ violate the eval half of the ban — the honest check is whether the user's
 own review-queue correction rate drops.
 
 **Spend:** $0. Local implementation and unit tests only.
+
+---
+
+## 2026-08-02 — Gold-tab sessions: a local video-training corpus, and the §1.5 carve-out widened
+
+**Context:** The banked verdict on video string resolution is "no signal at
+640×360; a labelled corpus at real resolution is the blocker" — and the Phase
+D retrain failed on 640×360 GuitarSet crops with an overfitting signature,
+explicitly scoped as "not learned string resolution generally." Meanwhile the
+FretCam window harvest (first 2026-08-02 directive) labels only the notes the
+camera happens to pin: ~27% coverage with camera-conditioned selection bias,
+which makes it unusable as CV training substrate — models would train on
+exactly the frames the existing chain already handles.
+
+**Decision:** The user directed (chat, same day) a second, locally-only
+mechanism: **gold-tab sessions**. The user records a take in good conditions
+and supplies the exact tab they played
+(`{"notes": [{"string": 6, "fret": 3}, ...]}`, tab convention, 1 = high E).
+`scripts/train/ingest_gold_session.py` stamps each gold note with its
+performed onset by Needleman–Wunsch over the pitch sequences (audio backend
+events vs tab; exact pitch matches only; insertions/deletions absorbed as
+gaps), then writes JPEG frames at +0.04/+0.12/+0.20 s after each onset —
+hand guaranteed planted — into
+`<data-root>/personal/video_corpus/<stem>-<hash8>/` with per-frame
+`(string, fret)` ground truth. Optionally the same labels append to the
+personal-prior store (`--prior-store`, source `gold-tab`). SPEC §1.5's
+carve-out is widened accordingly: the corpus may train **local-only**
+video-analysis artifacts; nothing from it may reach shipped defaults, eval
+corpora, or published figures.
+
+**Non-obvious branches:**
+- **All-or-nothing quality gate.** A session aligning under `--min-match`
+  (default 0.7) is refused outright, not salvaged — "accurate tab, accurately
+  played" is the premise that makes the data gold, and a diverging take
+  poisons silently.
+- **Exact-pitch matches only; wrong pitch is never matched.** A substitution
+  is either a playing mistake or a detection error; both are excluded by
+  construction rather than weighted.
+- **Frames only, no interpolation.** An onset instant with no decoded frame
+  within 0.05 s is dropped; a corpus row never points at invented pixels.
+- **Idempotent per content**: the session directory is keyed by
+  (video bytes, tab bytes) hash, so re-ingest overwrites rather than
+  duplicates. The `--prior-store` append is NOT deduplicated and is
+  documented as first-ingest-only.
+- **Capo refused** (both stores are capo-0 indexed), standard tuning assumed;
+  the tab's optional `pitch_midi` is cross-checked against string+fret to
+  catch off-by-one string declarations at load time.
+
+**What this does not decide:** no video model is trained, no training recipe
+is registered, and no accuracy claim is made. Training a string resolver on
+this corpus is a future experiment that must be pre-registered with its
+selection-bias control (evaluate on camera-unlocked frames) before running.
+The corpus simply starts accumulating value from practice sessions the user
+records anyway.
+
+**Spend:** $0. Local implementation and unit tests only (15 new tests).
