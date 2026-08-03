@@ -9,6 +9,7 @@ import {
   persistSession,
 } from '../utils/editPersistence';
 import { MAX_FRET, MAX_STRING, MIN_STRING, STRING_OPEN_MIDI } from '../utils/pitch';
+import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
@@ -230,6 +231,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setVideoUrl: (url) => set({ videoUrl: url }),
 
   reset: () => {
+    const jobId = get().currentJobId;
+    if (jobId) void deleteRecordingBlob(jobId); // best-effort cleanup
     clearSession(); // "New transcription" discards the autosaved session
     set(initialState);
   },
@@ -253,9 +256,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistory: [],
       editHistoryIndex: -1,
     });
+    // Recover the recording from IndexedDB so the restored session keeps real
+    // playback. Async and fail-open: no blob just means no video pane (the
+    // synth transport still plays the notes).
+    const jobId = session.jobId;
+    if (jobId) {
+      void loadRecordingBlob(jobId).then(blob => {
+        if (blob && get().currentJobId === jobId) {
+          set({ videoUrl: URL.createObjectURL(blob) });
+        }
+      });
+    }
   },
 
   discardPersistedSession: () => {
+    const jobId = get().restorable?.jobId;
+    if (jobId) void deleteRecordingBlob(jobId); // best-effort cleanup
     clearSession();
     set({ restorable: null });
   },

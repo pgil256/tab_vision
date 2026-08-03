@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
 import { uploadVideo, getJobStatus, getJobResult } from '../api/client';
+import { saveRecordingBlob } from './blobStore';
 
 export function useProcessVideo() {
   const {
@@ -34,6 +35,10 @@ export function useProcessVideo() {
       });
       setJobId(jobId);
       setStatus('processing');
+      // Fire-and-forget: keep the recording restorable across refreshes
+      // (blob URLs die with the page). Failure just means a restore without
+      // playback.
+      void saveRecordingBlob(jobId, file);
 
       const pollInterval = setInterval(async () => {
         try {
