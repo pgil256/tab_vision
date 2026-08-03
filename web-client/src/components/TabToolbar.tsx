@@ -16,6 +16,11 @@ export function TabToolbar() {
     zoomIn,
     zoomOut,
     resetZoom,
+    currentJobId,
+    personalIngestAvailable,
+    goldBankStatus,
+    goldBankMessage,
+    bankGoldSession,
   } = useAppStore();
 
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -61,6 +66,13 @@ export function TabToolbar() {
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
   }, [showExportMenu]);
+
+  // Surface gold-session banking outcomes in the existing toast.
+  useEffect(() => {
+    if ((goldBankStatus === 'done' || goldBankStatus === 'error') && goldBankMessage) {
+      showToast(goldBankMessage);
+    }
+  }, [goldBankStatus, goldBankMessage, showToast]);
 
   if (jobStatus !== 'completed') return null;
 
@@ -238,6 +250,24 @@ export function TabToolbar() {
               )}
             </svg>
           </button>
+
+          {/* Bank gold session — local studio only (SPEC §1.5 carve-out).
+              The deployed backend never advertises personal_ingest, so this
+              button only exists when running via studio.ps1. */}
+          {personalIngestAvailable && currentJobId && (
+            <button
+              className="btn btn-ghost text-xs"
+              onClick={() => bankGoldSession()}
+              disabled={goldBankStatus === 'banking'}
+              data-tooltip="Save this corrected take as local training data"
+              style={{ padding: '6px 14px', color: 'var(--accent-tertiary)' }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {goldBankStatus === 'banking' ? 'Banking…' : 'Bank gold'}
+            </button>
+          )}
 
           {/* Export */}
           <div className="relative">

@@ -189,3 +189,46 @@ def get_job_result(job_id: str):
         return jsonify({'error': 'Result file not found'}), 500
 
     return jsonify(tab_document), 200
+
+
+@bp.route('/jobs/<job_id>/gold-session', methods=['POST'])
+def bank_gold_session_route(job_id: str):
+    """Bank a corrected transcription as a local gold session.
+
+    Local-only (SPEC §1.5 carve-out, 2026-08-02): answers 404 unless
+    TABVISION_PERSONAL_ROOT is set, which only studio.ps1 does. The
+    corrected notes become labelled frames in the local video-training
+    corpus plus personal-prior labels; nothing leaves the machine.
+    """
+    from app.personal_ingest import bank_gold_session, personal_root
+
+    root = personal_root()
+    if root is None:
+        return jsonify({'error': 'Personal ingest is not enabled on this server'}), 404
+
+    job = get_job_storage().get(job_id)
+    if job is None:
+        return jsonify({'error': 'Job not found'}), 404
+    if job.status != "completed":
+        return jsonify({'error': 'Job not completed yet'}), 400
+    if job.capo_fret:
+        return jsonify({'error': 'Gold sessions require capo 0 (stores are capo-0 indexed)'}), 400
+    if not job.video_path or not os.path.isfile(job.video_path):
+        return jsonify({'error': 'The original upload is no longer on disk'}), 400
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or not isinstance(payload.get('notes'), list):
+        return jsonify({'error': "Body must be JSON with a 'notes' list"}), 400
+
+    try:
+        summary = bank_gold_session(
+            job_id,
+            job.video_path,
+            payload['notes'],
+            root=root,
+            bank_prior=bool(payload.get('bank_prior', True)),
+        )
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
+
+    return jsonify(summary), 200

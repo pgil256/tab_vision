@@ -119,3 +119,48 @@ export async function getJobResult(jobId: string): Promise<TabDocument> {
 
   return response.json();
 }
+
+// Local-only gold-session banking (SPEC §1.5 carve-out). The backend only
+// advertises personal_ingest when studio.ps1 enabled it, so the deployed
+// site never shows the feature.
+export async function getPersonalIngestAvailable(): Promise<boolean> {
+  try {
+    const response = await fetchApi('/health');
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.personal_ingest === true;
+  } catch {
+    return false;
+  }
+}
+
+export interface GoldSessionNote {
+  timestamp: number;
+  string: number;
+  fret: number | 'X';
+}
+
+export interface GoldSessionSummary {
+  notes: number;
+  frames_written: number;
+  session_dir: string | null;
+  prior_labels: number;
+  prior_store: string | null;
+}
+
+export async function bankGoldSession(
+  jobId: string,
+  notes: GoldSessionNote[],
+): Promise<GoldSessionSummary> {
+  const response = await fetchApi(`/jobs/${jobId}/gold-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, 'Failed to bank the gold session'));
+  }
+
+  return response.json();
+}

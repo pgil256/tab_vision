@@ -3,6 +3,10 @@ import { create } from 'zustand';
 import { TabDocument, TabNote } from '../types/tab';
 import type { AccuracyMode, Instrument, PlayingStyle, Tone, UploadRoi } from '../api/client';
 import {
+  bankGoldSession as apiBankGoldSession,
+  getPersonalIngestAvailable,
+} from '../api/client';
+import {
   PersistedSession,
   clearSession,
   loadSession,
@@ -111,6 +115,15 @@ interface AppState {
   restorePersistedSession: () => void;
   discardPersistedSession: () => void;
 
+  // Gold-session banking (local-only; SPEC §1.5 carve-out 2026-08-02).
+  // Only the studio backend advertises personal_ingest, so the deployed
+  // site never shows the feature.
+  personalIngestAvailable: boolean;
+  goldBankStatus: 'idle' | 'banking' | 'done' | 'error';
+  goldBankMessage: string | null;
+  checkPersonalIngest: () => Promise<void>;
+  bankGoldSession: () => Promise<void>;
+
   // Playback actions
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
@@ -172,6 +185,9 @@ const initialState = {
   errorMessage: null as string | null,
   videoUrl: null as string | null,
   restorable: null as PersistedSession | null,
+  personalIngestAvailable: false,
+  goldBankStatus: 'idle' as 'idle' | 'banking' | 'done' | 'error',
+  goldBankMessage: null as string | null,
 
   // Playback state
   currentTime: 0,
@@ -229,7 +245,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   reset: () => {
     clearSession(); // "New transcription" discards the autosaved session
-    set(initialState);
+    // The backend's personal-ingest capability doesn't change per job.
+    set({ ...initialState, personalIngestAvailable: get().personalIngestAvailable });
   },
 
   // B5 — offer to restore an autosaved edited session on a fresh mount. Only
@@ -256,6 +273,39 @@ export const useAppStore = create<AppState>((set, get) => ({
   discardPersistedSession: () => {
     clearSession();
     set({ restorable: null });
+  },
+
+  // Gold-session banking — the corrected document is ground truth for the
+  // take, so the whole (reviewed) note list is sent, edits and all.
+  checkPersonalIngest: async () => {
+    set({ personalIngestAvailable: await getPersonalIngestAvailable() });
+  },
+
+  bankGoldSession: async () => {
+    const { currentJobId, tabDocument, goldBankStatus } = get();
+    if (!currentJobId || !tabDocument || goldBankStatus === 'banking') return;
+    set({ goldBankStatus: 'banking', goldBankMessage: null });
+    try {
+      const summary = await apiBankGoldSession(
+        currentJobId,
+        tabDocument.notes.map((note) => ({
+          timestamp: note.timestamp,
+          string: note.string,
+          fret: note.fret,
+        })),
+      );
+      const frames =
+        summary.frames_written > 0 ? `${summary.frames_written} frames` : 'no frames (audio-only)';
+      set({
+        goldBankStatus: 'done',
+        goldBankMessage: `Banked ${summary.notes} notes → ${frames} + ${summary.prior_labels} prior labels`,
+      });
+    } catch (error) {
+      set({
+        goldBankStatus: 'error',
+        goldBankMessage: error instanceof Error ? error.message : 'Failed to bank the gold session',
+      });
+    }
   },
 
   // Playback actions

@@ -16,11 +16,13 @@ function App() {
   const [inputMode, setInputMode] = useState<InputMode>('record');
   const { jobStatus, videoUrl, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
+  const checkPersonalIngest = useAppStore((s) => s.checkPersonalIngest);
 
   // B5 — on mount, surface an autosaved edited session (if any) for restore.
   useEffect(() => {
     loadPersistedSession();
-  }, [loadPersistedSession]);
+    checkPersonalIngest();
+  }, [loadPersistedSession, checkPersonalIngest]);
 
   const showEditor = jobStatus === 'completed';
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';

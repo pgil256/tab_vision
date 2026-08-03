@@ -174,11 +174,17 @@ def _iter_in_window(wanted: list, start: int, timestamp: float, tolerance_s: flo
         yield wanted[index]
 
 
-def matches_to_personal_labels(matches: Iterable[AlignedNote]) -> list[PersonalLabel]:
-    """Gold-tab matches as personal-prior labels (source ``gold-tab``).
+def matches_to_personal_labels(
+    matches: Iterable[AlignedNote],
+    *,
+    source: str = "gold-tab",
+) -> list[PersonalLabel]:
+    """Gold matches as personal-prior labels.
 
     Strictly better than camera-window labels — every note, no camera in
-    the loop — so they feed the same store and the same builder.
+    the loop — so they feed the same store and the same builder. ``source``
+    records the provenance: ``"gold-tab"`` for the CLI tab-file ingest,
+    ``"studio-correction"`` for corrected in-app transcriptions.
     """
     return [
         PersonalLabel(
@@ -187,7 +193,7 @@ def matches_to_personal_labels(matches: Iterable[AlignedNote]) -> list[PersonalL
             fret=match.note.fret,
             onset_s=match.onset_s,
             confidence=match.confidence,
-            source="gold-tab",
+            source=source,
         )
         for match in matches
     ]

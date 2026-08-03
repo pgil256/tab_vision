@@ -89,6 +89,10 @@ if ($Role -eq 'backend') {
     $env:TABVISION_STRING_EVIDENCE = 'auto'
     $env:TABVISION_PHRASE_REFINEMENT = 'false'
     $env:TABVISION_VIDEO_ENABLED  = 'false'      # v1 ships audio-only
+    # Local-only gold-session banking (SPEC 1.5 carve-out, 2026-08-02): the
+    # editor's "Bank gold" button saves corrected takes as training data
+    # under this root. Never set in production, so prod answers 404.
+    $env:TABVISION_PERSONAL_ROOT  = Join-Path $env:USERPROFILE '.tabvision\personal'
 
     Write-Host "TabVision backend  : $BackendUrl  (pipeline=v1, audio=$AudioBackend)" -ForegroundColor Green
     Write-Host 'The first ensemble run may download its checkpoints; later runs are faster.' -ForegroundColor DarkGray
