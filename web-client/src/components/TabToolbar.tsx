@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { exportToTextTab } from '../utils/exportTab';
+import { exportToMidi } from '../utils/exportMidi';
+import { getBeatGrid } from '../utils/beatGrid';
 
 export function TabToolbar() {
   const {
@@ -19,6 +21,7 @@ export function TabToolbar() {
   } = useAppStore();
 
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [quantizeMidi, setQuantizeMidi] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
 
   const canUndo = editHistoryIndex >= 0;
@@ -53,6 +56,20 @@ export function TabToolbar() {
     setShowExportMenu(false);
     showToast('Downloaded tablature');
   }, [tabDocument, showToast]);
+
+  const handleExportMidi = useCallback(() => {
+    if (!tabDocument) return;
+    const bytes = exportToMidi(tabDocument, { quantize: quantizeMidi });
+    const blob = new Blob([bytes], { type: 'audio/midi' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tablature-${tabDocument.id || 'export'}.mid`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowExportMenu(false);
+    showToast('Downloaded MIDI');
+  }, [tabDocument, quantizeMidi, showToast]);
 
   // Close export menu on outside click
   useEffect(() => {
@@ -283,6 +300,29 @@ export function TabToolbar() {
                   </svg>
                   Download .txt
                 </button>
+                <button
+                  className="w-full px-3.5 py-2 text-xs text-left flex items-center gap-2.5 transition-colors hover:bg-white/5"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onClick={handleExportMidi}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
+                  </svg>
+                  Download .mid
+                </button>
+                {tabDocument && getBeatGrid(tabDocument) && (
+                  <label
+                    className="w-full px-3.5 py-2 text-xs flex items-center gap-2.5 cursor-pointer transition-colors hover:bg-white/5"
+                    style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={quantizeMidi}
+                      onChange={e => setQuantizeMidi(e.target.checked)}
+                    />
+                    Snap MIDI to beat grid (1/16 @ {Math.round(getBeatGrid(tabDocument)!.tempoBpm)} BPM)
+                  </label>
+                )}
               </div>
             )}
           </div>
