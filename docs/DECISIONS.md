@@ -6423,3 +6423,34 @@ The corpus simply starts accumulating value from practice sessions the user
 records anyway.
 
 **Spend:** $0. Local implementation and unit tests only (15 new tests).
+
+---
+
+## 2026-08-02 — The studio correction loop closes: "Bank gold" in the editor
+
+**Context:** The gold-tab CLI (same day, prior entry) required the user to
+hand-write a JSON tab and trust pitch-sequence alignment. The user directed a
+simpler loop: *run the app locally, transcribe, correct the transcription,
+and go off that.* The corrected editor document is a gold tab that labels
+itself — every note already carries its performed timestamp from the decode,
+unedited notes count as confirmed by the review, and no alignment step can
+mis-pair anything.
+
+**Decision:** `studio.ps1` now sets `TABVISION_PERSONAL_ROOT`, which (a)
+makes `/health` advertise `personal_ingest` and (b) enables
+`POST /jobs/<id>/gold-session`. The web editor shows a **Bank gold** button
+only when the backend advertises the capability, so the deployed site never
+grows the feature — prod answers 404 by construction. Banking converts the
+corrected notes (`tabvision/personal/corrections.py`; muted "X" skipped,
+confidence 1.0 by definition of human review) and ingests them through the
+same corpus/prior machinery as the CLI path, with source
+`"studio-correction"`. Audio-only takes skip frames and still bank labels.
+Capo jobs are refused; deleted uploads are refused.
+
+**Verified end-to-end** in the real app (worktree servers on alternate
+ports): upload → 25 notes transcribed (v1 · highres, guitarset-v1) → one
+note corrected via the review keys → Bank gold → HTTP 200 → 75 labelled
+frames + 25 prior labels on disk under the personal root. 5 new endpoint
+tests + 5 corrections tests; server suite 303 passed; web client builds.
+
+**Spend:** $0. Local only.

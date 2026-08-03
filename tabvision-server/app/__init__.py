@@ -58,10 +58,17 @@ def create_app(config_overrides: dict | None = None):
     if app.config['PREWARM_ML']:
         _prewarm_ml_libraries()
 
-    # Health check endpoint for deployment platforms.
+    # Health check endpoint for deployment platforms. personal_ingest
+    # advertises the local-only gold-session endpoint (SPEC §1.5 carve-out)
+    # so the web client can show its banking button only where it works.
     @app.route('/health')
     def health():
-        return jsonify({'status': 'ok'}), 200
+        from app.personal_ingest import personal_root
+
+        return jsonify({
+            'status': 'ok',
+            'personal_ingest': personal_root() is not None,
+        }), 200
 
     # Register blueprints
     from app.routes import bp
