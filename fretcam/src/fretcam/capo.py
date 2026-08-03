@@ -51,12 +51,20 @@ import numpy as np
 class FretTickLike(Protocol):
     """One fret wire as a segment across the neck, in image coordinates.
 
-    Structurally satisfied by :class:`fretcam.detection.FretTick`.
+    Structurally satisfied by :class:`fretcam.detection.FretTick`. The
+    members are read-only properties, not plain attributes: ``FretTick`` is
+    a frozen dataclass, and mypy only lets a frozen (read-only) attribute
+    satisfy a protocol member declared read-only.
     """
 
-    fret: int
-    start: tuple[float, float]
-    end: tuple[float, float]
+    @property
+    def fret(self) -> int: ...
+
+    @property
+    def start(self) -> tuple[float, float]: ...
+
+    @property
+    def end(self) -> tuple[float, float]: ...
 
 
 MAX_CAPO_FRET = 7
