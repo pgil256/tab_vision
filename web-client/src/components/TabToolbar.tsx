@@ -239,10 +239,10 @@ export function TabToolbar() {
             <span className="toolbar-group__label">Review</span>
             <div className="toolbar-confidence-list">
               {([
-                ['high', 'Confident', highCount, 'var(--color-success)'],
-                ['medium', 'Check', medCount, 'var(--color-warning)'],
-                ['low', 'Review', lowCount, 'var(--color-error)'],
-              ] as const).map(([level, label, count, color]) => (
+                ['high', 'Confident', highCount],
+                ['medium', 'Check', medCount],
+                ['low', 'Review', lowCount],
+              ] as const).map(([level, label, count]) => (
                 <button
                   key={level}
                   className={`stat-pill stat-pill-btn stat-pill--${level}`}
@@ -252,7 +252,10 @@ export function TabToolbar() {
                   data-tooltip={`Jump to next ${label.toLowerCase()} note`}
                   data-testid={`jump-${level}`}
                 >
-                  <span className="stat-pill__dot" style={{ background: color }} aria-hidden="true" />
+                  <span
+                    className={`stat-pill__marker stat-pill__marker--${level}`}
+                    aria-hidden="true"
+                  />
                   <span className="stat-pill__label">{label}</span>
                   <strong>{count}</strong>
                 </button>

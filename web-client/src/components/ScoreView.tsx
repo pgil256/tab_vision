@@ -12,6 +12,11 @@ import { TabNote } from '../types/tab';
 import { audition } from '../utils/auditionEngine';
 import { getBeatGrid } from '../utils/beatGrid';
 import {
+  describeSelection,
+  describeTablature,
+  isFlaggedNote,
+} from '../utils/noteAccessibility';
+import {
   bendLabel,
   isBend,
   isSlide,
@@ -88,6 +93,8 @@ function xToTime(system: ScoreSystem, x: number): number {
 interface SystemProps {
   system: ScoreSystem;
   notes: PlacedNote[];
+  systemIndex: number;
+  systemCount: number;
   selectedNoteIds: string[];
   /** currentTime when the playhead is inside this system, else -1 (keeps
    * React.memo effective: only the active system re-renders per tick). */
@@ -99,6 +106,8 @@ interface SystemProps {
 const System = React.memo(function System({
   system,
   notes,
+  systemIndex,
+  systemCount,
   selectedNoteIds,
   cursorTime,
   onSeek,
@@ -131,6 +140,13 @@ const System = React.memo(function System({
 
   const cursorX = cursorTime >= 0 ? timeToX(system, cursorTime) : null;
   const selectedIds = new Set(selectedNoteIds);
+  const firstMeasure = system.measures[0]?.number ?? 1;
+  const lastMeasure = system.measures[system.measures.length - 1]?.number ?? firstMeasure;
+  const flaggedCount = notes.reduce(
+    (count, placed) => count + (isFlaggedNote(placed.note) ? 1 : 0),
+    0,
+  );
+  const systemSummary = `Score system ${systemIndex + 1} of ${systemCount}, measures ${firstMeasure} through ${lastMeasure}, ${notes.length} notes, ${flaggedCount} flagged for review.`;
 
   return (
     <svg
@@ -138,13 +154,16 @@ const System = React.memo(function System({
       className="score-system block w-full"
       viewBox={`0 0 ${VIEW_W} ${SYSTEM_H}`}
       onClick={handleClick}
+      role="img"
+      aria-label={systemSummary}
       style={{ cursor: 'pointer' }}
     >
+      <title>{systemSummary}</title>
       {/* Measure number at the system start */}
       <text
         x={LABEL_W}
         y={STAFF_TOP - 12}
-        fontSize={10}
+        fontSize={11}
         fontFamily="Georgia, 'Times New Roman', serif"
         fontStyle="italic"
         fill={INK_FAINT}
@@ -158,7 +177,7 @@ const System = React.memo(function System({
           key={name + i}
           x={LABEL_W - 12}
           y={stringY(i + 1) + 3.5}
-          fontSize={10}
+          fontSize={11}
           fontFamily="'SF Mono', 'Cascadia Code', monospace"
           textAnchor="middle"
           fill={INK_FAINT}
@@ -288,7 +307,7 @@ const System = React.memo(function System({
                 <text
                   x={p.x + p.w / 2 + 12}
                   y={p.y - 8}
-                  fontSize={7}
+                  fontSize={11}
                   fontFamily="'SF Mono', 'Cascadia Code', monospace"
                   fill={fill}
                 >
@@ -472,12 +491,20 @@ export function ScoreView() {
     `Tuning: ${tuningLabel}`,
   ];
   if (tabDocument.capoFret > 0) infoParts.push(`Capo ${tabDocument.capoFret}`);
+  const scoreSummary = describeTablature('score', tabDocument.notes);
+  const selectionAnnouncement = describeSelection(
+    tabDocument.notes,
+    selectedNoteId,
+    selectedNoteIds,
+  );
 
   return (
     <div
       ref={scrollRef}
       className="score-scroll h-full overflow-y-auto"
       onScroll={handleScroll}
+      role="region"
+      aria-label={scoreSummary}
       style={{ background: 'var(--bg-base)' }}
     >
       <div className="score-page-wrap flex justify-center px-4 py-6">
@@ -531,7 +558,15 @@ export function ScoreView() {
               <h2
                 className="score-title group cursor-text"
                 title="Click to rename"
+                tabIndex={0}
+                aria-label={`${tabDocument?.title || 'TabVision Transcription'}. Activate to rename.`}
                 onClick={() => {
+                  setTitleDraft(tabDocument?.title ?? '');
+                  setEditingTitle(true);
+                }}
+                onKeyDown={event => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
                   setTitleDraft(tabDocument?.title ?? '');
                   setEditingTitle(true);
                 }}
@@ -546,6 +581,7 @@ export function ScoreView() {
                 {tabDocument?.title || 'TabVision Transcription'}
                 <svg
                   className="score-title-pencil print-hide"
+                  aria-hidden="true"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -592,6 +628,8 @@ export function ScoreView() {
               <System
                 system={system}
                 notes={placedBySystem[i]}
+                systemIndex={i}
+                systemCount={systems.length}
                 selectedNoteIds={selectedNoteIds}
                 cursorTime={i === activeSystem ? currentTime : -1}
                 onSeek={handleSeek}
@@ -607,12 +645,15 @@ export function ScoreView() {
               textAlign: 'center',
               fontFamily: "Georgia, 'Times New Roman', serif",
               fontStyle: 'italic',
-              fontSize: '10px',
+              fontSize: '11px',
               color: INK_FAINT,
             }}
           >
             Transcribed with TabVision
           </p>
+          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {selectionAnnouncement}
+          </div>
         </div>
       </div>
     </div>

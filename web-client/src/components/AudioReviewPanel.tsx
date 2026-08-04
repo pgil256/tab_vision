@@ -24,6 +24,7 @@ import { UploadedVideoRoiPicker } from './FretboardRoiPicker';
 const MIN_KEEP_SECONDS = 0.25;
 const WAVEFORM_BINS = 600;
 const CLEANUP_PREFERENCE_KEY = 'tabvision.audioCleanupExpanded';
+type TrimBoundary = 'start' | 'end';
 
 function formatTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -57,6 +58,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
   const filterRef = useRef<BiquadFilterNode | null>(null);
   const playStartRef = useRef<{ ctxTime: number; offset: number } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const trimDragRef = useRef<{ boundary: TrimBoundary; pointerId: number } | null>(null);
 
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [decodeError, setDecodeError] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
 
   useEffect(() => stopPlayback, [stopPlayback]);
 
-  const startPlayback = useCallback(async () => {
+  const startPlayback = useCallback(async (requestedOffset?: number) => {
     const ctx = ctxRef.current;
     if (!ctx || !buffer || !settings) return;
     if (ctx.state === 'suspended') await ctx.resume();
@@ -164,11 +166,16 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
     gain.connect(ctx.destination);
     gainRef.current = gain;
 
-    const keepDur = Math.max(MIN_KEEP_SECONDS, settings.trimEnd - settings.trimStart);
+    const offset = Math.max(
+      settings.trimStart,
+      Math.min(settings.trimEnd - 0.01, requestedOffset ?? settings.trimStart),
+    );
+    const keepDur = Math.max(0.01, settings.trimEnd - offset);
     source.onended = () => stopPlayback();
-    source.start(0, settings.trimStart, keepDur);
+    source.start(0, offset, keepDur);
     sourceRef.current = source;
-    playStartRef.current = { ctxTime: ctx.currentTime, offset: settings.trimStart };
+    playStartRef.current = { ctxTime: ctx.currentTime, offset };
+    setPlayhead(offset);
     setPlaying(true);
 
     const tick = () => {
@@ -197,6 +204,95 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
     },
     [stopPlayback],
   );
+
+  const waveformTimeFromClientX = useCallback((clientX: number): number | null => {
+    const canvas = canvasRef.current;
+    if (!canvas || duration <= 0) return null;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return ratio * duration;
+  }, [duration]);
+
+  const previewFromClientX = useCallback((clientX: number) => {
+    if (!settings) return;
+    const time = waveformTimeFromClientX(clientX);
+    if (time === null) return;
+    const offset = Math.max(settings.trimStart, Math.min(settings.trimEnd - 0.01, time));
+    setPlayhead(offset);
+    void startPlayback(offset);
+  }, [settings, startPlayback, waveformTimeFromClientX]);
+
+  const handleWaveformKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    if (!settings) return;
+    const current = playhead ?? settings.trimStart;
+    const step = event.shiftKey ? 1 : 0.25;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowLeft' ? -1 : 1;
+      const next = Math.max(settings.trimStart, Math.min(settings.trimEnd - 0.01, current + direction * step));
+      setPlayhead(next);
+      if (playing) void startPlayback(next);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      void startPlayback(current);
+    }
+  }, [playhead, playing, settings, startPlayback]);
+
+  const updateTrimFromClientX = useCallback((boundary: TrimBoundary, clientX: number) => {
+    if (!settings) return;
+    const time = waveformTimeFromClientX(clientX);
+    if (time === null) return;
+    if (boundary === 'start') {
+      updateSettings({ trimStart: Math.max(0, Math.min(time, settings.trimEnd - MIN_KEEP_SECONDS)) });
+    } else {
+      updateSettings({ trimEnd: Math.min(duration, Math.max(time, settings.trimStart + MIN_KEEP_SECONDS)) });
+    }
+  }, [duration, settings, updateSettings, waveformTimeFromClientX]);
+
+  const beginTrimDrag = useCallback((boundary: TrimBoundary, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    stopPlayback();
+    trimDragRef.current = { boundary, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateTrimFromClientX(boundary, event.clientX);
+  }, [stopPlayback, updateTrimFromClientX]);
+
+  const moveTrimDrag = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = trimDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    updateTrimFromClientX(drag.boundary, event.clientX);
+  }, [updateTrimFromClientX]);
+
+  const endTrimDrag = useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = trimDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    updateTrimFromClientX(drag.boundary, event.clientX);
+    trimDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }, [updateTrimFromClientX]);
+
+  const handleTrimKeyDown = useCallback((boundary: TrimBoundary, event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!settings || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+    event.preventDefault();
+    stopPlayback();
+    const direction = event.key === 'ArrowLeft' ? -1 : 1;
+    const step = event.shiftKey ? 1 : 0.05;
+    if (boundary === 'start') {
+      updateSettings({
+        trimStart: Math.max(0, Math.min(settings.trimStart + direction * step, settings.trimEnd - MIN_KEEP_SECONDS)),
+      });
+    } else {
+      updateSettings({
+        trimEnd: Math.min(duration, Math.max(settings.trimEnd + direction * step, settings.trimStart + MIN_KEEP_SECONDS)),
+      });
+    }
+  }, [duration, settings, stopPlayback, updateSettings]);
 
   // Waveform + trim shading + playhead.
   useEffect(() => {
@@ -393,14 +489,14 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
 
         {/* Waveform */}
         <div
-          className="rounded-xl overflow-hidden relative"
+          className="waveform-editor rounded-xl relative"
           style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--border-subtle)' }}
         >
           {decodeError ? (
             <div className="h-28 flex items-center justify-center px-6 text-center">
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{decodeError}</p>
             </div>
-          ) : !buffer ? (
+          ) : !buffer || !settings ? (
             <div className="h-28 flex items-center justify-center gap-2">
               <div
                 className="w-3 h-3 rounded-full animate-spin-slow"
@@ -409,7 +505,58 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Decoding audio…</span>
             </div>
           ) : (
-            <canvas ref={canvasRef} className="w-full block" style={{ height: '112px' }} />
+            <>
+              <canvas
+                ref={canvasRef}
+                className="waveform-editor__canvas w-full block rounded-xl"
+                style={{ height: '112px' }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Audio waveform. Trimmed region runs from ${formatTime(settings.trimStart)} to ${formatTime(settings.trimEnd)}. Click to preview from a position.`}
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  previewFromClientX(event.clientX);
+                }}
+                onKeyDown={handleWaveformKeyDown}
+              />
+              <button
+                type="button"
+                className="waveform-trim-handle waveform-trim-handle--start"
+                style={{ left: `${(settings.trimStart / duration) * 100}%` }}
+                role="slider"
+                aria-label="Trim start"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(0, settings.trimEnd - MIN_KEEP_SECONDS)}
+                aria-valuenow={settings.trimStart}
+                aria-valuetext={formatTime(settings.trimStart)}
+                onPointerDown={(event) => beginTrimDrag('start', event)}
+                onPointerMove={moveTrimDrag}
+                onPointerUp={endTrimDrag}
+                onPointerCancel={endTrimDrag}
+                onKeyDown={(event) => handleTrimKeyDown('start', event)}
+              >
+                <span aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="waveform-trim-handle waveform-trim-handle--end"
+                style={{ left: `${(settings.trimEnd / duration) * 100}%` }}
+                role="slider"
+                aria-label="Trim end"
+                aria-valuemin={Math.min(duration, settings.trimStart + MIN_KEEP_SECONDS)}
+                aria-valuemax={duration}
+                aria-valuenow={settings.trimEnd}
+                aria-valuetext={formatTime(settings.trimEnd)}
+                onPointerDown={(event) => beginTrimDrag('end', event)}
+                onPointerMove={moveTrimDrag}
+                onPointerUp={endTrimDrag}
+                onPointerCancel={endTrimDrag}
+                onKeyDown={(event) => handleTrimKeyDown('end', event)}
+              >
+                <span aria-hidden="true" />
+              </button>
+            </>
           )}
         </div>
 
@@ -419,7 +566,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
             <div className="mt-3 flex items-center gap-3">
               <button
                 className="btn btn-primary btn-icon"
-                onClick={playing ? stopPlayback : startPlayback}
+                onClick={playing ? stopPlayback : () => { void startPlayback(); }}
                 aria-label={playing ? 'Stop preview' : 'Play preview'}
                 style={{ padding: '10px' }}
               >

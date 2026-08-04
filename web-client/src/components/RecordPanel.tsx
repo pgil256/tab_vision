@@ -727,7 +727,7 @@ export function RecordPanel() {
                       />
                     )}
                   </div>
-                  <div className="flex justify-between mt-1.5 text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                  <div className="flex justify-between mt-1.5 text-[11px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
                     <span>−50¢</span>
                     <span style={{ color: tunerReading ? accent : 'var(--text-muted)' }}>
                       {tunerReading

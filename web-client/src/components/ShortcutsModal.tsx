@@ -196,7 +196,7 @@ export function ShortcutsModal() {
                       {shortcut.keys.map((key, keyIdx) => (
                         <React.Fragment key={keyIdx}>
                           {keyIdx > 0 && (
-                            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>+</span>
+                            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>+</span>
                           )}
                           <span className="kbd">{key}</span>
                         </React.Fragment>
