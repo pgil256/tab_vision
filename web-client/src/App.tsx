@@ -14,8 +14,10 @@ import './index.css';
 
 type InputMode = 'upload' | 'record';
 
-const DESKTOP_CONTROL_DECK_HEIGHT = 124;
-const COMPACT_CONTROL_DECK_HEIGHT = 188;
+const DESKTOP_CANVAS_DECK_HEIGHT = 304;
+const COMPACT_CANVAS_DECK_HEIGHT = 292;
+const MINIMUM_CANVAS_DECK_HEIGHT = 280;
+const MAXIMUM_CANVAS_DECK_HEIGHT = 1200;
 
 const CaptureIcon = ({ mode }: { mode: InputMode }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
@@ -35,10 +37,9 @@ const CaptureIcon = ({ mode }: { mode: InputMode }) => (
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const editorShellRef = useRef<HTMLDivElement>(null);
-  const editorControlDeckRef = useRef<HTMLDivElement>(null);
+  const editorCanvasDeckRef = useRef<HTMLElement>(null);
   const editorSplitterRef = useRef<HTMLDivElement>(null);
-  const editorControlHeightRef = useRef<number | null>(null);
+  const editorCanvasHeightRef = useRef<number | null>(null);
   const editorResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
   const [confirmingNewTake, setConfirmingNewTake] = useState(false);
@@ -80,29 +81,21 @@ function App() {
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
   const stageLabel = showEditor ? 'Refine' : isProcessing ? 'Analyzing' : 'Capture';
 
-  const defaultControlDeckHeight = useCallback(
-    () => window.innerWidth <= 900 ? COMPACT_CONTROL_DECK_HEIGHT : DESKTOP_CONTROL_DECK_HEIGHT,
+  const defaultCanvasDeckHeight = useCallback(
+    () => window.innerWidth <= 900 ? COMPACT_CANVAS_DECK_HEIGHT : DESKTOP_CANVAS_DECK_HEIGHT,
     [],
   );
 
-  const applyControlDeckHeight = useCallback((requestedHeight: number) => {
-    const shell = editorShellRef.current;
-    const deck = editorControlDeckRef.current;
-    if (!shell || !deck) return;
+  const applyCanvasDeckHeight = useCallback((requestedHeight: number) => {
+    const deck = editorCanvasDeckRef.current;
+    if (!deck) return;
 
-    const shellHeight = shell.clientHeight;
-    const minimumDeckHeight = window.innerWidth <= 900 ? 150 : 96;
-    const reservedCanvasHeight = Math.max(160, Math.min(420, shellHeight * 0.62));
-    const maximumDeckHeight = Math.max(
-      minimumDeckHeight,
-      shellHeight - reservedCanvasHeight - 10,
-    );
     const height = Math.round(Math.max(
-      minimumDeckHeight,
-      Math.min(maximumDeckHeight, requestedHeight),
+      MINIMUM_CANVAS_DECK_HEIGHT,
+      Math.min(MAXIMUM_CANVAS_DECK_HEIGHT, requestedHeight),
     ));
 
-    editorControlHeightRef.current = height;
+    editorCanvasHeightRef.current = height;
     deck.style.height = `${height}px`;
     editorSplitterRef.current?.setAttribute('aria-valuenow', String(height));
   }, []);
@@ -116,7 +109,7 @@ function App() {
     const handlePointerMove = (event: PointerEvent) => {
       const resize = editorResizeRef.current;
       if (!resize) return;
-      applyControlDeckHeight(resize.startHeight + event.clientY - resize.startY);
+      applyCanvasDeckHeight(resize.startHeight + event.clientY - resize.startY);
     };
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', stopEditorResize);
@@ -127,12 +120,12 @@ function App() {
       window.removeEventListener('pointercancel', stopEditorResize);
       stopEditorResize();
     };
-  }, [applyControlDeckHeight, stopEditorResize]);
+  }, [applyCanvasDeckHeight, stopEditorResize]);
 
   useEffect(() => {
     if (!showEditor) return;
-    const applyCurrentHeight = () => applyControlDeckHeight(
-      editorControlHeightRef.current ?? defaultControlDeckHeight(),
+    const applyCurrentHeight = () => applyCanvasDeckHeight(
+      editorCanvasHeightRef.current ?? defaultCanvasDeckHeight(),
     );
     const frame = window.requestAnimationFrame(applyCurrentHeight);
     window.addEventListener('resize', applyCurrentHeight);
@@ -140,32 +133,51 @@ function App() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('resize', applyCurrentHeight);
     };
-  }, [applyControlDeckHeight, defaultControlDeckHeight, showEditor]);
+  }, [applyCanvasDeckHeight, defaultCanvasDeckHeight, showEditor]);
 
   const startEditorResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
     editorResizeRef.current = {
       startY: event.clientY,
-      startHeight: editorControlDeckRef.current?.getBoundingClientRect().height
-        ?? defaultControlDeckHeight(),
+      startHeight: editorCanvasDeckRef.current?.getBoundingClientRect().height
+        ?? defaultCanvasDeckHeight(),
     };
     document.body.classList.add('is-editor-resizing');
-  }, [defaultControlDeckHeight]);
+  }, [defaultCanvasDeckHeight]);
 
   const handleEditorSplitterKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    const current = editorControlHeightRef.current ?? defaultControlDeckHeight();
+    const current = editorCanvasHeightRef.current ?? defaultCanvasDeckHeight();
+    let nextHeight: number | null = null;
+
     if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      applyControlDeckHeight(current - (event.shiftKey ? 32 : 12));
+      nextHeight = current - (event.shiftKey ? 32 : 12);
     } else if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      applyControlDeckHeight(current + (event.shiftKey ? 32 : 12));
+      nextHeight = current + (event.shiftKey ? 32 : 12);
     } else if (event.key === 'Home') {
-      event.preventDefault();
-      applyControlDeckHeight(defaultControlDeckHeight());
+      nextHeight = defaultCanvasDeckHeight();
     }
-  }, [applyControlDeckHeight, defaultControlDeckHeight]);
+
+    if (nextHeight === null) return;
+    event.preventDefault();
+
+    // Keep the canvas's top edge visually anchored while it grows. Browsers
+    // otherwise scroll the focused separator back into view after each keypress,
+    // which makes a downward resize look like it is expanding upward.
+    const scrollContainer = event.currentTarget.closest<HTMLElement>('.app-main');
+    const scrollTop = scrollContainer?.scrollTop ?? 0;
+    applyCanvasDeckHeight(nextHeight);
+    if (scrollContainer) {
+      const restoreScrollPosition = () => {
+        scrollContainer.scrollTop = scrollTop;
+      };
+      restoreScrollPosition();
+      window.requestAnimationFrame(() => {
+        restoreScrollPosition();
+        window.setTimeout(restoreScrollPosition, 0);
+      });
+    }
+  }, [applyCanvasDeckHeight, defaultCanvasDeckHeight]);
 
   return (
     <div className={`app-shell ${showEditor ? 'app-shell--editor' : 'app-shell--landing'} print-expand`}>
@@ -335,8 +347,8 @@ function App() {
         )}
 
         {showEditor && (
-          <div ref={editorShellRef} className="editor-shell animate-fade-in print-expand">
-            <div ref={editorControlDeckRef} className="editor-control-deck print-hide">
+          <div className="editor-shell animate-fade-in print-expand">
+            <div className="editor-control-deck print-hide">
               <section className="editor-source-panel" aria-label="Source playback">
                 <div className="panel-label">
                   <span>Source</span>
@@ -353,24 +365,7 @@ function App() {
               </section>
             </div>
 
-            <div
-              ref={editorSplitterRef}
-              className="editor-splitter print-hide"
-              role="separator"
-              aria-label="Resize transcription workspace"
-              aria-orientation="horizontal"
-              aria-valuemin={96}
-              aria-valuemax={500}
-              tabIndex={0}
-              onPointerDown={startEditorResize}
-              onDoubleClick={() => applyControlDeckHeight(defaultControlDeckHeight())}
-              onKeyDown={handleEditorSplitterKeyDown}
-              data-tooltip="Drag to resize the transcription workspace · double-click to reset"
-            >
-              <span />
-            </div>
-
-            <section className="editor-canvas-deck print-expand">
+            <section ref={editorCanvasDeckRef} className="editor-canvas-deck print-expand">
               <div className="canvas-heading print-hide">
                 <div>
                   <span>{viewMode === 'score' ? 'Printable score' : 'Interactive timeline'}</span>
@@ -382,6 +377,23 @@ function App() {
                 {viewMode === 'score' ? <ScoreView /> : <TabCanvas videoRef={videoRef} />}
               </div>
             </section>
+
+            <div
+              ref={editorSplitterRef}
+              className="editor-splitter print-hide"
+              role="separator"
+              aria-label="Resize tablature workspace"
+              aria-orientation="horizontal"
+              aria-valuemin={MINIMUM_CANVAS_DECK_HEIGHT}
+              aria-valuemax={MAXIMUM_CANVAS_DECK_HEIGHT}
+              tabIndex={0}
+              onPointerDown={startEditorResize}
+              onDoubleClick={() => applyCanvasDeckHeight(defaultCanvasDeckHeight())}
+              onKeyDown={handleEditorSplitterKeyDown}
+              data-tooltip="Drag down to expand the tablature workspace · double-click to reset"
+            >
+              <span />
+            </div>
           </div>
         )}
       </main>
