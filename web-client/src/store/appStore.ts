@@ -16,6 +16,7 @@ import { MAX_FRET, MAX_STRING, MIN_STRING, openStringMidi, TuningId } from '../u
 import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
+export type InputMediaKind = 'audio' | 'video';
 
 // Speed-vs-accuracy slider. The server pipeline currently has two modes
 // ('fast' | 'accurate'); the notches bucket into those, so the middle steps
@@ -102,6 +103,9 @@ interface AppState {
   // Whether the server pipeline runs the video stack for this job; true until
   // the job status says otherwise (v0 always runs video).
   pipelineVideoEnabled: boolean;
+  // Actual submitted file kind. Unlike pipelineVideoEnabled, this stays
+  // accurate while the initial upload is still waiting for server status.
+  inputMediaKind: InputMediaKind;
   tabDocument: TabDocument | null;
   errorMessage: string | null;
   videoUrl: string | null;
@@ -158,6 +162,7 @@ interface AppState {
   setStatus: (status: JobStatus) => void;
   setProgress: (progress: number, stage: string) => void;
   setPipelineVideoEnabled: (enabled: boolean) => void;
+  setInputMediaKind: (kind: InputMediaKind) => void;
   setTabDocument: (doc: TabDocument) => void;
   setError: (message: string) => void;
   setVideoUrl: (url: string | null) => void;
@@ -250,6 +255,7 @@ const initialState = {
   progress: 0,
   currentStage: '',
   pipelineVideoEnabled: true,
+  inputMediaKind: 'video' as InputMediaKind,
   tabDocument: null as TabDocument | null,
   errorMessage: null as string | null,
   videoUrl: null as string | null,
@@ -308,6 +314,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setProgress: (progress, stage) => set({ progress, currentStage: stage }),
 
   setPipelineVideoEnabled: (enabled) => set({ pipelineVideoEnabled: enabled }),
+
+  setInputMediaKind: (kind) => set({ inputMediaKind: kind }),
 
   setTabDocument: (doc) => {
     set({

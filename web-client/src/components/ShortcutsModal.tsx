@@ -78,15 +78,18 @@ export function ShortcutsModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
+      className="shortcuts-modal-layer fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
       onClick={() => setShowShortcutsModal(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shortcuts-modal-title"
     >
       {/* Backdrop */}
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
 
       {/* Modal */}
       <div
-        className="relative rounded-2xl p-6 w-full max-w-md animate-slide-up"
+        className="shortcuts-modal-card relative rounded-2xl p-6 w-full animate-slide-up"
         style={{
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
@@ -96,12 +99,13 @@ export function ShortcutsModal() {
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h2 id="shortcuts-modal-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
             Keyboard Shortcuts
           </h2>
           <button
             className="btn btn-ghost btn-icon"
             onClick={() => setShowShortcutsModal(false)}
+            aria-label="Close keyboard shortcuts"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -110,7 +114,7 @@ export function ShortcutsModal() {
         </div>
 
         {/* Sections */}
-        <div className="space-y-5">
+        <div className="shortcuts-modal-sections">
           {SECTIONS.map((section) => (
             <div key={section.title}>
               <h3

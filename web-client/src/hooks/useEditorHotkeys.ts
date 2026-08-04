@@ -25,6 +25,23 @@ export function useEditorHotkeys() {
       }
 
       const s = useAppStore.getState();
+      // The helper is global so the top-bar hint works before and after a
+      // transcription. Checking both key and physical code keeps Shift+/
+      // reliable across browser keyboard layouts.
+      if (
+        !e.ctrlKey
+        && !e.metaKey
+        && !e.altKey
+        && (e.key === '?' || (e.code === 'Slash' && e.shiftKey))
+      ) {
+        e.preventDefault();
+        s.setShowShortcutsModal(!s.showShortcutsModal);
+        return;
+      }
+
+      // Never let editor commands fire through the shortcuts overlay.
+      if (s.showShortcutsModal) return;
+
       // The hook is always mounted (unlike TabCanvas), so editor keys are
       // gated on a completed job.
       if (s.jobStatus !== 'completed') return;

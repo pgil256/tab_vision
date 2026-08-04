@@ -3,6 +3,8 @@ import { speedAccuracyToMode, useAppStore } from '../store/appStore';
 import { uploadVideo, getJobStatus, getJobResult } from '../api/client';
 import { saveRecordingBlob } from './blobStore';
 
+const VIDEO_FILE_EXTENSION = /\.(mp4|mov|m4v|webm)$/i;
+
 export function useProcessVideo() {
   const {
     capoFretInput,
@@ -15,11 +17,17 @@ export function useProcessVideo() {
     roiInput,
     setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl,
     setPipelineVideoEnabled,
+    setInputMediaKind,
     reset,
   } = useAppStore();
 
   return useCallback(async (file: File) => {
     reset();
+    setInputMediaKind(
+      file.type.startsWith('video/') || VIDEO_FILE_EXTENSION.test(file.name)
+        ? 'video'
+        : 'audio',
+    );
     setStatus('uploading');
 
     const videoUrl = URL.createObjectURL(file);
@@ -75,6 +83,7 @@ export function useProcessVideo() {
     setError,
     setVideoUrl,
     setPipelineVideoEnabled,
+    setInputMediaKind,
     capoFretInput,
     tuningInput,
     instrumentInput,
