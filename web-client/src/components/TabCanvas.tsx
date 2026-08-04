@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react'
 import { pitchPreservingFret, useAppStore } from '../store/appStore';
 import { TabNote } from '../types/tab';
 import { BeatGrid, getBeatGrid } from '../utils/beatGrid';
+import { describeSelection, describeTablature } from '../utils/noteAccessibility';
 import {
   bendLabel,
   isBend,
@@ -154,7 +155,7 @@ function drawTimeGrid(
   strokeVerticals(ctx, majorTicks, TIME_AXIS_HEIGHT - 8, TIME_AXIS_HEIGHT, COLORS.timeMajorMarker);
 
   ctx.fillStyle = COLORS.timeText;
-  ctx.font = '10px "SF Mono", monospace';
+  ctx.font = '11px "SF Mono", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let t = 0; t <= l.safeDuration; t++) {
@@ -200,7 +201,7 @@ function drawTimeGrid(
 
   // Measure numbers in the lower half of the axis strip.
   ctx.fillStyle = COLORS.measureText;
-  ctx.font = '600 9px "SF Mono", monospace';
+  ctx.font = '600 11px "SF Mono", monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   for (let m = 0; m < measureXs.length; m++) {
@@ -244,6 +245,7 @@ interface DragGesture {
 }
 
 const DRAG_THRESHOLD_PX = 4;
+const COARSE_POINTER_HIT_SLOP = 11;
 
 const NOTE_FONT = 'bold 11px "SF Mono", monospace';
 
@@ -361,6 +363,21 @@ function drawNotes(
     ctx.fill();
     ctx.shadowBlur = 0;
 
+    // Confidence remains legible without color: confident notes use a solid
+    // outline, check notes a dash, and review notes a dotted outline.
+    if (!isSelected && note.fret !== 'X') {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(15, 15, 14, 0.72)';
+      ctx.lineWidth = 1.5;
+      if (note.confidenceLevel === 'medium') ctx.setLineDash([5, 3]);
+      if (note.confidenceLevel === 'low') {
+        ctx.setLineDash([1, 3]);
+        ctx.lineCap = 'round';
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (isActive) {
       ctx.strokeStyle = COLORS.activeRing;
       ctx.lineWidth = 1.5;
@@ -417,7 +434,7 @@ function drawNotes(
         c => c.string === note.string && c.fret === note.fret
       );
       ctx.fillStyle = COLORS.reviewRing;
-      ctx.font = '600 9px "SF Mono", monospace';
+      ctx.font = '600 11px "SF Mono", monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(
@@ -449,7 +466,7 @@ function drawNotes(
       ctx.moveTo(arrowTopX, arrowTopY);
       ctx.lineTo(arrowTopX - 1, arrowTopY + 4);
       ctx.stroke();
-      ctx.font = '600 8px "SF Mono", monospace';
+      ctx.font = '600 11px "SF Mono", monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       ctx.fillText(bendLabel(note), arrowTopX + 2, arrowTopY + 2);
@@ -503,6 +520,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const noteHitboxesRef = useRef<NoteHitbox[]>([]);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<number | null>(null);
+  const coarsePointerRef = useRef(false);
   // Timestamp of the last wheel / pointer input on the scroll container. A
   // scroll event only counts as a MANUAL scroll (and detaches follow) when it
   // arrives right after real input — the auto-follow's own scrollTo() also
@@ -515,6 +533,16 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const dragGestureRef = useRef<DragGesture | null>(null);
   const dragPreviewRef = useRef<DragPreview | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse)');
+    const update = () => {
+      coarsePointerRef.current = media.matches;
+    };
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   const {
     tabDocument,
@@ -759,17 +787,27 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   );
 
   const hitTest = useCallback((x: number, y: number): NoteHitbox | null => {
+    const slop = coarsePointerRef.current ? COARSE_POINTER_HIT_SLOP : 0;
+    let closest: NoteHitbox | null = null;
+    let closestDistance = Infinity;
     for (const hitbox of noteHitboxesRef.current) {
       if (
-        x >= hitbox.x &&
-        x <= hitbox.x + hitbox.width &&
-        y >= hitbox.y &&
-        y <= hitbox.y + hitbox.height
+        x >= hitbox.x - slop &&
+        x <= hitbox.x + hitbox.width + slop &&
+        y >= hitbox.y - slop &&
+        y <= hitbox.y + hitbox.height + slop
       ) {
-        return hitbox;
+        const distance = Math.hypot(
+          x - (hitbox.x + hitbox.width / 2),
+          y - (hitbox.y + hitbox.height / 2),
+        );
+        if (distance < closestDistance) {
+          closest = hitbox;
+          closestDistance = distance;
+        }
       }
     }
-    return null;
+    return closest;
   }, []);
 
   const clearDrag = useCallback(() => {
@@ -976,6 +1014,12 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       ? tabDocument.notes.find(n => n.id === selectedNoteId)
       : undefined;
   const reviewAlternatives = reviewNote?.candidates?.length ?? 0;
+  const tablatureSummary = describeTablature('timeline', tabDocument.notes);
+  const selectionAnnouncement = describeSelection(
+    tabDocument.notes,
+    selectedNoteId,
+    selectedNoteIds,
+  );
 
   return (
     <div
@@ -1032,6 +1076,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       >
         <canvas
           ref={canvasRef}
+          role="img"
+          tabIndex={0}
+          aria-label={`${tablatureSummary} Select notes with the pointer, then use the editor keyboard shortcuts to make corrections.`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -1054,6 +1101,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
             touchAction: 'pan-x',
           }}
         />
+      </div>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {selectionAnnouncement}
       </div>
     </div>
   );

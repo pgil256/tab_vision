@@ -24,14 +24,18 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
     toggleVideoCollapsed,
     setPlaybackRate,
   } = useAppStore();
+  const playableDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
 
   const progressRef = useRef<HTMLDivElement>(null);
+  const scrubPointerRef = useRef<number | null>(null);
   const [showRateMenu, setShowRateMenu] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
 
   // Format time as M:SS
   const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -69,13 +73,48 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
   // video element when one exists and its own clock when one doesn't (M6).
   const togglePlay = useCallback(() => audition.togglePlay(), []);
 
-  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressRef.current || duration === 0) return;
+  const seekFromClientX = useCallback((clientX: number) => {
+    if (!progressRef.current || playableDuration === 0) return;
     const rect = progressRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
-    audition.seek(percentage * duration);
-  }, [duration]);
+    const percentage = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    audition.seek(percentage * playableDuration);
+  }, [playableDuration]);
+
+  const handleProgressPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || playableDuration <= 0) return;
+    e.preventDefault();
+    scrubPointerRef.current = e.pointerId;
+    setIsScrubbing(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    seekFromClientX(e.clientX);
+  }, [playableDuration, seekFromClientX]);
+
+  const handleProgressPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (scrubPointerRef.current !== e.pointerId) return;
+    seekFromClientX(e.clientX);
+  }, [seekFromClientX]);
+
+  const finishProgressScrub = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (scrubPointerRef.current !== e.pointerId) return;
+    seekFromClientX(e.clientX);
+    scrubPointerRef.current = null;
+    setIsScrubbing(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, [seekFromClientX]);
+
+  const handleProgressKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    let nextTime: number | null = null;
+    const step = e.shiftKey ? 10 : 5;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') nextTime = currentTime - step;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') nextTime = currentTime + step;
+    if (e.key === 'Home') nextTime = 0;
+    if (e.key === 'End') nextTime = playableDuration;
+    if (nextTime === null) return;
+    e.preventDefault();
+    audition.seek(Math.max(0, Math.min(playableDuration, nextTime)));
+  }, [currentTime, playableDuration]);
 
   const skip = useCallback((seconds: number) => {
     audition.seek(currentTime + seconds);
@@ -105,7 +144,9 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
     return () => window.removeEventListener('click', handleClick);
   }, [showRateMenu]);
 
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progressPercentage = playableDuration > 0
+    ? Math.max(0, Math.min(100, (currentTime / playableDuration) * 100))
+    : 0;
 
   // Without a recording (restored session whose blob is gone) the controls
   // still render — they drive the audition engine's internal transport so the
@@ -149,7 +190,7 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
               />
               {/* Collapse button overlay */}
               <button
-                className="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center transition-opacity opacity-0 hover:opacity-100"
+                className="video-collapse-button absolute top-2 right-2 rounded flex items-center justify-center"
                 style={{ background: 'rgba(0,0,0,0.6)' }}
                 onClick={toggleVideoCollapsed}
                 aria-label="Hide video"
@@ -167,26 +208,30 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
             {/* Progress bar */}
             <div
               ref={progressRef}
-              className="h-1 rounded-full cursor-pointer group"
-              style={{ background: 'rgba(255,255,255,0.08)' }}
-              onClick={handleProgressClick}
+              className={`video-progress cursor-pointer group ${isScrubbing ? 'is-scrubbing' : ''}`}
+              role="slider"
+              tabIndex={0}
+              aria-label="Playback position"
+              aria-valuemin={0}
+              aria-valuemax={playableDuration}
+              aria-valuenow={Math.min(Math.max(0, currentTime), playableDuration)}
+              aria-valuetext={`${formatTime(currentTime)} of ${formatTime(playableDuration)}`}
+              onPointerDown={handleProgressPointerDown}
+              onPointerMove={handleProgressPointerMove}
+              onPointerUp={finishProgressScrub}
+              onPointerCancel={finishProgressScrub}
+              onKeyDown={handleProgressKeyDown}
             >
-              <div
-                className="h-full rounded-full relative"
-                style={{
-                  width: `${progressPercentage}%`,
-                  background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-secondary))',
-                  transition: 'width 100ms linear',
-                }}
-              >
-                {/* Scrub handle */}
+              <div className="video-progress__track">
                 <div
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="video-progress__fill"
                   style={{
-                    background: 'white',
-                    boxShadow: '0 0 4px rgba(0,0,0,0.5)',
+                    width: `${progressPercentage}%`,
+                    transition: isScrubbing ? 'none' : 'width 100ms linear',
                   }}
-                />
+                >
+                  <span className="video-progress__thumb" aria-hidden="true" />
+                </div>
               </div>
             </div>
 
