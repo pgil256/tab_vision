@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../store/appStore';
+import { speedAccuracyToMode, useAppStore } from '../store/appStore';
 import { uploadVideo, getJobStatus, getJobResult } from '../api/client';
 import { saveRecordingBlob } from './blobStore';
 
@@ -9,7 +9,7 @@ export function useProcessVideo() {
     instrumentInput,
     toneInput,
     styleInput,
-    accuracyModeInput,
+    speedAccuracyInput,
     roiEnabled,
     roiInput,
     setJobId, setStatus, setProgress, setTabDocument, setError, setVideoUrl,
@@ -30,7 +30,7 @@ export function useProcessVideo() {
         instrument: instrumentInput,
         tone: toneInput,
         style: styleInput,
-        accuracyMode: accuracyModeInput,
+        accuracyMode: speedAccuracyToMode(speedAccuracyInput),
         roi: roiEnabled ? roiInput : null,
       });
       setJobId(jobId);
@@ -77,7 +77,7 @@ export function useProcessVideo() {
     instrumentInput,
     toneInput,
     styleInput,
-    accuracyModeInput,
+    speedAccuracyInput,
     roiEnabled,
     roiInput,
   ]);

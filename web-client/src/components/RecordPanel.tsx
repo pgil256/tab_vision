@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
+import { TranscriptionOptions } from './TranscriptionOptions';
 
 type RecorderState = 'idle' | 'preview' | 'countin' | 'recording';
 type CaptureMode = 'video' | 'audio';
@@ -359,12 +360,7 @@ export function RecordPanel() {
 
         {/* Capture-mode toggle: audio-only or video + audio */}
         <div className="flex justify-center mb-4">
-          <div
-            className="inline-flex rounded-lg p-1"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            role="radiogroup"
-            aria-label="Capture mode"
-          >
+          <div className="segmented" role="radiogroup" aria-label="Capture mode">
             {([
               { id: 'video', label: 'Video + audio' },
               { id: 'audio', label: 'Audio only' },
@@ -375,13 +371,7 @@ export function RecordPanel() {
                 aria-checked={captureMode === opt.id}
                 onClick={() => handleModeChange(opt.id)}
                 disabled={isLive}
-                className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
-                style={{
-                  background: captureMode === opt.id ? 'var(--accent-glow)' : 'transparent',
-                  color: captureMode === opt.id ? 'var(--accent-tertiary)' : 'var(--text-muted)',
-                  cursor: isLive ? 'not-allowed' : 'pointer',
-                  opacity: isLive && captureMode !== opt.id ? 0.5 : 1,
-                }}
+                className={`segmented-btn ${captureMode === opt.id ? 'active' : ''}`}
               >
                 {opt.label}
               </button>
@@ -495,15 +485,13 @@ export function RecordPanel() {
         )}
 
         {/* Metronome controls */}
-        <div
-          className="mt-4 rounded-xl p-4"
-          style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-        >
+        <div className="field-card mt-4 p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Metronome</p>
             <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
               <input
                 type="checkbox"
+                className="toggle"
                 checked={muted}
                 onChange={(e) => setMuted(e.target.checked)}
                 disabled={isLive}
@@ -557,12 +545,7 @@ export function RecordPanel() {
                 value={beatsPerBar}
                 onChange={(e) => setBeatsPerBar(parseInt(e.target.value, 10))}
                 disabled={isLive}
-                className="w-full rounded-md px-2 py-1.5 text-sm"
-                style={{
-                  background: 'var(--bg-base)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-primary)',
-                }}
+                className="select"
               >
                 {[2, 3, 4, 5, 6, 7, 8].map((n) => (
                   <option key={n} value={n}>{n}</option>
@@ -574,6 +557,7 @@ export function RecordPanel() {
               <label className="flex items-center gap-2 text-sm cursor-pointer h-[34px]" style={{ color: 'var(--text-primary)' }}>
                 <input
                   type="checkbox"
+                  className="toggle"
                   checked={countIn}
                   onChange={(e) => setCountIn(e.target.checked)}
                   disabled={isLive}
@@ -583,6 +567,10 @@ export function RecordPanel() {
             </div>
           </div>
         </div>
+
+        {/* Transcription settings — same options as file upload; the fretboard
+            area only applies when a camera is involved. */}
+        <TranscriptionOptions showRoi={!isAudio} />
 
         {/* Action buttons */}
         <div className="mt-4 flex gap-2">

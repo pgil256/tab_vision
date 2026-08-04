@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
+import { TranscriptionOptions } from './TranscriptionOptions';
 
 const ALLOWED_TYPES = [
   'video/mp4',
@@ -109,30 +110,10 @@ export function UploadPanel() {
     currentStage,
     pipelineVideoEnabled,
     errorMessage,
-    capoFretInput,
-    instrumentInput,
-    toneInput,
-    styleInput,
-    accuracyModeInput,
-    roiEnabled,
-    roiInput,
     setError,
-    setCapoFretInput,
-    setInstrumentInput,
-    setToneInput,
-    setStyleInput,
-    setAccuracyModeInput,
-    setRoiEnabled,
-    setRoiInput,
     reset,
   } = useAppStore();
   const processVideo = useProcessVideo();
-
-  const selectStyle: React.CSSProperties = {
-    background: 'var(--bg-elevated)',
-    border: '1px solid var(--border-subtle)',
-    color: 'var(--text-primary)',
-  };
 
   const processFile = useCallback(async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -183,10 +164,10 @@ export function UploadPanel() {
               </span>
             </div>
             <h2 className="text-2xl font-bold mb-2 tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              Turn any guitar video into tabs
+              Turn any guitar recording into tabs
             </h2>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Upload a video and get accurate tablature with confidence scoring
+              Upload a video or audio file and get accurate tablature with confidence scoring
             </p>
           </div>
 
@@ -241,166 +222,7 @@ export function UploadPanel() {
             />
           </div>
 
-          {/* Options row */}
-          <div className="mt-4 flex items-center gap-3">
-            {/* Capo selector */}
-            <div
-              className="flex-1 rounded-xl px-4 py-3 flex items-center justify-between"
-              style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div>
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Capo</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Fret position</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => setCapoFretInput(Math.max(0, capoFretInput - 1))}
-                  disabled={capoFretInput === 0}
-                  style={{ padding: '4px' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
-                  </svg>
-                </button>
-                <span
-                  className="w-8 text-center text-base font-bold tabular-nums"
-                  style={{ color: capoFretInput > 0 ? 'var(--accent-tertiary)' : 'var(--text-muted)' }}
-                >
-                  {capoFretInput}
-                </span>
-                <button
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => setCapoFretInput(Math.min(12, capoFretInput + 1))}
-                  disabled={capoFretInput === 12}
-                  style={{ padding: '4px' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Tuning indicator */}
-            <div
-              className="rounded-xl px-4 py-3"
-              style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Tuning</p>
-              <p className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>E A D G B E</p>
-            </div>
-          </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <label
-              className="rounded-xl px-3 py-3"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            >
-              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Mode</span>
-              <select
-                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
-                style={selectStyle}
-                value={accuracyModeInput}
-                onChange={(event) => setAccuracyModeInput(event.target.value as 'fast' | 'accurate')}
-              >
-                <option value="accurate">Accurate</option>
-                <option value="fast">Fast</option>
-              </select>
-            </label>
-
-            <label
-              className="rounded-xl px-3 py-3"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            >
-              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Instrument</span>
-              <select
-                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
-                style={selectStyle}
-                value={instrumentInput}
-                onChange={(event) => setInstrumentInput(event.target.value as 'acoustic' | 'electric' | 'classical')}
-              >
-                <option value="acoustic">Acoustic</option>
-                <option value="electric">Electric</option>
-                <option value="classical">Classical</option>
-              </select>
-            </label>
-
-            <label
-              className="rounded-xl px-3 py-3"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            >
-              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Tone</span>
-              <select
-                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
-                style={selectStyle}
-                value={toneInput}
-                onChange={(event) => setToneInput(event.target.value as 'clean' | 'distorted')}
-              >
-                <option value="clean">Clean</option>
-                <option value="distorted">Distorted</option>
-              </select>
-            </label>
-
-            <label
-              className="rounded-xl px-3 py-3"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            >
-              <span className="block text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Style</span>
-              <select
-                className="w-full rounded-lg px-2 py-2 text-sm outline-none"
-                style={selectStyle}
-                value={styleInput}
-                onChange={(event) => setStyleInput(event.target.value as 'fingerstyle' | 'strumming' | 'mixed')}
-              >
-                <option value="mixed">Mixed</option>
-                <option value="fingerstyle">Fingerstyle</option>
-                <option value="strumming">Strumming</option>
-              </select>
-            </label>
-          </div>
-
-          <div
-            className="mt-3 rounded-xl px-4 py-3"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-          >
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Fretboard ROI</span>
-              <input
-                type="checkbox"
-                checked={roiEnabled}
-                onChange={(event) => setRoiEnabled(event.target.checked)}
-              />
-            </label>
-            {roiEnabled && (
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {(['x1', 'y1', 'x2', 'y2'] as const).map((key) => (
-                  <label key={key}>
-                    <span className="block text-[11px] uppercase mb-1" style={{ color: 'var(--text-muted)' }}>{key}</span>
-                    <input
-                      className="w-full rounded-lg px-2 py-1.5 text-sm outline-none"
-                      style={selectStyle}
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={roiInput[key]}
-                      onChange={(event) => setRoiInput({
-                        ...roiInput,
-                        [key]: Number(event.target.value),
-                      })}
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          <TranscriptionOptions />
 
           {/* Feature highlights */}
           <div className="mt-6 grid grid-cols-3 gap-3">
