@@ -18,6 +18,7 @@ interface ActiveProcessingRun {
 // to the shared processing screen. Keep the transport lifecycle at module
 // scope so that screen can still cancel the active request and poll loop.
 let activeRun: ActiveProcessingRun | null = null;
+let retryFile: File | null = null;
 
 function clearRunTimers(run: ActiveProcessingRun) {
   if (run.pollTimer !== null) window.clearTimeout(run.pollTimer);
@@ -77,6 +78,7 @@ export function useProcessVideo() {
 
   const processVideo = useCallback(async (file: File) => {
     stopActiveRun(false);
+    retryFile = file;
     reset();
     setInputMediaKind(
       file.type.startsWith('video/') || VIDEO_FILE_EXTENSION.test(file.name)
@@ -189,5 +191,17 @@ export function useProcessVideo() {
     scheduleSlowNotice(run);
   }, []);
 
-  return { processVideo, cancelProcessing, keepWaiting };
+  const retryLastFile = useCallback(async () => {
+    const file = retryFile;
+    if (!file) return;
+    await processVideo(file);
+  }, [processVideo]);
+
+  return {
+    processVideo,
+    cancelProcessing,
+    keepWaiting,
+    retryLastFile,
+    retryFileName: retryFile?.name ?? null,
+  };
 }

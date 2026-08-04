@@ -4,7 +4,7 @@ import { EditableTechnique, TabDocument, TabNote } from '../types/tab';
 import type { AccuracyMode, Instrument, PlayingStyle, Tone, UploadRoi } from '../api/client';
 import {
   bankGoldSession as apiBankGoldSession,
-  getPersonalIngestAvailable,
+  getServiceHealth,
 } from '../api/client';
 import {
   PersistedSession,
@@ -179,9 +179,10 @@ interface AppState {
   // Only the studio backend advertises personal_ingest, so the deployed
   // site never shows the feature.
   personalIngestAvailable: boolean;
+  serviceHealth: 'checking' | 'online' | 'offline';
   goldBankStatus: 'idle' | 'banking' | 'done' | 'error';
   goldBankMessage: string | null;
-  checkPersonalIngest: () => Promise<void>;
+  checkServiceHealth: () => Promise<void>;
   bankGoldSession: () => Promise<void>;
 
   // Playback actions
@@ -264,6 +265,7 @@ const initialState = {
   processingDelayed: false,
   restorable: null as PersistedSession | null,
   personalIngestAvailable: false,
+  serviceHealth: 'checking' as 'checking' | 'online' | 'offline',
   goldBankStatus: 'idle' as 'idle' | 'banking' | 'done' | 'error',
   goldBankMessage: null as string | null,
 
@@ -353,6 +355,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       ...initialState,
       personalIngestAvailable: state.personalIngestAvailable,
+      serviceHealth: state.serviceHealth,
       capoFretInput: state.capoFretInput,
       tuningInput: state.tuningInput,
       instrumentInput: state.instrumentInput,
@@ -408,8 +411,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Gold-session banking — the corrected document is ground truth for the
   // take, so the whole (reviewed) note list is sent, edits and all.
-  checkPersonalIngest: async () => {
-    set({ personalIngestAvailable: await getPersonalIngestAvailable() });
+  checkServiceHealth: async () => {
+    set({ serviceHealth: 'checking' });
+    const health = await getServiceHealth();
+    set({
+      serviceHealth: health.status,
+      personalIngestAvailable: health.personalIngest,
+    });
   },
 
   bankGoldSession: async () => {

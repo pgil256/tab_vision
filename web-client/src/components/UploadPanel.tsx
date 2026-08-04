@@ -72,6 +72,50 @@ function getStageIndex(stages: typeof PIPELINE_STAGES, stage: string): number {
   return idx >= 0 ? idx : 0;
 }
 
+interface FriendlyFailure {
+  title: string;
+  message: string;
+  hint: string;
+}
+
+function humanizeFailure(rawMessage: string | null): FriendlyFailure {
+  const raw = (rawMessage ?? '').toLowerCase();
+
+  if (/too long|duration|five minutes|5 minutes|payload too large|413/.test(raw)) {
+    return {
+      title: 'This recording is too long',
+      message: 'TabVision currently handles recordings up to five minutes.',
+      hint: 'Trim the file to the section you want to transcribe, then try it again.',
+    };
+  }
+  if (/decode|codec|ffmpeg|invalid data|unsupported|could not read|corrupt/.test(raw)) {
+    return {
+      title: 'We could not read this recording',
+      message: 'The file container or audio codec was not decoded by the transcription service.',
+      hint: 'Export the take as an H.264 MP4 video or a WAV audio file and try again.',
+    };
+  }
+  if (/timeout|timed out|cold|warm|502|503|504|temporarily unavailable/.test(raw)) {
+    return {
+      title: 'The service needs another moment',
+      message: 'The transcription worker did not become ready in time.',
+      hint: 'Retry the same recording; your capture and transcription settings are still here.',
+    };
+  }
+  if (/reach|network|fetch|api url|connection|offline|failed to get job/.test(raw)) {
+    return {
+      title: 'The transcription service is unreachable',
+      message: 'TabVision could not connect to the analysis service.',
+      hint: 'Check your connection and retry. If the status badge is still offline, wait a moment first.',
+    };
+  }
+  return {
+    title: 'We could not transcribe this take',
+    message: 'The analysis stopped before a tablature result was ready.',
+    hint: 'Retry the same recording, or choose another file if the problem continues.',
+  };
+}
+
 // Guitar pick SVG icon
 function GuitarIcon() {
   return (
@@ -120,7 +164,13 @@ export function UploadPanel() {
     setError,
     reset,
   } = useAppStore();
-  const { processVideo, cancelProcessing, keepWaiting } = useProcessVideo();
+  const {
+    processVideo,
+    cancelProcessing,
+    keepWaiting,
+    retryLastFile,
+    retryFileName,
+  } = useProcessVideo();
 
   const processFile = useCallback((file: File) => {
     if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_FILE_EXTENSION.test(file.name)) {
@@ -164,6 +214,8 @@ export function UploadPanel() {
       ? { ...stage, label: `Uploading ${inputMediaKind}` }
       : stage);
   const currentStageIndex = getStageIndex(pipelineStages, currentStage);
+  const activeFileName = fileName ?? retryFileName;
+  const friendlyFailure = humanizeFailure(errorMessage);
 
   // === IDLE + file chosen: listen back & clean up before uploading ===
   if (jobStatus === 'idle' && reviewFile) {
@@ -252,7 +304,7 @@ export function UploadPanel() {
             </p>
           )}
 
-          <TranscriptionOptions />
+          <TranscriptionOptions showRoi={false} />
 
           {/* Feature highlights */}
           <div className="upload-features">
@@ -327,10 +379,10 @@ export function UploadPanel() {
           </div>
 
           {/* File name */}
-          {fileName && (
+          {activeFileName && (
             <div className="text-center mb-6">
               <p className="text-xs truncate max-w-[250px] mx-auto" style={{ color: 'var(--text-muted)' }}>
-                {fileName}
+                {activeFileName}
               </p>
             </div>
           )}
@@ -452,14 +504,28 @@ export function UploadPanel() {
             </svg>
           </div>
           <h3 className="text-base font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Processing Failed
+            {friendlyFailure.title}
           </h3>
-          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-            {errorMessage || 'An unexpected error occurred'}
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {friendlyFailure.message}
           </p>
-          <button className="btn btn-primary" onClick={reset}>
-            Try Again
-          </button>
+          <p className="failure-hint">{friendlyFailure.hint}</p>
+          <div className="failure-actions">
+            {retryFileName && (
+              <button className="btn btn-primary" onClick={() => void retryLastFile()}>
+                Retry same recording
+              </button>
+            )}
+            <button className="btn btn-secondary" onClick={reset}>
+              Choose another
+            </button>
+          </div>
+          {errorMessage && (
+            <details className="failure-details">
+              <summary>Technical details</summary>
+              <p>{errorMessage}</p>
+            </details>
+          )}
         </div>
       </div>
     );

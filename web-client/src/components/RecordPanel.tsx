@@ -5,6 +5,7 @@ import { detectPitchHz, midiFloatFromHz, noteNameForMidi } from '../utils/audioA
 import { tuningPreset } from '../utils/pitch';
 import { TranscriptionOptions } from './TranscriptionOptions';
 import { AudioReviewPanel } from './AudioReviewPanel';
+import { FretboardRoiOverlay } from './FretboardRoiPicker';
 
 type RecorderState = 'idle' | 'preview' | 'countin' | 'recording';
 type CaptureMode = 'video' | 'audio';
@@ -583,8 +584,12 @@ export function RecordPanel() {
               playsInline
               muted
               className="w-full h-full object-cover"
-              style={{ transform: 'scaleX(-1)' }}
+              style={{ transform: 'none' }}
             />
+          )}
+
+          {!isAudio && state !== 'idle' && (
+            <FretboardRoiOverlay editable={!isLive} />
           )}
 
           {/* Audio-mode visualizer */}
@@ -833,7 +838,7 @@ export function RecordPanel() {
 
         {/* Transcription settings — same options as file upload; the fretboard
             area only applies when a camera is involved. */}
-        <TranscriptionOptions showRoi={!isAudio} />
+        <TranscriptionOptions showRoi={!isAudio} roiPickerAvailable={!isAudio && state !== 'idle'} />
 
         {/* Action buttons */}
         <div className="record-actions">
