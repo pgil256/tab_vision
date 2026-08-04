@@ -32,6 +32,10 @@ public sealed class SidecarCommandBuilderTests
                 "mixed",
                 "--capo",
                 "0",
+                "--tuning",
+                "standard",
+                "--accuracy-mode",
+                "accurate",
                 "--audio-backend",
                 "auto",
             ],
@@ -103,5 +107,23 @@ public sealed class SidecarCommandBuilderTests
 
         Assert.Equal("--editor-output", arguments[^2]);
         Assert.Equal("editor.json", arguments[^1]);
+    }
+
+    [Fact]
+    public void ParityOptionsPassTuningAccuracyAndNormalizedRoi()
+    {
+        var options = TranscriptionOptions.Default with
+        {
+            Tuning = "drop-d",
+            Accuracy = "fastest",
+            Roi = new TranscriptionRoi(0.1, 0.2, 0.8, 0.9),
+        };
+
+        var arguments = SidecarCommandBuilder.BuildAsciiArguments("input.mp4", "output.tab", options);
+
+        Assert.Contains("drop-d", arguments);
+        Assert.Contains("fast", arguments);
+        var roiIndex = arguments.ToList().IndexOf("--roi");
+        Assert.Equal(["0.1", "0.2", "0.8", "0.9"], arguments.Skip(roiIndex + 1).Take(4));
     }
 }

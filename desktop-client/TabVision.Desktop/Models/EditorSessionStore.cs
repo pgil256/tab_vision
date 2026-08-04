@@ -24,4 +24,20 @@ public static class EditorSessionStore
             return null;
         }
     }
+
+    public static bool Discard()
+    {
+        try
+        {
+            if (File.Exists(DefaultPath))
+            {
+                File.Delete(DefaultPath);
+            }
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

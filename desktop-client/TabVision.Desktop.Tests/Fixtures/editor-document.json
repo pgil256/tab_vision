@@ -3,7 +3,7 @@
   "createdAt": "2026-07-25T00:00:00Z",
   "duration": 12.0,
   "capoFret": 0,
-  "tuning": ["E", "B", "G", "D", "A", "E"],
+  "tuning": ["E", "A", "D", "G", "B", "E"],
   "sourcePath": null,
   "notes": [
     {"id":"n0","timestamp":0.0,"endTime":0.3,"string":1,"fret":0,"confidence":0.94,"confidenceLevel":"high","isEdited":false,"detectedMidiNote":64,"candidates":[{"string":1,"fret":0},{"string":2,"fret":5}]},

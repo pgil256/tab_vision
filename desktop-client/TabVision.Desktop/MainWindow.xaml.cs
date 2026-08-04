@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
@@ -15,6 +16,13 @@ namespace TabVision.Desktop;
 
 public partial class MainWindow : Window
 {
+    private static readonly HashSet<string> SupportedInputExtensions = new(
+        [
+            ".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".wmv", ".mpeg", ".mpg", ".mts", ".m2ts",
+            ".wav", ".mp3", ".flac", ".m4a", ".aac", ".ogg", ".opus", ".wma",
+        ],
+        StringComparer.OrdinalIgnoreCase
+    );
     private readonly CancellationTokenSource _bootstrapCancellationSource = new();
     private SelectedInputSummary? _selectedInput;
     private TranscriptionOptions? _completedOptions;
@@ -24,14 +32,19 @@ public partial class MainWindow : Window
     private bool _bootstrapRunning;
     private bool _bootstrapStarted;
     private readonly DispatcherTimer _recordingTimer;
+    private readonly DispatcherTimer _metronomeTimer;
     private EmbeddedCameraSession? _cameraSession;
+    private AudioCaptureSession? _audioSession;
     private WriteableBitmap? _cameraPreviewBitmap;
     private string? _pendingRecordingPath;
+    private string? _pendingAudioRecordingPath;
     private DateTimeOffset? _recordingStartedAt;
     private bool _cameraSelectionChanging;
     private bool _cameraShutdownRunning;
     private bool _cameraShutdownComplete;
     private int _previewUpdateQueued;
+    private int _metronomeBeatIndex;
+    private readonly List<DateTimeOffset> _tapTimes = [];
     private IReadOnlyDictionary<string, string?> _sidecarEnvironment =
         new Dictionary<string, string?>
         {
@@ -50,6 +63,12 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromSeconds(1),
         };
         _recordingTimer.Tick += RecordingTimer_Tick;
+        _metronomeTimer = new DispatcherTimer(DispatcherPriority.Send);
+        _metronomeTimer.Tick += MetronomeTimer_Tick;
+        BeatsPerBarComboBox.ItemsSource = new[] { 2, 3, 4, 5, 6, 7 };
+        BeatsPerBarComboBox.SelectedItem = 4;
+        RoiCheckBox.Checked += (_, _) => RoiPanel.IsEnabled = true;
+        RoiCheckBox.Unchecked += (_, _) => RoiPanel.IsEnabled = false;
         RestoreEditorMenuItem.IsEnabled = EditorSessionStore.TryLoad() is not null;
     }
 
@@ -59,6 +78,16 @@ public partial class MainWindow : Window
         if (document is not null)
         {
             new EditorWindow(document) { Owner = this }.Show();
+        }
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SettingsButton.ContextMenu is not null)
+        {
+            SettingsButton.ContextMenu.PlacementTarget = SettingsButton;
+            SettingsButton.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            SettingsButton.ContextMenu.IsOpen = true;
         }
     }
 
@@ -235,6 +264,7 @@ public partial class MainWindow : Window
     {
         _bootstrapCancellationSource.Cancel();
         _recordingTimer.Stop();
+        _metronomeTimer.Stop();
         var cameraSession = _cameraSession;
         _cameraSession = null;
         if (cameraSession is not null)
@@ -243,13 +273,21 @@ public partial class MainWindow : Window
             cameraSession.CaptureFailed -= CameraSession_CaptureFailed;
             _ = cameraSession.DisposeAsync().AsTask();
         }
+        var audioSession = _audioSession;
+        _audioSession = null;
+        if (audioSession is not null)
+        {
+            audioSession.AnalysisReady -= AudioSession_AnalysisReady;
+            audioSession.CaptureFailed -= AudioSession_CaptureFailed;
+            _ = audioSession.DisposeAsync().AsTask();
+        }
 
         base.OnClosed(e);
     }
 
     protected override async void OnClosing(CancelEventArgs e)
     {
-        if (!_cameraShutdownComplete && _cameraSession is not null)
+        if (!_cameraShutdownComplete && (_cameraSession is not null || _audioSession is not null))
         {
             e.Cancel = true;
             if (_cameraShutdownRunning)
@@ -262,6 +300,7 @@ public partial class MainWindow : Window
             try
             {
                 await DisposeCameraSessionAsync();
+                await DisposeAudioSessionAsync();
             }
             catch
             {
@@ -269,6 +308,8 @@ public partial class MainWindow : Window
             }
             finally
             {
+                DiscardPendingRecording();
+                DiscardPendingAudioRecording();
                 _cameraShutdownComplete = true;
                 Close();
             }
@@ -287,6 +328,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (AudioPanel.Visibility == Visibility.Visible)
+        {
+            await CloseAudioAsync();
+        }
+
         await OpenCameraAsync();
     }
 
@@ -297,7 +343,8 @@ public partial class MainWindow : Window
         JobPanel.Visibility = Visibility.Collapsed;
         TabViewerPanel.Visibility = Visibility.Collapsed;
         SidecarErrorPanel.Visibility = Visibility.Collapsed;
-        RecordVideoButton.Content = "Close camera";
+        VideoActionTitleText.Text = "Close";
+        VideoActionSubtitleText.Text = "Camera preview";
         StartCameraRecordingButton.Content = "Start";
         CameraPreviewPlaceholder.Text = "Looking for cameras...";
         CameraPreviewPlaceholder.Visibility = Visibility.Visible;
@@ -401,7 +448,8 @@ public partial class MainWindow : Window
         CameraPanel.Visibility = Visibility.Collapsed;
         OptionsPanel.Visibility = Visibility.Visible;
         JobPanel.Visibility = Visibility.Visible;
-        RecordVideoButton.Content = "Record live";
+        VideoActionTitleText.Text = "Video";
+        VideoActionSubtitleText.Text = "Camera + mic";
         CameraPreviewImage.Source = null;
         _cameraPreviewBitmap = null;
         DiscardPendingRecording();
@@ -468,6 +516,7 @@ public partial class MainWindow : Window
             CameraComboBox.IsEnabled = true;
             CloseCameraButton.IsEnabled = true;
             RecordVideoButton.IsEnabled = true;
+            RecordAudioButton.IsEnabled = true;
             ChooseVideoButton.IsEnabled = true;
         }
     }
@@ -488,18 +537,336 @@ public partial class MainWindow : Window
         JobStatusText.Text = "Camera recording ready to transcribe.";
     }
 
+    private async void RecordAudio_Click(object sender, RoutedEventArgs e)
+    {
+        if (AudioPanel.Visibility == Visibility.Visible)
+        {
+            await CloseAudioAsync();
+            return;
+        }
+        if (CameraPanel.Visibility == Visibility.Visible)
+        {
+            await CloseCameraAsync();
+        }
+        await OpenAudioAsync();
+    }
+
+    private async Task OpenAudioAsync()
+    {
+        AudioPanel.Visibility = Visibility.Visible;
+        AudioActionTitleText.Text = "Close";
+        AudioActionSubtitleText.Text = "Microphone tools";
+        AudioStatusText.Text = "Opening the microphone…";
+        AudioRecordingDurationText.Text = "Ready to record";
+        StartAudioRecordingButton.IsEnabled = false;
+        StopAudioRecordingButton.IsEnabled = false;
+        UseAudioRecordingButton.IsEnabled = false;
+        MicrophoneLevelBar.Value = 0;
+        TunerNoteText.Text = "—";
+        TunerCentsText.Text = "Play a note";
+        var session = new AudioCaptureSession();
+        session.AnalysisReady += AudioSession_AnalysisReady;
+        session.CaptureFailed += AudioSession_CaptureFailed;
+        _audioSession = session;
+        try
+        {
+            await session.InitializeAsync();
+            AudioStatusText.Text = "Microphone ready. Check your level and tuning, then record.";
+            StartAudioRecordingButton.IsEnabled = true;
+        }
+        catch (Exception exception)
+        {
+            await DisposeAudioSessionAsync();
+            ShowAudioError(exception);
+        }
+    }
+
+    private async void CloseAudio_Click(object sender, RoutedEventArgs e) => await CloseAudioAsync();
+
+    private async Task CloseAudioAsync()
+    {
+        if (_audioSession?.IsRecording == true)
+        {
+            return;
+        }
+        _recordingTimer.Stop();
+        _metronomeTimer.Stop();
+        _recordingStartedAt = null;
+        await DisposeAudioSessionAsync();
+        AudioPanel.Visibility = Visibility.Collapsed;
+        AudioActionTitleText.Text = "Audio";
+        AudioActionSubtitleText.Text = "Microphone";
+        DiscardPendingAudioRecording();
+        SetJobRunning(isRunning: false);
+    }
+
+    private async void StartAudioRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_audioSession is null)
+        {
+            return;
+        }
+        DiscardPendingAudioRecording();
+        SetAudioRecordingState(isRecording: true);
+        try
+        {
+            await RunCountInAsync();
+            var path = AudioRecordingPath.Create(
+                PythonEnvironmentLayout.Default.AppDataDirectory,
+                DateTimeOffset.Now
+            );
+            _pendingAudioRecordingPath = await _audioSession.StartRecordingAsync(path);
+            _recordingStartedAt = DateTimeOffset.UtcNow;
+            AudioRecordingDurationText.Text = "Recording • 00:00";
+            AudioStatusText.Text = "Recording microphone audio…";
+            _recordingTimer.Start();
+            StartMetronome();
+        }
+        catch (Exception exception)
+        {
+            _recordingStartedAt = null;
+            _metronomeTimer.Stop();
+            SetAudioRecordingState(isRecording: false);
+            ShowAudioError(exception);
+        }
+    }
+
+    private async void StopAudioRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_audioSession?.IsRecording != true)
+        {
+            return;
+        }
+        StopAudioRecordingButton.IsEnabled = false;
+        AudioStatusText.Text = "Finishing audio take…";
+        try
+        {
+            _pendingAudioRecordingPath = await _audioSession.StopRecordingAsync();
+            AudioStatusText.Text = "Take ready. Use it, or record again.";
+            AudioRecordingDurationText.Text = "Recording complete";
+            StartAudioRecordingButton.Content = "Retake";
+        }
+        catch (Exception exception)
+        {
+            ShowAudioError(exception);
+        }
+        finally
+        {
+            _recordingTimer.Stop();
+            _metronomeTimer.Stop();
+            _recordingStartedAt = null;
+            SetAudioRecordingState(isRecording: false);
+        }
+    }
+
+    private async void UseAudioRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingAudioRecordingPath is null || !File.Exists(_pendingAudioRecordingPath))
+        {
+            AudioStatusText.Text = "The audio take is unavailable. Please record again.";
+            UseAudioRecordingButton.IsEnabled = false;
+            return;
+        }
+        var recordingPath = _pendingAudioRecordingPath;
+        _pendingAudioRecordingPath = null;
+        ShowSelectedInput(SelectedInputSummary.FromPath(recordingPath));
+        NoVideoCheckBox.IsChecked = true;
+        await CloseAudioAsync();
+        JobStatusText.Text = "Microphone take ready to transcribe.";
+    }
+
+    private void SetAudioRecordingState(bool isRecording)
+    {
+        CloseAudioButton.IsEnabled = !isRecording;
+        RecordAudioButton.IsEnabled = !isRecording;
+        RecordVideoButton.IsEnabled = !isRecording;
+        ChooseVideoButton.IsEnabled = !isRecording;
+        StartAudioRecordingButton.IsEnabled = !isRecording && _audioSession is not null;
+        StopAudioRecordingButton.IsEnabled = isRecording;
+        UseAudioRecordingButton.IsEnabled = !isRecording && _pendingAudioRecordingPath is not null;
+        BpmTextBox.IsEnabled = !isRecording;
+        BeatsPerBarComboBox.IsEnabled = !isRecording;
+        CountInCheckBox.IsEnabled = !isRecording;
+    }
+
+    private async Task RunCountInAsync()
+    {
+        if (CountInCheckBox.IsChecked != true)
+        {
+            return;
+        }
+        var bpm = ReadBpm();
+        var beats = BeatsPerBarComboBox.SelectedItem is int value ? value : 4;
+        var interval = TimeSpan.FromMilliseconds(60_000.0 / bpm);
+        for (var beat = 0; beat < beats; beat++)
+        {
+            AudioStatusText.Text = $"Count in: {beats - beat}";
+            AudioRecordingDurationText.Text = $"Get ready  {beats - beat}";
+            MetronomeClick.Play(beat == 0);
+            await Task.Delay(interval);
+        }
+    }
+
+    private void StartMetronome()
+    {
+        _metronomeTimer.Stop();
+        if (MetronomeCheckBox.IsChecked != true)
+        {
+            return;
+        }
+        _metronomeTimer.Interval = TimeSpan.FromMilliseconds(60_000.0 / ReadBpm());
+        _metronomeBeatIndex = 0;
+        MetronomeClick.Play(accent: true);
+        _metronomeBeatIndex = 1;
+        _metronomeTimer.Start();
+    }
+
+    private void MetronomeTimer_Tick(object? sender, EventArgs e)
+    {
+        var beats = BeatsPerBarComboBox.SelectedItem is int value ? value : 4;
+        MetronomeClick.Play(_metronomeBeatIndex % beats == 0);
+        _metronomeBeatIndex++;
+    }
+
+    private void TapTempo_Click(object sender, RoutedEventArgs e)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (_tapTimes.Count > 0 && now - _tapTimes[^1] > TimeSpan.FromSeconds(2))
+        {
+            _tapTimes.Clear();
+        }
+        _tapTimes.Add(now);
+        if (_tapTimes.Count > 6)
+        {
+            _tapTimes.RemoveAt(0);
+        }
+        if (_tapTimes.Count >= 2)
+        {
+            var averageSeconds = _tapTimes
+                .Zip(_tapTimes.Skip(1), (left, right) => (right - left).TotalSeconds)
+                .Average();
+            BpmTextBox.Text = Math.Clamp((int)Math.Round(60 / averageSeconds), 30, 300).ToString();
+        }
+        MetronomeClick.Play(_tapTimes.Count == 1);
+    }
+
+    private int ReadBpm()
+    {
+        if (!int.TryParse(BpmTextBox.Text, out var bpm))
+        {
+            bpm = 100;
+        }
+        bpm = Math.Clamp(bpm, 30, 300);
+        BpmTextBox.Text = bpm.ToString();
+        return bpm;
+    }
+
+    private void AudioSession_AnalysisReady(object? sender, AudioAnalysisFrame frame)
+    {
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            MicrophoneLevelBar.Value = frame.Level;
+            var decibels = frame.Level <= 0 ? -60 : frame.Level * 60 - 60;
+            MicrophoneLevelText.Text = $"{decibels:0} dB";
+            MicrophoneLevelText.Foreground = frame.Peak >= 0.98
+                ? (Brush)FindResource("ErrorBrush")
+                : (Brush)FindResource("TextMutedBrush");
+            if (frame.NoteName is null || frame.Cents is null)
+            {
+                TunerNoteText.Text = "—";
+                TunerCentsText.Text = frame.Peak >= 0.98 ? "Clipping" : "Play a note";
+                TunerNoteText.Foreground = (Brush)FindResource("TextBrush");
+                return;
+            }
+            TunerNoteText.Text = frame.NoteName;
+            TunerCentsText.Text = frame.Cents == 0 ? "In tune" : $"{frame.Cents:+0;-0} cents";
+            TunerNoteText.Foreground = Math.Abs(frame.Cents.Value) switch
+            {
+                <= 5 => (Brush)FindResource("SuccessBrush"),
+                <= 15 => (Brush)FindResource("WarningBrush"),
+                _ => (Brush)FindResource("ErrorBrush"),
+            };
+        });
+    }
+
+    private void AudioSession_CaptureFailed(object? sender, string message) =>
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(sender, _audioSession))
+            {
+                AudioStatusText.Text = $"Microphone error: {message}";
+            }
+        });
+
+    private void ShowAudioError(Exception exception)
+    {
+        const int AccessDenied = unchecked((int)0x80070005);
+        AudioStatusText.Text = exception.HResult == AccessDenied
+            ? "Microphone access is off. Allow desktop apps to use the microphone, then reopen this panel."
+            : $"Microphone error: {exception.Message}";
+        AudioRecordingDurationText.Text = "Microphone unavailable";
+    }
+
+    private async Task DisposeAudioSessionAsync()
+    {
+        var session = _audioSession;
+        _audioSession = null;
+        if (session is null)
+        {
+            return;
+        }
+        session.AnalysisReady -= AudioSession_AnalysisReady;
+        session.CaptureFailed -= AudioSession_CaptureFailed;
+        await session.DisposeAsync();
+    }
+
+    private void DiscardPendingAudioRecording()
+    {
+        var pendingPath = _pendingAudioRecordingPath;
+        _pendingAudioRecordingPath = null;
+        if (string.IsNullOrWhiteSpace(pendingPath))
+        {
+            return;
+        }
+        try
+        {
+            var recordingsRoot = Path.GetFullPath(
+                Path.Combine(PythonEnvironmentLayout.Default.AppDataDirectory, "recordings")
+            );
+            var fullPath = Path.GetFullPath(pendingPath);
+            var rootPrefix = recordingsRoot.TrimEnd(Path.DirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            if (fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) && File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+        }
+        catch (IOException)
+        {
+            // A take can be cleaned up later if Windows still has it open.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Preserve the recording when Windows has not released it.
+        }
+    }
+
     private async void ChooseVideo_Click(object sender, RoutedEventArgs e)
     {
         if (CameraPanel.Visibility == Visibility.Visible)
         {
             await CloseCameraAsync();
         }
+        if (AudioPanel.Visibility == Visibility.Visible)
+        {
+            await CloseAudioAsync();
+        }
 
         var dialog = new OpenFileDialog
         {
-            Title = "Choose a guitar video",
+            Title = "Choose a guitar recording",
             Filter =
-                "Video files|*.mp4;*.mov;*.m4v;*.avi;*.mkv;*.webm;*.wmv;*.mpeg;*.mpg;*.mts;*.m2ts|All files|*.*",
+                "Supported recordings|*.mp4;*.mov;*.m4v;*.avi;*.mkv;*.webm;*.wmv;*.mpeg;*.mpg;*.mts;*.m2ts;*.wav;*.mp3;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.wma|Video files|*.mp4;*.mov;*.m4v;*.avi;*.mkv;*.webm;*.wmv;*.mpeg;*.mpg;*.mts;*.m2ts|Audio files|*.wav;*.mp3;*.flac;*.m4a;*.aac;*.ogg;*.opus;*.wma|All files|*.*",
             CheckFileExists = true,
             Multiselect = false,
         };
@@ -509,7 +876,66 @@ public partial class MainWindow : Window
             return;
         }
 
-        ShowSelectedInput(SelectedInputSummary.FromPath(dialog.FileName));
+        SelectInputPath(dialog.FileName);
+    }
+
+    private void Window_DragEnter(object sender, DragEventArgs e)
+    {
+        var path = SingleDroppedPath(e.Data);
+        var supported = path is not null && SupportedInputExtensions.Contains(Path.GetExtension(path));
+        e.Effects = supported ? DragDropEffects.Copy : DragDropEffects.None;
+        DropOverlay.Visibility = supported ? Visibility.Visible : Visibility.Collapsed;
+        e.Handled = true;
+    }
+
+    private void Window_DragLeave(object sender, DragEventArgs e)
+    {
+        DropOverlay.Visibility = Visibility.Collapsed;
+        e.Handled = true;
+    }
+
+    private async void Window_Drop(object sender, DragEventArgs e)
+    {
+        DropOverlay.Visibility = Visibility.Collapsed;
+        var path = SingleDroppedPath(e.Data);
+        if (path is null || !SupportedInputExtensions.Contains(Path.GetExtension(path)))
+        {
+            JobStatusText.Text = "Drop one supported video or audio recording.";
+            e.Handled = true;
+            return;
+        }
+        if (CameraPanel.Visibility == Visibility.Visible)
+        {
+            await CloseCameraAsync();
+        }
+        if (AudioPanel.Visibility == Visibility.Visible)
+        {
+            await CloseAudioAsync();
+        }
+        SelectInputPath(path);
+        e.Handled = true;
+    }
+
+    private static string? SingleDroppedPath(IDataObject data)
+    {
+        if (!data.GetDataPresent(DataFormats.FileDrop))
+        {
+            return null;
+        }
+        return data.GetData(DataFormats.FileDrop) is string[] { Length: 1 } paths
+            ? paths[0]
+            : null;
+    }
+
+    private void SelectInputPath(string path)
+    {
+        if (!SupportedInputExtensions.Contains(Path.GetExtension(path)))
+        {
+            JobStatusText.Text = "That file type is not supported. Choose a common video or audio recording.";
+            System.Media.SystemSounds.Beep.Play();
+            return;
+        }
+        ShowSelectedInput(SelectedInputSummary.FromPath(path));
     }
 
     private void CameraSession_PreviewFrameReady(object? sender, CameraPreviewFrame frame)
@@ -578,6 +1004,8 @@ public partial class MainWindow : Window
         var duration = DateTimeOffset.UtcNow - _recordingStartedAt.Value;
         RecordingDurationText.Text =
             $"Recording • {(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
+        AudioRecordingDurationText.Text =
+            $"Recording • {(int)duration.TotalMinutes:00}:{duration.Seconds:00}";
     }
 
     private async Task DisposeCameraSessionAsync()
@@ -599,6 +1027,7 @@ public partial class MainWindow : Window
         CameraComboBox.IsEnabled = !isRecording;
         CloseCameraButton.IsEnabled = !isRecording;
         RecordVideoButton.IsEnabled = !isRecording;
+        RecordAudioButton.IsEnabled = !isRecording;
         ChooseVideoButton.IsEnabled = !isRecording;
         StartCameraRecordingButton.IsEnabled = !isRecording;
         StopCameraRecordingButton.IsEnabled = isRecording;
@@ -663,6 +1092,7 @@ public partial class MainWindow : Window
         SelectedFilePathText.Text = selectedInput.FullPath;
         NoInputText.Visibility = Visibility.Collapsed;
         SelectedInputPanel.Visibility = Visibility.Visible;
+        ReviewInputButton.Visibility = Visibility.Visible;
         TabViewerTextBox.Clear();
         TabViewerPanel.Visibility = Visibility.Collapsed;
         ClearLowConfidenceFlags();
@@ -673,12 +1103,46 @@ public partial class MainWindow : Window
         JobStatusText.Text = "Ready to transcribe.";
     }
 
+    private void ReviewInput_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedInput is null)
+        {
+            return;
+        }
+
+        var layout = PythonEnvironmentLayout.Default;
+        var window = new AudioReviewWindow(
+            _selectedInput.FullPath,
+            layout.TabVisionExecutable,
+            _sidecarEnvironment
+        )
+        {
+            Owner = this,
+        };
+        window.Accepted += (_, result) =>
+        {
+            ShowSelectedInput(SelectedInputSummary.FromPath(result.Path));
+            if (result.WasCleaned)
+            {
+                NoVideoCheckBox.IsChecked = true;
+                JobStatusText.Text = "Cleaned WAV ready to transcribe.";
+            }
+            else
+            {
+                JobStatusText.Text = "Reviewed recording ready to transcribe.";
+            }
+        };
+        window.ShowDialog();
+    }
+
     private void InitializeTranscriptionOptions()
     {
         InstrumentComboBox.ItemsSource = TranscriptionOptions.Instruments;
         ToneComboBox.ItemsSource = TranscriptionOptions.Tones;
         StyleComboBox.ItemsSource = TranscriptionOptions.Styles;
         CapoComboBox.ItemsSource = TranscriptionOptions.CapoFrets;
+        TuningComboBox.ItemsSource = TranscriptionOptions.Tunings;
+        AccuracyComboBox.ItemsSource = TranscriptionOptions.AccuracyPresets;
         AudioBackendComboBox.ItemsSource = TranscriptionOptions.AudioBackends;
 
         var defaults = TranscriptionOptions.Default;
@@ -686,8 +1150,11 @@ public partial class MainWindow : Window
         ToneComboBox.SelectedItem = defaults.Tone;
         StyleComboBox.SelectedItem = defaults.Style;
         CapoComboBox.SelectedItem = defaults.Capo;
+        TuningComboBox.SelectedItem = TranscriptionOptions.Tunings.First(preset => preset.Id == defaults.Tuning);
+        AccuracyComboBox.SelectedItem = TranscriptionOptions.AccuracyPresets.First(preset => preset.Id == defaults.Accuracy);
         AudioBackendComboBox.SelectedItem = defaults.AudioBackend;
         NoVideoCheckBox.IsChecked = defaults.NoVideo;
+        RoiCheckBox.IsChecked = defaults.Roi is not null;
     }
 
     private void InitializeExportFormats()
@@ -857,14 +1324,49 @@ public partial class MainWindow : Window
     private TranscriptionOptions ReadTranscriptionOptions()
     {
         var defaults = TranscriptionOptions.Default;
+        TranscriptionRoi? roi = null;
+        if (RoiCheckBox.IsChecked == true)
+        {
+            roi = new TranscriptionRoi(
+                ParseRoiValue(RoiLeftTextBox.Text, "Left"),
+                ParseRoiValue(RoiTopTextBox.Text, "Top"),
+                ParseRoiValue(RoiRightTextBox.Text, "Right"),
+                ParseRoiValue(RoiBottomTextBox.Text, "Bottom")
+            );
+            if (!roi.IsValid)
+            {
+                throw new InvalidOperationException(
+                    "Fretboard area values must be between 0 and 1, with left < right and top < bottom."
+                );
+            }
+        }
         return new TranscriptionOptions(
             InstrumentComboBox.SelectedItem as string ?? defaults.Instrument,
             ToneComboBox.SelectedItem as string ?? defaults.Tone,
             StyleComboBox.SelectedItem as string ?? defaults.Style,
             CapoComboBox.SelectedItem is int capo ? capo : defaults.Capo,
             AudioBackendComboBox.SelectedItem as string ?? defaults.AudioBackend,
-            NoVideoCheckBox.IsChecked == true
+            NoVideoCheckBox.IsChecked == true,
+            (TuningComboBox.SelectedItem as TuningPreset)?.Id ?? defaults.Tuning,
+            (AccuracyComboBox.SelectedItem as AccuracyPreset)?.Id ?? defaults.Accuracy,
+            roi
         );
+    }
+
+    private static double ParseRoiValue(string text, string label)
+    {
+        if (
+            !double.TryParse(
+                text,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var value
+            )
+        )
+        {
+            throw new InvalidOperationException($"{label} must be a number between 0 and 1.");
+        }
+        return value;
     }
 
     private void ShowProgressLine(string line)
@@ -927,7 +1429,9 @@ public partial class MainWindow : Window
     private void SetJobRunning(bool isRunning)
     {
         RecordVideoButton.IsEnabled = _bootstrapReady && !isRunning;
+        RecordAudioButton.IsEnabled = _bootstrapReady && !isRunning;
         ChooseVideoButton.IsEnabled = _bootstrapReady && !isRunning;
+        ReviewInputButton.IsEnabled = _bootstrapReady && !isRunning && _selectedInput is not null;
         OptionsPanel.IsEnabled = _bootstrapReady && !isRunning;
         RepairBootstrapMenuItem.IsEnabled =
             _bootstrapPayloads is not null && !_bootstrapRunning && !isRunning;

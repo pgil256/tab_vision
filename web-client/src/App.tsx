@@ -14,6 +14,22 @@ import './index.css';
 
 type InputMode = 'upload' | 'record';
 
+const CaptureIcon = ({ mode }: { mode: InputMode }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+    {mode === 'upload' ? (
+      <>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 14.5v3A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-3" />
+      </>
+    ) : (
+      <>
+        <rect x="3" y="6" width="13" height="12" rx="3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m16 10 4-2v8l-4-2" />
+      </>
+    )}
+  </svg>
+);
+
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
@@ -21,14 +37,9 @@ function App() {
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
   const checkPersonalIngest = useAppStore((s) => s.checkPersonalIngest);
 
-  // M6 — audition engine: synth playback of the notes + fallback transport
-  // for sessions without a recording.
   useAudition(videoRef);
-
-  // M7 — the one keyboard dispatcher for the whole editor.
   useEditorHotkeys();
 
-  // B5 — on mount, surface an autosaved edited session (if any) for restore.
   useEffect(() => {
     loadPersistedSession();
     checkPersonalIngest();
@@ -36,128 +47,181 @@ function App() {
 
   const showEditor = jobStatus === 'completed';
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
+  const stageLabel = showEditor ? 'Refine' : isProcessing ? 'Analyzing' : 'Capture';
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden print-expand" style={{ background: 'var(--bg-base)' }}>
-      {/* Header */}
-      <header
-        className="shrink-0 flex items-center justify-between px-5 py-2.5 glass-strong print-hide"
-        style={{ borderBottom: '1px solid var(--border-subtle)' }}
-      >
-        <div className="flex items-center gap-3">
-          {/* Logo */}
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-              boxShadow: '0 0 16px var(--accent-glow)',
-            }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
+    <div className={`app-shell ${showEditor ? 'app-shell--editor' : 'app-shell--landing'} print-expand`}>
+      <header className="topbar print-hide">
+        <div className="brand-lockup">
+          <div className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M7 8v16M11 5v22M15 10v12M19 7v18M23 11v10M27 9v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              TabVision
-            </h1>
-            <p className="text-[10px] -mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {showEditor ? 'Editor' : isProcessing ? 'Processing...' : 'Guitar Tab Transcription'}
-            </p>
+          <div className="brand-copy">
+            <h1>TabVision</h1>
+            <p>Transcription studio</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Keyboard shortcuts */}
+        <nav className="workflow-nav" aria-label="Transcription workflow">
+          <span className="workflow-nav__item is-active"><b>01</b> Capture</span>
+          <i />
+          <span className={`workflow-nav__item ${showEditor ? 'is-active' : ''}`}><b>02</b> Refine</span>
+          <i />
+          <span className={`workflow-nav__item ${showEditor ? 'is-active' : ''}`}><b>03</b> Export</span>
+        </nav>
+
+        <div className="topbar-actions">
+          <div className="stage-indicator"><span />{stageLabel}</div>
           <button
-            className="btn btn-ghost btn-icon"
+            className="btn btn-ghost topbar-shortcuts"
             onClick={() => setShowShortcutsModal(true)}
             data-tooltip="Keyboard shortcuts"
             data-tooltip-placement="bottom-end"
+            aria-label="Keyboard shortcuts"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+              <rect x="3" y="6" width="18" height="12" rx="3" />
+              <path strokeLinecap="round" d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
             </svg>
+            <span>Shortcuts</span>
           </button>
-
-          {/* New transcription button (when in editor) */}
           {showEditor && (
-            <button
-              className="btn btn-secondary text-xs"
-              onClick={reset}
-              style={{ padding: '6px 12px' }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            <button className="btn btn-secondary topbar-new" onClick={reset}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
               </svg>
-              New
+              New take
             </button>
           )}
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden print-expand">
-        {/* Upload / Record view */}
-        {!showEditor && !isProcessing && jobStatus !== 'failed' && (
-          <div
-            className="flex-1 overflow-y-auto p-4 sm:p-6 animate-fade-in"
-            data-testid="landing-scroll"
-          >
-            <div
-              className="min-h-full flex flex-col items-center justify-center"
-              data-testid="landing-content"
-            >
-              <RestoreBanner />
-              <div className="segmented mb-6 shrink-0">
-                {(['upload', 'record'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setInputMode(mode)}
-                    className={`segmented-btn ${inputMode === mode ? 'active' : ''}`}
-                  >
-                    {mode === 'upload' ? 'Upload video or audio' : 'Record now'}
-                  </button>
-                ))}
-              </div>
-              {inputMode === 'upload' ? <UploadPanel /> : <RecordPanel />}
+      <main className="app-main print-expand">
+        {!showEditor && (
+          <div className="landing-viewport animate-fade-in" data-testid="landing-scroll">
+            <div className="landing-orb landing-orb--one" />
+            <div className="landing-orb landing-orb--two" />
+            <div className="landing-layout" data-testid="landing-content">
+              <section className="landing-intro">
+                <div className="eyebrow"><span />Audio meets vision</div>
+                <h2>
+                  Your performance,
+                  <span> mapped to every string.</span>
+                </h2>
+                <p className="landing-lede">
+                  Turn a guitar take into playable tablature. TabVision listens for every note,
+                  watches the fretboard, and gives you a fast visual review pass.
+                </p>
+
+                <div className="landing-proof" aria-label="How TabVision works">
+                  <div>
+                    <span className="proof-number">01</span>
+                    <span className="proof-icon proof-icon--audio">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path strokeLinecap="round" d="M4 13v-2m4 6V7m4 13V4m4 13V7m4 6v-2" /></svg>
+                    </span>
+                    <p><strong>Hear the notes</strong><small>Pitch and timing analysis</small></p>
+                  </div>
+                  <div>
+                    <span className="proof-number">02</span>
+                    <span className="proof-icon proof-icon--vision">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12s3.4-5 9-5 9 5 9 5-3.4 5-9 5-9-5-9-5Z" /><circle cx="12" cy="12" r="2.5" /></svg>
+                    </span>
+                    <p><strong>See the position</strong><small>String and fret tracking</small></p>
+                  </div>
+                  <div>
+                    <span className="proof-number">03</span>
+                    <span className="proof-icon proof-icon--edit">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}><path strokeLinecap="round" strokeLinejoin="round" d="M5 18.5 18.2 5.3a1.8 1.8 0 0 1 2.5 2.5L7.5 21H4v-3.5Z" /><path d="m15.5 8 2.5 2.5" /></svg>
+                    </span>
+                    <p><strong>Make it yours</strong><small>Correct, audition, export</small></p>
+                  </div>
+                </div>
+
+                <div className="format-strip">
+                  <span>MP4</span><span>MOV</span><span>WAV</span><span>MP3</span>
+                  <p>No account · Local editing · MIDI &amp; PDF export</p>
+                </div>
+              </section>
+
+              <section className="landing-workbench" aria-label="Start a transcription">
+                <RestoreBanner />
+                <div className="workbench-card">
+                  <div className="workbench-topline">
+                    <div>
+                      <span className="workbench-kicker">New transcription</span>
+                      <h3>{inputMode === 'upload' ? 'Import a recording' : 'Capture a live take'}</h3>
+                    </div>
+                    <span className="workbench-status"><i /> Ready</span>
+                  </div>
+
+                  {!isProcessing && jobStatus !== 'failed' && (
+                    <div className="input-mode-tabs" role="tablist" aria-label="Recording source">
+                      {(['upload', 'record'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          role="tab"
+                          aria-selected={inputMode === mode}
+                          onClick={() => setInputMode(mode)}
+                          className={inputMode === mode ? 'is-active' : ''}
+                        >
+                          <CaptureIcon mode={mode} />
+                          <span>
+                            <strong>{mode === 'upload' ? 'Upload file' : 'Record now'}</strong>
+                            <small>{mode === 'upload' ? 'Video or audio' : 'Camera or microphone'}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className={`workbench-body ${isProcessing || jobStatus === 'failed' ? 'is-centered' : ''}`}>
+                    {isProcessing || jobStatus === 'failed'
+                      ? <UploadPanel />
+                      : inputMode === 'upload' ? <UploadPanel /> : <RecordPanel />}
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         )}
 
-        {/* Processing / error view */}
-        {(isProcessing || jobStatus === 'failed') && (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 animate-fade-in">
-            <div className="min-h-full flex items-center justify-center">
-              <UploadPanel />
-            </div>
-          </div>
-        )}
-
-        {/* Editor view */}
         {showEditor && (
-          <div className="flex-1 flex flex-col min-h-0 animate-fade-in print-expand">
-            {/* Video + Toolbar row */}
-            <div className="shrink-0 print-hide" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-              <div className="flex items-stretch">
-                <div className="shrink-0">
-                  <VideoPlayer videoRef={videoRef} />
+          <div className="editor-shell animate-fade-in print-expand">
+            <div className="editor-control-deck print-hide">
+              <section className="editor-source-panel" aria-label="Source playback">
+                <div className="panel-label">
+                  <span>Source</span>
+                  <small>Listen &amp; compare</small>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <TabToolbar />
+                <VideoPlayer videoRef={videoRef} />
+              </section>
+              <section className="editor-tools-panel" aria-label="Transcription tools">
+                <div className="panel-label panel-label--tools">
+                  <span>Review desk</span>
+                  <small><i className="confidence-dot confidence-dot--high" /> Confident <i className="confidence-dot confidence-dot--medium" /> Check <i className="confidence-dot confidence-dot--low" /> Review</small>
                 </div>
-              </div>
+                <TabToolbar />
+              </section>
             </div>
 
-            {/* Tab canvas / score view */}
-            <div className="flex-1 min-h-0 print-expand">
-              {viewMode === 'score' ? <ScoreView /> : <TabCanvas videoRef={videoRef} />}
-            </div>
+            <section className="editor-canvas-deck print-expand">
+              <div className="canvas-heading print-hide">
+                <div>
+                  <span>{viewMode === 'score' ? 'Printable score' : 'Interactive timeline'}</span>
+                  <small>{viewMode === 'score' ? 'Read, title, and print your transcription' : 'Click a note to edit · drag to retime · press ? for shortcuts'}</small>
+                </div>
+                <span className="canvas-live-label"><i /> Synced to playhead</span>
+              </div>
+              <div className="canvas-surface print-expand">
+                {viewMode === 'score' ? <ScoreView /> : <TabCanvas videoRef={videoRef} />}
+              </div>
+            </section>
           </div>
         )}
       </main>
 
-      {/* Shortcuts Modal */}
       {showShortcutsModal && <ShortcutsModal />}
     </div>
   );

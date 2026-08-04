@@ -9,6 +9,9 @@ public sealed class EditorDocument
     [JsonPropertyName("id")]
     public required string Id { get; set; }
 
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
     [JsonPropertyName("createdAt")]
     public required string CreatedAt { get; set; }
 
@@ -20,6 +23,9 @@ public sealed class EditorDocument
 
     [JsonPropertyName("tuning")]
     public List<string> Tuning { get; set; } = [];
+
+    [JsonPropertyName("tuningMidi")]
+    public List<int> TuningMidi { get; set; } = [];
 
     [JsonPropertyName("sourcePath")]
     public string? SourcePath { get; set; }
@@ -105,6 +111,24 @@ public sealed class EditorMetadata
 
     [JsonPropertyName("assistCandidateNotes")]
     public int AssistCandidateNotes { get; set; }
+
+    [JsonPropertyName("tempoBpm")]
+    public double? TempoBpm { get; set; }
+
+    [JsonPropertyName("beatTimes")]
+    public List<double> BeatTimes { get; set; } = [];
+
+    [JsonPropertyName("beatsPerBar")]
+    public int? BeatsPerBar { get; set; }
+
+    [JsonPropertyName("videoEnabled")]
+    public bool? VideoEnabled { get; set; }
+
+    [JsonPropertyName("resolvedPositionPrior")]
+    public string? ResolvedPositionPrior { get; set; }
+
+    [JsonPropertyName("resolvedVideoBackend")]
+    public string? ResolvedVideoBackend { get; set; }
 }
 
 [JsonConverter(typeof(EditorFretJsonConverter))]

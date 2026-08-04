@@ -3,6 +3,13 @@ import React, { useRef, useEffect, useCallback, useMemo, useState } from 'react'
 import { pitchPreservingFret, useAppStore } from '../store/appStore';
 import { TabNote } from '../types/tab';
 import { BeatGrid, getBeatGrid } from '../utils/beatGrid';
+import {
+  bendLabel,
+  isBend,
+  isSlide,
+  previousNoteById,
+  slideDirection,
+} from '../utils/noteTechniques';
 
 // Base layout constants (scaled by zoom)
 const BASE_PPS = 60; // pixels per second
@@ -17,34 +24,34 @@ const STRING_NAMES = ['e', 'B', 'G', 'D', 'A', 'E'];
 
 // Design system colors
 const COLORS = {
-  background: '#0b0e14',
-  surface: '#131620',
-  stringLine: 'rgba(148, 163, 184, 0.12)',
-  stringLineHighlight: 'rgba(148, 163, 184, 0.06)',
-  timeMarker: 'rgba(148, 163, 184, 0.15)',
-  timeMajorMarker: 'rgba(148, 163, 184, 0.25)',
-  timeText: '#64748b',
-  labelText: '#94a3b8',
-  noteHigh: '#10b981',
-  noteHighBg: 'rgba(16, 185, 129, 0.15)',
-  noteMedium: '#f59e0b',
-  noteMediumBg: 'rgba(245, 158, 11, 0.15)',
-  noteLow: '#f43f5e',
-  noteLowBg: 'rgba(244, 63, 94, 0.15)',
-  noteSelected: '#6366f1',
-  noteSelectedBg: 'rgba(99, 102, 241, 0.2)',
-  noteSelectedGlow: 'rgba(99, 102, 241, 0.4)',
+  background: '#10100f',
+  surface: '#181816',
+  stringLine: 'rgba(244, 239, 228, 0.16)',
+  stringLineHighlight: 'rgba(244, 239, 228, 0.035)',
+  timeMarker: 'rgba(244, 239, 228, 0.12)',
+  timeMajorMarker: 'rgba(244, 239, 228, 0.24)',
+  timeText: '#77766f',
+  labelText: '#a7a49a',
+  noteHigh: '#63d8a1',
+  noteHighBg: 'rgba(99, 216, 161, 0.15)',
+  noteMedium: '#f4b860',
+  noteMediumBg: 'rgba(244, 184, 96, 0.15)',
+  noteLow: '#f06b68',
+  noteLowBg: 'rgba(240, 107, 104, 0.15)',
+  noteSelected: '#ff855f',
+  noteSelectedBg: 'rgba(255, 133, 95, 0.18)',
+  noteSelectedGlow: 'rgba(255, 133, 95, 0.42)',
   noteEdited: '#ffffff',
   noteMuted: '#94a3b8',
-  playbackLine: '#6366f1',
-  playbackLineGlow: 'rgba(99, 102, 241, 0.3)',
+  playbackLine: '#ff855f',
+  playbackLineGlow: 'rgba(255, 133, 95, 0.28)',
   noteText: '#ffffff',
   noteTextDark: '#1a1a1a',
-  beatLine: 'rgba(99, 102, 241, 0.06)',
+  beatLine: 'rgba(255, 133, 95, 0.05)',
   measureLine: 'rgba(148, 163, 184, 0.28)',
   beatGridLine: 'rgba(148, 163, 184, 0.10)',
   subdivisionLine: 'rgba(148, 163, 184, 0.05)',
-  measureText: '#818cf8',
+  measureText: '#ff9d7e',
   activeRing: 'rgba(255, 255, 255, 0.9)',
   reviewRing: '#38bdf8',
 };
@@ -203,7 +210,9 @@ function drawTimeGrid(
 
 interface NotesState {
   notes: TabNote[];
+  previousNotes: Map<string, TabNote>;
   selectedNoteId: string | null;
+  selectedNoteIds: string[];
   hoveredNoteId: string | null;
   pendingFretInput: string;
   reviewActive: boolean;
@@ -238,6 +247,45 @@ const DRAG_THRESHOLD_PX = 4;
 
 const NOTE_FONT = 'bold 11px "SF Mono", monospace';
 
+/** Draw the conventional slash between the prior same-string note and a
+ * slide-marked destination. Pitch direction controls slash direction even
+ * though both fret numbers sit on the same tablature line. */
+function drawSlides(
+  ctx: CanvasRenderingContext2D,
+  l: Layout,
+  notes: TabNote[],
+  previous: Map<string, TabNote>,
+) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.64)';
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = 'round';
+
+  for (const note of notes) {
+    if (!isSlide(note) || note.fret === 'X') continue;
+    const from = previous.get(note.id);
+    const direction = slideDirection(from, note);
+    const x2 = l.timestampToX(note.timestamp);
+    const y = l.stringToY(note.string);
+    const fromX = from ? l.timestampToX(from.timestamp) : x2 - NOTE_SIZE;
+    let startX = fromX + NOTE_SIZE / 2 + 2;
+    let endX = x2 - NOTE_SIZE / 2 - 2;
+
+    // Very tight notes do not leave space between glyphs; retain a compact
+    // slash just before the destination instead of dropping the marking.
+    if (endX - startX < 5) {
+      endX = x2 - NOTE_SIZE / 2 - 1;
+      startX = endX - 7;
+    }
+    const rising = direction >= 0;
+    ctx.beginPath();
+    ctx.moveTo(startX, y + (rising ? 4 : -4));
+    ctx.lineTo(endX, y + (rising ? -4 : 4));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Draws duration tails then note glyphs; returns the rebuilt hitboxes. */
 function drawNotes(
   ctx: CanvasRenderingContext2D,
@@ -245,6 +293,7 @@ function drawNotes(
   s: NotesState
 ): NoteHitbox[] {
   const hitboxes: NoteHitbox[] = [];
+  const selectedIds = new Set(s.selectedNoteIds);
 
   // Pass 1 — duration tails, under every glyph so long notes read as bars.
   ctx.globalAlpha = 0.35;
@@ -254,22 +303,26 @@ function drawNotes(
     const x = l.timestampToX(note.timestamp);
     const xEnd = l.timestampToX(note.endTime);
     const y = l.stringToY(note.string);
-    ctx.fillStyle = getNoteColor(note, note.id === s.selectedNoteId);
+    ctx.fillStyle = getNoteColor(note, selectedIds.has(note.id));
     ctx.beginPath();
     ctx.roundRect(x, y - 3, Math.max(2, xEnd - x), 6, 3);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 
+  // Slide connectors sit above duration tails but under fret glyphs.
+  drawSlides(ctx, l, s.notes, s.previousNotes);
+
   // Pass 2 — glyphs.
   ctx.font = NOTE_FONT;
   for (const note of s.notes) {
     const x = l.timestampToX(note.timestamp);
     const y = l.stringToY(note.string);
-    const isSelected = note.id === s.selectedNoteId;
+    const isSelected = selectedIds.has(note.id);
+    const isPrimarySelected = note.id === s.selectedNoteId;
     const isHovered = note.id === s.hoveredNoteId;
     const fretText = note.fret === 'X' ? 'X' : note.fret.toString();
-    const pendingText = isSelected && s.pendingFretInput ? s.pendingFretInput + '_' : null;
+    const pendingText = isPrimarySelected && s.pendingFretInput ? s.pendingFretInput + '_' : null;
     // Two-digit frets get a wider glyph instead of a cramped square.
     const textWidth = ctx.measureText(pendingText ?? fretText).width;
     const w = Math.max(NOTE_SIZE, textWidth + 10);
@@ -358,7 +411,7 @@ function drawNotes(
 
     // Selected note with ranked alternatives: show "pos k/m" under the note
     // so C-cycling has visible state.
-    if (isSelected && note.fret !== 'X' && (note.candidates?.length ?? 0) > 1) {
+    if (isPrimarySelected && note.fret !== 'X' && (note.candidates?.length ?? 0) > 1) {
       const candidates = note.candidates!;
       const current = candidates.findIndex(
         c => c.string === note.string && c.fret === note.fret
@@ -375,15 +428,32 @@ function drawNotes(
       ctx.font = NOTE_FONT;
     }
 
-    // Technique indicator
-    if (note.fret !== 'X' && note.technique === 'bend') {
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-      ctx.lineWidth = 1.5;
+    // Bend: compact curved arrow plus its amount. It stays legible at every
+    // zoom because note glyphs themselves are intentionally fixed-size.
+    if (note.fret !== 'X' && isBend(note)) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = 'round';
+      const arrowX = x + w / 2 + 2;
+      const arrowTopX = arrowX + 7;
+      const arrowTopY = y - 10;
       ctx.beginPath();
-      ctx.moveTo(x + w / 2 + 2, y + 2);
-      ctx.lineTo(x + w / 2 + 2, y - 4);
-      ctx.lineTo(x + w / 2 + 5, y - 1);
+      ctx.moveTo(arrowX, y + 3);
+      ctx.quadraticCurveTo(arrowX + 1, y - 6, arrowTopX, arrowTopY);
       ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(arrowTopX, arrowTopY);
+      ctx.lineTo(arrowTopX - 4, arrowTopY + 1);
+      ctx.moveTo(arrowTopX, arrowTopY);
+      ctx.lineTo(arrowTopX - 1, arrowTopY + 4);
+      ctx.stroke();
+      ctx.font = '600 8px "SF Mono", monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(bendLabel(note), arrowTopX + 2, arrowTopY + 2);
+      ctx.restore();
     }
 
     // Fret number text
@@ -452,6 +522,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     currentTime,
     duration,
     selectedNoteId,
+    selectedNoteIds,
     isFollowingPlayback,
     pendingFretInput,
     zoomLevel,
@@ -460,6 +531,8 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     reviewIndex,
     noteFocusNonce,
     selectNote,
+    toggleNoteSelection,
+    selectNoteRange,
     setCurrentTime,
     setFollowingPlayback,
     applyNoteDrag,
@@ -530,6 +603,10 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   // Detected beat grid (null on old documents or when detection failed —
   // drawTimeGrid then falls back to the plain seconds grid).
   const beatGrid = useMemo(() => getBeatGrid(tabDocument), [tabDocument]);
+  const previousNotes = useMemo(
+    () => previousNoteById(tabDocument?.notes ?? []),
+    [tabDocument],
+  );
 
   // Draw the canvas
   const draw = useCallback(() => {
@@ -579,7 +656,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
 
     noteHitboxesRef.current = drawNotes(ctx, layout, {
       notes,
+      previousNotes,
       selectedNoteId,
+      selectedNoteIds,
       hoveredNoteId,
       pendingFretInput,
       reviewActive,
@@ -594,12 +673,14 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     safeDuration,
     currentTime,
     selectedNoteId,
+    selectedNoteIds,
     hoveredNoteId,
     pendingFretInput,
     zoomLevel,
     reviewActive,
     reviewIds,
     beatGrid,
+    previousNotes,
     dragPreview,
     timestampToX,
     stringToY,
@@ -709,6 +790,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       if (!coords) return;
       const hit = hitTest(coords.x, coords.y);
       if (!hit || reviewActive || hit.note.fret === 'X') return;
+      // Modified clicks belong to multi-selection and must never arm the
+      // single-note drag gesture.
+      if (e.shiftKey || e.ctrlKey || e.metaKey) return;
       dragGestureRef.current = {
         pointerId: e.pointerId,
         noteId: hit.id,
@@ -804,14 +888,22 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       if (!coords) return;
       const hit = hitTest(coords.x, coords.y);
       if (hit) {
-        selectNote(hit.id);
+        if (e.shiftKey) {
+          selectNoteRange(hit.id);
+        } else if (e.ctrlKey || e.metaKey) {
+          toggleNoteSelection(hit.id);
+        } else {
+          selectNote(hit.id);
+        }
         if (videoRef.current) {
           videoRef.current.currentTime = hit.note.timestamp;
         }
         setCurrentTime(hit.note.timestamp);
         return;
       }
-      selectNote(null);
+      // Ctrl/Cmd/Shift-clicking empty space seeks without throwing away the
+      // group the user is building.
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey) selectNote(null);
       const clickedTime = (coords.x - STRING_LABEL_WIDTH - CANVAS_PADDING) / pps;
       if (clickedTime >= 0 && clickedTime <= safeDuration) {
         if (videoRef.current) {
@@ -828,7 +920,9 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       pps,
       safeDuration,
       selectNote,
+      selectNoteRange,
       setCurrentTime,
+      toggleNoteSelection,
       videoRef,
     ]
   );
@@ -907,6 +1001,22 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
           </span>
         </div>
       )}
+      {!reviewActive && selectedNoteIds.length > 1 ? (
+        <div
+          role="status"
+          data-testid="group-selection-banner"
+          className="flex items-center gap-3 px-3 py-1.5 text-xs font-medium"
+          style={{ background: COLORS.noteSelectedBg, color: COLORS.noteSelected }}
+        >
+          <span>{selectedNoteIds.length} notes selected</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Arrow Up/Down: move one string · Arrow Left/Right: move 50 ms
+          </span>
+          <span className="ml-auto" style={{ color: 'var(--text-secondary)' }}>
+            Ctrl/Cmd-click toggles · Shift-click selects a range · Esc clears
+          </span>
+        </div>
+      ) : null}
       {/* Scrollable canvas */}
       <div
         ref={containerRef}

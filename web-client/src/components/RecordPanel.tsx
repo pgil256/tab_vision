@@ -465,7 +465,7 @@ export function RecordPanel() {
   }
 
   return (
-    <div className="w-full max-w-xl animate-slide-up relative">
+    <div className="capture-flow capture-flow--record animate-slide-up relative">
       <div className="ambient-bg" />
       <div className="relative z-10">
         <div className="text-center mb-6">
@@ -497,7 +497,7 @@ export function RecordPanel() {
         </div>
 
         {/* Capture-mode toggle: audio-only or video + audio */}
-        <div className="flex justify-center mb-4">
+        <div className="capture-mode-row">
           <div className="segmented" role="radiogroup" aria-label="Capture mode">
             {([
               { id: 'video', label: 'Video + audio' },
@@ -519,7 +519,7 @@ export function RecordPanel() {
 
         {/* Preview */}
         <div
-          className="rounded-xl overflow-hidden relative"
+          className="record-preview rounded-xl overflow-hidden relative"
           style={{
             background: '#000',
             border: '1px solid var(--border-subtle)',
@@ -688,7 +688,7 @@ export function RecordPanel() {
         })()}
 
         {/* Metronome controls */}
-        <div className="field-card mt-4 p-4">
+        <div className="field-card metronome-card mt-4 p-4">
           <div className="flex items-center justify-between mb-3 gap-3">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Metronome</p>
             <div className="flex items-center gap-2">
@@ -782,10 +782,10 @@ export function RecordPanel() {
         <TranscriptionOptions showRoi={!isAudio} />
 
         {/* Action buttons */}
-        <div className="mt-4 flex gap-2">
+        <div className="record-actions">
           {state !== 'recording' && state !== 'countin' && (
             <button
-              className="btn btn-primary flex-1"
+              className="btn btn-primary flex-1 record-primary-action"
               onClick={startWithMetronome}
               disabled={!canStart}
               style={{ padding: '10px 16px' }}
@@ -794,6 +794,7 @@ export function RecordPanel() {
                 <circle cx="12" cy="12" r="6" />
               </svg>
               Start recording
+              <span className="record-action-hint">Space</span>
             </button>
           )}
           {(state === 'recording' || state === 'countin') && (

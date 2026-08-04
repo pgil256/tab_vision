@@ -62,6 +62,12 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_check(args)
         if args.command == "diagnose":
             return _cmd_diagnose(args)
+        if args.command == "bank-gold":
+            return _cmd_bank_gold(args)
+        if args.command == "review-audio":
+            return _cmd_review_audio(args)
+        if args.command == "clean-audio":
+            return _cmd_clean_audio(args)
     except TabVisionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -71,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _capo_arg(value: str) -> int:
-    """argparse type for ``--capo``: an integer fret in the documented 0-7 range.
+    """argparse type for ``--capo``: an integer fret in the supported 0-12 range.
 
     A negative or out-of-range capo silently corrupts the rendered tab (every
     pitch is shifted past the playable range), so reject it at the CLI boundary
@@ -81,9 +87,35 @@ def _capo_arg(value: str) -> int:
         capo = int(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"capo must be an integer, got {value!r}") from None
-    if not 0 <= capo <= 7:
-        raise argparse.ArgumentTypeError(f"capo must be between 0 and 7, got {capo}")
+    if not 0 <= capo <= 12:
+        raise argparse.ArgumentTypeError(f"capo must be between 0 and 12, got {capo}")
     return capo
+
+
+_TUNING_PRESETS: dict[str, tuple[int, ...]] = {
+    "standard": (40, 45, 50, 55, 59, 64),
+    "drop-d": (38, 45, 50, 55, 59, 64),
+    "eb-standard": (39, 44, 49, 54, 58, 63),
+    "d-standard": (38, 43, 48, 53, 57, 62),
+    "drop-c": (36, 43, 48, 53, 57, 62),
+    "dadgad": (38, 45, 50, 55, 57, 62),
+    "open-g": (38, 43, 50, 55, 59, 62),
+}
+
+
+def _unit_interval_arg(value: str) -> float:
+    """Parse one normalized video-ROI coordinate."""
+    try:
+        coordinate = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"ROI coordinates must be numbers between 0 and 1, got {value!r}"
+        ) from None
+    if not math.isfinite(coordinate) or not 0.0 <= coordinate <= 1.0:
+        raise argparse.ArgumentTypeError(
+            f"ROI coordinates must be between 0 and 1, got {coordinate}"
+        )
+    return coordinate
 
 
 _POSITION_PRIOR_CHOICES = ("auto", "none", "guitarset-v1", "gaps-v1")
@@ -213,7 +245,33 @@ def _build_parser() -> argparse.ArgumentParser:
             "(Phase 1, Apache-2.0) is the fast CPU-only baseline."
         ),
     )
-    t.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
+    t.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-12)")
+    t.add_argument(
+        "--tuning",
+        choices=tuple(_TUNING_PRESETS),
+        default="standard",
+        help="guitar tuning preset (default: standard)",
+    )
+    t.add_argument(
+        "--accuracy-mode",
+        choices=["fast", "accurate"],
+        default="accurate",
+        help=(
+            "speed/accuracy profile. 'fast' uses the lightweight Basic Pitch "
+            "backend when --audio-backend is auto; 'accurate' keeps normal routing"
+        ),
+    )
+    t.add_argument(
+        "--roi",
+        nargs=4,
+        type=_unit_interval_arg,
+        default=None,
+        metavar=("LEFT", "TOP", "RIGHT", "BOTTOM"),
+        help=(
+            "optional normalized fretboard crop for video analysis, measured "
+            "from the top-left of the frame"
+        ),
+    )
     t.add_argument(
         "--fusion-lambda-vision",
         type=_lambda_vision_arg,
@@ -390,6 +448,32 @@ def _build_parser() -> argparse.ArgumentParser:
         help="skip preflight entirely (Phase 3 escape hatch)",
     )
 
+    b = sub.add_parser(
+        "bank-gold",
+        help="bank a corrected editor document as local personal training data",
+    )
+    b.add_argument("source", type=Path, help="original audio or video recording")
+    b.add_argument("document", type=Path, help="corrected editor-document JSON")
+    b.add_argument("--root", type=Path, required=True, help="local personal-data root")
+    b.add_argument(
+        "--no-prior",
+        action="store_true",
+        help="bank labelled video frames without appending position-prior labels",
+    )
+
+    review = sub.add_parser("review-audio", help="analyze a take for local review")
+    review.add_argument("input", type=Path, help="audio or video recording")
+    review.add_argument("--bins", type=int, default=600, help="waveform envelope bins")
+
+    clean = sub.add_parser("clean-audio", help="render a trimmed and cleaned local WAV")
+    clean.add_argument("input", type=Path, help="audio or video recording")
+    clean.add_argument("output", type=Path, help="output WAV")
+    clean.add_argument("--trim-start", type=float, default=0.0)
+    clean.add_argument("--trim-end", type=float, default=None)
+    clean.add_argument("--gain-db", type=float, default=0.0)
+    clean.add_argument("--normalize", action="store_true")
+    clean.add_argument("--highpass-hz", type=int, default=0)
+
     c = sub.add_parser(
         "check",
         help="run preflight on a clip and print the report (Phase 3)",
@@ -426,7 +510,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default="basicpitch",
         help="audio transcription backend used for the diagnostic decode",
     )
-    d.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-7)")
+    d.add_argument("--capo", type=_capo_arg, default=0, help="capo fret (0-12)")
     d.add_argument(
         "--fusion-lambda-vision",
         type=_lambda_vision_arg,
@@ -483,6 +567,42 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _cmd_bank_gold(args: argparse.Namespace) -> int:
+    from tabvision.personal.bank import bank_corrected_document
+
+    summary = bank_corrected_document(
+        args.source,
+        args.document,
+        root=args.root,
+        bank_prior=not args.no_prior,
+    )
+    print(json.dumps(summary, sort_keys=True))
+    return 0
+
+
+def _cmd_review_audio(args: argparse.Namespace) -> int:
+    from tabvision.audio.review import analyze_take
+
+    print(json.dumps(analyze_take(args.input, bins=args.bins), separators=(",", ":")))
+    return 0
+
+
+def _cmd_clean_audio(args: argparse.Namespace) -> int:
+    from tabvision.audio.review import clean_take
+
+    output = clean_take(
+        args.input,
+        args.output,
+        trim_start=args.trim_start,
+        trim_end=args.trim_end,
+        gain_db=args.gain_db,
+        normalize=args.normalize,
+        highpass_hz=args.highpass_hz,
+    )
+    print(json.dumps({"output": str(output)}, separators=(",", ":")))
+    return 0
+
+
 def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = None) -> int:
     """Run the full transcription pipeline (demux → audio + video → fuse → render).
 
@@ -498,7 +618,9 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
 
     total_started = time.perf_counter()
     preflight_s = 0.0
-    cfg = GuitarConfig(capo=args.capo)
+    if args.roi is not None and (args.roi[0] >= args.roi[2] or args.roi[1] >= args.roi[3]):
+        raise InvalidInputError("ROI requires left < right and top < bottom")
+    cfg = GuitarConfig(capo=args.capo, tuning_midi=_TUNING_PRESETS[args.tuning])
     session = SessionConfig(instrument=args.instrument, tone=args.tone, style=args.style)
 
     def report_progress(stage: str) -> None:
@@ -533,11 +655,16 @@ def _cmd_transcribe(args: argparse.Namespace, *, json_stdout: TextIO | None = No
             )
             return 2
     pipeline_kwargs = {
-        "audio_backend_name": args.audio_backend,
+        "audio_backend_name": (
+            "basicpitch"
+            if args.accuracy_mode == "fast" and args.audio_backend == "auto"
+            else args.audio_backend
+        ),
         "lambda_vision": args.fusion_lambda_vision,
         "video_stride": args.video_stride,
         "video_enabled": video_enabled,
         "video_backend": video_backend,
+        "video_roi": tuple(args.roi) if args.roi is not None else None,
         "contact_evidence": args.video_contact_evidence,
         "position_prior": args.position_prior,
         "sequence_prior": args.sequence_prior,

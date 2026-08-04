@@ -26,6 +26,7 @@ def test_editor_document_uses_client_strings_and_python_rankings(monkeypatch, tm
         resolved_video_backend="none",
         position_observation_count=0,
         notes_affected_by_video=0,
+        beat_grid=None,
     )
     observed: dict[str, object] = {}
 
@@ -47,4 +48,6 @@ def test_editor_document_uses_client_strings_and_python_rankings(monkeypatch, tm
     assert note["detectedMidiNote"] == 64
     assert note["confidenceLevel"] == "low"
     assert note["candidates"] == [{"string": 1, "fret": 0}, {"string": 2, "fret": 5}]
+    assert document["tuning"] == ["E", "A", "D", "G", "B", "E"]
+    assert document["tuningMidi"] == [40, 45, 50, 55, 59, 64]
     assert observed["sequence_prior"] == "sequence-v1"

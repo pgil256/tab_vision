@@ -55,6 +55,10 @@ public static class SidecarCommandBuilder
             options.Style,
             "--capo",
             options.Capo.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--tuning",
+            options.Tuning,
+            "--accuracy-mode",
+            options.AccuracyMode,
             "--audio-backend",
             options.AudioBackend,
         };
@@ -62,6 +66,14 @@ public static class SidecarCommandBuilder
         if (options.NoVideo)
         {
             arguments.Add("--no-video");
+        }
+        if (options.Roi is not null)
+        {
+            arguments.Add("--roi");
+            arguments.Add(options.Roi.Left.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            arguments.Add(options.Roi.Top.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            arguments.Add(options.Roi.Right.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            arguments.Add(options.Roi.Bottom.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
         if (!string.IsNullOrWhiteSpace(editorOutputPath))
         {

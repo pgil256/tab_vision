@@ -12,6 +12,13 @@ import { TabNote } from '../types/tab';
 import { audition } from '../utils/auditionEngine';
 import { getBeatGrid } from '../utils/beatGrid';
 import {
+  bendLabel,
+  isBend,
+  isSlide,
+  previousNoteById,
+  slideDirection,
+} from '../utils/noteTechniques';
+import {
   ScoreSystem,
   buildMeasures,
   buildSystems,
@@ -35,7 +42,7 @@ const INK = '#1a1a1a';
 const INK_FAINT = '#8a8a8a';
 const PAPER = '#ffffff';
 const ACCENT = '#4f46e5';
-const CURSOR_FILL = 'rgba(99, 102, 241, 0.18)';
+const CURSOR_FILL = 'rgba(255, 112, 72, 0.18)';
 
 interface PlacedNote {
   note: TabNote;
@@ -43,6 +50,9 @@ interface PlacedNote {
   y: number;
   /** Glyph halo width (two-digit frets are wider). */
   w: number;
+  /** Same-system source geometry for an incoming slide. */
+  slideFrom?: { x: number; y: number; w: number };
+  slideDirection?: -1 | 0 | 1;
 }
 
 function stringY(stringNum: number): number {
@@ -78,18 +88,18 @@ function xToTime(system: ScoreSystem, x: number): number {
 interface SystemProps {
   system: ScoreSystem;
   notes: PlacedNote[];
-  selectedNoteId: string | null;
+  selectedNoteIds: string[];
   /** currentTime when the playhead is inside this system, else -1 (keeps
    * React.memo effective: only the active system re-renders per tick). */
   cursorTime: number;
   onSeek: (t: number) => void;
-  onSelect: (note: TabNote) => void;
+  onSelect: (note: TabNote, mode: 'replace' | 'toggle' | 'range') => void;
 }
 
 const System = React.memo(function System({
   system,
   notes,
-  selectedNoteId,
+  selectedNoteIds,
   cursorTime,
   onSeek,
   onSelect,
@@ -107,7 +117,10 @@ const System = React.memo(function System({
       // Note hit first, then plain seek.
       for (const p of notes) {
         if (Math.abs(x - p.x) <= Math.max(10, p.w / 2 + 3) && Math.abs(y - p.y) <= 8) {
-          onSelect(p.note);
+          onSelect(
+            p.note,
+            e.shiftKey ? 'range' : (e.ctrlKey || e.metaKey ? 'toggle' : 'replace'),
+          );
           return;
         }
       }
@@ -117,6 +130,7 @@ const System = React.memo(function System({
   );
 
   const cursorX = cursorTime >= 0 ? timeToX(system, cursorTime) : null;
+  const selectedIds = new Set(selectedNoteIds);
 
   return (
     <svg
@@ -179,6 +193,32 @@ const System = React.memo(function System({
         />
       ))}
 
+      {/* Slides: a conventional slash from the prior same-string fret into
+          the marked destination. A compact slash is retained at a system
+          break where the source note lives on the previous line. */}
+      {notes.map(p => {
+        if (!isSlide(p.note)) return null;
+        const rising = (p.slideDirection ?? 0) >= 0;
+        const endX = p.x - p.w / 2 - 2;
+        const proposedStart = p.slideFrom
+          ? p.slideFrom.x + p.slideFrom.w / 2 + 2
+          : endX - 8;
+        const startX = endX - proposedStart < 5 ? endX - 8 : proposedStart;
+        return (
+          <line
+            key={`slide-${p.note.id}`}
+            data-technique="slide"
+            x1={startX}
+            y1={p.y + (rising ? 4 : -4)}
+            x2={endX}
+            y2={p.y + (rising ? -4 : 4)}
+            stroke={INK}
+            strokeWidth={1.2}
+            strokeLinecap="round"
+          />
+        );
+      })}
+
       {/* Playback cursor (screen only; hidden in print via CSS) */}
       {cursorX != null && (
         <g className="score-cursor">
@@ -203,7 +243,7 @@ const System = React.memo(function System({
 
       {/* Notes: white halo so the number sits "on" the line, then the glyph. */}
       {notes.map(p => {
-        const isSelected = p.note.id === selectedNoteId;
+        const isSelected = selectedIds.has(p.note.id);
         const activeEnd = Math.max(p.note.endTime ?? 0, p.note.timestamp + 0.15);
         const isActive =
           cursorTime >= 0 && cursorTime >= p.note.timestamp && cursorTime <= activeEnd;
@@ -229,6 +269,33 @@ const System = React.memo(function System({
                 strokeWidth={1}
               />
             )}
+            {isBend(p.note) && p.note.fret !== 'X' ? (
+              <g data-technique="bend">
+                <path
+                  d={`M ${p.x + p.w / 2 + 1} ${p.y + 2} Q ${p.x + p.w / 2 + 2} ${p.y - 6} ${p.x + p.w / 2 + 9} ${p.y - 10}`}
+                  fill="none"
+                  stroke={fill}
+                  strokeWidth={1.1}
+                  strokeLinecap="round"
+                />
+                <path
+                  d={`M ${p.x + p.w / 2 + 9} ${p.y - 10} l -4 1 m 4 -1 l -1 4`}
+                  fill="none"
+                  stroke={fill}
+                  strokeWidth={1.1}
+                  strokeLinecap="round"
+                />
+                <text
+                  x={p.x + p.w / 2 + 12}
+                  y={p.y - 8}
+                  fontSize={7}
+                  fontFamily="'SF Mono', 'Cascadia Code', monospace"
+                  fill={fill}
+                >
+                  {bendLabel(p.note)}
+                </text>
+              </g>
+            ) : null}
             <text
               x={p.x}
               y={p.y + 3.5}
@@ -255,8 +322,11 @@ export function ScoreView() {
   const isPlaying = useAppStore(s => s.isPlaying);
   const isFollowingPlayback = useAppStore(s => s.isFollowingPlayback);
   const selectedNoteId = useAppStore(s => s.selectedNoteId);
+  const selectedNoteIds = useAppStore(s => s.selectedNoteIds);
   const noteFocusNonce = useAppStore(s => s.noteFocusNonce);
   const selectNote = useAppStore(s => s.selectNote);
+  const toggleNoteSelection = useAppStore(s => s.toggleNoteSelection);
+  const selectNoteRange = useAppStore(s => s.selectNoteRange);
   const setCurrentTime = useAppStore(s => s.setCurrentTime);
   const setFollowingPlayback = useAppStore(s => s.setFollowingPlayback);
   const setDocumentTitle = useAppStore(s => s.setDocumentTitle);
@@ -289,16 +359,38 @@ export function ScoreView() {
     const out: PlacedNote[][] = systems.map(() => []);
     if (!tabDocument) return out;
     const sorted = [...tabDocument.notes].sort((a, b) => a.timestamp - b.timestamp);
+    const placed = new Map<string, { systemIndex: number; value: PlacedNote }>();
     for (const note of sorted) {
       const i = systemIndexAt(systems, note.timestamp);
       if (i < 0) continue;
       const digits = note.fret === 'X' ? 1 : String(note.fret).length;
-      out[i].push({
+      const value: PlacedNote = {
         note,
         x: timeToX(systems[i], note.timestamp),
         y: stringY(note.string),
         w: digits * 7 + 5,
-      });
+      };
+      out[i].push(value);
+      placed.set(note.id, { systemIndex: i, value });
+    }
+
+    // Enrich slide destinations after every note has geometry, including the
+    // case where their source falls in the previous printed system.
+    const previous = previousNoteById(sorted);
+    for (const note of sorted) {
+      if (!isSlide(note)) continue;
+      const current = placed.get(note.id);
+      if (!current) continue;
+      const prior = previous.get(note.id);
+      current.value.slideDirection = slideDirection(prior, note);
+      const source = prior ? placed.get(prior.id) : undefined;
+      if (source && source.systemIndex === current.systemIndex) {
+        current.value.slideFrom = {
+          x: source.value.x,
+          y: source.value.y,
+          w: source.value.w,
+        };
+      }
     }
     return out;
   }, [systems, tabDocument]);
@@ -314,12 +406,18 @@ export function ScoreView() {
   );
 
   const handleSelect = useCallback(
-    (note: TabNote) => {
-      selectNote(note.id);
+    (note: TabNote, mode: 'replace' | 'toggle' | 'range') => {
+      if (mode === 'range') {
+        selectNoteRange(note.id);
+      } else if (mode === 'toggle') {
+        toggleNoteSelection(note.id);
+      } else {
+        selectNote(note.id);
+      }
       audition.seek(note.timestamp);
       setCurrentTime(note.timestamp);
     },
-    [selectNote, setCurrentTime]
+    [selectNote, selectNoteRange, setCurrentTime, toggleNoteSelection]
   );
 
   // While the score is showing, the browser-tab title carries the piece title
@@ -494,7 +592,7 @@ export function ScoreView() {
               <System
                 system={system}
                 notes={placedBySystem[i]}
-                selectedNoteId={selectedNoteId}
+                selectedNoteIds={selectedNoteIds}
                 cursorTime={i === activeSystem ? currentTime : -1}
                 onSeek={handleSeek}
                 onSelect={handleSelect}

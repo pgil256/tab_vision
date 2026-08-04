@@ -24,7 +24,7 @@ export function RestoreBanner() {
 
   return (
     <div
-      className="w-full max-w-md mb-5 rounded-lg px-4 py-3 flex items-center justify-between gap-3 animate-fade-in"
+      className="restore-banner w-full rounded-lg px-4 py-3 flex items-center justify-between gap-3 animate-fade-in"
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--accent-glow)',

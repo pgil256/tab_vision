@@ -3,6 +3,19 @@ import { useAppStore } from '../store/appStore';
 import { exportToTextTab } from '../utils/exportTab';
 import { exportToMidi } from '../utils/exportMidi';
 import { getBeatGrid } from '../utils/beatGrid';
+import type { TabNote } from '../types/tab';
+
+type TechniqueChoice = 'none' | 'slide' | 'bend-1' | 'bend-2' | 'bend-3' | 'other' | 'mixed';
+
+function techniqueChoiceForNote(note: TabNote): TechniqueChoice {
+  if (note.technique === 'slide' || note.technique?.startsWith('slide-')) return 'slide';
+  if (note.technique === 'bend') {
+    const amount = note.pitchBend ?? 2;
+    if (amount === 1 || amount === 2 || amount === 3) return `bend-${amount}`;
+    return 'other';
+  }
+  return note.technique ? 'other' : 'none';
+}
 
 export function TabToolbar() {
   const {
@@ -29,6 +42,8 @@ export function TabToolbar() {
     goldBankMessage,
     bankGoldSession,
     jumpToNextConfidence,
+    selectedNoteIds,
+    setSelectedTechnique,
   } = useAppStore();
 
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -127,6 +142,17 @@ export function TabToolbar() {
   const medCount = tabDocument ? tabDocument.notes.filter(n => n.confidenceLevel === 'medium').length : 0;
   const lowCount = tabDocument ? tabDocument.notes.filter(n => n.confidenceLevel === 'low').length : 0;
   const totalNotes = tabDocument ? tabDocument.notes.length : 0;
+  const selectedIdSet = new Set(selectedNoteIds);
+  const selectedNotes = tabDocument
+    ? tabDocument.notes.filter(note => selectedIdSet.has(note.id))
+    : [];
+  const selectedChoices = selectedNotes.map(techniqueChoiceForNote);
+  const techniqueChoice: TechniqueChoice = selectedChoices.length === 0
+    ? 'none'
+    : selectedChoices.every(choice => choice === selectedChoices[0])
+      ? selectedChoices[0]
+      : 'mixed';
+  const techniqueDisabled = selectedNotes.length === 0 || selectedNotes.some(note => note.fret === 'X');
   const metadata = tabDocument?.metadata;
   const diagnostics = metadata?.diagnostics;
   const pipelineLabel = metadata?.pipelineVersion
@@ -139,14 +165,14 @@ export function TabToolbar() {
   return (
     <>
       <div
-        className="h-full flex items-center justify-between gap-4 px-4 py-2.5"
+        className="tab-toolbar h-full flex items-center justify-between gap-4 px-4 py-2.5"
         style={{
           background: 'var(--bg-surface)',
           borderLeft: '1px solid var(--border-subtle)',
         }}
       >
         {/* Left: Stats */}
-        <div className="flex items-center gap-3">
+        <div className="tab-toolbar__stats flex items-center gap-3">
           {/* Confidence pills. The yellow/red ones are buttons: each click
               jumps to the next note still at that level (fixing a note
               promotes it to green, so it leaves the cycle). */}
@@ -221,7 +247,37 @@ export function TabToolbar() {
         </div>
 
         {/* Right: Controls */}
-        <div className="flex items-center gap-2">
+        <div className="tab-toolbar__controls flex items-center gap-2">
+          <label
+            className="technique-picker"
+            data-tooltip={techniqueDisabled ? 'Select one or more pitched notes first' : 'Expressive marking'}
+          >
+            <span>Technique</span>
+            <select
+              className="select technique-picker__select"
+              aria-label="Technique for selected notes"
+              data-testid="technique-select"
+              value={techniqueChoice}
+              disabled={techniqueDisabled}
+              onChange={event => {
+                const value = event.target.value as TechniqueChoice;
+                if (value === 'none') setSelectedTechnique(null);
+                else if (value === 'slide') setSelectedTechnique('slide');
+                else if (value.startsWith('bend-')) {
+                  setSelectedTechnique('bend', Number(value.slice('bend-'.length)));
+                }
+              }}
+            >
+              <option value="none">None</option>
+              <option value="slide">Slide</option>
+              <option value="bend-1">½-step bend</option>
+              <option value="bend-2">Full-step bend</option>
+              <option value="bend-3">1½-step bend</option>
+              {techniqueChoice === 'other' ? <option value="other">Other marking</option> : null}
+              {techniqueChoice === 'mixed' ? <option value="mixed">Mixed markings</option> : null}
+            </select>
+          </label>
+
           {/* Undo/Redo */}
           <div
             className="flex items-center rounded-lg overflow-hidden"

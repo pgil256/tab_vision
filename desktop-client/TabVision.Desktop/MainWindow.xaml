@@ -1,485 +1,633 @@
 <Window x:Class="TabVision.Desktop.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="TabVision"
-        Width="820"
+        Title="TabVision Studio"
+        Width="1180"
         Height="820"
-        MinWidth="620"
-        MinHeight="480"
+        MinWidth="900"
+        MinHeight="620"
+        AllowDrop="True"
+        DragEnter="Window_DragEnter"
+        DragLeave="Window_DragLeave"
+        Drop="Window_Drop"
         Loaded="Window_Loaded"
         WindowStartupLocation="CenterScreen">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                  VerticalScrollBarVisibility="Auto">
-        <Grid Margin="28">
+    <Grid Background="{StaticResource BackgroundBrush}">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="70" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <TextBlock FontSize="28"
-                       FontWeight="SemiBold"
-                       Text="TabVision" />
-            <Menu Grid.Column="1"
-                  VerticalAlignment="Center"
-                  Background="Transparent">
-                <MenuItem Padding="10,6"
-                          AutomationProperties.Name="Settings"
-                          Header="_Settings">
-                    <MenuItem x:Name="RepairBootstrapMenuItem"
-                              AutomationProperties.Name="Repair or re-download setup files"
-                              Click="RepairBootstrapMenuItem_Click"
-                              Header="_Repair / Re-download"
-                              IsEnabled="False"
-                              ToolTip="Revalidate setup and download only missing or corrupt files." />
-                    <MenuItem x:Name="RestoreEditorMenuItem"
-                              AutomationProperties.Name="Restore editor session"
-                              Click="RestoreEditorMenuItem_Click"
-                              Header="_Restore editor session"
-                              IsEnabled="False" />
-                </MenuItem>
-            </Menu>
-        </Grid>
-        <TextBlock Grid.Row="1"
-                   Margin="0,6,0,24"
-                   Foreground="#666666"
-                   Text="Record a guitar video live or upload one to begin a local transcription."
-                   TextWrapping="Wrap" />
-
-        <Border Grid.Row="2"
-                Padding="20"
-                BorderBrush="#D6D6D6"
-                BorderThickness="1"
-                CornerRadius="6">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- Studio header -->
+        <Border BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Background="#F40D131D">
+            <Grid Margin="26,0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel>
-                    <TextBlock FontSize="16"
-                               FontWeight="SemiBold"
-                               Text="Input video" />
-                    <TextBlock Margin="0,4,16,0"
-                               Foreground="#666666"
-                               Text="Record with a camera and microphone in TabVision, or upload MP4, MOV, M4V, AVI, MKV, WebM, or another media file."
-                               TextWrapping="Wrap" />
-                </StackPanel>
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <Button x:Name="RecordVideoButton"
-                            MinWidth="118"
-                            Padding="14,8"
-                            AutomationProperties.Name="Record live video"
-                            Click="RecordVideo_Click"
-                            Content="Record live" />
-                    <Button x:Name="ChooseVideoButton"
-                            Margin="8,0,0,0"
-                            MinWidth="118"
-                            Padding="14,8"
-                            AutomationProperties.Name="Upload video"
-                            Click="ChooseVideo_Click"
-                            Content="Upload video..." />
-                </StackPanel>
-
-                <Border x:Name="CameraPanel"
-                        Grid.Row="1"
-                        Grid.ColumnSpan="2"
-                        Margin="0,20,0,0"
-                        Padding="14"
-                        Background="#151515"
-                        CornerRadius="6"
-                        Visibility="Collapsed">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="280" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Margin="0,0,12,0"
-                                       VerticalAlignment="Center"
-                                       Foreground="White"
-                                       FontWeight="SemiBold"
-                                       Text="Camera" />
-                            <ComboBox x:Name="CameraComboBox"
-                                      Grid.Column="1"
-                                      MaxWidth="360"
-                                      HorizontalAlignment="Left"
-                                      VerticalContentAlignment="Center"
-                                      AutomationProperties.Name="Camera"
-                                      DisplayMemberPath="DisplayName"
-                                      SelectionChanged="CameraComboBox_SelectionChanged" />
-                            <Button x:Name="CloseCameraButton"
-                                    Grid.Column="2"
-                                    Margin="12,0,0,0"
-                                    Padding="12,5"
-                                    AutomationProperties.Name="Close camera"
-                                    Click="CloseCamera_Click"
-                                    Content="Close" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="38"
+                            Height="38"
+                            Background="{StaticResource AccentGradientBrush}"
+                            CornerRadius="10"
+                            Effect="{StaticResource AccentShadow}">
+                        <Grid Margin="9,8">
+                            <Rectangle Width="2" Height="22" HorizontalAlignment="Left" Fill="White" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="16" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="White" Opacity="0.82" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="20" Margin="12,0,0,0" HorizontalAlignment="Left" Fill="White" Opacity="0.66" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="13" HorizontalAlignment="Right" Fill="White" Opacity="0.5" RadiusX="1" RadiusY="1" />
                         </Grid>
+                    </Border>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock FontSize="15" FontWeight="SemiBold" Text="TabVision" />
+                        <TextBlock Margin="0,1,0,0"
+                                   FontSize="10"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   Text="TRANSCRIPTION STUDIO" />
+                    </StackPanel>
+                </StackPanel>
 
-                        <Border Grid.Row="1"
-                                Margin="0,12"
-                                Background="Black"
-                                BorderBrush="#333333"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                ClipToBounds="True">
+                <StackPanel Grid.Column="1"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                    <Border Padding="10,6" Background="{StaticResource AccentSoftBrush}" CornerRadius="14">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="20" Height="20" Background="{StaticResource AccentBrush}" CornerRadius="10">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="1" />
+                            </Border>
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Text="Capture" />
+                        </StackPanel>
+                    </Border>
+                    <Rectangle Width="34" Height="1" Margin="8,0" Fill="{StaticResource BorderStrongBrush}" />
+                    <StackPanel Orientation="Horizontal" Opacity="0.52">
+                        <Border Width="20" Height="20" Background="{StaticResource SurfaceHoverBrush}" CornerRadius="10">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="2" />
+                        </Border>
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" Text="Refine" />
+                    </StackPanel>
+                    <Rectangle Width="34" Height="1" Margin="8,0" Fill="{StaticResource BorderStrongBrush}" />
+                    <StackPanel Orientation="Horizontal" Opacity="0.52">
+                        <Border Width="20" Height="20" Background="{StaticResource SurfaceHoverBrush}" CornerRadius="10">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="3" />
+                        </Border>
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" Text="Export" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Margin="0,0,10,0"
+                            Padding="10,6"
+                            Background="{StaticResource SuccessSoftBrush}"
+                            BorderBrush="#3234D399"
+                            BorderThickness="1"
+                            CornerRadius="14">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Margin="0,0,7,0" Fill="{StaticResource SuccessBrush}" />
+                            <TextBlock FontSize="11" Foreground="{StaticResource SuccessBrush}" Text="Local · private" />
+                        </StackPanel>
+                    </Border>
+                    <Button x:Name="SettingsButton" Style="{StaticResource GhostButton}" VerticalAlignment="Center"
+                            AutomationProperties.Name="Settings" Click="SettingsButton_Click" Content="Settings">
+                        <Button.ContextMenu>
+                            <ContextMenu Padding="5" Background="{StaticResource SurfaceRaisedBrush}"
+                                         BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="1">
+                            <MenuItem x:Name="RepairBootstrapMenuItem"
+                                      AutomationProperties.Name="Repair or re-download setup files"
+                                      Click="RepairBootstrapMenuItem_Click"
+                                      Header="Repair / Re-download"
+                                      IsEnabled="False"
+                                      ToolTip="Revalidate setup and download only missing or corrupt files." />
+                            <MenuItem x:Name="RestoreEditorMenuItem"
+                                      AutomationProperties.Name="Restore editor session"
+                                      Click="RestoreEditorMenuItem_Click"
+                                      Header="Restore editor session"
+                                      IsEnabled="False" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <Rectangle Height="380"
+                           VerticalAlignment="Top"
+                           IsHitTestVisible="False"
+                           Fill="{StaticResource WindowGlowBrush}" />
+
+                <Grid Margin="32,30,32,44" MaxWidth="1420" HorizontalAlignment="Center">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Product promise -->
+                    <Grid Margin="4,0,4,26">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel MaxWidth="700" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <Rectangle Width="24" Height="2" Margin="0,0,9,0" VerticalAlignment="Center" Fill="{StaticResource AccentCyanBrush}" />
+                                <TextBlock Style="{StaticResource EyebrowText}" Text="AUDIO MEETS VISION" />
+                            </StackPanel>
+                            <TextBlock Margin="0,9,0,0"
+                                       FontSize="34"
+                                       FontWeight="SemiBold"
+                                       Text="Turn a performance into playable tab." />
+                            <TextBlock Margin="0,9,0,0"
+                                       MaxWidth="650"
+                                       FontSize="14"
+                                       LineHeight="22"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Record a take or bring your own file. TabVision listens for every note, maps it to the fretboard, and keeps the entire workflow on this PC."
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="36,10,0,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="128" Style="{StaticResource FieldBorder}">
+                                    <StackPanel>
+                                        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Text="01" />
+                                        <TextBlock Margin="0,5,0,0" FontSize="11" FontWeight="SemiBold" Text="HEAR THE NOTES" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Pitch + timing" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="128" Margin="9,0,0,0" Style="{StaticResource FieldBorder}">
+                                    <StackPanel>
+                                        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource AccentCyanBrush}" Text="02" />
+                                        <TextBlock Margin="0,5,0,0" FontSize="11" FontWeight="SemiBold" Text="SEE POSITION" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="String + fret" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Capture and configuration workbench -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.18*" />
+                            <ColumnDefinition Width="0.82*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Padding="22" Style="{StaticResource CardBorder}">
                             <Grid>
-                                <Image x:Name="CameraPreviewImage"
-                                       AutomationProperties.Name="Live camera preview"
-                                       Stretch="Uniform" />
-                                <TextBlock x:Name="CameraPreviewPlaceholder"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           Foreground="#CFCFCF"
-                                           Text="Starting camera..."
-                                           TextWrapping="Wrap" />
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource EyebrowText}" Text="NEW TRANSCRIPTION" />
+                                        <TextBlock Margin="0,5,0,0" Style="{StaticResource SectionTitle}" Text="Choose your source" />
+                                        <TextBlock Margin="0,5,0,0"
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   Text="Video provides the strongest string and fret evidence."
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Padding="9,5" Background="{StaticResource SuccessSoftBrush}" CornerRadius="12" VerticalAlignment="Top">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="6" Height="6" Margin="0,0,6,0" Fill="{StaticResource SuccessBrush}" />
+                                            <TextBlock FontSize="11" Foreground="{StaticResource SuccessBrush}" Text="Ready" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Grid Grid.Row="1" Margin="0,18,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Button x:Name="RecordVideoButton"
+                                            Margin="0,0,5,0"
+                                            Padding="10,12"
+                                            Style="{StaticResource PrimaryButton}"
+                                            AutomationProperties.Name="Record live video"
+                                            Click="RecordVideo_Click">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Margin="0,0,10,0" FontFamily="Segoe Fluent Icons" FontSize="17" Text="&#xE714;" />
+                                            <StackPanel>
+                                                <TextBlock x:Name="VideoActionTitleText" FontWeight="SemiBold" Text="Video" />
+                                                <TextBlock x:Name="VideoActionSubtitleText" Margin="0,2,0,0" FontSize="10" Foreground="#DDE7FF" Text="Camera + mic" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="RecordAudioButton"
+                                            Grid.Column="1"
+                                            Margin="5,0"
+                                            Padding="10,12"
+                                            Style="{StaticResource SecondaryButton}"
+                                            AutomationProperties.Name="Record audio only"
+                                            Click="RecordAudio_Click">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Margin="0,0,9,0" FontFamily="Segoe Fluent Icons" FontSize="17" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE720;" />
+                                            <StackPanel>
+                                                <TextBlock x:Name="AudioActionTitleText" FontWeight="SemiBold" Text="Audio" />
+                                                <TextBlock x:Name="AudioActionSubtitleText" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Text="Microphone" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="ChooseVideoButton"
+                                            Grid.Column="2"
+                                            Margin="5,0,0,0"
+                                            Padding="10,12"
+                                            Style="{StaticResource SecondaryButton}"
+                                            AutomationProperties.Name="Upload video"
+                                            Click="ChooseVideo_Click">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Margin="0,0,10,0" FontFamily="Segoe Fluent Icons" FontSize="17" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE898;" />
+                                            <StackPanel>
+                                                <TextBlock FontWeight="SemiBold" Text="Import" />
+                                                <TextBlock Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Text="Video or audio" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <Border x:Name="CameraPanel"
+                                        Grid.Row="2"
+                                        Margin="0,18,0,0"
+                                        Padding="14"
+                                        Background="#080B11"
+                                        BorderBrush="{StaticResource BorderStrongBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="11"
+                                        Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="300" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <TextBlock Margin="2,0,12,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Live camera" />
+                                            <ComboBox x:Name="CameraComboBox"
+                                                      Grid.Column="1"
+                                                      MaxWidth="390"
+                                                      HorizontalAlignment="Left"
+                                                      AutomationProperties.Name="Camera"
+                                                      DisplayMemberPath="DisplayName"
+                                                      SelectionChanged="CameraComboBox_SelectionChanged" />
+                                            <Button x:Name="CloseCameraButton"
+                                                    Grid.Column="2"
+                                                    Margin="12,0,0,0"
+                                                    Style="{StaticResource GhostButton}"
+                                                    AutomationProperties.Name="Close camera"
+                                                    Click="CloseCamera_Click"
+                                                    Content="Close" />
+                                        </Grid>
+                                        <Border Grid.Row="1" Margin="0,12" Background="Black" BorderBrush="#323F54" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                            <Grid>
+                                                <Image x:Name="CameraPreviewImage" AutomationProperties.Name="Live camera preview" Stretch="Uniform" />
+                                                <TextBlock x:Name="CameraPreviewPlaceholder"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{StaticResource TextMutedBrush}"
+                                                           Text="Starting camera…"
+                                                           TextWrapping="Wrap" />
+                                            </Grid>
+                                        </Border>
+                                        <Grid Grid.Row="2">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel Margin="2,0,16,0" VerticalAlignment="Center">
+                                                <TextBlock x:Name="CameraStatusText" Text="Choose a camera to begin." TextWrapping="Wrap" />
+                                                <TextBlock x:Name="RecordingDurationText" Margin="0,3,0,0" Foreground="{StaticResource ErrorBrush}" FontWeight="SemiBold" Text="00:00" Visibility="Collapsed" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <Button x:Name="StartCameraRecordingButton" MinWidth="86" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="Start camera recording" Click="StartCameraRecording_Click" Content="Record" IsEnabled="False" />
+                                                <Button x:Name="StopCameraRecordingButton" Margin="7,0,0,0" MinWidth="76" Style="{StaticResource DangerButton}" AutomationProperties.Name="Stop camera recording" Click="StopCameraRecording_Click" Content="Stop" IsEnabled="False" />
+                                                <Button x:Name="UseCameraRecordingButton" Margin="7,0,0,0" MinWidth="92" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Use camera recording" Click="UseCameraRecording_Click" Content="Use take" IsEnabled="False" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <Border x:Name="AudioPanel"
+                                        Grid.Row="2"
+                                        Margin="0,18,0,0"
+                                        Padding="16"
+                                        Background="#080B11"
+                                        BorderBrush="{StaticResource BorderStrongBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="11"
+                                        Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock FontSize="15" FontWeight="SemiBold" Text="Microphone take" />
+                                                <TextBlock x:Name="AudioStatusText" Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Opening the microphone…" />
+                                            </StackPanel>
+                                            <Button x:Name="CloseAudioButton" Grid.Column="1" Style="{StaticResource GhostButton}" Click="CloseAudio_Click" Content="Close" />
+                                        </Grid>
+
+                                        <Border Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="#101925" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                        <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Text="INPUT LEVEL" />
+                                                        <TextBlock x:Name="MicrophoneLevelText" Grid.Column="1" FontFamily="Cascadia Mono" Foreground="{StaticResource TextMutedBrush}" Text="−∞ dB" />
+                                                    </Grid>
+                                                    <ProgressBar x:Name="MicrophoneLevelBar" Margin="0,10,0,0" Height="10" Maximum="1" AutomationProperties.Name="Microphone input level" />
+                                                    <TextBlock Margin="0,9,0,0" Style="{StaticResource CaptionText}" Text="Aim for a strong signal without touching the red." />
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Margin="16,0,0,0" Padding="10,7" Background="#0B111B" CornerRadius="9">
+                                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <TextBlock Style="{StaticResource CaptionText}" Text="LIVE TUNER" />
+                                                        <TextBlock x:Name="TunerNoteText" Margin="0,2,0,0" FontSize="25" FontWeight="SemiBold" Text="—" />
+                                                        <TextBlock x:Name="TunerCentsText" FontFamily="Cascadia Mono" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Text="Play a note" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <Grid Grid.Row="2" Margin="0,13,0,0">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Margin="0,0,7,0" VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="BPM" />
+                                                <TextBox x:Name="BpmTextBox" Width="52" Text="100" AutomationProperties.Name="Metronome tempo" />
+                                                <Button Margin="5,0,0,0" Padding="9,6" Style="{StaticResource GhostButton}" Click="TapTempo_Click" Content="Tap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="14,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Margin="0,0,7,0" VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="Meter" />
+                                                <ComboBox x:Name="BeatsPerBarComboBox" Width="64" AutomationProperties.Name="Beats per bar" />
+                                            </StackPanel>
+                                            <CheckBox x:Name="CountInCheckBox" Grid.Column="2" Margin="16,0,0,0" VerticalAlignment="Center" Content="Count in" IsChecked="True" />
+                                            <CheckBox x:Name="MetronomeCheckBox" Grid.Column="3" Margin="16,0,0,0" VerticalAlignment="Center" Content="Click while recording" />
+                                        </Grid>
+
+                                        <Grid Grid.Row="3" Margin="0,14,0,0">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="AudioRecordingDurationText" VerticalAlignment="Center" Foreground="{StaticResource ErrorBrush}" FontWeight="SemiBold" Text="Ready to record" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <Button x:Name="StartAudioRecordingButton" MinWidth="82" Style="{StaticResource PrimaryButton}" Click="StartAudioRecording_Click" Content="Record" IsEnabled="False" />
+                                                <Button x:Name="StopAudioRecordingButton" Margin="7,0,0,0" MinWidth="72" Style="{StaticResource DangerButton}" Click="StopAudioRecording_Click" Content="Stop" IsEnabled="False" />
+                                                <Button x:Name="UseAudioRecordingButton" Margin="7,0,0,0" MinWidth="82" Style="{StaticResource SecondaryButton}" Click="UseAudioRecording_Click" Content="Use take" IsEnabled="False" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Row="3"
+                                        Margin="0,18,0,0"
+                                        Padding="14,12"
+                                        Background="#0C121C"
+                                        BorderBrush="{StaticResource BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Border Width="38" Height="38" Background="{StaticResource AccentSoftBrush}" CornerRadius="9">
+                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE8A5;" />
+                                        </Border>
+                                        <Grid Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="NoInputText" Foreground="{StaticResource TextMutedBrush}" Text="No recording selected yet." />
+                                            <StackPanel x:Name="SelectedInputPanel" Visibility="Collapsed">
+                                                <TextBlock x:Name="SelectedFileNameText" FontSize="14" FontWeight="SemiBold" />
+                                                <TextBlock x:Name="SelectedFileDetailsText" Margin="0,2,0,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" />
+                                                <TextBlock x:Name="SelectedFilePathText" Margin="0,2,0,0" Foreground="{StaticResource TextMutedBrush}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                            </StackPanel>
+                                            <Button x:Name="ReviewInputButton"
+                                                    Grid.Column="1"
+                                                    Margin="14,0,0,0"
+                                                    Padding="12,7"
+                                                    VerticalAlignment="Center"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Click="ReviewInput_Click"
+                                                    Content="Review &amp; clean"
+                                                    Visibility="Collapsed" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
                             </Grid>
                         </Border>
 
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <Border x:Name="OptionsPanel"
+                                Grid.Column="1"
+                                Margin="18,0,0,0"
+                                Padding="22"
+                                Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource EyebrowText}" Text="TRANSCRIPTION PROFILE" />
+                                <TextBlock Margin="0,5,0,0" Style="{StaticResource SectionTitle}" Text="Shape the analysis" />
+                                <TextBlock Margin="0,5,0,0" Foreground="{StaticResource TextMutedBrush}" Text="Defaults prioritize accuracy and preserve local processing." TextWrapping="Wrap" />
 
-                            <StackPanel Margin="0,0,16,0"
-                                        VerticalAlignment="Center">
-                                <TextBlock x:Name="CameraStatusText"
-                                           Foreground="White"
-                                           Text="Choose a camera to begin."
-                                           TextWrapping="Wrap" />
-                                <TextBlock x:Name="RecordingDurationText"
-                                           Margin="0,3,0,0"
-                                           Foreground="#FF8080"
-                                           FontWeight="SemiBold"
-                                           Text="00:00"
-                                           Visibility="Collapsed" />
+                                <UniformGrid Margin="-5,14,-5,0" Columns="2">
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Instrument" />
+                                        <ComboBox x:Name="InstrumentComboBox" AutomationProperties.Name="Instrument" />
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Tone" />
+                                        <ComboBox x:Name="ToneComboBox" AutomationProperties.Name="Tone" />
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Playing style" />
+                                        <ComboBox x:Name="StyleComboBox" AutomationProperties.Name="Playing style" />
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Capo fret" />
+                                        <ComboBox x:Name="CapoComboBox" AutomationProperties.Name="Capo fret" />
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Tuning" />
+                                        <ComboBox x:Name="TuningComboBox" AutomationProperties.Name="Tuning" />
+                                    </StackPanel>
+                                    <StackPanel Margin="5">
+                                        <TextBlock Margin="1,0,0,6" Style="{StaticResource CaptionText}" Text="Speed / accuracy" />
+                                        <ComboBox x:Name="AccuracyComboBox" AutomationProperties.Name="Speed versus accuracy" />
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <Border Margin="0,12,0,0" Style="{StaticResource FieldBorder}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock FontWeight="SemiBold" Text="Advanced engine" />
+                                                <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Automatic is best for most takes" />
+                                            </StackPanel>
+                                            <ComboBox x:Name="AudioBackendComboBox" Grid.Column="1" Width="150" AutomationProperties.Name="Audio backend" />
+                                        </Grid>
+                                        <CheckBox x:Name="NoVideoCheckBox"
+                                                  Margin="0,12,0,0"
+                                                  AutomationProperties.Name="Audio only, skip video analysis"
+                                                  Content="Audio only · skip video analysis" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Margin="0,10,0,0" Style="{StaticResource FieldBorder}">
+                                    <StackPanel>
+                                        <CheckBox x:Name="RoiCheckBox"
+                                                  AutomationProperties.Name="Point out the fretboard"
+                                                  Content="Point out the fretboard" />
+                                        <TextBlock Margin="27,3,0,0" Style="{StaticResource CaptionText}" Text="Optional normalized crop for video analysis" />
+                                        <UniformGrid x:Name="RoiPanel" Margin="22,10,-4,0" Columns="4" IsEnabled="False">
+                                            <StackPanel Margin="4,0"><TextBlock Style="{StaticResource CaptionText}" Text="Left" /><TextBox x:Name="RoiLeftTextBox" Margin="0,4,0,0" Padding="6,5" Text="0" /></StackPanel>
+                                            <StackPanel Margin="4,0"><TextBlock Style="{StaticResource CaptionText}" Text="Top" /><TextBox x:Name="RoiTopTextBox" Margin="0,4,0,0" Padding="6,5" Text="0" /></StackPanel>
+                                            <StackPanel Margin="4,0"><TextBlock Style="{StaticResource CaptionText}" Text="Right" /><TextBox x:Name="RoiRightTextBox" Margin="0,4,0,0" Padding="6,5" Text="1" /></StackPanel>
+                                            <StackPanel Margin="4,0"><TextBlock Style="{StaticResource CaptionText}" Text="Bottom" /><TextBox x:Name="RoiBottomTextBox" Margin="0,4,0,0" Padding="6,5" Text="1" /></StackPanel>
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
-                            <StackPanel Grid.Column="1"
-                                        Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <Button x:Name="StartCameraRecordingButton"
-                                        MinWidth="92"
-                                        Padding="12,7"
-                                        AutomationProperties.Name="Start camera recording"
-                                        Click="StartCameraRecording_Click"
-                                        Content="Start"
-                                        IsEnabled="False" />
-                                <Button x:Name="StopCameraRecordingButton"
-                                        Margin="8,0,0,0"
-                                        MinWidth="92"
-                                        Padding="12,7"
-                                        AutomationProperties.Name="Stop camera recording"
-                                        Click="StopCameraRecording_Click"
-                                        Content="Stop"
-                                        IsEnabled="False" />
-                                <Button x:Name="UseCameraRecordingButton"
-                                        Margin="8,0,0,0"
-                                        MinWidth="100"
-                                        Padding="12,7"
-                                        AutomationProperties.Name="Use camera recording"
-                                        Click="UseCameraRecording_Click"
-                                        Content="Use video"
-                                        IsEnabled="False" />
-                            </StackPanel>
-                        </Grid>
+                        </Border>
                     </Grid>
-                </Border>
 
-                <Grid Grid.Row="2"
-                      Grid.ColumnSpan="2"
-                      Margin="0,20,0,0">
-                    <TextBlock x:Name="NoInputText"
-                               Foreground="#777777"
-                               Text="No video selected." />
-                    <StackPanel x:Name="SelectedInputPanel"
+                    <!-- Pipeline status and primary action -->
+                    <Border x:Name="JobPanel"
+                            Grid.Row="2"
+                            Margin="0,18,0,0"
+                            Padding="18,16"
+                            Style="{StaticResource CardBorder}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <Border Width="42" Height="42" Background="{StaticResource AccentSoftBrush}" CornerRadius="11">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons" FontSize="17" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE9D9;" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="14,1,22,0" VerticalAlignment="Center">
+                                <ProgressBar x:Name="JobProgressBar" Minimum="0" Maximum="100" AutomationProperties.Name="Transcription progress" />
+                                <Grid Margin="0,8,0,0">
+                                    <TextBlock x:Name="JobStatusText" Foreground="{StaticResource TextSecondaryBrush}" Text="Choose an input to begin." TextTrimming="CharacterEllipsis" />
+                                    <TextBlock HorizontalAlignment="Right" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Text="AUDIO  ·  VISION  ·  FUSION  ·  TAB" />
+                                </Grid>
+                            </StackPanel>
+                            <Button x:Name="TranscribeButton"
+                                    Grid.Column="2"
+                                    MinWidth="142"
+                                    Padding="20,11"
+                                    Style="{StaticResource PrimaryButton}"
+                                    AutomationProperties.Name="Transcribe selected video"
+                                    Click="Transcribe_Click"
+                                    IsEnabled="False">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Margin="0,0,8,0" FontFamily="Segoe Fluent Icons" Text="&#xE768;" />
+                                    <TextBlock Text="Transcribe" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Completed result / failure -->
+                    <Grid Grid.Row="3">
+                        <Border x:Name="TabViewerPanel"
+                                MinHeight="300"
+                                Margin="0,18,0,0"
+                                Padding="22"
+                                Style="{StaticResource CardBorder}"
                                 Visibility="Collapsed">
-                        <TextBlock x:Name="SelectedFileNameText"
-                                   FontSize="15"
-                                   FontWeight="SemiBold" />
-                        <TextBlock x:Name="SelectedFileDetailsText"
-                                   Margin="0,3,0,0"
-                                   Foreground="#555555" />
-                        <TextBlock x:Name="SelectedFilePathText"
-                                   Margin="0,3,0,0"
-                                   Foreground="#777777"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                    </StackPanel>
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource EyebrowText}" Text="TRANSCRIPTION COMPLETE" />
+                                        <TextBlock Margin="0,5,0,0" Style="{StaticResource SectionTitle}" Text="Your tablature is ready" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <ComboBox x:Name="ExportFormatComboBox" Width="150" Margin="0,0,8,0" AutomationProperties.Name="Export format" DisplayMemberPath="DisplayName" />
+                                        <Button x:Name="ExportButton" MinWidth="94" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Export completed transcription" Click="Export_Click" Content="Export" IsEnabled="False" />
+                                        <Button x:Name="OpenEditorButton" Margin="8,0,0,0" MinWidth="114" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="Open assisted editor" Click="OpenEditor_Click" Content="Open editor" IsEnabled="False" />
+                                    </StackPanel>
+                                </Grid>
+                                <Border x:Name="LowConfidencePanel"
+                                        Grid.Row="1"
+                                        MaxHeight="180"
+                                        Margin="0,14,0,0"
+                                        Padding="13"
+                                        Background="{StaticResource WarningSoftBrush}"
+                                        BorderBrush="#4DFBBF24"
+                                        BorderThickness="1"
+                                        CornerRadius="9"
+                                        Visibility="Collapsed">
+                                    <DockPanel>
+                                        <TextBlock x:Name="LowConfidenceCountText" DockPanel.Dock="Top" Margin="0,0,0,6" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" />
+                                        <ListBox x:Name="LowConfidenceFlagsList" Background="Transparent" BorderThickness="0" Foreground="{StaticResource TextSecondaryBrush}" AutomationProperties.Name="Low-confidence flags" FontFamily="Cascadia Mono, Consolas" FontSize="12" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                            <ListBox.ItemTemplate><DataTemplate><TextBlock Margin="0,2" Foreground="{StaticResource TextSecondaryBrush}" Text="{Binding}" TextWrapping="Wrap" /></DataTemplate></ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </DockPanel>
+                                </Border>
+                                <TextBox x:Name="TabViewerTextBox"
+                                         Grid.Row="2"
+                                         MinHeight="220"
+                                         Margin="0,14,0,0"
+                                         Padding="16"
+                                         Background="#080C12"
+                                         BorderBrush="{StaticResource BorderBrush}"
+                                         FontFamily="Cascadia Mono, Consolas"
+                                         FontSize="13"
+                                         AcceptsReturn="True"
+                                         AcceptsTab="True"
+                                         AutomationProperties.Name="Completed ASCII tab"
+                                         HorizontalScrollBarVisibility="Auto"
+                                         IsReadOnly="True"
+                                         TextWrapping="NoWrap"
+                                         VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+
+                        <Border x:Name="SidecarErrorPanel"
+                                MinHeight="220"
+                                Margin="0,18,0,0"
+                                Padding="22"
+                                Background="{StaticResource SurfaceBrush}"
+                                BorderBrush="#50FB7185"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="32" Height="32" Background="{StaticResource ErrorSoftBrush}" CornerRadius="8">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource ErrorBrush}" Text="&#xEA39;" />
+                                    </Border>
+                                    <StackPanel Margin="10,0,0,0">
+                                        <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource ErrorBrush}" Text="Transcription needs attention" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Nothing was lost. Review the details and try again." />
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBox x:Name="SidecarErrorTextBox" Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="#11090D14" BorderBrush="#38FB7185" FontFamily="Cascadia Mono, Consolas" FontSize="12" AcceptsReturn="True" AutomationProperties.Name="TabVision error text" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </Grid>
             </Grid>
-        </Border>
+        </ScrollViewer>
 
-        <Border x:Name="OptionsPanel"
-                Grid.Row="3"
-                Margin="0,18,0,0"
-                Padding="20"
-                BorderBrush="#D6D6D6"
-                BorderThickness="1"
-                CornerRadius="6">
-            <StackPanel>
-                <TextBlock FontSize="16"
-                           FontWeight="SemiBold"
-                           Text="Transcription options" />
-                <TextBlock Margin="0,4,0,0"
-                           Foreground="#666666"
-                           Text="Defaults follow the pinned TabVision pipeline."
-                           TextWrapping="Wrap" />
-
-                <UniformGrid Margin="-6,12,-6,0"
-                             Columns="3">
-                    <StackPanel Margin="6">
-                        <TextBlock Margin="0,0,0,5"
-                                   Text="Instrument" />
-                        <ComboBox x:Name="InstrumentComboBox"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="Instrument" />
-                    </StackPanel>
-                    <StackPanel Margin="6">
-                        <TextBlock Margin="0,0,0,5"
-                                   Text="Tone" />
-                        <ComboBox x:Name="ToneComboBox"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="Tone" />
-                    </StackPanel>
-                    <StackPanel Margin="6">
-                        <TextBlock Margin="0,0,0,5"
-                                   Text="Playing style" />
-                        <ComboBox x:Name="StyleComboBox"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="Playing style" />
-                    </StackPanel>
-                    <StackPanel Margin="6">
-                        <TextBlock Margin="0,0,0,5"
-                                   Text="Capo fret" />
-                        <ComboBox x:Name="CapoComboBox"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="Capo fret" />
-                    </StackPanel>
-                    <StackPanel Margin="6">
-                        <TextBlock Margin="0,0,0,5"
-                                   Text="Audio backend" />
-                        <ComboBox x:Name="AudioBackendComboBox"
-                                  MinWidth="150"
-                                  AutomationProperties.Name="Audio backend" />
-                    </StackPanel>
-                </UniformGrid>
-
-                <CheckBox x:Name="NoVideoCheckBox"
-                          Margin="0,10,0,0"
-                          AutomationProperties.Name="Audio only, skip video analysis"
-                          Content="Audio only (--no-video)" />
+        <Border x:Name="DropOverlay" Grid.RowSpan="2" Panel.ZIndex="100" Margin="18"
+                Background="#ED101722" BorderBrush="{StaticResource AccentCyanBrush}" BorderThickness="2"
+                CornerRadius="18" IsHitTestVisible="False" Visibility="Collapsed">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border Width="64" Height="64" HorizontalAlignment="Center" Background="{StaticResource AccentSoftBrush}" CornerRadius="18">
+                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Segoe Fluent Icons"
+                               FontSize="28" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE898;" />
+                </Border>
+                <TextBlock Margin="0,18,0,0" HorizontalAlignment="Center" FontSize="24" FontWeight="SemiBold" Text="Drop to start a transcription" />
+                <TextBlock Margin="0,7,0,0" HorizontalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"
+                           Text="Video and audio stay on this PC" />
             </StackPanel>
         </Border>
-
-        <Border x:Name="JobPanel"
-                Grid.Row="4"
-                Margin="0,18,0,0"
-                Padding="20"
-                BorderBrush="#D6D6D6"
-                BorderThickness="1"
-                CornerRadius="6">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Margin="0,0,20,0"
-                            VerticalAlignment="Center">
-                    <ProgressBar x:Name="JobProgressBar"
-                                 Height="8"
-                                 Minimum="0"
-                                 Maximum="100"
-                                 AutomationProperties.Name="Transcription progress" />
-                    <TextBlock x:Name="JobStatusText"
-                               Margin="0,8,0,0"
-                               Foreground="#666666"
-                               Text="Choose an input to begin."
-                               TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-                <Button x:Name="TranscribeButton"
-                        Grid.Column="1"
-                        MinWidth="118"
-                        Padding="14,9"
-                        VerticalAlignment="Center"
-                        AutomationProperties.Name="Transcribe selected video"
-                        Click="Transcribe_Click"
-                        Content="Transcribe"
-                        IsEnabled="False" />
-            </Grid>
-        </Border>
-
-        <Border x:Name="TabViewerPanel"
-                Grid.Row="5"
-                MinHeight="220"
-                Margin="0,18,0,0"
-                Padding="20"
-                BorderBrush="#D6D6D6"
-                BorderThickness="1"
-                CornerRadius="6"
-                Visibility="Collapsed">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock FontSize="16"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Text="ASCII tab" />
-                    <StackPanel Grid.Column="1"
-                                Orientation="Horizontal">
-                        <TextBlock Margin="0,0,8,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="#666666"
-                                   Text="Export as" />
-                        <ComboBox x:Name="ExportFormatComboBox"
-                                  Width="125"
-                                  Margin="0,0,8,0"
-                                  VerticalContentAlignment="Center"
-                                  AutomationProperties.Name="Export format"
-                                  DisplayMemberPath="DisplayName" />
-                        <Button x:Name="ExportButton"
-                                MinWidth="78"
-                                Padding="12,6"
-                                AutomationProperties.Name="Export completed transcription"
-                                Click="Export_Click"
-                                Content="Export..."
-                                IsEnabled="False" />
-                        <Button x:Name="OpenEditorButton"
-                                Margin="8,0,0,0"
-                                MinWidth="78"
-                                Padding="12,6"
-                                AutomationProperties.Name="Open assisted editor"
-                                Click="OpenEditor_Click"
-                                Content="Edit..."
-                                IsEnabled="False" />
-                    </StackPanel>
-                </Grid>
-                <Border x:Name="LowConfidencePanel"
-                        Grid.Row="1"
-                        MaxHeight="180"
-                        Margin="0,12,0,0"
-                        Padding="12"
-                        Background="#FFFBEA"
-                        BorderBrush="#E5C86B"
-                        BorderThickness="1"
-                        CornerRadius="4"
-                        Visibility="Collapsed">
-                    <DockPanel>
-                        <TextBlock x:Name="LowConfidenceCountText"
-                                   DockPanel.Dock="Top"
-                                   Margin="0,0,0,6"
-                                   FontWeight="SemiBold"
-                                   Foreground="#705600" />
-                        <ListBox x:Name="LowConfidenceFlagsList"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 AutomationProperties.Name="Low-confidence flags"
-                                 FontFamily="Consolas"
-                                 FontSize="12"
-                                 HorizontalContentAlignment="Stretch"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Margin="0,2"
-                                               Text="{Binding}"
-                                               TextWrapping="Wrap" />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </DockPanel>
-                </Border>
-                <TextBox x:Name="TabViewerTextBox"
-                         Grid.Row="2"
-                         Margin="0,12,0,0"
-                         Padding="12"
-                         Background="#FAFAFA"
-                         BorderBrush="#E0E0E0"
-                         FontFamily="Consolas"
-                         FontSize="13"
-                         AcceptsReturn="True"
-                         AcceptsTab="True"
-                         AutomationProperties.Name="Completed ASCII tab"
-                         HorizontalScrollBarVisibility="Auto"
-                         IsReadOnly="True"
-                         TextWrapping="NoWrap"
-                         VerticalScrollBarVisibility="Auto" />
-            </Grid>
-        </Border>
-
-        <Border x:Name="SidecarErrorPanel"
-                Grid.Row="5"
-                MinHeight="180"
-                Margin="0,18,0,0"
-                Padding="20"
-                Background="#FFF8F8"
-                BorderBrush="#D9A0A0"
-                BorderThickness="1"
-                CornerRadius="6"
-                Visibility="Collapsed">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <TextBlock FontSize="16"
-                           FontWeight="SemiBold"
-                           Foreground="#8A2020"
-                           Text="TabVision error" />
-                <TextBox x:Name="SidecarErrorTextBox"
-                         Grid.Row="1"
-                         Margin="0,12,0,0"
-                         Padding="12"
-                         Background="White"
-                         BorderBrush="#E8CACA"
-                         FontFamily="Consolas"
-                         FontSize="13"
-                         AcceptsReturn="True"
-                         AutomationProperties.Name="TabVision error text"
-                         HorizontalScrollBarVisibility="Auto"
-                         IsReadOnly="True"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto" />
-            </Grid>
-        </Border>
-        </Grid>
-    </ScrollViewer>
+    </Grid>
 </Window>

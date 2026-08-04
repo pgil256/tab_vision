@@ -112,10 +112,10 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
   // synth playback has play/pause/seek and a moving playhead.
   return (
     <div
-      className="flex flex-col"
+      className="source-player flex flex-col"
       style={{
         background: 'var(--bg-surface)',
-        width: isVideoCollapsed && videoUrl ? '48px' : '340px',
+        width: isVideoCollapsed && videoUrl ? '48px' : '100%',
         transition: 'width var(--transition-normal)',
       }}
     >

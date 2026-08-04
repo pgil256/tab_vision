@@ -27,6 +27,14 @@ const SECTIONS: { title: string; shortcuts: ShortcutRow[] }[] = [
     ],
   },
   {
+    title: 'Group selection',
+    shortcuts: [
+      { keys: ['Ctrl/Cmd', 'Click'], description: 'Add or remove a note' },
+      { keys: ['Shift', 'Click'], description: 'Select a note range' },
+      { keys: ['Arrow keys'], description: 'Move group by one string / 50 ms' },
+    ],
+  },
+  {
     title: 'Editing',
     shortcuts: [
       { keys: ['0-9'], description: 'Set fret number' },
@@ -34,6 +42,8 @@ const SECTIONS: { title: string; shortcuts: ShortcutRow[] }[] = [
       { keys: ['Shift', '↓'], description: 'Move to lower string (keep pitch)' },
       { keys: ['C'], description: 'Cycle ranked alternative position' },
       { keys: ['Shift', 'C'], description: 'Cycle alternative backwards' },
+      { keys: ['S'], description: 'Toggle slide into selected note(s)' },
+      { keys: ['B'], description: 'Toggle full-step bend' },
       { keys: ['X'], description: 'Mark as muted (X)' },
       { keys: ['Del'], description: 'Delete note' },
       { keys: ['I'], description: 'Insert note at playhead' },
