@@ -108,24 +108,14 @@ function App() {
               data-testid="landing-content"
             >
               <RestoreBanner />
-              <div
-                className="inline-flex rounded-lg p-1 mb-6 shrink-0"
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
+              <div className="segmented mb-6 shrink-0">
                 {(['upload', 'record'] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setInputMode(mode)}
-                    className="px-4 py-1.5 text-xs font-medium rounded-md transition-all"
-                    style={{
-                      background: inputMode === mode ? 'var(--accent-glow)' : 'transparent',
-                      color: inputMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
-                    }}
+                    className={`segmented-btn ${inputMode === mode ? 'active' : ''}`}
                   >
-                    {mode === 'upload' ? 'Upload video' : 'Record now'}
+                    {mode === 'upload' ? 'Upload video or audio' : 'Record now'}
                   </button>
                 ))}
               </div>

@@ -17,6 +17,22 @@ import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
 
+// Speed-vs-accuracy slider. The server pipeline currently has two modes
+// ('fast' | 'accurate'); the notches bucket into those, so the middle steps
+// are forward-compatible UI rather than distinct pipelines today.
+export const SPEED_ACCURACY_LABELS = [
+  'Fastest',
+  'Fast',
+  'Balanced',
+  'Accurate',
+  'Most accurate',
+] as const;
+export const SPEED_ACCURACY_MAX = SPEED_ACCURACY_LABELS.length - 1;
+
+export function speedAccuracyToMode(notch: number): AccuracyMode {
+  return notch <= 1 ? 'fast' : 'accurate';
+}
+
 // What the user hears during playback: the original recording, the pluck-synth
 // rendition of the (edited) notes, or both layered.
 export type AuditionMode = 'original' | 'synth' | 'both';
@@ -92,7 +108,7 @@ interface AppState {
   instrumentInput: Instrument;
   toneInput: Tone;
   styleInput: PlayingStyle;
-  accuracyModeInput: AccuracyMode;
+  speedAccuracyInput: number;
   roiEnabled: boolean;
   roiInput: UploadRoi;
   isVideoCollapsed: boolean;
@@ -173,7 +189,7 @@ interface AppState {
   setInstrumentInput: (instrument: Instrument) => void;
   setToneInput: (tone: Tone) => void;
   setStyleInput: (style: PlayingStyle) => void;
-  setAccuracyModeInput: (mode: AccuracyMode) => void;
+  setSpeedAccuracyInput: (notch: number) => void;
   setRoiEnabled: (enabled: boolean) => void;
   setRoiInput: (roi: UploadRoi) => void;
   setVideoCollapsed: (collapsed: boolean) => void;
@@ -219,7 +235,7 @@ const initialState = {
   instrumentInput: 'acoustic' as Instrument,
   toneInput: 'clean' as Tone,
   styleInput: 'mixed' as PlayingStyle,
-  accuracyModeInput: 'accurate' as AccuracyMode,
+  speedAccuracyInput: 3, // 'Accurate' — matches the old default mode
   roiEnabled: false,
   roiInput: { x1: 0, y1: 0, x2: 1, y2: 1 } as UploadRoi,
   isVideoCollapsed: false,
@@ -750,7 +766,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setStyleInput: (style) => set({ styleInput: style }),
 
-  setAccuracyModeInput: (mode) => set({ accuracyModeInput: mode }),
+  setSpeedAccuracyInput: (notch) =>
+    set({ speedAccuracyInput: Math.max(0, Math.min(SPEED_ACCURACY_MAX, Math.round(notch))) }),
 
   setRoiEnabled: (enabled) => set({ roiEnabled: enabled }),
 

@@ -387,6 +387,7 @@ export function TabToolbar() {
                   >
                     <input
                       type="checkbox"
+                      className="toggle"
                       checked={quantizeMidi}
                       onChange={e => setQuantizeMidi(e.target.checked)}
                     />
