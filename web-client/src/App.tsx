@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { UploadPanel } from './components/UploadPanel';
 import { RecordPanel } from './components/RecordPanel';
 import { VideoPlayer } from './components/VideoPlayer';
@@ -13,6 +13,9 @@ import { useEditorHotkeys } from './hooks/useEditorHotkeys';
 import './index.css';
 
 type InputMode = 'upload' | 'record';
+
+const DESKTOP_CONTROL_DECK_HEIGHT = 124;
+const COMPACT_CONTROL_DECK_HEIGHT = 188;
 
 const CaptureIcon = ({ mode }: { mode: InputMode }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
@@ -32,6 +35,11 @@ const CaptureIcon = ({ mode }: { mode: InputMode }) => (
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const editorShellRef = useRef<HTMLDivElement>(null);
+  const editorControlDeckRef = useRef<HTMLDivElement>(null);
+  const editorSplitterRef = useRef<HTMLDivElement>(null);
+  const editorControlHeightRef = useRef<number | null>(null);
+  const editorResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
   const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset, viewMode } = useAppStore();
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
@@ -48,6 +56,93 @@ function App() {
   const showEditor = jobStatus === 'completed';
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
   const stageLabel = showEditor ? 'Refine' : isProcessing ? 'Analyzing' : 'Capture';
+
+  const defaultControlDeckHeight = useCallback(
+    () => window.innerWidth <= 900 ? COMPACT_CONTROL_DECK_HEIGHT : DESKTOP_CONTROL_DECK_HEIGHT,
+    [],
+  );
+
+  const applyControlDeckHeight = useCallback((requestedHeight: number) => {
+    const shell = editorShellRef.current;
+    const deck = editorControlDeckRef.current;
+    if (!shell || !deck) return;
+
+    const shellHeight = shell.clientHeight;
+    const minimumDeckHeight = window.innerWidth <= 900 ? 150 : 96;
+    const reservedCanvasHeight = Math.max(160, Math.min(420, shellHeight * 0.62));
+    const maximumDeckHeight = Math.max(
+      minimumDeckHeight,
+      shellHeight - reservedCanvasHeight - 10,
+    );
+    const height = Math.round(Math.max(
+      minimumDeckHeight,
+      Math.min(maximumDeckHeight, requestedHeight),
+    ));
+
+    editorControlHeightRef.current = height;
+    deck.style.height = `${height}px`;
+    editorSplitterRef.current?.setAttribute('aria-valuenow', String(height));
+  }, []);
+
+  const stopEditorResize = useCallback(() => {
+    editorResizeRef.current = null;
+    document.body.classList.remove('is-editor-resizing');
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const resize = editorResizeRef.current;
+      if (!resize) return;
+      applyControlDeckHeight(resize.startHeight + event.clientY - resize.startY);
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopEditorResize);
+    window.addEventListener('pointercancel', stopEditorResize);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopEditorResize);
+      window.removeEventListener('pointercancel', stopEditorResize);
+      stopEditorResize();
+    };
+  }, [applyControlDeckHeight, stopEditorResize]);
+
+  useEffect(() => {
+    if (!showEditor) return;
+    const applyCurrentHeight = () => applyControlDeckHeight(
+      editorControlHeightRef.current ?? defaultControlDeckHeight(),
+    );
+    const frame = window.requestAnimationFrame(applyCurrentHeight);
+    window.addEventListener('resize', applyCurrentHeight);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', applyCurrentHeight);
+    };
+  }, [applyControlDeckHeight, defaultControlDeckHeight, showEditor]);
+
+  const startEditorResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    editorResizeRef.current = {
+      startY: event.clientY,
+      startHeight: editorControlDeckRef.current?.getBoundingClientRect().height
+        ?? defaultControlDeckHeight(),
+    };
+    document.body.classList.add('is-editor-resizing');
+  }, [defaultControlDeckHeight]);
+
+  const handleEditorSplitterKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const current = editorControlHeightRef.current ?? defaultControlDeckHeight();
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      applyControlDeckHeight(current - (event.shiftKey ? 32 : 12));
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      applyControlDeckHeight(current + (event.shiftKey ? 32 : 12));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      applyControlDeckHeight(defaultControlDeckHeight());
+    }
+  }, [applyControlDeckHeight, defaultControlDeckHeight]);
 
   return (
     <div className={`app-shell ${showEditor ? 'app-shell--editor' : 'app-shell--landing'} print-expand`}>
@@ -188,8 +283,8 @@ function App() {
         )}
 
         {showEditor && (
-          <div className="editor-shell animate-fade-in print-expand">
-            <div className="editor-control-deck print-hide">
+          <div ref={editorShellRef} className="editor-shell animate-fade-in print-expand">
+            <div ref={editorControlDeckRef} className="editor-control-deck print-hide">
               <section className="editor-source-panel" aria-label="Source playback">
                 <div className="panel-label">
                   <span>Source</span>
@@ -204,6 +299,23 @@ function App() {
                 </div>
                 <TabToolbar />
               </section>
+            </div>
+
+            <div
+              ref={editorSplitterRef}
+              className="editor-splitter print-hide"
+              role="separator"
+              aria-label="Resize transcription workspace"
+              aria-orientation="horizontal"
+              aria-valuemin={96}
+              aria-valuemax={500}
+              tabIndex={0}
+              onPointerDown={startEditorResize}
+              onDoubleClick={() => applyControlDeckHeight(defaultControlDeckHeight())}
+              onKeyDown={handleEditorSplitterKeyDown}
+              data-tooltip="Drag to resize the transcription workspace · double-click to reset"
+            >
+              <span />
             </div>
 
             <section className="editor-canvas-deck print-expand">

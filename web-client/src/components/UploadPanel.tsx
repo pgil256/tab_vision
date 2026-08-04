@@ -18,7 +18,7 @@ const ALLOWED_TYPES = [
 ];
 
 const PIPELINE_STAGES = [
-  { key: 'uploading', label: 'Uploading video', icon: 'upload' },
+  { key: 'uploading', label: 'Uploading recording', icon: 'upload' },
   { key: 'extracting_audio', label: 'Extracting audio', icon: 'waveform' },
   { key: 'analyzing_audio', label: 'Analyzing pitch', icon: 'music' },
   { key: 'analyzing_video', label: 'Tracking fingers', icon: 'eye' },
@@ -112,6 +112,7 @@ export function UploadPanel() {
     progress,
     currentStage,
     pipelineVideoEnabled,
+    inputMediaKind,
     errorMessage,
     setError,
     reset,
@@ -152,9 +153,12 @@ export function UploadPanel() {
 
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
   // Audio-only pipelines never run the video stage; don't promise it.
-  const pipelineStages = pipelineVideoEnabled
+  const pipelineStages = (pipelineVideoEnabled
     ? PIPELINE_STAGES
-    : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video');
+    : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video'))
+    .map(stage => stage.key === 'uploading'
+      ? { ...stage, label: `Uploading ${inputMediaKind}` }
+      : stage);
   const currentStageIndex = getStageIndex(pipelineStages, currentStage);
 
   // === IDLE + file chosen: listen back & clean up before uploading ===
