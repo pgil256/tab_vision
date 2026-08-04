@@ -41,7 +41,13 @@ function App() {
   const editorControlHeightRef = useRef<number | null>(null);
   const editorResizeRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
+  const [confirmingNewTake, setConfirmingNewTake] = useState(false);
   const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset, viewMode } = useAppStore();
+  const editedNoteCount = useAppStore((state) =>
+    state.tabDocument?.notes.reduce((count, note) => count + (note.isEdited ? 1 : 0), 0) ?? 0,
+  );
+  const appliedEditCount = useAppStore((state) => state.editHistoryIndex + 1);
+  const correctionCount = Math.max(editedNoteCount, appliedEditCount);
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
   const checkPersonalIngest = useAppStore((s) => s.checkPersonalIngest);
 
@@ -52,6 +58,22 @@ function App() {
     loadPersistedSession();
     checkPersonalIngest();
   }, [loadPersistedSession, checkPersonalIngest]);
+
+  useEffect(() => {
+    if (!confirmingNewTake) return;
+    const timeout = window.setTimeout(() => setConfirmingNewTake(false), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [confirmingNewTake]);
+
+  const handleNewTake = useCallback(() => {
+    if (correctionCount > 0 && !confirmingNewTake) {
+      setConfirmingNewTake(true);
+      return;
+    }
+
+    setConfirmingNewTake(false);
+    reset();
+  }, [confirmingNewTake, correctionCount, reset]);
 
   const showEditor = jobStatus === 'completed';
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
@@ -183,11 +205,19 @@ function App() {
             <span>Shortcuts</span>
           </button>
           {showEditor && (
-            <button className="btn btn-secondary topbar-new" onClick={reset}>
+            <button
+              className={`btn btn-secondary topbar-new ${confirmingNewTake ? 'is-confirming' : ''}`}
+              onClick={handleNewTake}
+              aria-label={confirmingNewTake
+                ? `Discard ${correctionCount} ${correctionCount === 1 ? 'correction' : 'corrections'}; click again to confirm`
+                : 'Start a new take'}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
               </svg>
-              New take
+              {confirmingNewTake
+                ? `Discard ${correctionCount} ${correctionCount === 1 ? 'correction' : 'corrections'}?`
+                : 'New take'}
             </button>
           )}
         </div>
