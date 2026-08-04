@@ -145,6 +145,7 @@ export function RecordPanel() {
   const chunksRef = useRef<Blob[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const stopMetronomeRef = useRef<(() => void) | null>(null);
+  const countInStartTimerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   // Audio-mode input-level meter
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -228,6 +229,10 @@ export function RecordPanel() {
   }, []);
 
   const stopEverything = useCallback(() => {
+    if (countInStartTimerRef.current !== null) {
+      window.clearTimeout(countInStartTimerRef.current);
+      countInStartTimerRef.current = null;
+    }
     stopMetronomeRef.current?.();
     stopMetronomeRef.current = null;
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
@@ -414,7 +419,10 @@ export function RecordPanel() {
           if (ticks === beatsPerBar) {
             setCountInRemaining(null);
             // Start recording just before the next downbeat
-            window.setTimeout(() => beginRecording(), 0);
+            countInStartTimerRef.current = window.setTimeout(() => {
+              countInStartTimerRef.current = null;
+              beginRecording();
+            }, 0);
           }
         }
       },
@@ -422,10 +430,14 @@ export function RecordPanel() {
   }, [beginRecording, beatsPerBar, bpm, countIn, clickMode]);
 
   const stopRecording = useCallback(() => {
+    const wasCountingIn = state === 'countin';
     stopEverything();
     setPulseBeat(null);
     setCountInRemaining(null);
-  }, [stopEverything]);
+    // A count-in has no MediaRecorder to fire onstop and restore the UI.
+    // Keep the live preview available so Space can start another take.
+    if (wasCountingIn) setState('preview');
+  }, [state, stopEverything]);
 
   useEffect(() => {
     const handleRecordingShortcut = (event: KeyboardEvent) => {
