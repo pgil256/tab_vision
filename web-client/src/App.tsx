@@ -49,15 +49,16 @@ function App() {
   const appliedEditCount = useAppStore((state) => state.editHistoryIndex + 1);
   const correctionCount = Math.max(editedNoteCount, appliedEditCount);
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
-  const checkPersonalIngest = useAppStore((s) => s.checkPersonalIngest);
+  const checkServiceHealth = useAppStore((s) => s.checkServiceHealth);
+  const serviceHealth = useAppStore((s) => s.serviceHealth);
 
   useAudition(videoRef);
   useEditorHotkeys();
 
   useEffect(() => {
     loadPersistedSession();
-    checkPersonalIngest();
-  }, [loadPersistedSession, checkPersonalIngest]);
+    checkServiceHealth();
+  }, [loadPersistedSession, checkServiceHealth]);
 
   useEffect(() => {
     if (!confirmingNewTake) return;
@@ -182,11 +183,19 @@ function App() {
         </div>
 
         <nav className="workflow-nav" aria-label="Transcription workflow">
-          <span className="workflow-nav__item is-active"><b>01</b> Capture</span>
+          <span
+            className={`workflow-nav__item ${showEditor ? 'is-complete' : 'is-active'}`}
+            aria-current={!showEditor ? 'step' : undefined}
+          >
+            <b>01</b> Capture
+          </span>
           <i />
-          <span className={`workflow-nav__item ${showEditor ? 'is-active' : ''}`}><b>02</b> Refine</span>
-          <i />
-          <span className={`workflow-nav__item ${showEditor ? 'is-active' : ''}`}><b>03</b> Export</span>
+          <span
+            className={`workflow-nav__item ${showEditor ? 'is-active' : ''}`}
+            aria-current={showEditor ? 'step' : undefined}
+          >
+            <b>02</b> Refine
+          </span>
         </nav>
 
         <div className="topbar-actions">
@@ -278,7 +287,20 @@ function App() {
                       <span className="workbench-kicker">New transcription</span>
                       <h3>{inputMode === 'upload' ? 'Import a recording' : 'Capture a live take'}</h3>
                     </div>
-                    <span className="workbench-status"><i /> Ready</span>
+                    <span
+                      className={`workbench-status workbench-status--${serviceHealth}`}
+                      role="status"
+                      title={serviceHealth === 'offline'
+                        ? 'The transcription service did not answer its health check.'
+                        : undefined}
+                    >
+                      <i />
+                      {serviceHealth === 'checking'
+                        ? 'Checking service'
+                        : serviceHealth === 'online'
+                          ? 'Service online'
+                          : 'Service unreachable'}
+                    </span>
                   </div>
 
                   {!isProcessing && jobStatus !== 'failed' && (

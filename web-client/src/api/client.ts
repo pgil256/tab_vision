@@ -128,14 +128,19 @@ export async function getJobResult(jobId: string, signal?: AbortSignal): Promise
 // Local-only gold-session banking (SPEC §1.5 carve-out). The backend only
 // advertises personal_ingest when studio.ps1 enabled it, so the deployed
 // site never shows the feature.
-export async function getPersonalIngestAvailable(): Promise<boolean> {
+export interface ServiceHealth {
+  status: 'online' | 'offline';
+  personalIngest: boolean;
+}
+
+export async function getServiceHealth(): Promise<ServiceHealth> {
   try {
     const response = await fetchApi('/health');
-    if (!response.ok) return false;
+    if (!response.ok) return { status: 'offline', personalIngest: false };
     const data = await response.json();
-    return data.personal_ingest === true;
+    return { status: 'online', personalIngest: data.personal_ingest === true };
   } catch {
-    return false;
+    return { status: 'offline', personalIngest: false };
   }
 }
 

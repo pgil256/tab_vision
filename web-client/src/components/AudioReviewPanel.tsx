@@ -19,9 +19,11 @@ import {
   TUNING_WARN_CENTS,
 } from '../utils/audioAnalysis';
 import { TranscriptionOptions } from './TranscriptionOptions';
+import { UploadedVideoRoiPicker } from './FretboardRoiPicker';
 
 const MIN_KEEP_SECONDS = 0.25;
 const WAVEFORM_BINS = 600;
+const CLEANUP_PREFERENCE_KEY = 'tabvision.audioCleanupExpanded';
 
 function formatTime(s: number): string {
   const m = Math.floor(s / 60);
@@ -62,6 +64,13 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
   const [playing, setPlaying] = useState(false);
   const [playhead, setPlayhead] = useState<number | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [cleanupOpen, setCleanupOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(CLEANUP_PREFERENCE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const duration = buffer?.duration ?? 0;
 
@@ -246,7 +255,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
       g.lineTo(px, h);
       g.stroke();
     }
-  }, [peaks, settings, duration, playhead, playing, effectiveGain]);
+  }, [peaks, settings, duration, playhead, playing, effectiveGain, cleanupOpen]);
 
   const handleSubmit = useCallback(async () => {
     stopPlayback();
@@ -269,6 +278,43 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
 
   const gainFill = settings ? `${((settings.gainDb + 12) / 24) * 100}%` : '50%';
   const changed = settings !== null && !isPassthrough(settings, duration);
+  const hasClippingWarning = Boolean(analysis && analysis.clippedSamples >= CLIPPING_WARN_SAMPLES);
+  const hasTuningWarning = Boolean(
+    analysis
+    && analysis.tuningCents !== null
+    && Math.abs(analysis.tuningCents) >= TUNING_WARN_CENTS
+    && analysis.tuningConfidence >= TUNING_MIN_CONFIDENCE
+    && analysis.voicedFrames >= TUNING_MIN_FRAMES,
+  );
+
+  const healthWarnings = analysis && (hasClippingWarning || hasTuningWarning) && (
+    <div className="take-health-warnings" aria-live="polite">
+      {hasClippingWarning && (
+        <div className="take-health-warning take-health-warning--error">
+          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <p>
+            Clipping detected in {analysis.clippedRuns} spot{analysis.clippedRuns === 1 ? '' : 's'} —
+            the input was too loud and the waveform is flattened. Cleanup cannot undo this;
+            re-record with lower input gain for more reliable pitch detection.
+          </p>
+        </div>
+      )}
+      {hasTuningWarning && analysis.tuningCents !== null && (
+        <div className="take-health-warning take-health-warning--warning">
+          <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
+          </svg>
+          <p>
+            The guitar reads about {Math.abs(Math.round(analysis.tuningCents))} cents{' '}
+            {analysis.tuningCents > 0 ? 'sharp' : 'flat'} of concert pitch. Tuning up and
+            re-recording will give a noticeably better tab.
+          </p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="w-full max-w-xl animate-slide-up relative">
@@ -291,6 +337,59 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
             Trim silence, boost a quiet take, or cut low rumble — then send it off
           </p>
         </div>
+
+        {isVideo && <UploadedVideoRoiPicker file={file} />}
+
+        {healthWarnings}
+
+        <div className="review-primary-actions">
+          <button className="btn btn-secondary" onClick={() => { stopPlayback(); onCancel(); }} disabled={rendering}>
+            {cancelLabel}
+          </button>
+          <button className="btn btn-primary flex-1" onClick={handleSubmit} disabled={rendering}>
+            {rendering ? (
+              <>
+                <div
+                  className="w-3.5 h-3.5 rounded-full animate-spin-slow"
+                  style={{ border: '2px solid currentColor', borderTopColor: 'transparent' }}
+                />
+                Rendering…
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
+                </svg>
+                {changed ? 'Transcribe cleaned audio' : 'Transcribe now'}
+              </>
+            )}
+          </button>
+        </div>
+
+        <details
+          className="cleanup-review"
+          open={cleanupOpen}
+          onToggle={(event) => {
+            const open = event.currentTarget.open;
+            setCleanupOpen(open);
+            try {
+              window.localStorage.setItem(CLEANUP_PREFERENCE_KEY, String(open));
+            } catch {
+              // Preference storage is optional (for example in private mode).
+            }
+          }}
+        >
+          <summary>
+            <span>
+              <strong>Trim &amp; clean up first</strong>
+              <small>Preview the waveform, trim silence, adjust level, or filter rumble</small>
+            </span>
+            {changed && <b>Changes applied</b>}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m7 10 5 5 5-5" />
+            </svg>
+          </summary>
+          <div className="cleanup-review__body">
 
         {/* Waveform */}
         <div
@@ -351,43 +450,6 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
                 </span>
               )}
             </div>
-
-            {/* Take-health warnings: problems no cleanup slider can fix. */}
-            {analysis && analysis.clippedSamples >= CLIPPING_WARN_SAMPLES && (
-              <div
-                className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg"
-                style={{ background: 'var(--color-error-soft)', border: '1px solid rgba(251, 113, 133, 0.25)' }}
-              >
-                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="var(--color-error)" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                </svg>
-                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-error)' }}>
-                  Clipping detected in {analysis.clippedRuns} spot{analysis.clippedRuns === 1 ? '' : 's'} —
-                  the input was too loud and the waveform is flattened. Cleanup can&apos;t undo this
-                  and it distorts pitch detection; if this is your take, re-record with lower input gain.
-                </p>
-              </div>
-            )}
-            {analysis &&
-              analysis.tuningCents !== null &&
-              Math.abs(analysis.tuningCents) >= TUNING_WARN_CENTS &&
-              analysis.tuningConfidence >= TUNING_MIN_CONFIDENCE &&
-              analysis.voicedFrames >= TUNING_MIN_FRAMES && (
-              <div
-                className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg"
-                style={{ background: 'var(--color-warning-soft)', border: '1px solid rgba(251, 191, 36, 0.25)' }}
-              >
-                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="var(--color-warning)" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
-                </svg>
-                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-warning)' }}>
-                  The guitar reads ~{Math.abs(Math.round(analysis.tuningCents))} cents{' '}
-                  {analysis.tuningCents > 0 ? 'sharp' : 'flat'} of concert pitch. The transcriber
-                  snaps notes to in-tune pitches, so tuning up and re-recording will give a
-                  noticeably better tab.
-                </p>
-              </div>
-            )}
 
             {changed && isVideo && (
               <div
@@ -525,32 +587,10 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
           </>
         )}
 
-        <TranscriptionOptions showRoi={isVideo} />
+          </div>
+        </details>
 
-        {/* Actions */}
-        <div className="mt-4 flex gap-2">
-          <button className="btn btn-secondary" onClick={() => { stopPlayback(); onCancel(); }} disabled={rendering}>
-            {cancelLabel}
-          </button>
-          <button className="btn btn-primary flex-1" onClick={handleSubmit} disabled={rendering}>
-            {rendering ? (
-              <>
-                <div
-                  className="w-3.5 h-3.5 rounded-full animate-spin-slow"
-                  style={{ border: '2px solid currentColor', borderTopColor: 'transparent' }}
-                />
-                Rendering…
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
-                </svg>
-                {changed ? 'Transcribe cleaned audio' : 'Transcribe'}
-              </>
-            )}
-          </button>
-        </div>
+        <TranscriptionOptions showRoi={isVideo} roiPickerAvailable={isVideo} />
       </div>
     </div>
   );

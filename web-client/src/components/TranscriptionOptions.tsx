@@ -10,7 +10,13 @@ import { TUNING_PRESETS, tuningPreset, TuningId } from '../utils/pitch';
 // fretboard area) shared by the file-upload and live-record panels. All state
 // lives in the app store so whichever panel starts the job uses the same
 // values.
-export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) {
+export function TranscriptionOptions({
+  showRoi = true,
+  roiPickerAvailable = false,
+}: {
+  showRoi?: boolean;
+  roiPickerAvailable?: boolean;
+}) {
   const {
     capoFretInput,
     tuningInput,
@@ -210,10 +216,12 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
           <label className="flex items-center justify-between gap-3 cursor-pointer">
             <div>
               <span className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                Point out the fretboard
+                Use a fretboard area
               </span>
               <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                Optional — tell the video analyzer where the fretboard sits in the frame
+                {roiPickerAvailable
+                  ? 'Draw on the video preview; use coordinates below only for exact adjustments'
+                  : 'Optional — tell the video analyzer where the fretboard sits in the frame'}
               </span>
             </div>
             <input
@@ -224,7 +232,8 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
             />
           </label>
           {roiEnabled && (
-            <>
+            <details className="roi-advanced">
+              <summary>Advanced coordinates</summary>
               <div className="roi-grid">
                 {([
                   { key: 'x1', label: 'Left' },
@@ -253,7 +262,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
                 Each value is a fraction of the frame, measured from the top-left corner
                 (0 0 1 1 = the whole frame).
               </p>
-            </>
+            </details>
           )}
         </div>
       )}
