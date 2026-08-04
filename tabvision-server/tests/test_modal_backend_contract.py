@@ -129,6 +129,7 @@ def test_job_from_record_accepts_iso_datetimes():
     }
     expected = {
         **record,
+        "tuning": "standard",
         "instrument": "acoustic",
         "tone": "clean",
         "style": "mixed",

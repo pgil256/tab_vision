@@ -70,7 +70,7 @@ export function exportToMidi(doc: TabDocument, opts: MidiExportOptions = {}): Ui
   interface Ev { tick: number; off: boolean; channel: number; pitch: number; velocity: number }
   const events: Ev[] = [];
   for (const n of notes) {
-    const pitch = Math.min(127, Math.max(0, midiPitchForNote(n.string, n.fret as number, doc.capoFret)));
+    const pitch = Math.min(127, Math.max(0, midiPitchForNote(n.string, n.fret as number, doc.capoFret, doc.tuningMidi)));
     const channel = 6 - n.string;
     const velocity = Math.min(127, Math.max(1, Math.round((n.confidence ?? 1) * 127)));
     const start = Math.max(0, n.timestamp);

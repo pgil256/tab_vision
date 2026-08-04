@@ -9,6 +9,32 @@ Tone = Literal["clean", "distorted"]
 PlayingStyle = Literal["fingerstyle", "strumming", "mixed"]
 AccuracyMode = Literal["fast", "accurate"]
 
+# Tuning presets: id -> open-string MIDI, low E-side to high E-side. Must stay
+# in sync with the client list in web-client/src/utils/pitch.ts. Non-standard
+# tunings run the base decoder only — the validated priors/physics artifacts
+# are standard-tuning-gated in tabvision.fusion.inference_policy (same
+# degrade-don't-refuse posture as electric).
+TUNINGS: dict[str, tuple[int, ...]] = {
+    "standard": (40, 45, 50, 55, 59, 64),
+    "drop-d": (38, 45, 50, 55, 59, 64),
+    "eb-standard": (39, 44, 49, 54, 58, 63),
+    "d-standard": (38, 43, 48, 53, 57, 62),
+    "drop-c": (36, 43, 48, 53, 57, 62),
+    "dadgad": (38, 45, 50, 55, 57, 62),
+    "open-g": (38, 43, 50, 55, 59, 62),
+}
+
+_NOTE_NAMES = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
+
+
+def tuning_midi(tuning: str) -> tuple[int, ...]:
+    return TUNINGS.get(tuning, TUNINGS["standard"])
+
+
+def tuning_note_names(tuning: str) -> list[str]:
+    """Open-string note names, low to high (display; flats for black keys)."""
+    return [_NOTE_NAMES[midi % 12] for midi in tuning_midi(tuning)]
+
 
 @dataclass
 class Job:
@@ -20,6 +46,7 @@ class Job:
     capo_fret: int
     progress: float
     current_stage: str
+    tuning: str = "standard"
     instrument: Instrument = "acoustic"
     tone: Tone = "clean"
     style: PlayingStyle = "mixed"
@@ -42,6 +69,7 @@ class Job:
         video_path: str,
         capo_fret: int,
         *,
+        tuning: str = "standard",
         instrument: Instrument = "acoustic",
         tone: Tone = "clean",
         style: PlayingStyle = "mixed",
@@ -57,6 +85,7 @@ class Job:
             capo_fret=capo_fret,
             progress=0.0,
             current_stage="uploading",
+            tuning=tuning,
             instrument=instrument,
             tone=tone,
             style=style,
@@ -71,6 +100,7 @@ class Job:
             "status": self.status,
             "progress": self.progress,
             "current_stage": self.current_stage,
+            "tuning": self.tuning,
             "instrument": self.instrument,
             "tone": self.tone,
             "style": self.style,
@@ -90,6 +120,7 @@ class Job:
             "capo_fret": self.capo_fret,
             "progress": self.progress,
             "current_stage": self.current_stage,
+            "tuning": self.tuning,
             "instrument": self.instrument,
             "tone": self.tone,
             "style": self.style,
@@ -115,6 +146,7 @@ class Job:
             capo_fret=record["capo_fret"],
             progress=record["progress"],
             current_stage=record["current_stage"],
+            tuning=record.get("tuning", "standard"),
             instrument=record.get("instrument", "acoustic"),
             tone=record.get("tone", "clean"),
             style=record.get("style", "mixed"),

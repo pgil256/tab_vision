@@ -1,4 +1,5 @@
 import { TabDocument, JobStatus } from '../types/tab';
+import type { TuningId } from '../utils/pitch';
 
 const DEV_API_BASE = 'http://localhost:5000';
 
@@ -16,6 +17,7 @@ export interface UploadRoi {
 
 export interface UploadVideoOptions {
   capoFret?: number;
+  tuning?: TuningId;
   instrument?: Instrument;
   tone?: Tone;
   style?: PlayingStyle;
@@ -67,6 +69,7 @@ export async function uploadVideo(
   const formData = new FormData();
   formData.append('video', file);
   formData.append('capo_fret', (normalizedOptions.capoFret ?? 0).toString());
+  formData.append('tuning', normalizedOptions.tuning ?? 'standard');
   formData.append('instrument', normalizedOptions.instrument ?? 'acoustic');
   formData.append('tone', normalizedOptions.tone ?? 'clean');
   formData.append('style', normalizedOptions.style ?? 'mixed');

@@ -4,6 +4,7 @@ import {
   SPEED_ACCURACY_MAX,
   useAppStore,
 } from '../store/appStore';
+import { TUNING_PRESETS, tuningPreset, TuningId } from '../utils/pitch';
 
 // The transcription settings (capo, speed/accuracy, instrument, tone, style,
 // fretboard area) shared by the file-upload and live-record panels. All state
@@ -12,6 +13,7 @@ import {
 export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) {
   const {
     capoFretInput,
+    tuningInput,
     instrumentInput,
     toneInput,
     styleInput,
@@ -19,6 +21,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
     roiEnabled,
     roiInput,
     setCapoFretInput,
+    setTuningInput,
     setInstrumentInput,
     setToneInput,
     setStyleInput,
@@ -71,12 +74,29 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
           </div>
         </div>
 
-        {/* Tuning indicator */}
-        <div className="field-card px-4 py-3">
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Tuning</p>
-          <p className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>E A D G B E</p>
-        </div>
+        {/* Tuning selector */}
+        <label className="field-card px-4 py-3 block flex-1">
+          <span className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Tuning</span>
+          <select
+            className="select"
+            value={tuningInput}
+            onChange={(event) => setTuningInput(event.target.value as TuningId)}
+          >
+            {TUNING_PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.name} · {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+
+      {tuningInput !== 'standard' && (
+        <p className="mt-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          {tuningPreset(tuningInput).name} works, but the extra accuracy models are tuned for
+          standard tuning and switch off here — expect more corrections than usual.
+        </p>
+      )}
 
       {/* Speed vs. accuracy slider */}
       <div className="field-card mt-3 px-4 py-3">

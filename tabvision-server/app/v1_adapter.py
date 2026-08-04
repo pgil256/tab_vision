@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from app.models import Job
+from app.models import Job, tuning_midi, tuning_note_names
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ def _compute_note_candidates(
         ranked = compute_note_candidates(
             sorted_events,
             audio_events,
-            cfg=GuitarConfig(capo=job.capo_fret),
+            cfg=GuitarConfig(capo=job.capo_fret, tuning_midi=tuning_midi(job.tuning)),
             sequence_prior=policy.resolved_sequence_prior,
         )
         return [
@@ -305,7 +305,11 @@ def tab_events_to_tab_document(
             else max_time + 1
         ),
         "capoFret": job.capo_fret,
-        "tuning": ["E", "B", "G", "D", "A", "E"],
+        # Low-to-high, matching how guitarists read a tuning ("E A D G B E").
+        # tuningMidi lets the client do pitch math (drag editing, MIDI export,
+        # synth) without a preset table lookup; index 0 = string 6.
+        "tuning": tuning_note_names(job.tuning),
+        "tuningMidi": list(tuning_midi(job.tuning)),
         "notes": notes_data,
         "metadata": {
             "totalNotes": total_notes,
@@ -319,6 +323,7 @@ def tab_events_to_tab_document(
                 else 0
             ),
             "pipelineVersion": "v1",
+            "tuningPreset": job.tuning,
             "audioBackend": policy.get("resolvedAudioBackend") or config.audio_backend,
             "positionPrior": policy["resolvedPositionPrior"],
             **policy,
@@ -371,7 +376,7 @@ def run_v1_transcription(
         "video_enabled": config.video_enabled,
         "melodic_prior_enabled": config.melodic_prior_enabled,
         "lambda_vision": 1.0 if config.video_enabled else 0.0,
-        "cfg": GuitarConfig(capo=job.capo_fret),
+        "cfg": GuitarConfig(capo=job.capo_fret, tuning_midi=tuning_midi(job.tuning)),
         "session": SessionConfig(
             instrument=job.instrument,
             tone=job.tone,

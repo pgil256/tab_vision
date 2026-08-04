@@ -28,10 +28,17 @@ export interface TabNote {
 
 export interface TabDocument {
   id: string;
+  /** User-given piece title (score header + export filenames). Absent on
+   * fresh transcriptions — the UI shows a default. */
+  title?: string;
   createdAt: string;
   duration: number;
   capoFret: number;
+  /** Open-string note names, low to high (display). */
   tuning: string[];
+  /** Open-string MIDI, low to high (index 0 = string 6). Absent on documents
+   * that predate tuning support — consumers fall back to standard tuning. */
+  tuningMidi?: number[];
   notes: TabNote[];
   metadata?: {
     totalNotes?: number;

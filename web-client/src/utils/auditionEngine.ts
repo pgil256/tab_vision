@@ -264,7 +264,7 @@ class AuditionEngine {
       if (note.timestamp < from || note.timestamp >= horizon) continue;
       const midi = note.detectedMidiNote != null && !note.isEdited
         ? note.detectedMidiNote
-        : midiPitchForNote(note.string, note.fret, st.tabDocument.capoFret);
+        : midiPitchForNote(note.string, note.fret, st.tabDocument.capoFret, st.tabDocument.tuningMidi);
       const when = this.ctx.currentTime + Math.max(0, (note.timestamp - songTime) / rate);
       const durS =
         typeof note.endTime === 'number' && note.endTime > note.timestamp
