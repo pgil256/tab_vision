@@ -194,7 +194,7 @@ interface AppState {
   toggleNoteSelection: (noteId: string) => void;
   selectNoteRange: (noteId: string) => void;
   selectAdjacentNote: (direction: 'left' | 'right' | 'up' | 'down') => void;
-  jumpToNextConfidence: (level: 'medium' | 'low') => void;
+  jumpToNextConfidence: (level: 'high' | 'medium' | 'low') => void;
 
   // Review actions
   startReview: () => void;
@@ -545,8 +545,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Toolbar confidence pills: jump to the next note still at the clicked
-  // level (fixing a note promotes it to high, so it drops out of the cycle).
+  // Toolbar confidence pills: jump to the next note at the clicked level.
+  // Fixing a flagged note promotes it to high, so it leaves that queue while
+  // remaining reachable from the consistent three-button confidence control.
   // Anchored on the current selection when it's part of the cycle, otherwise
   // on its timestamp / the playhead; wraps around at the end.
   jumpToNextConfidence: (level) => {
@@ -578,8 +579,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  // Review actions — the review queue is the phase-6 design at its measured
-  // level: lowest-confidence unedited notes first (the Viterbi string-flip
+  // Review actions — flagged, unedited notes are reviewed lowest-confidence
+  // first (the Viterbi string-flip
   // margin drives `confidence`), a 30-note budget (the offline 60-second
   // replay), and candidate cycling instead of free-form re-entry.
   startReview: () => {
@@ -587,7 +588,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!tabDocument) return;
     const REVIEW_BUDGET = 30;
     const ids = [...tabDocument.notes]
-      .filter(n => !n.isEdited && n.fret !== 'X')
+      .filter(n => n.confidenceLevel !== 'high' && !n.isEdited && n.fret !== 'X')
       .sort((a, b) => a.confidence - b.confidence)
       .slice(0, REVIEW_BUDGET)
       .map(n => n.id);

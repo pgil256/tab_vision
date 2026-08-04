@@ -125,7 +125,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
           className="w-full h-full flex items-center justify-center btn-ghost"
           onClick={toggleVideoCollapsed}
           style={{ minHeight: '100px', color: 'var(--text-muted)' }}
-          title="Show video"
+          aria-label="Show video"
+          data-tooltip="Show video"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -151,7 +152,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                 className="absolute top-2 right-2 w-6 h-6 rounded flex items-center justify-center transition-opacity opacity-0 hover:opacity-100"
                 style={{ background: 'rgba(0,0,0,0.6)' }}
                 onClick={toggleVideoCollapsed}
-                title="Hide video"
+                aria-label="Hide video"
+                data-tooltip="Hide video"
               >
                 <svg className="w-3 h-3" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
@@ -195,7 +197,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                 <button
                   className="btn btn-ghost btn-icon"
                   onClick={() => skip(-5)}
-                  title="Back 5s"
+                  aria-label="Back 5 seconds"
+                  data-tooltip="Back 5s"
                   style={{ padding: '4px' }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -211,6 +214,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                     boxShadow: '0 0 8px var(--accent-glow)',
                   }}
                   onClick={togglePlay}
+                  aria-label={isPlaying ? 'Pause playback' : 'Play transcription'}
+                  data-tooltip={isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? (
                     <svg className="w-3.5 h-3.5" fill="white" viewBox="0 0 24 24">
@@ -227,7 +232,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                 <button
                   className="btn btn-ghost btn-icon"
                   onClick={() => skip(5)}
-                  title="Forward 5s"
+                  aria-label="Forward 5 seconds"
+                  data-tooltip="Forward 5s"
                   style={{ padding: '4px' }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -251,13 +257,20 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                       background: playbackRate !== 1 ? 'var(--accent-glow)' : 'transparent',
                     }}
                     onClick={(e) => { e.stopPropagation(); setShowRateMenu(!showRateMenu); }}
+                    aria-label={`Playback speed ${playbackRate} times`}
+                    aria-expanded={showRateMenu}
+                    aria-haspopup="menu"
+                    aria-controls="playback-rate-menu"
+                    data-tooltip="Playback speed"
                   >
                     {playbackRate}x
                   </button>
 
                   {showRateMenu && (
                     <div
+                      id="playback-rate-menu"
                       className="absolute bottom-full right-0 mb-1 py-1 rounded-lg shadow-lg z-50"
+                      role="menu"
                       style={{
                         background: 'var(--bg-elevated)',
                         border: '1px solid var(--border-default)',
@@ -269,6 +282,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                         <button
                           key={rate}
                           className="w-full px-3 py-1 text-xs text-left transition-colors hover:bg-white/5"
+                          role="menuitemradio"
+                          aria-checked={rate === playbackRate}
                           style={{
                             color: rate === playbackRate ? 'var(--accent-primary)' : 'var(--text-secondary)',
                             fontWeight: rate === playbackRate ? 600 : 400,
