@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
+import { detectPitchHz, midiFloatFromHz, noteNameForMidi } from '../utils/audioAnalysis';
+import { tuningPreset } from '../utils/pitch';
 import { TranscriptionOptions } from './TranscriptionOptions';
 import { AudioReviewPanel } from './AudioReviewPanel';
 
@@ -32,6 +34,24 @@ function pickMimeType(mode: CaptureMode): string {
   }
   return '';
 }
+
+// What the live tuner is currently hearing. When the pitch is within reach of
+// an open string of the selected tuning, we tune toward that string (like a
+// clip-on tuner); otherwise fall back to the nearest chromatic note.
+interface TunerReading {
+  /** Display note name (target string or nearest chromatic note). */
+  noteName: string;
+  /** Signed cents from the display note, −50..50 (clamped for the needle). */
+  cents: number;
+  /** 1–6 when tuning toward a string of the selected preset, null when chromatic. */
+  stringNumber: number | null;
+}
+
+/** Semitone distance within which a detected pitch locks onto a preset string. */
+const TUNER_STRING_LOCK = 1.5;
+const TUNER_POLL_MS = 150;
+const TUNER_HISTORY = 4;
+const TUNER_MAX_MISSES = 3;
 
 // How the audible click behaves once recording starts. The visual beat dots
 // always keep pulsing, so the metronome stays usable even when silent.
@@ -144,8 +164,13 @@ export function RecordPanel() {
   const [inputLevel, setInputLevel] = useState(0);
   // Audio-mode takes pause here for listen-back/cleanup before upload.
   const [reviewFile, setReviewFile] = useState<File | null>(null);
+  // Live tuner (preview state only)
+  const [tunerReading, setTunerReading] = useState<TunerReading | null>(null);
+  const tunerHistoryRef = useRef<number[]>([]);
+  const tunerMissesRef = useRef(0);
 
   const { setError } = useAppStore();
+  const tuningInput = useAppStore((s) => s.tuningInput);
   const processVideo = useProcessVideo();
 
   const stopLevelMeter = useCallback(() => {
@@ -160,18 +185,22 @@ export function RecordPanel() {
     setInputLevel(0);
   }, []);
 
-  const startLevelMeter = useCallback((stream: MediaStream) => {
+  const startLevelMeter = useCallback((stream: MediaStream, showMeter: boolean) => {
     const ctx = audioCtxRef.current ?? new AudioContext();
     audioCtxRef.current = ctx;
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
+    // 4096 samples ≈ 85 ms @48k — enough window for the tuner to resolve low E.
+    analyser.fftSize = 4096;
     // Intentionally NOT connected to ctx.destination — monitoring would echo the mic.
     source.connect(analyser);
     meterSourceRef.current = source;
     analyserRef.current = analyser;
+
+    // Video mode only needs the analyser (for the tuner) — skip the rAF meter.
+    if (!showMeter) return;
 
     const data = new Uint8Array(analyser.fftSize);
     const tick = () => {
@@ -224,6 +253,56 @@ export function RecordPanel() {
     return () => window.clearInterval(id);
   }, [state]);
 
+  // Live tuner: poll the analyser while the mic preview is live (before the
+  // take starts). setInterval, not rAF — the beat-grid work showed rAF freezes
+  // in hidden tabs.
+  useEffect(() => {
+    if (state !== 'preview') {
+      setTunerReading(null);
+      tunerHistoryRef.current = [];
+      tunerMissesRef.current = 0;
+      return;
+    }
+    const targets = tuningPreset(tuningInput).midi;
+    const id = window.setInterval(() => {
+      const analyser = analyserRef.current;
+      const ctx = audioCtxRef.current;
+      if (!analyser || !ctx) return;
+      const frame = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(frame);
+      const hz = detectPitchHz(frame, ctx.sampleRate);
+
+      if (hz === null) {
+        // Hold the last reading briefly so the display doesn't flicker
+        // between plucks; clear after a few consecutive silent polls.
+        if (++tunerMissesRef.current >= TUNER_MAX_MISSES) {
+          tunerHistoryRef.current = [];
+          setTunerReading(null);
+        }
+        return;
+      }
+      tunerMissesRef.current = 0;
+      const history = tunerHistoryRef.current;
+      history.push(midiFloatFromHz(hz));
+      if (history.length > TUNER_HISTORY) history.shift();
+      const sorted = [...history].sort((a, b) => a - b);
+      const midiFloat = sorted[Math.floor(sorted.length / 2)];
+
+      let target = targets[0];
+      for (const m of targets) {
+        if (Math.abs(midiFloat - m) < Math.abs(midiFloat - target)) target = m;
+      }
+      const onString = Math.abs(midiFloat - target) <= TUNER_STRING_LOCK;
+      const refMidi = onString ? target : Math.round(midiFloat);
+      setTunerReading({
+        noteName: noteNameForMidi(refMidi),
+        cents: Math.max(-50, Math.min(50, (midiFloat - refMidi) * 100)),
+        stringNumber: onString ? 6 - targets.indexOf(target) : null,
+      });
+    }, TUNER_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [state, tuningInput]);
+
   const requestPreview = useCallback(async () => {
     setPermissionError(null);
     try {
@@ -245,9 +324,9 @@ export function RecordPanel() {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true;
         await videoRef.current.play().catch(() => {});
-      } else if (captureMode === 'audio') {
-        startLevelMeter(stream);
       }
+      // Both modes: analyser drives the tuner; the bar meter is audio-only.
+      startLevelMeter(stream, captureMode === 'audio');
       setState('preview');
     } catch (err) {
       const what = captureMode === 'audio' ? 'microphone' : 'camera/microphone';
@@ -284,21 +363,16 @@ export function RecordPanel() {
       setState('idle');
       setElapsed(0);
       setPulseBeat(null);
-      if (captureMode === 'audio') {
-        // Let the player hear the take and clean it up before committing.
-        setReviewFile(file);
-      } else {
-        processVideo(file).catch((err) => {
-          setError(err instanceof Error ? err.message : 'Processing failed');
-        });
-      }
+      // Every take pauses at the review stage. Video takes preview their
+      // audio track; cleanup there falls back to an audio-only upload.
+      setReviewFile(file);
     };
 
     recorder.start(500);
     startTimeRef.current = performance.now();
     setState('recording');
     setElapsed(0);
-  }, [captureMode, cleanupStream, processVideo, setError, stopLevelMeter]);
+  }, [captureMode, cleanupStream, stopLevelMeter]);
 
   const startWithMetronome = useCallback(async () => {
     if (!streamRef.current) return;
@@ -385,6 +459,7 @@ export function RecordPanel() {
         }}
         onCancel={() => setReviewFile(null)}
         cancelLabel="Discard take"
+        isVideo={reviewFile.type.startsWith('video/')}
       />
     );
   }
@@ -546,6 +621,71 @@ export function RecordPanel() {
         {permissionError && (
           <p className="mt-3 text-xs" style={{ color: 'var(--color-error)' }}>{permissionError}</p>
         )}
+
+        {/* Live tuner — mic is hot but the take hasn't started */}
+        {state === 'preview' && (() => {
+          const inTune = tunerReading !== null && Math.abs(tunerReading.cents) <= 5;
+          const accent = inTune ? 'var(--color-success)' : 'var(--color-warning)';
+          return (
+            <div className="field-card mt-4 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Tuner</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {tuningPreset(tuningInput).name} · {tuningPreset(tuningInput).label}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-20 text-center shrink-0">
+                  {tunerReading ? (
+                    <>
+                      <p className="text-2xl font-bold tabular-nums leading-none" style={{ color: accent }}>
+                        {tunerReading.noteName}
+                      </p>
+                      <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                        {tunerReading.stringNumber !== null
+                          ? `string ${tunerReading.stringNumber}`
+                          : 'off scale'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Play a<br />string…</p>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div
+                    className="relative h-2 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                  >
+                    {/* Center (in-tune) mark */}
+                    <div
+                      className="absolute top-[-3px] bottom-[-3px] w-px"
+                      style={{ left: '50%', background: 'var(--text-muted)' }}
+                    />
+                    {tunerReading && (
+                      <div
+                        className="absolute top-[-4px] w-4 h-4 rounded-full transition-all duration-150"
+                        style={{
+                          left: `calc(${50 + tunerReading.cents}% - 8px)`,
+                          background: accent,
+                          boxShadow: `0 0 8px ${accent}`,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-between mt-1.5 text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                    <span>−50¢</span>
+                    <span style={{ color: tunerReading ? accent : 'var(--text-muted)' }}>
+                      {tunerReading
+                        ? `${tunerReading.cents > 0 ? '+' : ''}${Math.round(tunerReading.cents)}¢${inTune ? ' — in tune' : ''}`
+                        : 'listening'}
+                    </span>
+                    <span>+50¢</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Metronome controls */}
         <div className="field-card mt-4 p-4">
