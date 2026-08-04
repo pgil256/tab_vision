@@ -171,7 +171,7 @@ export function RecordPanel() {
 
   const { setError } = useAppStore();
   const tuningInput = useAppStore((s) => s.tuningInput);
-  const processVideo = useProcessVideo();
+  const { processVideo } = useProcessVideo();
 
   const stopLevelMeter = useCallback(() => {
     if (levelRafRef.current !== null) {
@@ -426,6 +426,44 @@ export function RecordPanel() {
     setPulseBeat(null);
     setCountInRemaining(null);
   }, [stopEverything]);
+
+  useEffect(() => {
+    const handleRecordingShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented
+        || event.repeat
+        || event.code !== 'Space'
+        || event.ctrlKey
+        || event.metaKey
+        || event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || target instanceof HTMLButtonElement
+        || target instanceof HTMLAnchorElement
+        || (target && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (state === 'preview') {
+        event.preventDefault();
+        void startWithMetronome();
+      } else if (state === 'recording' || state === 'countin') {
+        event.preventDefault();
+        stopRecording();
+      }
+    };
+
+    window.addEventListener('keydown', handleRecordingShortcut);
+    return () => window.removeEventListener('keydown', handleRecordingShortcut);
+  }, [startWithMetronome, state, stopRecording]);
 
   const isLive = state === 'recording' || state === 'countin';
 

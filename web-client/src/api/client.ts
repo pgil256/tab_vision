@@ -63,6 +63,7 @@ async function getErrorMessage(response: Response, fallback: string): Promise<st
 export async function uploadVideo(
   file: File,
   options: UploadVideoOptions | number = {},
+  signal?: AbortSignal,
 ): Promise<string> {
   const normalizedOptions: UploadVideoOptions =
     typeof options === 'number' ? { capoFret: options } : options;
@@ -85,6 +86,7 @@ export async function uploadVideo(
   const response = await fetchApi('/jobs', {
     method: 'POST',
     body: formData,
+    signal,
   });
 
   if (!response.ok) {
@@ -95,8 +97,8 @@ export async function uploadVideo(
   return data.job_id;
 }
 
-export async function getJobStatus(jobId: string): Promise<JobStatus> {
-  const response = await fetchApi(`/jobs/${jobId}`);
+export async function getJobStatus(jobId: string, signal?: AbortSignal): Promise<JobStatus> {
+  const response = await fetchApi(`/jobs/${jobId}`, { signal });
 
   if (!response.ok) {
     throw new Error(await getErrorMessage(response, 'Failed to get job status'));
@@ -113,8 +115,8 @@ export async function getJobStatus(jobId: string): Promise<JobStatus> {
   };
 }
 
-export async function getJobResult(jobId: string): Promise<TabDocument> {
-  const response = await fetchApi(`/jobs/${jobId}/result`);
+export async function getJobResult(jobId: string, signal?: AbortSignal): Promise<TabDocument> {
+  const response = await fetchApi(`/jobs/${jobId}/result`, { signal });
 
   if (!response.ok) {
     throw new Error(await getErrorMessage(response, 'Failed to get result'));

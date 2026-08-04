@@ -109,6 +109,7 @@ interface AppState {
   tabDocument: TabDocument | null;
   errorMessage: string | null;
   videoUrl: string | null;
+  processingDelayed: boolean;
   // B5 — a persisted (edited) session found in localStorage on mount, offered
   // for restore. Null once restored/discarded or when none exists.
   restorable: PersistedSession | null;
@@ -166,6 +167,7 @@ interface AppState {
   setTabDocument: (doc: TabDocument) => void;
   setError: (message: string) => void;
   setVideoUrl: (url: string | null) => void;
+  setProcessingDelayed: (delayed: boolean) => void;
   reset: () => void;
 
   // B5 — edit persistence / restore
@@ -259,6 +261,7 @@ const initialState = {
   tabDocument: null as TabDocument | null,
   errorMessage: null as string | null,
   videoUrl: null as string | null,
+  processingDelayed: false,
   restorable: null as PersistedSession | null,
   personalIngestAvailable: false,
   goldBankStatus: 'idle' as 'idle' | 'banking' | 'done' | 'error',
@@ -325,20 +328,40 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedNoteId: null,
       selectedNoteIds: [],
       selectionAnchorId: null,
+      processingDelayed: false,
     });
     persistSession(doc, get().currentJobId); // survive a refresh from the first render
   },
 
-  setError: (message) => set({ errorMessage: message, jobStatus: 'failed' }),
+  setError: (message) => set({
+    errorMessage: message,
+    jobStatus: 'failed',
+    processingDelayed: false,
+  }),
 
   setVideoUrl: (url) => set({ videoUrl: url }),
 
+  setProcessingDelayed: (delayed) => set({ processingDelayed: delayed }),
+
   reset: () => {
-    const jobId = get().currentJobId;
+    const state = get();
+    const jobId = state.currentJobId;
     if (jobId) void deleteRecordingBlob(jobId); // best-effort cleanup
     clearSession(); // "New transcription" discards the autosaved session
-    // The backend's personal-ingest capability doesn't change per job.
-    set({ ...initialState, personalIngestAvailable: get().personalIngestAvailable });
+    // Capture settings are user preferences, not job output. Preserve them
+    // across retries, cancellations, and new takes.
+    set({
+      ...initialState,
+      personalIngestAvailable: state.personalIngestAvailable,
+      capoFretInput: state.capoFretInput,
+      tuningInput: state.tuningInput,
+      instrumentInput: state.instrumentInput,
+      toneInput: state.toneInput,
+      styleInput: state.styleInput,
+      speedAccuracyInput: state.speedAccuracyInput,
+      roiEnabled: state.roiEnabled,
+      roiInput: state.roiInput,
+    });
   },
 
   // B5 — offer to restore an autosaved edited session on a fresh mount. Only

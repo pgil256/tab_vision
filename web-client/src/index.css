@@ -909,6 +909,11 @@ button, input, select, summary { font: inherit; }
 }
 .topbar-shortcuts, .topbar-new { height: 34px; padding: 0 11px; font-size: 11px; }
 .topbar-shortcuts svg, .topbar-new svg { width: 15px; height: 15px; }
+.topbar-new.is-confirming {
+  color: #ffd5d3;
+  border-color: rgba(240, 107, 104, 0.55);
+  background: var(--color-error-soft);
+}
 
 /* ===== Landing ===== */
 .landing-viewport {
@@ -1107,6 +1112,32 @@ button, input, select, summary { font: inherit; }
 
 /* ===== Capture Flows ===== */
 .capture-flow, .processing-flow { width: 100%; max-width: none; }
+.upload-validation-error {
+  margin: 9px 2px 0;
+  color: var(--color-error);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.processing-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+.processing-delay {
+  display: grid;
+  gap: 5px;
+  margin-top: 16px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  border: 1px solid rgba(244, 184, 96, 0.3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+}
+.processing-delay strong { color: var(--text-primary); }
+.processing-delay .btn { justify-self: start; margin-top: 4px; }
 .capture-hint, .recording-intro {
   gap: 11px;
   margin-bottom: 15px;

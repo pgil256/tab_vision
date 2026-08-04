@@ -97,12 +97,8 @@ export function useEditorHotkeys() {
         }
         return;
       }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        s.commitPendingEdit();
-        s.selectAdjacentNote('right');
-        return;
-      }
+      // Tab remains browser-native so keyboard users can reach the toolbar,
+      // export controls, and transport. ArrowRight navigates between notes.
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         s.commitPendingEdit();

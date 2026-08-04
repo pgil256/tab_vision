@@ -16,6 +16,7 @@ const ALLOWED_TYPES = [
   'audio/mp4',
   'audio/x-m4a', // Safari's .m4a type
 ];
+const ALLOWED_FILE_EXTENSION = /\.(mp4|mov|m4v|webm|wav|mp3|m4a)$/i;
 
 const PIPELINE_STAGES = [
   { key: 'uploading', label: 'Uploading recording', icon: 'upload' },
@@ -105,6 +106,7 @@ function GuitarIcon() {
 export function UploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   // Audio files pause here for a listen-back/cleanup step before upload.
   const [reviewFile, setReviewFile] = useState<File | null>(null);
   const {
@@ -114,22 +116,24 @@ export function UploadPanel() {
     pipelineVideoEnabled,
     inputMediaKind,
     errorMessage,
+    processingDelayed,
     setError,
     reset,
   } = useAppStore();
-  const processVideo = useProcessVideo();
+  const { processVideo, cancelProcessing, keepWaiting } = useProcessVideo();
 
-  const processFile = useCallback(async (file: File) => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Please upload a video (MP4, MOV, WEBM) or audio file (WAV, MP3, M4A)');
+  const processFile = useCallback((file: File) => {
+    if (!ALLOWED_TYPES.includes(file.type) && !ALLOWED_FILE_EXTENSION.test(file.name)) {
+      setValidationError('Choose a video (MP4, MOV, WEBM) or audio file (WAV, MP3, M4A).');
       return;
     }
+    setValidationError(null);
     setFileName(file.name);
     // Everything stops at the review stage. For video, cleanup falls back to
     // an audio-only upload (the browser can't re-encode audio back into a
     // video track) — untouched settings upload the original video.
     setReviewFile(file);
-  }, [setError]);
+  }, []);
 
   const handleReviewSubmit = useCallback((file: File) => {
     setReviewFile(null);
@@ -200,6 +204,8 @@ export function UploadPanel() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => document.getElementById('file-input')?.click()}
+            aria-invalid={validationError ? true : undefined}
+            aria-describedby={validationError ? 'upload-validation-error' : undefined}
           >
             <div className="animate-float mb-5">
               <div
@@ -239,6 +245,12 @@ export function UploadPanel() {
               className="hidden"
             />
           </div>
+
+          {validationError && (
+            <p id="upload-validation-error" className="upload-validation-error" role="alert">
+              {validationError}
+            </p>
+          )}
 
           <TranscriptionOptions />
 
@@ -402,6 +414,18 @@ export function UploadPanel() {
           <p className="text-xs text-center tabular-nums font-medium" style={{ color: 'var(--text-secondary)' }}>
             {Math.round(progress * 100)}%
           </p>
+
+          {processingDelayed && (
+            <div className="processing-delay" role="status">
+              <strong>This is taking longer than expected.</strong>
+              <span>You can keep waiting or cancel without losing your capture settings.</span>
+              <button className="btn btn-secondary" onClick={keepWaiting}>Keep waiting</button>
+            </div>
+          )}
+
+          <div className="processing-actions">
+            <button className="btn btn-ghost" onClick={cancelProcessing}>Cancel</button>
+          </div>
         </div>
       </div>
     );
