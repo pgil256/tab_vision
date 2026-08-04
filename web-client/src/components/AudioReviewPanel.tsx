@@ -10,6 +10,14 @@ import {
   renderCleanedWav,
   windowPeak,
 } from '../utils/audioCleanup';
+import {
+  analyzeTake,
+  CLIPPING_WARN_SAMPLES,
+  findAutoTrim,
+  TUNING_MIN_CONFIDENCE,
+  TUNING_MIN_FRAMES,
+  TUNING_WARN_CENTS,
+} from '../utils/audioAnalysis';
 import { TranscriptionOptions } from './TranscriptionOptions';
 
 const MIN_KEEP_SECONDS = 0.25;
@@ -27,12 +35,19 @@ interface AudioReviewPanelProps {
   onSubmit: (file: File) => void;
   onCancel: () => void;
   cancelLabel: string;
+  /**
+   * The source is a video file. Its audio track is decoded for preview/cleanup,
+   * but applying any cleanup means uploading audio only — the browser can't
+   * re-mux processed audio back into the video container — which skips the
+   * fretboard-tracking half of the pipeline.
+   */
+  isVideo?: boolean;
 }
 
-// Listen-back + cleanup stage between capturing/choosing an audio take and
-// sending it for transcription. Preview edits run live through WebAudio;
-// the same chain is re-rendered offline to a WAV on submit.
-export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel }: AudioReviewPanelProps) {
+// Listen-back + cleanup stage between capturing/choosing a take and sending
+// it for transcription. Preview edits run live through WebAudio; the same
+// chain is re-rendered offline to a WAV on submit.
+export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVideo = false }: AudioReviewPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -72,6 +87,10 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel }: Audi
   }, [file]);
 
   const peaks = useMemo(() => (buffer ? computePeaks(buffer, WAVEFORM_BINS) : null), [buffer]);
+  // One-time health scan of the decoded take (clipping, concert-pitch offset)
+  // plus the suggested silence trim.
+  const analysis = useMemo(() => (buffer ? analyzeTake(buffer) : null), [buffer]);
+  const autoTrim = useMemo(() => (buffer ? findAutoTrim(buffer) : null), [buffer]);
   // Peak of the kept window, for the normalize preview gain. windowPeak is a
   // full scan, so only recompute when the trim actually changes.
   const keptPeak = useMemo(
@@ -333,9 +352,84 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel }: Audi
               )}
             </div>
 
+            {/* Take-health warnings: problems no cleanup slider can fix. */}
+            {analysis && analysis.clippedSamples >= CLIPPING_WARN_SAMPLES && (
+              <div
+                className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg"
+                style={{ background: 'var(--color-error-soft)', border: '1px solid rgba(251, 113, 133, 0.25)' }}
+              >
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="var(--color-error)" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-error)' }}>
+                  Clipping detected in {analysis.clippedRuns} spot{analysis.clippedRuns === 1 ? '' : 's'} —
+                  the input was too loud and the waveform is flattened. Cleanup can&apos;t undo this
+                  and it distorts pitch detection; if this is your take, re-record with lower input gain.
+                </p>
+              </div>
+            )}
+            {analysis &&
+              analysis.tuningCents !== null &&
+              Math.abs(analysis.tuningCents) >= TUNING_WARN_CENTS &&
+              analysis.tuningConfidence >= TUNING_MIN_CONFIDENCE &&
+              analysis.voicedFrames >= TUNING_MIN_FRAMES && (
+              <div
+                className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg"
+                style={{ background: 'var(--color-warning-soft)', border: '1px solid rgba(251, 191, 36, 0.25)' }}
+              >
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="var(--color-warning)" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
+                </svg>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-warning)' }}>
+                  The guitar reads ~{Math.abs(Math.round(analysis.tuningCents))} cents{' '}
+                  {analysis.tuningCents > 0 ? 'sharp' : 'flat'} of concert pitch. The transcriber
+                  snaps notes to in-tune pitches, so tuning up and re-recording will give a
+                  noticeably better tab.
+                </p>
+              </div>
+            )}
+
+            {changed && isVideo && (
+              <div
+                className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg"
+                style={{ background: 'var(--color-warning-soft)', border: '1px solid rgba(251, 191, 36, 0.25)' }}
+              >
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="var(--color-warning)" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--color-warning)' }}>
+                  Cleanup can&apos;t be re-embedded into the video, so the cleaned upload is
+                  audio-only and fretboard tracking will be skipped. Reset the settings to keep
+                  the full video pipeline.
+                </p>
+              </div>
+            )}
+
             {/* Trim */}
             <div className="field-card mt-4 p-4">
-              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Trim</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Trim</p>
+                {autoTrim && (
+                  <button
+                    className="btn btn-ghost text-xs"
+                    style={{ padding: '4px 10px' }}
+                    onClick={() =>
+                      updateSettings(
+                        {
+                          trimStart: Math.min(autoTrim.start, duration - MIN_KEEP_SECONDS),
+                          trimEnd: Math.max(autoTrim.end, autoTrim.start + MIN_KEEP_SECONDS),
+                        },
+                        true,
+                      )
+                    }
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7.848 8.25l1.536.887M7.848 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm1.536.887a2.165 2.165 0 011.083 1.839c.005.351.054.695.14 1.024M9.384 9.137l2.077 1.199M7.848 15.75l1.536-.887m-1.536.887a3 3 0 11-5.196 3 3 3 0 015.196-3zm1.536-.887a2.165 2.165 0 001.083-1.838c.005-.352.054-.695.14-1.025m-1.223 2.863l2.077-1.199m0-3.328a4.323 4.323 0 012.068-1.379l5.325-1.628a4.5 4.5 0 012.48-.044l.803.215-7.794 4.5m-2.882-1.664A4.331 4.331 0 0010.607 12m3.736 0l7.794 4.5-.802.215a4.5 4.5 0 01-2.48-.043l-5.326-1.629a4.324 4.324 0 01-2.068-1.379M14.343 12l-2.882 1.664" />
+                    </svg>
+                    Auto-trim silence
+                  </button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[11px] mb-1 tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -431,7 +525,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel }: Audi
           </>
         )}
 
-        <TranscriptionOptions showRoi={false} />
+        <TranscriptionOptions showRoi={isVideo} />
 
         {/* Actions */}
         <div className="mt-4 flex gap-2">

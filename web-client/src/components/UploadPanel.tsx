@@ -124,14 +124,11 @@ export function UploadPanel() {
       return;
     }
     setFileName(file.name);
-    // Audio-only files get a review/cleanup stop first; video goes straight
-    // through (the browser can't re-encode audio back into a video track).
-    if (file.type.startsWith('audio/')) {
-      setReviewFile(file);
-      return;
-    }
-    await processVideo(file);
-  }, [processVideo, setError]);
+    // Everything stops at the review stage. For video, cleanup falls back to
+    // an audio-only upload (the browser can't re-encode audio back into a
+    // video track) — untouched settings upload the original video.
+    setReviewFile(file);
+  }, [setError]);
 
   const handleReviewSubmit = useCallback((file: File) => {
     setReviewFile(null);
@@ -160,7 +157,7 @@ export function UploadPanel() {
     : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video');
   const currentStageIndex = getStageIndex(pipelineStages, currentStage);
 
-  // === IDLE + audio chosen: listen back & clean up before uploading ===
+  // === IDLE + file chosen: listen back & clean up before uploading ===
   if (jobStatus === 'idle' && reviewFile) {
     return (
       <AudioReviewPanel
@@ -168,6 +165,7 @@ export function UploadPanel() {
         onSubmit={handleReviewSubmit}
         onCancel={() => { setReviewFile(null); setFileName(null); }}
         cancelLabel="Choose another file"
+        isVideo={reviewFile.type.startsWith('video/')}
       />
     );
   }
