@@ -1110,29 +1110,35 @@ public partial class MainWindow : Window
             return;
         }
 
-        var layout = PythonEnvironmentLayout.Default;
-        var window = new AudioReviewWindow(
-            _selectedInput.FullPath,
-            layout.TabVisionExecutable,
-            _sidecarEnvironment
-        )
+        try
         {
-            Owner = this,
-        };
-        window.Accepted += (_, result) =>
+            var window = new AudioReviewWindow(
+                _selectedInput.FullPath,
+                SidecarExecutableLocator.Resolve(),
+                _sidecarEnvironment
+            )
+            {
+                Owner = this,
+            };
+            window.Accepted += (_, result) =>
+            {
+                ShowSelectedInput(SelectedInputSummary.FromPath(result.Path));
+                if (result.WasCleaned)
+                {
+                    NoVideoCheckBox.IsChecked = true;
+                    JobStatusText.Text = "Cleaned WAV ready to transcribe.";
+                }
+                else
+                {
+                    JobStatusText.Text = "Reviewed recording ready to transcribe.";
+                }
+            };
+            window.ShowDialog();
+        }
+        catch (Exception exception)
         {
-            ShowSelectedInput(SelectedInputSummary.FromPath(result.Path));
-            if (result.WasCleaned)
-            {
-                NoVideoCheckBox.IsChecked = true;
-                JobStatusText.Text = "Cleaned WAV ready to transcribe.";
-            }
-            else
-            {
-                JobStatusText.Text = "Reviewed recording ready to transcribe.";
-            }
-        };
-        window.ShowDialog();
+            JobStatusText.Text = exception.Message;
+        }
     }
 
     private void InitializeTranscriptionOptions()
