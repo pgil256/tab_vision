@@ -14,7 +14,9 @@ export function TabToolbar() {
     zoomLevel,
     videoUrl,
     auditionMode,
+    viewMode,
     setAuditionMode,
+    setViewMode,
     setFollowingPlayback,
     undo,
     redo,
@@ -26,6 +28,7 @@ export function TabToolbar() {
     goldBankStatus,
     goldBankMessage,
     bankGoldSession,
+    jumpToNextConfidence,
   } = useAppStore();
 
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -41,6 +44,17 @@ export function TabToolbar() {
     setTimeout(() => setToast(prev => prev ? { ...prev, visible: false } : null), 2000);
     setTimeout(() => setToast(null), 2300);
   }, []);
+
+  // Download basename: the piece title (slugified) when one is set, else the
+  // old tablature-<jobId> form.
+  const exportBasename = (() => {
+    const slug = tabDocument?.title
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+    return slug || `tablature-${tabDocument?.id || 'export'}`;
+  })();
 
   const handleExportText = useCallback(() => {
     if (!tabDocument) return;
@@ -58,12 +72,12 @@ export function TabToolbar() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tablature-${tabDocument.id || 'export'}.txt`;
+    a.download = `${exportBasename}.txt`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
     showToast('Downloaded tablature');
-  }, [tabDocument, showToast]);
+  }, [tabDocument, exportBasename, showToast]);
 
   const handleExportMidi = useCallback(() => {
     if (!tabDocument) return;
@@ -72,12 +86,25 @@ export function TabToolbar() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tablature-${tabDocument.id || 'export'}.mid`;
+    a.download = `${exportBasename}.mid`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
     showToast('Downloaded MIDI');
-  }, [tabDocument, quantizeMidi, showToast]);
+  }, [tabDocument, quantizeMidi, exportBasename, showToast]);
+
+  // Print / save-as-PDF goes through the score view (the sheet layout is the
+  // printable surface); switch to it first if the timeline is showing, then
+  // give React a beat to render before opening the print dialog.
+  const handlePrint = useCallback(() => {
+    setShowExportMenu(false);
+    if (viewMode !== 'score') {
+      setViewMode('score');
+      setTimeout(() => window.print(), 350);
+    } else {
+      window.print();
+    }
+  }, [viewMode, setViewMode]);
 
   // Close export menu on outside click
   useEffect(() => {
@@ -120,20 +147,34 @@ export function TabToolbar() {
       >
         {/* Left: Stats */}
         <div className="flex items-center gap-3">
-          {/* Confidence pills */}
+          {/* Confidence pills. The yellow/red ones are buttons: each click
+              jumps to the next note still at that level (fixing a note
+              promotes it to green, so it leaves the cycle). */}
           <div className="flex items-center gap-2">
             <div className="stat-pill">
               <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-success)' }} />
               <span style={{ color: 'var(--text-secondary)' }}>{highCount}</span>
             </div>
-            <div className="stat-pill">
+            <button
+              className="stat-pill stat-pill-btn"
+              onClick={() => jumpToNextConfidence('medium')}
+              disabled={medCount === 0}
+              data-tooltip="Jump to next medium-confidence note"
+              data-testid="jump-medium"
+            >
               <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-warning)' }} />
               <span style={{ color: 'var(--text-secondary)' }}>{medCount}</span>
-            </div>
-            <div className="stat-pill">
+            </button>
+            <button
+              className="stat-pill stat-pill-btn"
+              onClick={() => jumpToNextConfidence('low')}
+              disabled={lowCount === 0}
+              data-tooltip="Jump to next low-confidence note"
+              data-testid="jump-low"
+            >
               <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-error)' }} />
               <span style={{ color: 'var(--text-secondary)' }}>{lowCount}</span>
-            </div>
+            </button>
           </div>
 
           <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
@@ -247,6 +288,35 @@ export function TabToolbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
             </button>
+          </div>
+
+          {/* View mode: timeline canvas (editing) vs sheet-style score view
+              (reading / printing). */}
+          <div
+            className="flex items-center rounded-lg overflow-hidden"
+            style={{ border: '1px solid var(--border-subtle)' }}
+            data-testid="view-toggle"
+          >
+            {([
+              ['timeline', 'Grid'],
+              ['score', 'Score'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="text-[11px] px-2 py-1 transition-colors"
+                data-tooltip={
+                  mode === 'timeline' ? 'Timeline editor' : 'Sheet-style score view'
+                }
+                style={{
+                  color: viewMode === mode ? 'var(--accent-tertiary)' : 'var(--text-muted)',
+                  background: viewMode === mode ? 'var(--accent-glow)' : 'transparent',
+                  fontWeight: viewMode === mode ? 600 : 400,
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Audition mode: what plays back — the recording, the synth
@@ -379,6 +449,16 @@ export function TabToolbar() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 15.553z" />
                   </svg>
                   Download .mid
+                </button>
+                <button
+                  className="w-full px-3.5 py-2 text-xs text-left flex items-center gap-2.5 transition-colors hover:bg-white/5"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onClick={handlePrint}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659" />
+                  </svg>
+                  Print / Save PDF
                 </button>
                 {tabDocument && getBeatGrid(tabDocument) && (
                   <label
