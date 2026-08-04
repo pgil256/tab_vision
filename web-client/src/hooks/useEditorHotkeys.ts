@@ -63,10 +63,24 @@ export function useEditorHotkeys() {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         s.commitPendingEdit();
-        s.selectAdjacentNote('left');
+        if (s.selectedNoteIds.length > 1) {
+          s.moveSelectedNotes('left');
+        } else {
+          s.selectAdjacentNote('left');
+        }
         return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'Tab') {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        s.commitPendingEdit();
+        if (s.selectedNoteIds.length > 1) {
+          s.moveSelectedNotes('right');
+        } else {
+          s.selectAdjacentNote('right');
+        }
+        return;
+      }
+      if (e.key === 'Tab') {
         e.preventDefault();
         s.commitPendingEdit();
         s.selectAdjacentNote('right');
@@ -78,7 +92,9 @@ export function useEditorHotkeys() {
         // Shift+Up moves the selected note to the adjacent (higher) string,
         // fret recomputed to keep the pitch — the fix for the #1 wrong-string
         // error. Plain Up navigates.
-        if (e.shiftKey) {
+        if (s.selectedNoteIds.length > 1) {
+          s.moveSelectedNotes('up');
+        } else if (e.shiftKey) {
           s.moveNoteString('up');
         } else {
           s.selectAdjacentNote('up');
@@ -88,7 +104,9 @@ export function useEditorHotkeys() {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         s.commitPendingEdit();
-        if (e.shiftKey) {
+        if (s.selectedNoteIds.length > 1) {
+          s.moveSelectedNotes('down');
+        } else if (e.shiftKey) {
           s.moveNoteString('down');
         } else {
           s.selectAdjacentNote('down');
@@ -152,6 +170,28 @@ export function useEditorHotkeys() {
         e.preventDefault();
         s.setPendingFretInput('');
         s.deleteNote(s.selectedNoteId);
+        return;
+      }
+
+      // Expressive markings. Slides are attached to the destination note;
+      // bends default to the most common whole-step amount. Repeating the
+      // shortcut clears that marking from the full selection.
+      if ((e.key === 's' || e.key === 'S') && s.selectedNoteId) {
+        e.preventDefault();
+        s.setPendingFretInput('');
+        const ids = new Set(s.selectedNoteIds.length ? s.selectedNoteIds : [s.selectedNoteId]);
+        const notes = s.tabDocument?.notes.filter(note => ids.has(note.id)) ?? [];
+        const allSlides = notes.length > 0 && notes.every(note => note.technique === 'slide');
+        s.setSelectedTechnique(allSlides ? null : 'slide');
+        return;
+      }
+      if ((e.key === 'b' || e.key === 'B') && s.selectedNoteId) {
+        e.preventDefault();
+        s.setPendingFretInput('');
+        const ids = new Set(s.selectedNoteIds.length ? s.selectedNoteIds : [s.selectedNoteId]);
+        const notes = s.tabDocument?.notes.filter(note => ids.has(note.id)) ?? [];
+        const allBends = notes.length > 0 && notes.every(note => note.technique === 'bend');
+        s.setSelectedTechnique(allBends ? null : 'bend', 2);
         return;
       }
 

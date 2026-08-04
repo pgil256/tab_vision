@@ -31,11 +31,29 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
   } = useAppStore();
 
   const sliderFill = `${(speedAccuracyInput / SPEED_ACCURACY_MAX) * 100}%`;
+  const instrumentLabel = `${instrumentInput.charAt(0).toUpperCase()}${instrumentInput.slice(1)}`;
 
   return (
-    <div>
+    <details className="transcription-settings">
+      <summary>
+        <span className="settings-summary-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" d="M4 7h10m4 0h2M4 12h3m4 0h9M4 17h7m4 0h5" />
+            <circle cx="16" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="13" cy="17" r="2" />
+          </svg>
+        </span>
+        <span className="settings-summary-copy">
+          <strong>Fine-tune transcription</strong>
+          <small>{tuningPreset(tuningInput).name} · {instrumentLabel}{capoFretInput > 0 ? ` · Capo ${capoFretInput}` : ''}</small>
+        </span>
+        <span className="settings-summary-value">{SPEED_ACCURACY_LABELS[speedAccuracyInput]}</span>
+        <svg className="settings-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m7 10 5 5 5-5" />
+        </svg>
+      </summary>
+      <div className="transcription-settings__body">
       {/* Options row */}
-      <div className="mt-4 flex items-center gap-3">
+      <div className="transcription-options-row">
         {/* Capo selector */}
         <div className="field-card flex-1 px-4 py-3 flex items-center justify-between">
           <div>
@@ -99,7 +117,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
       )}
 
       {/* Speed vs. accuracy slider */}
-      <div className="field-card mt-3 px-4 py-3">
+      <div className="field-card settings-accuracy-card px-4 py-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Speed vs. accuracy</span>
           <span className="text-xs font-semibold" style={{ color: 'var(--accent-tertiary)' }}>
@@ -147,7 +165,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-3">
+      <div className="transcription-profiles">
         <label className="field-card px-3 py-3 block">
           <span className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-primary)' }}>Instrument</span>
           <select
@@ -207,7 +225,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
           </label>
           {roiEnabled && (
             <>
-              <div className="mt-3 grid grid-cols-4 gap-2">
+              <div className="roi-grid">
                 {([
                   { key: 'x1', label: 'Left' },
                   { key: 'y1', label: 'Top' },
@@ -239,6 +257,7 @@ export function TranscriptionOptions({ showRoi = true }: { showRoi?: boolean }) 
           )}
         </div>
       )}
-    </div>
+      </div>
+    </details>
   );
 }

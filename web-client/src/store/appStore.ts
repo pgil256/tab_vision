@@ -1,6 +1,6 @@
 // tabvision-client/src/store/appStore.ts
 import { create } from 'zustand';
-import { TabDocument, TabNote } from '../types/tab';
+import { EditableTechnique, TabDocument, TabNote } from '../types/tab';
 import type { AccuracyMode, Instrument, PlayingStyle, Tone, UploadRoi } from '../api/client';
 import {
   bankGoldSession as apiBankGoldSession,
@@ -55,12 +55,22 @@ type NoteMutableFields = Pick<
   | 'endTime'
   | 'confidence'
   | 'confidenceLevel'
+  | 'technique'
+  | 'pitchBend'
 >;
 
 type EditAction =
   | { kind: 'position'; noteId: string; before: NoteMutableFields; after: NoteMutableFields }
+  | {
+      kind: 'batch-position';
+      changes: { noteId: string; before: NoteMutableFields; after: NoteMutableFields }[];
+    }
   | { kind: 'delete'; note: TabNote; index: number }
   | { kind: 'insert'; note: TabNote; index: number };
+
+/** Keyboard horizontal nudge. Small enough for onset correction, but still
+ * visible at the timeline's base density (4 px at 80 px/s). */
+export const NOTE_NUDGE_SECONDS = 0.05;
 
 /**
  * Fret on `toString` that sounds the same pitch as `fret` on `fromString`,
@@ -106,6 +116,10 @@ interface AppState {
 
   // Editor state
   selectedNoteId: string | null;
+  /** All selected notes. `selectedNoteId` remains the primary selection for
+   * single-note editors such as fret entry and candidate cycling. */
+  selectedNoteIds: string[];
+  selectionAnchorId: string | null;
   isFollowingPlayback: boolean;
   pendingFretInput: string;
   // Bumped by jumpToNextConfidence so the active view scrolls the newly
@@ -170,6 +184,8 @@ interface AppState {
 
   // Selection actions
   selectNote: (noteId: string | null) => void;
+  toggleNoteSelection: (noteId: string) => void;
+  selectNoteRange: (noteId: string) => void;
   selectAdjacentNote: (direction: 'left' | 'right' | 'up' | 'down') => void;
   jumpToNextConfidence: (level: 'medium' | 'low') => void;
 
@@ -188,6 +204,11 @@ interface AppState {
     next: { timestamp: number; string: number; fret: number | "X" },
   ) => void;
   moveNoteString: (direction: 'up' | 'down') => void;
+  moveSelectedNotes: (direction: 'left' | 'right' | 'up' | 'down') => void;
+  setSelectedTechnique: (
+    technique: EditableTechnique | null,
+    pitchBend?: number,
+  ) => void;
   deleteNote: (noteId: string) => void;
   insertNote: (opts: { timestamp: number; string: number; fret?: number | "X" }) => void;
   setPendingFretInput: (input: string) => void;
@@ -244,6 +265,8 @@ const initialState = {
 
   // Editor state
   selectedNoteId: null as string | null,
+  selectedNoteIds: [] as string[],
+  selectionAnchorId: null as string | null,
   isFollowingPlayback: true,
   pendingFretInput: '',
   noteFocusNonce: 0,
@@ -287,7 +310,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPipelineVideoEnabled: (enabled) => set({ pipelineVideoEnabled: enabled }),
 
   setTabDocument: (doc) => {
-    set({ tabDocument: doc, jobStatus: 'completed', restorable: null });
+    set({
+      tabDocument: doc,
+      jobStatus: 'completed',
+      restorable: null,
+      selectedNoteId: null,
+      selectedNoteIds: [],
+      selectionAnchorId: null,
+    });
     persistSession(doc, get().currentJobId); // survive a refresh from the first render
   },
 
@@ -321,6 +351,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       restorable: null,
       editHistory: [],
       editHistoryIndex: -1,
+      selectedNoteId: null,
+      selectedNoteIds: [],
+      selectionAnchorId: null,
     });
     // Recover the recording from IndexedDB so the restored session keeps real
     // playback. Async and fail-open: no blob just means no video pane (the
@@ -384,8 +417,57 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
 
-  // Selection actions
-  selectNote: (noteId) => set({ selectedNoteId: noteId, pendingFretInput: '' }),
+  // Selection actions. A plain selection replaces the group; Ctrl/Cmd-click
+  // toggles one note and Shift-click selects the inclusive time-ordered range.
+  selectNote: (noteId) => set({
+    selectedNoteId: noteId,
+    selectedNoteIds: noteId ? [noteId] : [],
+    selectionAnchorId: noteId,
+    pendingFretInput: '',
+  }),
+
+  toggleNoteSelection: (noteId) => {
+    const { tabDocument, selectedNoteIds, reviewActive, selectNote } = get();
+    if (reviewActive) {
+      selectNote(noteId);
+      return;
+    }
+    if (!tabDocument?.notes.some(n => n.id === noteId)) return;
+    const selected = selectedNoteIds.includes(noteId)
+      ? selectedNoteIds.filter(id => id !== noteId)
+      : [...selectedNoteIds, noteId];
+    const fallback = selected[selected.length - 1] ?? null;
+    set({
+      selectedNoteIds: selected,
+      selectedNoteId: selected.includes(noteId) ? noteId : fallback,
+      selectionAnchorId: selected.includes(noteId) ? noteId : fallback,
+      pendingFretInput: '',
+    });
+  },
+
+  selectNoteRange: (noteId) => {
+    const { tabDocument, selectedNoteId, selectionAnchorId, reviewActive, selectNote } = get();
+    if (reviewActive) {
+      selectNote(noteId);
+      return;
+    }
+    if (!tabDocument) return;
+    const ordered = [...tabDocument.notes].sort(
+      (a, b) => a.timestamp - b.timestamp || a.string - b.string || a.id.localeCompare(b.id)
+    );
+    const anchorId = selectionAnchorId ?? selectedNoteId ?? noteId;
+    const anchorIndex = ordered.findIndex(n => n.id === anchorId);
+    const targetIndex = ordered.findIndex(n => n.id === noteId);
+    if (targetIndex === -1) return;
+    const start = anchorIndex === -1 ? targetIndex : Math.min(anchorIndex, targetIndex);
+    const end = anchorIndex === -1 ? targetIndex : Math.max(anchorIndex, targetIndex);
+    set({
+      selectedNoteId: noteId,
+      selectedNoteIds: ordered.slice(start, end + 1).map(n => n.id),
+      selectionAnchorId: anchorIndex === -1 ? noteId : anchorId,
+      pendingFretInput: '',
+    });
+  },
 
   selectAdjacentNote: (direction) => {
     const { tabDocument, selectedNoteId } = get();
@@ -423,7 +505,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     if (nextNote) {
-      set({ selectedNoteId: nextNote.id, pendingFretInput: '' });
+      set({
+        selectedNoteId: nextNote.id,
+        selectedNoteIds: [nextNote.id],
+        selectionAnchorId: nextNote.id,
+        pendingFretInput: '',
+      });
     }
   },
 
@@ -451,6 +538,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({
       selectedNoteId: next.id,
+      selectedNoteIds: [next.id],
+      selectionAnchorId: next.id,
       pendingFretInput: '',
       // Detach auto-follow so the scroll-to-note isn't fought by playback.
       isFollowingPlayback: false,
@@ -478,6 +567,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       reviewIds: ids,
       reviewIndex: 0,
       selectedNoteId: ids[0],
+      selectedNoteIds: [ids[0]],
+      selectionAnchorId: ids[0],
       pendingFretInput: '',
     });
   },
@@ -492,14 +583,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       exitReview();
       return;
     }
-    set({ reviewIndex: next, selectedNoteId: reviewIds[next], pendingFretInput: '' });
+    set({
+      reviewIndex: next,
+      selectedNoteId: reviewIds[next],
+      selectedNoteIds: [reviewIds[next]],
+      selectionAnchorId: reviewIds[next],
+      pendingFretInput: '',
+    });
   },
 
   reviewPrev: () => {
     const { reviewActive, reviewIds, reviewIndex } = get();
     if (!reviewActive) return;
     const prev = Math.max(0, reviewIndex - 1);
-    set({ reviewIndex: prev, selectedNoteId: reviewIds[prev], pendingFretInput: '' });
+    set({
+      reviewIndex: prev,
+      selectedNoteId: reviewIds[prev],
+      selectedNoteIds: [reviewIds[prev]],
+      selectionAnchorId: reviewIds[prev],
+      pendingFretInput: '',
+    });
   },
 
   // Cycle the selected note through its server-ranked pitch-preserving
@@ -658,25 +761,199 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistSession(get().tabDocument!, get().currentJobId);
   },
 
-  // Move the selected note to the adjacent string, keeping its pitch by
-  // recomputing the fret (B3 — the fix for the dominant wrong-string error).
-  // 'up' is toward string 1 (high E); the move is a no-op when the pitch is
-  // unplayable on the target string or the note is at the edge.
-  moveNoteString: (direction) => {
-    const { tabDocument, selectedNoteId, updateNotePosition } = get();
-    if (!tabDocument || !selectedNoteId) return;
-    const note = tabDocument.notes.find(n => n.id === selectedNoteId);
-    if (!note) return;
-    const target = direction === 'up' ? note.string - 1 : note.string + 1;
-    if (target < MIN_STRING || target > MAX_STRING) return;
-    const nextFret = pitchPreservingFret(note.string, target, note.fret, tabDocument.tuningMidi);
-    if (nextFret === null) return; // pitch not reachable on the target string
-    updateNotePosition(selectedNoteId, target, nextFret);
+  // Move the selection to the adjacent string while keeping pitch. 'up' is
+  // toward string 1 (high E); any unplayable member makes the move a no-op.
+  moveNoteString: (direction) => get().moveSelectedNotes(direction),
+
+  // Move the current selection as one unit. Vertical moves preserve every
+  // note's pitch; horizontal moves nudge onset and end time by 50 ms. If any
+  // note would cross a string/time boundary or become unplayable, the entire
+  // move is rejected. One history entry means one undo restores the group.
+  moveSelectedNotes: (direction) => {
+    const {
+      tabDocument,
+      selectedNoteId,
+      selectedNoteIds,
+      editHistory,
+      editHistoryIndex,
+    } = get();
+    if (!tabDocument) return;
+    const ids = selectedNoteIds.length
+      ? selectedNoteIds
+      : (selectedNoteId ? [selectedNoteId] : []);
+    if (!ids.length) return;
+
+    const selected = new Set(ids);
+    const selectedNotes = tabDocument.notes.filter(note => selected.has(note.id));
+    if (selectedNotes.length !== selected.size) return;
+
+    const changes: Extract<EditAction, { kind: 'batch-position' }>['changes'] = [];
+    const replacements = new Map<string, TabNote>();
+    const horizontalDelta =
+      direction === 'left'
+        ? -NOTE_NUDGE_SECONDS
+        : direction === 'right'
+          ? NOTE_NUDGE_SECONDS
+          : 0;
+
+    for (const note of selectedNotes) {
+      let nextString = note.string;
+      let nextFret = note.fret;
+      let nextTimestamp = note.timestamp;
+      let nextEndTime = note.endTime;
+
+      if (direction === 'up' || direction === 'down') {
+        const target = direction === 'up' ? note.string - 1 : note.string + 1;
+        if (target < MIN_STRING || target > MAX_STRING) return;
+        const fret = pitchPreservingFret(
+          note.string,
+          target,
+          note.fret,
+          tabDocument.tuningMidi,
+        );
+        if (fret === null) return;
+        nextString = target as TabNote['string'];
+        nextFret = fret;
+      } else {
+        nextTimestamp = note.timestamp + horizontalDelta;
+        if (nextTimestamp < 0 || nextTimestamp > tabDocument.duration) return;
+        nextEndTime = typeof note.endTime === 'number'
+          ? note.endTime + horizontalDelta
+          : note.endTime;
+      }
+
+      const before: NoteMutableFields = {
+        string: note.string,
+        fret: note.fret,
+        isEdited: note.isEdited,
+        originalFret: note.originalFret,
+        timestamp: note.timestamp,
+        endTime: note.endTime,
+        confidence: note.confidence,
+        confidenceLevel: note.confidenceLevel,
+      };
+      const updated: TabNote = {
+        ...note,
+        string: nextString,
+        fret: nextFret,
+        timestamp: nextTimestamp,
+        endTime: nextEndTime,
+        isEdited: true,
+        originalFret: note.originalFret ?? note.fret,
+        confidence: 1,
+        confidenceLevel: 'high',
+      };
+      const after: NoteMutableFields = {
+        string: updated.string,
+        fret: updated.fret,
+        isEdited: updated.isEdited,
+        originalFret: updated.originalFret,
+        timestamp: updated.timestamp,
+        endTime: updated.endTime,
+        confidence: updated.confidence,
+        confidenceLevel: updated.confidenceLevel,
+      };
+      changes.push({ noteId: note.id, before, after });
+      replacements.set(note.id, updated);
+    }
+
+    const updatedNotes = tabDocument.notes.map(note => replacements.get(note.id) ?? note);
+    const newHistory = editHistory.slice(0, editHistoryIndex + 1);
+    newHistory.push({ kind: 'batch-position', changes });
+    set({
+      tabDocument: { ...tabDocument, notes: updatedNotes },
+      editHistory: newHistory,
+      editHistoryIndex: newHistory.length - 1,
+    });
+    persistSession(get().tabDocument!, get().currentJobId);
+  },
+
+  // Expressive markings apply to the current selection as one undoable edit.
+  // Slides are stored on the destination note and connect from the preceding
+  // note on that string. Bends carry their upward amount in semitones.
+  setSelectedTechnique: (technique, pitchBend) => {
+    const {
+      tabDocument,
+      selectedNoteId,
+      selectedNoteIds,
+      editHistory,
+      editHistoryIndex,
+    } = get();
+    if (!tabDocument) return;
+
+    const ids = selectedNoteIds.length
+      ? selectedNoteIds
+      : (selectedNoteId ? [selectedNoteId] : []);
+    if (!ids.length) return;
+
+    const selected = new Set(ids);
+    const selectedNotes = tabDocument.notes.filter(note => selected.has(note.id));
+    // A muted string has no pitched gesture to slide or bend. Keep group edits
+    // atomic instead of silently annotating only part of the selection.
+    if (selectedNotes.length !== selected.size || selectedNotes.some(note => note.fret === 'X')) {
+      return;
+    }
+
+    const nextPitchBend = technique === 'bend'
+      ? Math.max(0.25, Math.min(12, pitchBend ?? 2))
+      : undefined;
+    const changes: Extract<EditAction, { kind: 'batch-position' }>['changes'] = [];
+    const replacements = new Map<string, TabNote>();
+
+    for (const note of selectedNotes) {
+      const sameTechnique = (note.technique ?? null) === technique;
+      const sameBend = technique !== 'bend' || note.pitchBend === nextPitchBend;
+      if (sameTechnique && sameBend) continue;
+
+      const before: NoteMutableFields = {
+        string: note.string,
+        fret: note.fret,
+        isEdited: note.isEdited,
+        originalFret: note.originalFret,
+        timestamp: note.timestamp,
+        endTime: note.endTime,
+        confidence: note.confidence,
+        confidenceLevel: note.confidenceLevel,
+        technique: note.technique,
+        pitchBend: note.pitchBend,
+      };
+      const updated: TabNote = {
+        ...note,
+        technique: technique ?? undefined,
+        pitchBend: nextPitchBend,
+        isEdited: true,
+      };
+      const after: NoteMutableFields = {
+        string: updated.string,
+        fret: updated.fret,
+        isEdited: updated.isEdited,
+        originalFret: updated.originalFret,
+        timestamp: updated.timestamp,
+        endTime: updated.endTime,
+        confidence: updated.confidence,
+        confidenceLevel: updated.confidenceLevel,
+        technique: updated.technique,
+        pitchBend: updated.pitchBend,
+      };
+      changes.push({ noteId: note.id, before, after });
+      replacements.set(note.id, updated);
+    }
+
+    if (!changes.length) return;
+    const updatedNotes = tabDocument.notes.map(note => replacements.get(note.id) ?? note);
+    const newHistory = editHistory.slice(0, editHistoryIndex + 1);
+    newHistory.push({ kind: 'batch-position', changes });
+    set({
+      tabDocument: { ...tabDocument, notes: updatedNotes },
+      editHistory: newHistory,
+      editHistoryIndex: newHistory.length - 1,
+    });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   // True removal (B3) — distinct from mute (fret = "X").
   deleteNote: (noteId) => {
-    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId } = get();
+    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId, selectedNoteIds } = get();
     if (!tabDocument) return;
     const index = tabDocument.notes.findIndex(n => n.id === noteId);
     if (index === -1) return;
@@ -685,12 +962,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updatedNotes = tabDocument.notes.filter(n => n.id !== noteId);
     const newHistory = editHistory.slice(0, editHistoryIndex + 1);
     newHistory.push({ kind: 'delete', note: removed, index });
+    const remainingSelection = selectedNoteIds.filter(id => id !== noteId);
+    const nextPrimary = selectedNoteId === noteId
+      ? (remainingSelection[remainingSelection.length - 1] ?? null)
+      : selectedNoteId;
 
     set({
       tabDocument: { ...tabDocument, notes: updatedNotes },
       editHistory: newHistory,
       editHistoryIndex: newHistory.length - 1,
-      selectedNoteId: selectedNoteId === noteId ? null : selectedNoteId,
+      selectedNoteId: nextPrimary,
+      selectedNoteIds: remainingSelection,
+      selectionAnchorId: nextPrimary,
     });
     persistSession(get().tabDocument!, get().currentJobId);
   },
@@ -723,6 +1006,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       editHistory: newHistory,
       editHistoryIndex: newHistory.length - 1,
       selectedNoteId: note.id,
+      selectedNoteIds: [note.id],
+      selectionAnchorId: note.id,
     });
     persistSession(get().tabDocument!, get().currentJobId);
   },
@@ -757,63 +1042,87 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Undo/Redo actions — dispatch on the action kind. position restores a
   // field snapshot; delete/insert are inverses (re-insert at index / remove).
   undo: () => {
-    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId } = get();
+    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId, selectedNoteIds } = get();
     if (!tabDocument || editHistoryIndex < 0) return;
 
     const action = editHistory[editHistoryIndex];
     let notes = tabDocument.notes;
     let selected = selectedNoteId;
+    let selection = selectedNoteIds;
 
     if (action.kind === 'position') {
       const i = notes.findIndex(n => n.id === action.noteId);
       if (i === -1) return;
       notes = [...notes];
       notes[i] = { ...notes[i], ...action.before };
+    } else if (action.kind === 'batch-position') {
+      const snapshots = new Map(action.changes.map(change => [change.noteId, change.before]));
+      if (action.changes.some(change => !notes.some(note => note.id === change.noteId))) return;
+      notes = notes.map(note => {
+        const snapshot = snapshots.get(note.id);
+        return snapshot ? { ...note, ...snapshot } : note;
+      });
     } else if (action.kind === 'delete') {
       notes = [...notes];
       notes.splice(Math.min(action.index, notes.length), 0, action.note);
       selected = action.note.id;
+      selection = [action.note.id];
     } else {
       // insert → remove
       notes = notes.filter(n => n.id !== action.note.id);
       if (selected === action.note.id) selected = null;
+      selection = selection.filter(id => id !== action.note.id);
     }
 
     set({
       tabDocument: { ...tabDocument, notes },
       editHistoryIndex: editHistoryIndex - 1,
       selectedNoteId: selected,
+      selectedNoteIds: selection,
+      selectionAnchorId: selected,
     });
     persistSession(get().tabDocument!, get().currentJobId);
   },
 
   redo: () => {
-    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId } = get();
+    const { tabDocument, editHistory, editHistoryIndex, selectedNoteId, selectedNoteIds } = get();
     if (!tabDocument || editHistoryIndex >= editHistory.length - 1) return;
 
     const action = editHistory[editHistoryIndex + 1];
     let notes = tabDocument.notes;
     let selected = selectedNoteId;
+    let selection = selectedNoteIds;
 
     if (action.kind === 'position') {
       const i = notes.findIndex(n => n.id === action.noteId);
       if (i === -1) return;
       notes = [...notes];
       notes[i] = { ...notes[i], ...action.after };
+    } else if (action.kind === 'batch-position') {
+      const snapshots = new Map(action.changes.map(change => [change.noteId, change.after]));
+      if (action.changes.some(change => !notes.some(note => note.id === change.noteId))) return;
+      notes = notes.map(note => {
+        const snapshot = snapshots.get(note.id);
+        return snapshot ? { ...note, ...snapshot } : note;
+      });
     } else if (action.kind === 'delete') {
       notes = notes.filter(n => n.id !== action.note.id);
       if (selected === action.note.id) selected = null;
+      selection = selection.filter(id => id !== action.note.id);
     } else {
       // insert → re-insert
       notes = [...notes];
       notes.splice(Math.min(action.index, notes.length), 0, action.note);
       selected = action.note.id;
+      selection = [action.note.id];
     }
 
     set({
       tabDocument: { ...tabDocument, notes },
       editHistoryIndex: editHistoryIndex + 1,
       selectedNoteId: selected,
+      selectedNoteIds: selection,
+      selectionAnchorId: selected,
     });
     persistSession(get().tabDocument!, get().currentJobId);
   },

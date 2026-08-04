@@ -2,9 +2,11 @@ namespace TabVision.Desktop.Models;
 
 public sealed class EditorSession
 {
-    private static readonly int[] OpenMidi = [64, 59, 55, 50, 45, 40];
+    private static readonly int[] StandardOpenMidiHighToLow = [64, 59, 55, 50, 45, 40];
     private readonly Stack<string> _undo = new();
     private readonly Stack<string> _redo = new();
+    private readonly HashSet<string> _selectedIds = [];
+    private string? _selectionAnchorId;
 
     public EditorSession(EditorDocument document)
     {
@@ -21,6 +23,9 @@ public sealed class EditorSession
         SelectedIndex >= 0 && SelectedIndex < Document.Notes.Count
             ? Document.Notes[SelectedIndex]
             : null;
+    public IReadOnlySet<string> SelectedIds => _selectedIds;
+    public IReadOnlyList<EditorNote> SelectedNotes =>
+        Document.Notes.Where(note => _selectedIds.Contains(note.Id)).ToArray();
 
     public IReadOnlyList<int> ReviewIndices =>
         Document
@@ -31,9 +36,66 @@ public sealed class EditorSession
             .Select(item => item.index)
             .ToArray();
 
+    public bool IsSelected(int index) =>
+        index >= 0
+        && index < Document.Notes.Count
+        && _selectedIds.Contains(Document.Notes[index].Id);
+
     public void Select(int index)
     {
+        ReviewMode = false;
+        _selectedIds.Clear();
         SelectedIndex = index >= 0 && index < Document.Notes.Count ? index : -1;
+        if (Selected is not null)
+        {
+            _selectedIds.Add(Selected.Id);
+            _selectionAnchorId = Selected.Id;
+        }
+        else
+        {
+            _selectionAnchorId = null;
+        }
+    }
+
+    public void ToggleSelection(int index)
+    {
+        if (index < 0 || index >= Document.Notes.Count)
+        {
+            return;
+        }
+        ReviewMode = false;
+        var note = Document.Notes[index];
+        if (!_selectedIds.Add(note.Id))
+        {
+            _selectedIds.Remove(note.Id);
+        }
+        SelectedIndex = _selectedIds.Contains(note.Id)
+            ? index
+            : Document.Notes.FindIndex(candidate => _selectedIds.Contains(candidate.Id));
+        _selectionAnchorId ??= Selected?.Id;
+    }
+
+    public void SelectRange(int index)
+    {
+        if (index < 0 || index >= Document.Notes.Count)
+        {
+            return;
+        }
+        ReviewMode = false;
+        var anchor = _selectionAnchorId is null
+            ? SelectedIndex
+            : Document.Notes.FindIndex(note => note.Id == _selectionAnchorId);
+        if (anchor < 0)
+        {
+            Select(index);
+            return;
+        }
+        _selectedIds.Clear();
+        for (var position = Math.Min(anchor, index); position <= Math.Max(anchor, index); position++)
+        {
+            _selectedIds.Add(Document.Notes[position].Id);
+        }
+        SelectedIndex = index;
     }
 
     public void ToggleReview()
@@ -43,6 +105,7 @@ public sealed class EditorSession
         {
             var queue = ReviewIndices;
             Select(queue.Count > 0 ? queue[0] : -1);
+            ReviewMode = true;
         }
     }
 
@@ -52,15 +115,16 @@ public sealed class EditorSession
         if (queue.Count == 0)
         {
             Select(-1);
+            ReviewMode = true;
             return;
         }
         var position = queue.IndexOf(SelectedIndex);
-        if (position < 0)
-        {
-            Select(direction > 0 ? queue[0] : queue[^1]);
-            return;
-        }
-        Select(queue[(position + direction + queue.Count) % queue.Count]);
+        Select(
+            position < 0
+                ? direction > 0 ? queue[0] : queue[^1]
+                : queue[(position + direction + queue.Count) % queue.Count]
+        );
+        ReviewMode = true;
     }
 
     public void SelectAdjacent(int direction)
@@ -77,10 +141,63 @@ public sealed class EditorSession
         );
     }
 
+    public void SelectDirectional(int stringDirection)
+    {
+        var selected = Selected;
+        if (selected is null)
+        {
+            SelectAdjacent(1);
+            return;
+        }
+        var targetString = Math.Clamp(selected.String + stringDirection, 1, 6);
+        var candidate = Document.Notes
+            .Select((note, index) => (note, index))
+            .Where(item => item.note.String == targetString)
+            .OrderBy(item => Math.Abs(item.note.Timestamp - selected.Timestamp))
+            .FirstOrDefault();
+        if (candidate.note is not null)
+        {
+            Select(candidate.index);
+        }
+    }
+
+    public void SelectNextConfidence(string confidenceLevel)
+    {
+        var matches = Document.Notes
+            .Select((note, index) => (note, index))
+            .Where(item => string.Equals(
+                item.note.ConfidenceLevel,
+                confidenceLevel,
+                StringComparison.OrdinalIgnoreCase
+            ))
+            .Select(item => item.index)
+            .ToArray();
+        if (matches.Length == 0)
+        {
+            return;
+        }
+        var next = matches.FirstOrDefault(index => index > SelectedIndex, -1);
+        Select(next >= 0 ? next : matches[0]);
+    }
+
     public void ClearSelection()
     {
         ReviewMode = false;
-        Select(-1);
+        _selectedIds.Clear();
+        _selectionAnchorId = null;
+        SelectedIndex = -1;
+    }
+
+    public void SelectAll()
+    {
+        ReviewMode = false;
+        _selectedIds.Clear();
+        foreach (var note in Document.Notes)
+        {
+            _selectedIds.Add(note.Id);
+        }
+        SelectedIndex = Document.Notes.Count > 0 ? 0 : -1;
+        _selectionAnchorId = Selected?.Id;
     }
 
     public bool CycleCandidate(int direction)
@@ -109,26 +226,161 @@ public sealed class EditorSession
 
     public bool MoveString(int direction)
     {
-        var note = Selected;
-        if (
-            note is null
-            || note.DetectedMidiNote is null
-            || note.Fret.IsMuted
-            || note.String + direction is < 1 or > 6
-        )
+        var notes = SelectedNotes;
+        if (notes.Count == 0)
         {
             return false;
         }
-        var targetString = note.String + direction;
-        var targetFret = note.DetectedMidiNote.Value - OpenMidi[targetString - 1] - Document.CapoFret;
-        if (targetFret is < 0 or > 24)
+        var moves = new List<(EditorNote Note, int String, int Fret)>();
+        foreach (var note in notes)
+        {
+            var targetString = note.String + direction;
+            if (note.Fret.IsMuted || targetString is < 1 or > 6)
+            {
+                return false;
+            }
+            var pitch = note.DetectedMidiNote
+                ?? OpenMidi(note.String) + note.Fret.Value!.Value + Document.CapoFret;
+            var targetFret = pitch - OpenMidi(targetString) - Document.CapoFret;
+            if (targetFret is < 0 or > 24)
+            {
+                return false;
+            }
+            moves.Add((note, targetString, targetFret));
+        }
+        Snapshot();
+        foreach (var move in moves)
+        {
+            MarkEdited(move.Note);
+            move.Note.String = move.String;
+            move.Note.Fret = move.Fret;
+        }
+        return true;
+    }
+
+    public bool MoveSelectedInTime(double seconds)
+    {
+        var notes = SelectedNotes;
+        if (notes.Count == 0 || notes.All(note => note.Timestamp <= 0 && seconds < 0))
         {
             return false;
         }
         Snapshot();
-        MarkEdited(note);
+        foreach (var note in notes)
+        {
+            var duration = Math.Max(0, (note.EndTime ?? note.Timestamp) - note.Timestamp);
+            note.Timestamp = Math.Clamp(note.Timestamp + seconds, 0, Document.Duration);
+            note.EndTime = Math.Min(Document.Duration, note.Timestamp + duration);
+            MarkEdited(note);
+        }
+        RestorePrimaryAfterSort(Selected?.Id);
+        return true;
+    }
+
+    public bool MoveNote(string id, double timestamp, int targetString)
+    {
+        var note = Document.Notes.FirstOrDefault(candidate => candidate.Id == id);
+        if (note is null || note.Fret.IsMuted || targetString is < 1 or > 6)
+        {
+            return false;
+        }
+        var targetFret = note.Fret.Value!.Value;
+        if (targetString != note.String)
+        {
+            var pitch = note.DetectedMidiNote
+                ?? OpenMidi(note.String) + note.Fret.Value.Value + Document.CapoFret;
+            targetFret = pitch - OpenMidi(targetString) - Document.CapoFret;
+            if (targetFret is < 0 or > 24)
+            {
+                return false;
+            }
+        }
+        var nextTime = Math.Clamp(timestamp, 0, Document.Duration);
+        if (
+            Math.Abs(nextTime - note.Timestamp) < 0.0001
+            && targetString == note.String
+        )
+        {
+            return false;
+        }
+        Snapshot();
+        var duration = Math.Max(0, (note.EndTime ?? note.Timestamp) - note.Timestamp);
+        note.Timestamp = nextTime;
+        note.EndTime = Math.Min(Document.Duration, nextTime + duration);
         note.String = targetString;
         note.Fret = targetFret;
+        MarkEdited(note);
+        RestorePrimaryAfterSort(id);
+        return true;
+    }
+
+    public bool MoveSelection(string primaryId, double primaryTimestamp, int primaryString)
+    {
+        var primary = Document.Notes.FirstOrDefault(note => note.Id == primaryId);
+        if (primary is null)
+        {
+            return false;
+        }
+        if (!_selectedIds.Contains(primaryId))
+        {
+            Select(Document.Notes.IndexOf(primary));
+        }
+        var notes = SelectedNotes;
+        if (notes.Count == 0)
+        {
+            return false;
+        }
+
+        var requestedTimeDelta = primaryTimestamp - primary.Timestamp;
+        var minimumTimestamp = notes.Min(note => note.Timestamp);
+        var maximumTimestamp = notes.Max(note => note.Timestamp);
+        var timeDelta = Math.Clamp(
+            requestedTimeDelta,
+            -minimumTimestamp,
+            Document.Duration - maximumTimestamp
+        );
+        var stringDelta = primaryString - primary.String;
+        var moves = new List<(EditorNote Note, int String, int Fret)>();
+        foreach (var note in notes)
+        {
+            var targetString = note.String + stringDelta;
+            if (targetString is < 1 or > 6)
+            {
+                return false;
+            }
+            if (note.Fret.IsMuted)
+            {
+                moves.Add((note, targetString, 0));
+                continue;
+            }
+            var pitch = note.DetectedMidiNote
+                ?? OpenMidi(note.String) + note.Fret.Value!.Value + Document.CapoFret;
+            var targetFret = pitch - OpenMidi(targetString) - Document.CapoFret;
+            if (targetFret is < 0 or > 24)
+            {
+                return false;
+            }
+            moves.Add((note, targetString, targetFret));
+        }
+        if (Math.Abs(timeDelta) < 0.0001 && stringDelta == 0)
+        {
+            return false;
+        }
+
+        Snapshot();
+        foreach (var move in moves)
+        {
+            var duration = Math.Max(0, (move.Note.EndTime ?? move.Note.Timestamp) - move.Note.Timestamp);
+            move.Note.Timestamp += timeDelta;
+            move.Note.EndTime = Math.Min(Document.Duration, move.Note.Timestamp + duration);
+            move.Note.String = move.String;
+            if (!move.Note.Fret.IsMuted)
+            {
+                move.Note.Fret = move.Fret;
+            }
+            MarkEdited(move.Note);
+        }
+        RestorePrimaryAfterSort(primaryId);
         return true;
     }
 
@@ -147,13 +399,14 @@ public sealed class EditorSession
 
     public void DeleteSelected()
     {
-        if (Selected is null)
+        if (_selectedIds.Count == 0)
         {
             return;
         }
+        var nextIndex = Math.Max(0, SelectedIndex - 1);
         Snapshot();
-        Document.Notes.RemoveAt(SelectedIndex);
-        Select(Math.Min(SelectedIndex, Document.Notes.Count - 1));
+        Document.Notes.RemoveAll(note => _selectedIds.Contains(note.Id));
+        Select(Document.Notes.Count == 0 ? -1 : Math.Min(nextIndex, Document.Notes.Count - 1));
     }
 
     public void Insert(double timestamp)
@@ -164,18 +417,29 @@ public sealed class EditorSession
             new EditorNote
             {
                 Id = insertedId,
-                Timestamp = Math.Max(0, timestamp),
-                EndTime = Math.Max(0, timestamp) + 0.25,
+                Timestamp = Math.Clamp(timestamp, 0, Document.Duration),
+                EndTime = Math.Clamp(timestamp, 0, Document.Duration) + 0.25,
                 String = 1,
                 Fret = 0,
                 Confidence = 1,
                 ConfidenceLevel = "high",
                 IsEdited = true,
-                DetectedMidiNote = 64 + Document.CapoFret,
+                DetectedMidiNote = OpenMidi(1) + Document.CapoFret,
             }
         );
         Sort();
-        SelectedIndex = Document.Notes.FindIndex(note => note.Id == insertedId);
+        Select(Document.Notes.FindIndex(note => note.Id == insertedId));
+    }
+
+    public void SetTitle(string? title)
+    {
+        var normalized = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
+        if (string.Equals(Document.Title, normalized, StringComparison.Ordinal))
+        {
+            return;
+        }
+        Snapshot();
+        Document.Title = normalized;
     }
 
     public void Undo()
@@ -196,6 +460,11 @@ public sealed class EditorSession
         }
     }
 
+    private int OpenMidi(int stringNumber) =>
+        Document.TuningMidi.Count == 6
+            ? Document.TuningMidi[6 - stringNumber]
+            : StandardOpenMidiHighToLow[stringNumber - 1];
+
     private void Snapshot()
     {
         _undo.Push(Serialize());
@@ -207,14 +476,25 @@ public sealed class EditorSession
 
     private void Restore(string state)
     {
-        var selectedId = Selected?.Id;
+        var selectedIds = _selectedIds.ToArray();
+        var primaryId = Selected?.Id;
         Document =
             System.Text.Json.JsonSerializer.Deserialize<EditorDocument>(
                 state,
                 EditorDocument.JsonOptions
             ) ?? throw new InvalidOperationException("Could not restore editor state.");
-        SelectedIndex =
-            selectedId is null ? -1 : Document.Notes.FindIndex(note => note.Id == selectedId);
+        _selectedIds.Clear();
+        foreach (var id in selectedIds.Where(id => Document.Notes.Any(note => note.Id == id)))
+        {
+            _selectedIds.Add(id);
+        }
+        SelectedIndex = primaryId is null
+            ? -1
+            : Document.Notes.FindIndex(note => note.Id == primaryId);
+        if (SelectedIndex < 0 && _selectedIds.Count > 0)
+        {
+            SelectedIndex = Document.Notes.FindIndex(note => _selectedIds.Contains(note.Id));
+        }
     }
 
     private static void MarkEdited(EditorNote note)
@@ -226,7 +506,16 @@ public sealed class EditorSession
         note.IsEdited = true;
     }
 
-    private void Sort() => Document.Notes.Sort((left, right) => left.Timestamp.CompareTo(right.Timestamp));
+    private void RestorePrimaryAfterSort(string? primaryId)
+    {
+        Sort();
+        SelectedIndex = primaryId is null
+            ? -1
+            : Document.Notes.FindIndex(note => note.Id == primaryId);
+    }
+
+    private void Sort() =>
+        Document.Notes.Sort((left, right) => left.Timestamp.CompareTo(right.Timestamp));
 }
 
 internal static class EditorListExtensions

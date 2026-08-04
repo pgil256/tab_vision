@@ -16,6 +16,8 @@ from tabvision.assist.candidates import compute_note_candidates
 from tabvision.pipeline import PipelineArtifacts
 from tabvision.types import GuitarConfig
 
+_NOTE_NAMES = ("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B")
+
 
 def build_editor_document(
     result: PipelineArtifacts,
@@ -63,12 +65,14 @@ def build_editor_document(
         level: sum(note["confidenceLevel"] == level for note in notes)
         for level in ("high", "medium", "low")
     }
+    beat_grid = getattr(result, "beat_grid", None)
     return {
         "id": document_id,
         "createdAt": datetime.now(UTC).isoformat(),
         "duration": max((note["endTime"] for note in notes), default=0.0) + 1.0,
         "capoFret": cfg.capo,
-        "tuning": ["E", "B", "G", "D", "A", "E"],
+        "tuning": [_NOTE_NAMES[midi % 12] for midi in cfg.tuning_midi],
+        "tuningMidi": list(cfg.tuning_midi),
         "sourcePath": str(Path(source_path).resolve()),
         "notes": notes,
         "metadata": {
@@ -91,6 +95,16 @@ def build_editor_document(
             "artifactSha256": {item.name: item.sha256 for item in artifacts},
             "videoEnabled": video_enabled,
             "assistCandidateNotes": sum(bool(note.get("candidates")) for note in notes),
+            **(
+                {
+                    "tempoBpm": float(beat_grid.tempo_bpm),
+                    "beatTimes": [float(value) for value in beat_grid.beat_times],
+                    "beatsPerBar": int(beat_grid.beats_per_bar),
+                    "beatDetectionSource": beat_grid.source,
+                }
+                if beat_grid is not None
+                else {}
+            ),
             "diagnostics": {
                 "resolvedVideoBackend": result.resolved_video_backend,
                 "videoObservationCount": result.position_observation_count,

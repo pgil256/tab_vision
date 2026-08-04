@@ -23,7 +23,7 @@ public static class EditorTabExporter
         }
 
         var output = new StringBuilder()
-            .AppendLine("TabVision Transcription")
+            .AppendLine(string.IsNullOrWhiteSpace(document.Title) ? "TabVision Transcription" : document.Title)
             .Append("Tuning: ")
             .Append(string.Join(' ', document.Tuning));
         if (document.CapoFret > 0)
@@ -38,7 +38,10 @@ public static class EditorTabExporter
             var row = columns.Skip(start).Take(60).ToArray();
             for (var stringNumber = 1; stringNumber <= 6; stringNumber++)
             {
-                output.Append(Labels[stringNumber - 1]).Append('|');
+                var label = document.Tuning.Count == 6
+                    ? document.Tuning[6 - stringNumber]
+                    : Labels[stringNumber - 1];
+                output.Append(stringNumber == 1 ? label.ToLowerInvariant() : label).Append('|');
                 foreach (var column in row)
                 {
                     var note = column.FirstOrDefault(item => item.String == stringNumber);

@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from tabvision.audio.beats import detect_beat_grid
 from tabvision.demux import demux
 from tabvision.errors import BackendError
 from tabvision.fusion import TimedNeckAnchor, apply_neck_anchor_priors, fuse
@@ -55,7 +56,6 @@ from tabvision.fusion.position_prior import (
 from tabvision.fusion.position_window_prior import apply_position_window_priors
 from tabvision.fusion.transition_prior import load_transition_prior
 from tabvision.fusion.viterbi import assignment_decoder_context
-from tabvision.audio.beats import detect_beat_grid
 from tabvision.types import (
     AudioBackend,
     AudioEvent,
@@ -200,6 +200,7 @@ def run_pipeline_with_artifacts(
     video_stride: int = 3,
     video_enabled: bool = False,
     video_backend: str = "legacy",
+    video_roi: tuple[float, float, float, float] | None = None,
     contact_evidence: bool = False,
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
@@ -265,6 +266,18 @@ def run_pipeline_with_artifacts(
         raise ValueError("position_analyzer requires video_backend='fretcam'")
     if contact_evidence and video_backend != "fretcam":
         raise ValueError("contact_evidence requires video_backend='fretcam'")
+    if video_roi is not None:
+        if len(video_roi) != 4:
+            raise ValueError("video_roi must contain left, top, right, bottom")
+        left, top, right, bottom = video_roi
+        if (
+            any(not math.isfinite(value) or value < 0.0 or value > 1.0 for value in video_roi)
+            or left >= right
+            or top >= bottom
+        ):
+            raise ValueError(
+                "video_roi values must be between 0 and 1 with left < right and top < bottom"
+            )
     if isinstance(video_stride, bool) or not isinstance(video_stride, int) or video_stride < 1:
         raise ValueError(f"video_stride must be a positive integer, got {video_stride!r}")
     if isinstance(lambda_vision, bool):
@@ -288,6 +301,9 @@ def run_pipeline_with_artifacts(
     _notify("demux")
     logger.info("demuxing %s", video_path)
     demuxed = demux(video_path)
+    frame_iterator: Iterator[tuple[float, np.ndarray]] = demuxed.frame_iterator
+    if video_roi is not None:
+        frame_iterator = _crop_frame_iterator(frame_iterator, video_roi)
     clip_duration_s = float(demuxed.duration_s)
     try:
         beat_grid = detect_beat_grid(demuxed.wav, demuxed.sample_rate)
@@ -392,7 +408,7 @@ def run_pipeline_with_artifacts(
                         ContactAwarePositionAnalyzer, resolved_position_analyzer
                     )
                     bundle = contact_analyzer.analyze_all(
-                        demuxed.frame_iterator,
+                        frame_iterator,
                         stride=video_stride,
                     )
                     position_observations = list(bundle.windows)
@@ -401,7 +417,7 @@ def run_pipeline_with_artifacts(
                 else:
                     position_observations = list(
                         resolved_position_analyzer.analyze(
-                            demuxed.frame_iterator,
+                            frame_iterator,
                             stride=video_stride,
                         )
                     )
@@ -409,7 +425,7 @@ def run_pipeline_with_artifacts(
             else:
                 try:
                     video_result = _run_video_stack(
-                        demuxed.frame_iterator,
+                        frame_iterator,
                         stride=video_stride,
                         cfg=cfg,
                         guitar_backend=guitar_backend,
@@ -514,6 +530,7 @@ def run_pipeline(
     video_stride: int = 3,
     video_enabled: bool = False,
     video_backend: str = "legacy",
+    video_roi: tuple[float, float, float, float] | None = None,
     position_prior: str | None = "auto",
     sequence_prior: str | None = "auto",
     string_evidence: str | None = "auto",
@@ -538,6 +555,7 @@ def run_pipeline(
         video_stride=video_stride,
         video_enabled=video_enabled,
         video_backend=video_backend,
+        video_roi=video_roi,
         position_prior=position_prior,
         sequence_prior=sequence_prior,
         string_evidence=string_evidence,
@@ -647,6 +665,21 @@ def _close_frame_iterator(frames: object) -> None:
         close()
     except Exception as exc:  # noqa: BLE001 - cleanup must not mask decode results
         logger.debug("frame iterator cleanup failed: %s", exc)
+
+
+def _crop_frame_iterator(
+    frames: Iterator[tuple[float, np.ndarray]],
+    roi: tuple[float, float, float, float],
+) -> Iterator[tuple[float, np.ndarray]]:
+    """Yield the user-selected normalized video region without decoding twice."""
+    left, top, right, bottom = roi
+    for timestamp, frame in frames:
+        height, width = frame.shape[:2]
+        x1 = min(width - 1, max(0, int(math.floor(left * width))))
+        y1 = min(height - 1, max(0, int(math.floor(top * height))))
+        x2 = min(width, max(x1 + 1, int(math.ceil(right * width))))
+        y2 = min(height, max(y1 + 1, int(math.ceil(bottom * height))))
+        yield timestamp, frame[y1:y2, x1:x2]
 
 
 # ---------------------------------------------------------------------------

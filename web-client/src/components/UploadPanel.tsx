@@ -90,12 +90,12 @@ function GuitarIcon() {
       <circle cx="24" cy="28" r="4" stroke="rgba(255,255,255,0.2)" strokeWidth="1" fill="none" />
       <defs>
         <linearGradient id="guitar-grad" x1="12" y1="6" x2="36" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="rgba(124, 58, 237, 0.3)" />
-          <stop offset="100%" stopColor="rgba(99, 102, 241, 0.15)" />
+          <stop offset="0%" stopColor="rgba(255, 112, 72, 0.34)" />
+          <stop offset="100%" stopColor="rgba(255, 154, 98, 0.14)" />
         </linearGradient>
         <linearGradient id="guitar-stroke" x1="12" y1="6" x2="36" y2="40" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="rgba(124, 58, 237, 0.6)" />
-          <stop offset="100%" stopColor="rgba(99, 102, 241, 0.3)" />
+          <stop offset="0%" stopColor="rgba(255, 112, 72, 0.7)" />
+          <stop offset="100%" stopColor="rgba(255, 154, 98, 0.32)" />
         </linearGradient>
       </defs>
     </svg>
@@ -173,36 +173,23 @@ export function UploadPanel() {
   // === IDLE: Upload form ===
   if (jobStatus === 'idle') {
     return (
-      <div className="w-full max-w-xl animate-slide-up relative">
-        {/* Ambient background glow */}
-        <div className="ambient-bg" />
-
-        <div className="relative z-10">
-          {/* Hero section */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5"
-              style={{
-                background: 'var(--accent-glow)',
-                border: '1px solid var(--border-accent)',
-              }}>
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent-tertiary)' }} />
-              <span className="text-xs font-medium" style={{ color: 'var(--accent-tertiary)' }}>
-                AI-Powered Transcription
-              </span>
-            </div>
-            <h2 className="text-2xl font-bold mb-2 tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              Turn any guitar recording into tabs
-            </h2>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Upload a video or audio file and get accurate tablature with confidence scoring
-            </p>
+      <div className="capture-flow capture-flow--upload animate-slide-up">
+        <div className="capture-hint">
+          <span className="capture-hint__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12s3.4-5 9-5 9 5 9 5-3.4 5-9 5-9-5-9-5Z" />
+              <circle cx="12" cy="12" r="2.5" />
+            </svg>
+          </span>
+          <p><strong>Video unlocks string tracking</strong><span>A clear view of the fretboard gives the most precise tab.</span></p>
+          <span className="capture-hint__badge">Recommended</span>
           </div>
 
           {/* Drop zone */}
           <div
             className={`drop-zone p-8 text-center group ${isDragging ? 'dragging' : ''}`}
             style={{
-              background: isDragging ? 'rgba(124, 58, 237, 0.06)' : 'var(--bg-surface)',
+              background: isDragging ? 'rgba(255, 112, 72, 0.06)' : 'var(--bg-surface)',
               border: `1.5px dashed ${isDragging ? 'var(--accent-primary)' : 'var(--border-strong)'}`,
             }}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -214,9 +201,9 @@ export function UploadPanel() {
               <div
                 className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center transition-all duration-300 group-hover:scale-105"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(99, 102, 241, 0.08))',
-                  border: '1px solid rgba(124, 58, 237, 0.2)',
-                  boxShadow: '0 0 30px rgba(124, 58, 237, 0.1)',
+                  background: 'linear-gradient(135deg, rgba(255, 112, 72, 0.13), rgba(255, 154, 98, 0.06))',
+                  border: '1px solid rgba(255, 112, 72, 0.22)',
+                  boxShadow: '0 0 30px rgba(255, 112, 72, 0.09)',
                 }}
               >
                 <GuitarIcon />
@@ -224,10 +211,10 @@ export function UploadPanel() {
             </div>
 
             <p className="text-base font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-              Drop a guitar video or audio file here
+              Drop your performance here
             </p>
             <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-              or click anywhere to browse &middot; MP4 / MOV / WEBM / WAV / MP3 / M4A
+              Video or audio up to 5 minutes
             </p>
 
             <button
@@ -237,7 +224,7 @@ export function UploadPanel() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              Choose File
+              Browse recordings
             </button>
 
             <input
@@ -252,7 +239,7 @@ export function UploadPanel() {
           <TranscriptionOptions />
 
           {/* Feature highlights */}
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="upload-features">
             <div className="feature-card">
               <div className="feature-icon" style={{ background: 'var(--color-success-soft)' }}>
                 <svg className="w-4 h-4" fill="none" stroke="var(--color-success)" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -265,7 +252,7 @@ export function UploadPanel() {
               </div>
             </div>
             <div className="feature-card">
-              <div className="feature-icon" style={{ background: 'rgba(124, 58, 237, 0.12)' }}>
+              <div className="feature-icon" style={{ background: 'var(--accent-glow)' }}>
                 <svg className="w-4 h-4" fill="none" stroke="var(--accent-tertiary)" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -290,10 +277,9 @@ export function UploadPanel() {
           </div>
 
           {/* Tips */}
-          <p className="mt-5 text-[11px] text-center leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Best results with clean guitar audio, visible fretboard, standard tuning, under 5 min
+          <p className="upload-tip" style={{ color: 'var(--text-muted)' }}>
+            Tip: clean audio and a steady fretboard view produce the fastest review pass.
           </p>
-        </div>
       </div>
     );
   }
@@ -301,7 +287,7 @@ export function UploadPanel() {
   // === PROCESSING: Pipeline visualization ===
   if (isProcessing) {
     return (
-      <div className="w-full max-w-sm animate-slide-up">
+      <div className="processing-flow animate-slide-up">
         <div
           className="rounded-2xl p-8"
           style={{
@@ -420,7 +406,7 @@ export function UploadPanel() {
   // === FAILED: Error state ===
   if (jobStatus === 'failed') {
     return (
-      <div className="w-full max-w-sm animate-fade-in">
+      <div className="processing-flow animate-fade-in">
         <div
           className="rounded-2xl p-8 text-center"
           style={{

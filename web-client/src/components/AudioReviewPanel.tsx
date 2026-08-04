@@ -216,7 +216,7 @@ export function AudioReviewPanel({ file, onSubmit, onCancel, cancelLabel, isVide
       const scale = inKeep ? gainScale : 1;
       const top = mid + Math.max(-1, peaks.min[i] * scale) * (mid - 2);
       const bot = mid + Math.min(1, peaks.max[i] * scale) * (mid - 2);
-      g.strokeStyle = inKeep ? 'rgba(139, 92, 246, 0.9)' : 'rgba(255, 255, 255, 0.18)';
+      g.strokeStyle = inKeep ? 'rgba(255, 112, 72, 0.9)' : 'rgba(255, 255, 255, 0.18)';
       g.lineWidth = Math.max(1, w / WAVEFORM_BINS - 0.5);
       g.beginPath();
       g.moveTo(x, top);

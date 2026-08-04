@@ -1,0 +1,91 @@
+<Window x:Class="TabVision.Desktop.AudioReviewWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:TabVision.Desktop.Controls"
+        Title="TabVision Studio — Review take"
+        Width="900" Height="720" MinWidth="760" MinHeight="600"
+        WindowStartupLocation="CenterOwner" Loaded="Window_Loaded">
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <Rectangle Fill="{StaticResource WindowGlowBrush}" IsHitTestVisible="False" />
+        <Grid Margin="24,20">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource EyebrowText}" Text="REVIEW YOUR TAKE" />
+                    <TextBlock Margin="0,6,0,0" FontSize="25" FontWeight="SemiBold" Text="Listen back before transcribing" />
+                    <TextBlock Margin="0,5,0,0" Foreground="{StaticResource TextSecondaryBrush}" Text="Trim silence, balance the level, or cut low rumble — entirely on this PC." />
+                </StackPanel>
+                <Border Grid.Column="1" Padding="10,6" Background="{StaticResource SuccessSoftBrush}" CornerRadius="13" VerticalAlignment="Top">
+                    <TextBlock Foreground="{StaticResource SuccessBrush}" FontSize="11" Text="LOCAL PREVIEW" />
+                </Border>
+            </Grid>
+
+            <ScrollViewer Grid.Row="1" Margin="0,18,0,0" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Border Padding="16" Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="FileNameText" FontSize="15" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="ReviewStatusText" Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Analyzing the recording…" />
+                                </StackPanel>
+                                <ProgressBar x:Name="LoadingProgress" Grid.Column="1" Width="110" IsIndeterminate="True" />
+                            </Grid>
+                            <controls:WaveformView x:Name="Waveform" Height="132" Margin="0,14,0,0" />
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Button x:Name="PreviewButton" Width="82" Style="{StaticResource PrimaryButton}" Click="Preview_Click" Content="Play" IsEnabled="False" />
+                                <Slider x:Name="PreviewPositionSlider" Grid.Column="1" Margin="12,0" VerticalAlignment="Center" ValueChanged="PreviewPositionSlider_ValueChanged" />
+                                <TextBlock x:Name="PreviewTimeText" Grid.Column="2" Width="112" VerticalAlignment="Center" TextAlignment="Right" FontFamily="Cascadia Mono" Foreground="{StaticResource TextSecondaryBrush}" Text="0:00 / 0:00" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="ClippingWarning" Margin="0,10,0,0" Padding="12" Background="{StaticResource ErrorSoftBrush}" BorderBrush="#55FB7185" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                        <TextBlock x:Name="ClippingWarningText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" />
+                    </Border>
+                    <Border x:Name="TuningWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55FBBF24" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                        <TextBlock x:Name="TuningWarningText" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" />
+                    </Border>
+                    <Border x:Name="VideoCleanupWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55FBBF24" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                        <TextBlock Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Text="Applying cleanup to a video creates an audio-only WAV, so fretboard tracking will be skipped. Use the original to keep video analysis." />
+                    </Border>
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Border Margin="0,0,6,0" Padding="15" Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <Grid><TextBlock Style="{StaticResource SectionTitle}" Text="Trim" /><Button HorizontalAlignment="Right" Padding="9,5" Style="{StaticResource GhostButton}" Click="AutoTrim_Click" Content="Auto-trim silence" /></Grid>
+                                <TextBlock x:Name="TrimStartText" Margin="0,12,0,0" Style="{StaticResource CaptionText}" Text="Start  0:00.0" />
+                                <Slider x:Name="TrimStartSlider" Margin="0,6,0,0" ValueChanged="TrimSlider_ValueChanged" IsEnabled="False" />
+                                <TextBlock x:Name="TrimEndText" Margin="0,10,0,0" Style="{StaticResource CaptionText}" Text="End  0:00.0" />
+                                <Slider x:Name="TrimEndSlider" Margin="0,6,0,0" ValueChanged="TrimSlider_ValueChanged" IsEnabled="False" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="1" Margin="6,0,0,0" Padding="15" Style="{StaticResource CardBorder}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionTitle}" Text="Clean up" />
+                                <TextBlock x:Name="GainText" Margin="0,12,0,0" Style="{StaticResource CaptionText}" Text="Gain  0 dB" />
+                                <Slider x:Name="GainSlider" Margin="0,6,0,0" Minimum="-12" Maximum="12" TickFrequency="1" ValueChanged="Cleanup_ValueChanged" IsEnabled="False" />
+                                <CheckBox x:Name="NormalizeCheckBox" Margin="0,13,0,0" Content="Normalize peak level" Checked="Cleanup_ValueChanged" Unchecked="Cleanup_ValueChanged" IsEnabled="False" />
+                                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="110" /></Grid.ColumnDefinitions><TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="High-pass rumble" /><ComboBox x:Name="HighPassComboBox" Grid.Column="1" SelectionChanged="Cleanup_ValueChanged" IsEnabled="False" /></Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="ChangeSummaryText" VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="No cleanup applied" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Style="{StaticResource GhostButton}" Click="Cancel_Click" Content="Cancel" />
+                    <Button x:Name="UseOriginalButton" Margin="7,0,0,0" Style="{StaticResource SecondaryButton}" Click="UseOriginal_Click" Content="Use original" IsEnabled="False" />
+                    <Button x:Name="ApplyButton" Margin="7,0,0,0" Style="{StaticResource PrimaryButton}" Click="Apply_Click" Content="Apply &amp; use WAV" IsEnabled="False" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,6 +1,6 @@
 """CLI validation for ``--capo``.
 
-The flag is documented as ``capo fret (0-7)``; this enforces that range at the
+The flag is documented as ``capo fret (0-12)``; this enforces that range at the
 parser boundary so a negative or out-of-range value fails fast with a clear
 message rather than silently corrupting the rendered tab.
 """
@@ -18,14 +18,14 @@ def test_capo_default_zero():
     assert args.capo == 0
 
 
-@pytest.mark.parametrize("value", [0, 3, 7])
+@pytest.mark.parametrize("value", [0, 3, 7, 12])
 def test_capo_in_range_accepted(value):
     parser = _build_parser()
     args = parser.parse_args(["transcribe", "in.mp4", "--capo", str(value)])
     assert args.capo == value
 
 
-@pytest.mark.parametrize("value", ["-1", "8", "24"])
+@pytest.mark.parametrize("value", ["-1", "13", "24"])
 def test_capo_out_of_range_rejected(value):
     parser = _build_parser()
     with pytest.raises(SystemExit):
@@ -47,7 +47,7 @@ def test_capo_validated_on_diagnose():
 # ---------- the validator in isolation ----------
 
 
-@pytest.mark.parametrize("value", [-1, 8, 100])
+@pytest.mark.parametrize("value", [-1, 13, 100])
 def test_capo_arg_raises_on_out_of_range(value):
     import argparse
 

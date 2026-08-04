@@ -8,6 +8,10 @@ export interface NoteCandidate {
   fret: number;
 }
 
+/** Expressive markings the editor can add manually. The server may return
+ * other technique strings, so TabNote.technique remains open-ended. */
+export type EditableTechnique = 'slide' | 'bend';
+
 export interface TabNote {
   id: string;
   timestamp: number;
@@ -19,9 +23,12 @@ export interface TabNote {
   originalFret?: number | "X";
   detectedPitch?: number;
   detectedMidiNote?: number;
+  /** A technique performed into/on this note. A slide connects from the
+   * preceding note on the same string; a bend uses pitchBend as its amount. */
   technique?: string;
   endTime?: number;
   videoMatched?: boolean;
+  /** Upward bend amount in semitones (1 = half-step, 2 = whole-step). */
   pitchBend?: number;
   candidates?: NoteCandidate[];
 }
