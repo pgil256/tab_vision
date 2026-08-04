@@ -767,6 +767,8 @@ export function RecordPanel() {
                   className="btn btn-ghost btn-icon"
                   onClick={() => setBpm(Math.max(BPM_MIN, bpm - 1))}
                   disabled={isLive || bpm <= BPM_MIN}
+                  aria-label="Decrease metronome tempo"
+                  data-tooltip="Decrease tempo"
                   style={{ padding: '4px' }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -790,6 +792,8 @@ export function RecordPanel() {
                   className="btn btn-ghost btn-icon"
                   onClick={() => setBpm(Math.min(BPM_MAX, bpm + 1))}
                   disabled={isLive || bpm >= BPM_MAX}
+                  aria-label="Increase metronome tempo"
+                  data-tooltip="Increase tempo"
                   style={{ padding: '4px' }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
