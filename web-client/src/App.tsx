@@ -3,6 +3,7 @@ import { UploadPanel } from './components/UploadPanel';
 import { RecordPanel } from './components/RecordPanel';
 import { VideoPlayer } from './components/VideoPlayer';
 import { TabCanvas } from './components/TabCanvas';
+import { ScoreView } from './components/ScoreView';
 import { TabToolbar } from './components/TabToolbar';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { RestoreBanner } from './components/RestoreBanner';
@@ -16,7 +17,7 @@ type InputMode = 'upload' | 'record';
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
-  const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset } = useAppStore();
+  const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset, viewMode } = useAppStore();
   const loadPersistedSession = useAppStore((s) => s.loadPersistedSession);
   const checkPersonalIngest = useAppStore((s) => s.checkPersonalIngest);
 
@@ -37,10 +38,10 @@ function App() {
   const isProcessing = jobStatus === 'uploading' || jobStatus === 'processing';
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+    <div className="h-screen flex flex-col overflow-hidden print-expand" style={{ background: 'var(--bg-base)' }}>
       {/* Header */}
       <header
-        className="shrink-0 flex items-center justify-between px-5 py-2.5 glass-strong"
+        className="shrink-0 flex items-center justify-between px-5 py-2.5 glass-strong print-hide"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         <div className="flex items-center gap-3">
@@ -96,7 +97,7 @@ function App() {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden print-expand">
         {/* Upload / Record view */}
         {!showEditor && !isProcessing && jobStatus !== 'failed' && (
           <div
@@ -135,9 +136,9 @@ function App() {
 
         {/* Editor view */}
         {showEditor && (
-          <div className="flex-1 flex flex-col min-h-0 animate-fade-in">
+          <div className="flex-1 flex flex-col min-h-0 animate-fade-in print-expand">
             {/* Video + Toolbar row */}
-            <div className="shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="shrink-0 print-hide" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <div className="flex items-stretch">
                 <div className="shrink-0">
                   <VideoPlayer videoRef={videoRef} />
@@ -148,9 +149,9 @@ function App() {
               </div>
             </div>
 
-            {/* Tab canvas */}
-            <div className="flex-1 min-h-0">
-              <TabCanvas videoRef={videoRef} />
+            {/* Tab canvas / score view */}
+            <div className="flex-1 min-h-0 print-expand">
+              {viewMode === 'score' ? <ScoreView /> : <TabCanvas videoRef={videoRef} />}
             </div>
           </div>
         )}

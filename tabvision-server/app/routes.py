@@ -3,7 +3,7 @@ import os
 from threading import Thread
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
-from app.models import Job
+from app.models import Job, TUNINGS
 from app.storage import job_storage
 from app.result_io import load_result
 
@@ -75,6 +75,11 @@ def create_job():
     except ValueError:
         capo_fret = 0
 
+    tuning, error_response, status_code = parse_choice(
+        'tuning', set(TUNINGS), 'standard'
+    )
+    if error_response:
+        return error_response, status_code
     instrument, error_response, status_code = parse_choice(
         'instrument', ALLOWED_INSTRUMENTS, 'acoustic'
     )
@@ -134,6 +139,7 @@ def create_job():
     job = Job.create(
         video_path="",
         capo_fret=capo_fret,
+        tuning=tuning,
         instrument=instrument,
         tone=tone,
         style=style,
@@ -213,6 +219,8 @@ def bank_gold_session_route(job_id: str):
         return jsonify({'error': 'Job not completed yet'}), 400
     if job.capo_fret:
         return jsonify({'error': 'Gold sessions require capo 0 (stores are capo-0 indexed)'}), 400
+    if job.tuning != 'standard':
+        return jsonify({'error': 'Gold sessions require standard tuning (stores are standard-tuning indexed)'}), 400
     if not job.video_path or not os.path.isfile(job.video_path):
         return jsonify({'error': 'The original upload is no longer on disk'}), 400
 

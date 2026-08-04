@@ -12,7 +12,7 @@ import {
   loadSession,
   persistSession,
 } from '../utils/editPersistence';
-import { MAX_FRET, MAX_STRING, MIN_STRING, STRING_OPEN_MIDI } from '../utils/pitch';
+import { MAX_FRET, MAX_STRING, MIN_STRING, openStringMidi, TuningId } from '../utils/pitch';
 import { deleteRecordingBlob, loadRecordingBlob } from '../utils/blobStore';
 
 type JobStatus = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
@@ -37,13 +37,24 @@ export function speedAccuracyToMode(notch: number): AccuracyMode {
 // rendition of the (edited) notes, or both layered.
 export type AuditionMode = 'original' | 'synth' | 'both';
 
+// How the notes are displayed: the scrollable timeline canvas (editing) or the
+// sheet-style score view (reading / printing).
+export type ViewMode = 'timeline' | 'score';
+
 // Only the fields an edit mutates are snapshotted, so undo/redo restore them
 // exactly (including isEdited / originalFret bookkeeping) rather than trying to
 // recompute derived flags. timestamp/endTime joined for drag-retiming (M4);
 // history is in-memory only, so extending the snapshot needs no migration.
 type NoteMutableFields = Pick<
   TabNote,
-  'string' | 'fret' | 'isEdited' | 'originalFret' | 'timestamp' | 'endTime'
+  | 'string'
+  | 'fret'
+  | 'isEdited'
+  | 'originalFret'
+  | 'timestamp'
+  | 'endTime'
+  | 'confidence'
+  | 'confidenceLevel'
 >;
 
 type EditAction =
@@ -52,19 +63,22 @@ type EditAction =
   | { kind: 'insert'; note: TabNote; index: number };
 
 /**
- * Fret on `toString` that sounds the same pitch as `fret` on `fromString`
- * (standard tuning). A capo shifts every string equally, so it cancels out of
- * the difference and this is capo-independent. Returns `null` when the pitch is
- * not playable on the target string (fret would be < 0 or > MAX_FRET); a muted
- * "X" moves across strings unchanged.
+ * Fret on `toString` that sounds the same pitch as `fret` on `fromString`,
+ * under the document's tuning (`tuningMidi` low-to-high; absent = standard).
+ * A capo shifts every string equally, so it cancels out of the difference and
+ * this is capo-independent. Returns `null` when the pitch is not playable on
+ * the target string (fret would be < 0 or > MAX_FRET); a muted "X" moves
+ * across strings unchanged.
  */
 export function pitchPreservingFret(
   fromString: number,
   toString: number,
   fret: number | 'X',
+  tuningMidi?: number[],
 ): number | 'X' | null {
   if (fret === 'X') return 'X';
-  const next = fret + STRING_OPEN_MIDI[fromString] - STRING_OPEN_MIDI[toString];
+  const next =
+    fret + openStringMidi(fromString, tuningMidi) - openStringMidi(toString, tuningMidi);
   if (next < 0 || next > MAX_FRET) return null;
   return next;
 }
@@ -94,6 +108,9 @@ interface AppState {
   selectedNoteId: string | null;
   isFollowingPlayback: boolean;
   pendingFretInput: string;
+  // Bumped by jumpToNextConfidence so the active view scrolls the newly
+  // selected note into view (a counter, since the same note can be re-focused).
+  noteFocusNonce: number;
 
   // Review mode (2026-07-20 assisted program): step through the
   // lowest-confidence notes and cycle each one's ranked pitch-preserving
@@ -105,6 +122,7 @@ interface AppState {
   // UI state
   zoomLevel: number;
   capoFretInput: number;
+  tuningInput: TuningId;
   instrumentInput: Instrument;
   toneInput: Tone;
   styleInput: PlayingStyle;
@@ -115,6 +133,7 @@ interface AppState {
   showShortcutsModal: boolean;
   playbackRate: number;
   auditionMode: AuditionMode;
+  viewMode: ViewMode;
 
   // Edit history
   editHistory: EditAction[];
@@ -152,6 +171,7 @@ interface AppState {
   // Selection actions
   selectNote: (noteId: string | null) => void;
   selectAdjacentNote: (direction: 'left' | 'right' | 'up' | 'down') => void;
+  jumpToNextConfidence: (level: 'medium' | 'low') => void;
 
   // Review actions
   startReview: () => void;
@@ -172,6 +192,7 @@ interface AppState {
   insertNote: (opts: { timestamp: number; string: number; fret?: number | "X" }) => void;
   setPendingFretInput: (input: string) => void;
   commitPendingEdit: () => void;
+  setDocumentTitle: (title: string) => void;
 
   // Undo/Redo actions
   undo: () => void;
@@ -186,6 +207,7 @@ interface AppState {
   zoomOut: () => void;
   resetZoom: () => void;
   setCapoFretInput: (fret: number) => void;
+  setTuningInput: (tuning: TuningId) => void;
   setInstrumentInput: (instrument: Instrument) => void;
   setToneInput: (tone: Tone) => void;
   setStyleInput: (style: PlayingStyle) => void;
@@ -197,6 +219,7 @@ interface AppState {
   setShowShortcutsModal: (show: boolean) => void;
   setPlaybackRate: (rate: number) => void;
   setAuditionMode: (mode: AuditionMode) => void;
+  setViewMode: (mode: ViewMode) => void;
 }
 
 const initialState = {
@@ -223,6 +246,7 @@ const initialState = {
   selectedNoteId: null as string | null,
   isFollowingPlayback: true,
   pendingFretInput: '',
+  noteFocusNonce: 0,
 
   // Review mode
   reviewActive: false,
@@ -232,6 +256,7 @@ const initialState = {
   // UI state
   zoomLevel: 1.0,
   capoFretInput: 0,
+  tuningInput: 'standard' as TuningId,
   instrumentInput: 'acoustic' as Instrument,
   toneInput: 'clean' as Tone,
   styleInput: 'mixed' as PlayingStyle,
@@ -242,6 +267,7 @@ const initialState = {
   showShortcutsModal: false,
   playbackRate: 1.0,
   auditionMode: 'original' as AuditionMode,
+  viewMode: 'timeline' as ViewMode,
 
   // Edit history
   editHistory: [] as EditAction[],
@@ -401,6 +427,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  // Toolbar confidence pills: jump to the next note still at the clicked
+  // level (fixing a note promotes it to high, so it drops out of the cycle).
+  // Anchored on the current selection when it's part of the cycle, otherwise
+  // on its timestamp / the playhead; wraps around at the end.
+  jumpToNextConfidence: (level) => {
+    const { tabDocument, selectedNoteId, currentTime, noteFocusNonce } = get();
+    if (!tabDocument) return;
+    const targets = tabDocument.notes
+      .filter(n => n.confidenceLevel === level)
+      .sort((a, b) => a.timestamp - b.timestamp || a.string - b.string);
+    if (!targets.length) return;
+
+    const current = selectedNoteId
+      ? tabDocument.notes.find(n => n.id === selectedNoteId)
+      : undefined;
+    const currentIdx = current ? targets.findIndex(n => n.id === current.id) : -1;
+    const next =
+      currentIdx !== -1
+        ? targets[(currentIdx + 1) % targets.length]
+        : targets.find(n => n.timestamp > (current ? current.timestamp : currentTime)) ??
+          targets[0];
+
+    set({
+      selectedNoteId: next.id,
+      pendingFretInput: '',
+      // Detach auto-follow so the scroll-to-note isn't fought by playback.
+      isFollowingPlayback: false,
+      noteFocusNonce: noteFocusNonce + 1,
+    });
+  },
+
   // Review actions — the review queue is the phase-6 design at its measured
   // level: lowest-confidence unedited notes first (the Viterbi string-flip
   // margin drives `confidence`), a 30-note budget (the offline 60-second
@@ -485,7 +542,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (noteIndex === -1) return;
 
     const note = tabDocument.notes[noteIndex];
-    if (note.string === newString && note.fret === newFret) return; // no-op
+    // Re-entering the unchanged position on a medium/low note is a "confirm":
+    // it still promotes the note to high confidence below. Only skip when
+    // nothing at all would change.
+    const samePosition = note.string === newString && note.fret === newFret;
+    if (samePosition && note.confidenceLevel === 'high') return; // no-op
 
     const before: NoteMutableFields = {
       string: note.string,
@@ -494,6 +555,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       originalFret: note.originalFret,
       timestamp: note.timestamp,
       endTime: note.endTime,
+      confidence: note.confidence,
+      confidenceLevel: note.confidenceLevel,
     };
     const updated: TabNote = {
       ...note,
@@ -501,6 +564,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       fret: newFret,
       isEdited: true,
       originalFret: note.originalFret ?? note.fret,
+      // A fixed note is user-verified — its confidence color turns green.
+      confidence: 1,
+      confidenceLevel: 'high',
     };
     const after: NoteMutableFields = {
       string: updated.string,
@@ -509,6 +575,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       originalFret: updated.originalFret,
       timestamp: updated.timestamp,
       endTime: updated.endTime,
+      confidence: updated.confidence,
+      confidenceLevel: updated.confidenceLevel,
     };
 
     const updatedNotes = [...tabDocument.notes];
@@ -550,6 +618,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       originalFret: note.originalFret,
       timestamp: note.timestamp,
       endTime: note.endTime,
+      confidence: note.confidence,
+      confidenceLevel: note.confidenceLevel,
     };
     const updated: TabNote = {
       ...note,
@@ -559,6 +629,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       endTime: typeof note.endTime === 'number' ? note.endTime + delta : note.endTime,
       isEdited: true,
       originalFret: note.originalFret ?? note.fret,
+      // A fixed note is user-verified — its confidence color turns green.
+      confidence: 1,
+      confidenceLevel: 'high',
     };
     const after: NoteMutableFields = {
       string: updated.string,
@@ -567,6 +640,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       originalFret: updated.originalFret,
       timestamp: updated.timestamp,
       endTime: updated.endTime,
+      confidence: updated.confidence,
+      confidenceLevel: updated.confidenceLevel,
     };
 
     const updatedNotes = [...tabDocument.notes];
@@ -594,7 +669,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!note) return;
     const target = direction === 'up' ? note.string - 1 : note.string + 1;
     if (target < MIN_STRING || target > MAX_STRING) return;
-    const nextFret = pitchPreservingFret(note.string, target, note.fret);
+    const nextFret = pitchPreservingFret(note.string, target, note.fret, tabDocument.tuningMidi);
     if (nextFret === null) return; // pitch not reachable on the target string
     updateNotePosition(selectedNoteId, target, nextFret);
   },
@@ -666,6 +741,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       updateNoteFret(selectedNoteId, fretValue);
     }
     set({ pendingFretInput: '' });
+  },
+
+  // Piece title (score header + export filenames). Not an undoable edit —
+  // it's document metadata, but it persists with the session like note edits.
+  setDocumentTitle: (title) => {
+    const { tabDocument } = get();
+    if (!tabDocument) return;
+    const trimmed = title.trim();
+    if ((tabDocument.title ?? '') === trimmed) return;
+    set({ tabDocument: { ...tabDocument, title: trimmed || undefined } });
+    persistSession(get().tabDocument!, get().currentJobId);
   },
 
   // Undo/Redo actions — dispatch on the action kind. position restores a
@@ -760,6 +846,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setCapoFretInput: (fret) => set({ capoFretInput: Math.max(0, Math.min(12, fret)) }),
 
+  setTuningInput: (tuning) => set({ tuningInput: tuning }),
+
   setInstrumentInput: (instrument) => set({ instrumentInput: instrument }),
 
   setToneInput: (tone) => set({ toneInput: tone }),
@@ -789,4 +877,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
 
   setAuditionMode: (mode) => set({ auditionMode: mode }),
+
+  setViewMode: (mode) => set({ viewMode: mode }),
 }));

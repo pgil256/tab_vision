@@ -433,6 +433,12 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
   const noteHitboxesRef = useRef<NoteHitbox[]>([]);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<number | null>(null);
+  // Timestamp of the last wheel / pointer input on the scroll container. A
+  // scroll event only counts as a MANUAL scroll (and detaches follow) when it
+  // arrives right after real input — the auto-follow's own scrollTo() also
+  // fires scroll events, and treating those as manual made follow-playback
+  // cancel itself on its first tick.
+  const lastUserInputAtRef = useRef(0);
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   // Drag gesture + preview. The ref is authoritative (pointer-up commits from
   // it); the state mirror only exists to trigger redraws per move event.
@@ -452,6 +458,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     reviewActive,
     reviewIds,
     reviewIndex,
+    noteFocusNonce,
     selectNote,
     setCurrentTime,
     setFollowingPlayback,
@@ -460,20 +467,49 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     zoomOut,
   } = useAppStore();
 
+  // Layout duration MUST be finite (see safeDuration below); computed here
+  // because the density scale needs it.
+  const docDuration =
+    tabDocument && Number.isFinite(tabDocument.duration) && tabDocument.duration > 0
+      ? tabDocument.duration
+      : 60;
+
+  // Density-aware base scale: fast runs pack same-string glyphs closer than a
+  // glyph width at BASE_PPS, so the densest same-string pair sets the base
+  // pixels-per-second. Near-simultaneous pairs (<30ms) are ignored — they are
+  // detection duplicates, not playable successions — and the boost is capped
+  // so the canvas never outgrows the browser's canvas size limit.
+  const densityPps = useMemo(() => {
+    if (!tabDocument) return BASE_PPS;
+    const byString = new Map<number, number[]>();
+    for (const n of tabDocument.notes) {
+      const times = byString.get(n.string);
+      if (times) times.push(n.timestamp);
+      else byString.set(n.string, [n.timestamp]);
+    }
+    let minGap = Infinity;
+    for (const times of byString.values()) {
+      times.sort((a, b) => a - b);
+      for (let i = 1; i < times.length; i++) {
+        const gap = times[i] - times[i - 1];
+        if (gap > 0.03 && gap < minGap) minGap = gap;
+      }
+    }
+    if (!Number.isFinite(minGap)) return BASE_PPS;
+    const neededPx = NOTE_SIZE + 6; // adjacent glyph centers, incl. 2-digit frets
+    const maxPps = Math.max(BASE_PPS, 24000 / docDuration);
+    return Math.min(maxPps, Math.max(BASE_PPS, neededPx / minGap));
+  }, [tabDocument, docDuration]);
+
   // Zoom-adjusted pixels per second
-  const pps = BASE_PPS * zoomLevel;
+  const pps = densityPps * zoomLevel;
 
   // Layout duration MUST be finite. Recorded (MediaRecorder) clips report a
   // video duration of Infinity until the element is seeked — that would make
   // the canvas infinitely wide AND make the time-marker loop below never
   // terminate, freezing the page. Fall back to the tab document's own
   // duration, which is always finite.
-  const safeDuration =
-    Number.isFinite(duration) && duration > 0
-      ? duration
-      : tabDocument && Number.isFinite(tabDocument.duration) && tabDocument.duration > 0
-        ? tabDocument.duration
-        : 60;
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : docDuration;
 
   // Calculate canvas width based on duration
   const canvasWidth = Math.max(
@@ -590,8 +626,11 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     });
   }, [currentTime, isFollowingPlayback, timestampToX]);
 
-  // Handle scroll - disable auto-follow when user scrolls manually
+  // Handle scroll - disable auto-follow when the user scrolls manually.
+  // Programmatic scrolls (auto-follow, review centering) fire this too, so
+  // only scrolls arriving right after wheel/pointer input detach follow.
   const handleScroll = useCallback(() => {
+    if (performance.now() - lastUserInputAtRef.current > 300) return;
     isUserScrollingRef.current = true;
     setFollowingPlayback(false);
 
@@ -603,7 +642,7 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     }, 150);
   }, [setFollowingPlayback]);
 
-  // Handle mouse wheel zoom
+  // Handle mouse wheel zoom; plain wheel marks user input for handleScroll.
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -612,8 +651,16 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       } else {
         zoomOut();
       }
+      return;
     }
+    lastUserInputAtRef.current = performance.now();
   }, [zoomIn, zoomOut]);
+
+  // Pointer input on the scroll area (scrollbar drags, touch pans) also
+  // counts as user input for the manual-scroll detection above.
+  const markUserInput = useCallback(() => {
+    lastUserInputAtRef.current = performance.now();
+  }, []);
 
   // Canvas-space coordinates for a pointer event (same math the old click
   // handler used; DPR cancels out of the hitbox space).
@@ -713,7 +760,12 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
       let fret = gesture.orig.fret;
       let invalid = false;
       if (targetString !== gesture.orig.string) {
-        const nextFret = pitchPreservingFret(gesture.orig.string, targetString, gesture.orig.fret);
+        const nextFret = pitchPreservingFret(
+          gesture.orig.string,
+          targetString,
+          gesture.orig.fret,
+          useAppStore.getState().tabDocument?.tuningMidi,
+        );
         if (nextFret === null) {
           invalid = true; // vertical rejected, horizontal still applies
         } else {
@@ -799,6 +851,21 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reviewActive, reviewIndex, selectedNoteId]);
 
+  // Toolbar pill jump: center the newly focused note whenever the nonce
+  // bumps. Nonce-keyed (not selection-keyed) so ordinary clicks/arrow moves
+  // never yank the scroll position.
+  useEffect(() => {
+    if (!noteFocusNonce || !selectedNoteId || !containerRef.current || !tabDocument) return;
+    const note = tabDocument.notes.find(n => n.id === selectedNoteId);
+    if (!note) return;
+    const container = containerRef.current;
+    container.scrollTo({
+      left: Math.max(0, timestampToX(note.timestamp) - container.clientWidth / 2),
+      behavior: 'smooth',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteFocusNonce]);
+
   // Cleanup timeouts
   useEffect(() => {
     return () => {
@@ -846,13 +913,24 @@ export function TabCanvas({ videoRef }: TabCanvasProps) {
         className="flex-1 overflow-x-auto overflow-y-hidden"
         onScroll={handleScroll}
         onWheel={handleWheel}
+        // Scrollbar drags hit the container itself (canvas clicks hit the
+        // canvas and must NOT detach follow — they seek, and follow should
+        // keep tracking from the new position).
+        onPointerDown={(e) => {
+          if (e.target === containerRef.current) markUserInput();
+        }}
       >
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onPointerCancel={clearDrag}
+          // pointercancel on the canvas means the browser took the pointer
+          // for a native touch pan — that is a manual scroll.
+          onPointerCancel={() => {
+            clearDrag();
+            markUserInput();
+          }}
           onPointerLeave={() => setHoveredNoteId(null)}
           className="block"
           style={{

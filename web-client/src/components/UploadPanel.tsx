@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
 import { TranscriptionOptions } from './TranscriptionOptions';
+import { AudioReviewPanel } from './AudioReviewPanel';
 
 const ALLOWED_TYPES = [
   'video/mp4',
@@ -104,6 +105,8 @@ function GuitarIcon() {
 export function UploadPanel() {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  // Audio files pause here for a listen-back/cleanup step before upload.
+  const [reviewFile, setReviewFile] = useState<File | null>(null);
   const {
     jobStatus,
     progress,
@@ -121,7 +124,21 @@ export function UploadPanel() {
       return;
     }
     setFileName(file.name);
+    // Audio-only files get a review/cleanup stop first; video goes straight
+    // through (the browser can't re-encode audio back into a video track).
+    if (file.type.startsWith('audio/')) {
+      setReviewFile(file);
+      return;
+    }
     await processVideo(file);
+  }, [processVideo, setError]);
+
+  const handleReviewSubmit = useCallback((file: File) => {
+    setReviewFile(null);
+    setFileName(file.name);
+    processVideo(file).catch((err) => {
+      setError(err instanceof Error ? err.message : 'Processing failed');
+    });
   }, [processVideo, setError]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -142,6 +159,18 @@ export function UploadPanel() {
     ? PIPELINE_STAGES
     : PIPELINE_STAGES.filter(s => s.key !== 'analyzing_video');
   const currentStageIndex = getStageIndex(pipelineStages, currentStage);
+
+  // === IDLE + audio chosen: listen back & clean up before uploading ===
+  if (jobStatus === 'idle' && reviewFile) {
+    return (
+      <AudioReviewPanel
+        file={reviewFile}
+        onSubmit={handleReviewSubmit}
+        onCancel={() => { setReviewFile(null); setFileName(null); }}
+        cancelLabel="Choose another file"
+      />
+    );
+  }
 
   // === IDLE: Upload form ===
   if (jobStatus === 'idle') {

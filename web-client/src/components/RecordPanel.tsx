@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useProcessVideo } from '../utils/useProcessVideo';
 import { TranscriptionOptions } from './TranscriptionOptions';
+import { AudioReviewPanel } from './AudioReviewPanel';
 
 type RecorderState = 'idle' | 'preview' | 'countin' | 'recording';
 type CaptureMode = 'video' | 'audio';
@@ -32,20 +33,50 @@ function pickMimeType(mode: CaptureMode): string {
   return '';
 }
 
+// How the audible click behaves once recording starts. The visual beat dots
+// always keep pulsing, so the metronome stays usable even when silent.
+type ClickMode = 'always' | 'fade' | 'countin' | 'off';
+
+// Fade mode: this many full-volume bars into the take, then one bar of
+// fade-down to silence. Enough to lock in tempo; the clicked bars can be
+// trimmed away afterwards in the review step.
+const FADE_FULL_BARS = 2;
+
+// Click volume multiplier for a given beat. Beats before `recordStartBeat`
+// are the count-in, which stays audible (it ends before recording begins,
+// so it can never leak into the take).
+function clickPeakFactor(
+  mode: ClickMode,
+  beatIndex: number,
+  recordStartBeat: number,
+  beatsPerBar: number,
+): number {
+  if (mode === 'off') return 0;
+  if (beatIndex < recordStartBeat) return 1;
+  if (mode === 'always') return 1;
+  if (mode === 'countin') return 0;
+  const recBeat = beatIndex - recordStartBeat;
+  const fullBeats = FADE_FULL_BARS * beatsPerBar;
+  if (recBeat < fullBeats) return 1;
+  const fade = (recBeat - fullBeats) / beatsPerBar;
+  return fade >= 1 ? 0 : 1 - fade;
+}
+
 // Schedules metronome clicks on a WebAudio timeline so timing stays precise
 // even if the main thread is busy. Returns a stop function.
 function startMetronome({
   audioCtx,
   bpm,
   beatsPerBar,
-  muted,
+  peakForBeat,
   startAtBeat = 0,
   onBeat,
 }: {
   audioCtx: AudioContext;
   bpm: number;
   beatsPerBar: number;
-  muted: boolean;
+  /** 0–1 volume multiplier per beat; 0 skips the audible click entirely. */
+  peakForBeat: (beatIndex: number) => number;
   startAtBeat?: number;
   onBeat?: (beatIndex: number, barPosition: number) => void;
 }): () => void {
@@ -55,11 +86,11 @@ function startMetronome({
   let beatIndex = startAtBeat;
   let stopped = false;
 
-  function scheduleClick(time: number, accent: boolean) {
+  function scheduleClick(time: number, accent: boolean, peak: number) {
+    if (peak <= 0) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.frequency.value = accent ? 1500 : 1000;
-    const peak = muted ? 0 : 0.25;
     gain.gain.setValueAtTime(0, time);
     gain.gain.linearRampToValueAtTime(peak, time + 0.002);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
@@ -72,7 +103,7 @@ function startMetronome({
     if (stopped) return;
     while (nextBeatTime < audioCtx.currentTime + lookahead) {
       const barPosition = beatIndex % beatsPerBar;
-      scheduleClick(nextBeatTime, barPosition === 0);
+      scheduleClick(nextBeatTime, barPosition === 0, 0.25 * peakForBeat(beatIndex));
       const scheduledIndex = beatIndex;
       const delayMs = Math.max(0, (nextBeatTime - audioCtx.currentTime) * 1000);
       window.setTimeout(() => onBeat?.(scheduledIndex, scheduledIndex % beatsPerBar), delayMs);
@@ -105,12 +136,14 @@ export function RecordPanel() {
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [bpm, setBpm] = useState(80);
   const [beatsPerBar, setBeatsPerBar] = useState(4);
-  const [muted, setMuted] = useState(false);
+  const [clickMode, setClickMode] = useState<ClickMode>('fade');
   const [countIn, setCountIn] = useState(true);
   const [pulseBeat, setPulseBeat] = useState<number | null>(null);
   const [countInRemaining, setCountInRemaining] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [inputLevel, setInputLevel] = useState(0);
+  // Audio-mode takes pause here for listen-back/cleanup before upload.
+  const [reviewFile, setReviewFile] = useState<File | null>(null);
 
   const { setError } = useAppStore();
   const processVideo = useProcessVideo();
@@ -251,9 +284,14 @@ export function RecordPanel() {
       setState('idle');
       setElapsed(0);
       setPulseBeat(null);
-      processVideo(file).catch((err) => {
-        setError(err instanceof Error ? err.message : 'Processing failed');
-      });
+      if (captureMode === 'audio') {
+        // Let the player hear the take and clean it up before committing.
+        setReviewFile(file);
+      } else {
+        processVideo(file).catch((err) => {
+          setError(err instanceof Error ? err.message : 'Processing failed');
+        });
+      }
     };
 
     recorder.start(500);
@@ -277,7 +315,8 @@ export function RecordPanel() {
         audioCtx: ctx,
         bpm,
         beatsPerBar,
-        muted,
+        // No count-in: recording starts at beat 0.
+        peakForBeat: (beat) => clickPeakFactor(clickMode, beat, 0, beatsPerBar),
         onBeat: (_, barPos) => setPulseBeat(barPos),
       });
       return;
@@ -291,7 +330,8 @@ export function RecordPanel() {
       audioCtx: ctx,
       bpm,
       beatsPerBar,
-      muted,
+      // One count-in bar precedes the take: recording starts at beat `beatsPerBar`.
+      peakForBeat: (beat) => clickPeakFactor(clickMode, beat, beatsPerBar, beatsPerBar),
       onBeat: (beatIndex, barPos) => {
         setPulseBeat(barPos);
         if (beatIndex < beatsPerBar) {
@@ -305,7 +345,7 @@ export function RecordPanel() {
         }
       },
     });
-  }, [beginRecording, beatsPerBar, bpm, countIn, muted]);
+  }, [beginRecording, beatsPerBar, bpm, countIn, clickMode]);
 
   const stopRecording = useCallback(() => {
     stopEverything();
@@ -333,6 +373,22 @@ export function RecordPanel() {
   const canStart = state === 'preview';
   const isAudio = captureMode === 'audio';
 
+  if (reviewFile) {
+    return (
+      <AudioReviewPanel
+        file={reviewFile}
+        onSubmit={(file) => {
+          setReviewFile(null);
+          processVideo(file).catch((err) => {
+            setError(err instanceof Error ? err.message : 'Processing failed');
+          });
+        }}
+        onCancel={() => setReviewFile(null)}
+        cancelLabel="Discard take"
+      />
+    );
+  }
+
   return (
     <div className="w-full max-w-xl animate-slide-up relative">
       <div className="ambient-bg" />
@@ -354,7 +410,14 @@ export function RecordPanel() {
             Record a take with metronome
           </h2>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Use headphones for the click — otherwise it leaks into the recorded audio and confuses pitch detection.
+            {clickMode === 'always' &&
+              'Use headphones for the click — otherwise it leaks into the recorded audio and confuses pitch detection.'}
+            {clickMode === 'fade' &&
+              `The click fades out after ${FADE_FULL_BARS} bars, so most of the take stays clean — trim the clicked intro in the review step, or wear headphones.`}
+            {clickMode === 'countin' &&
+              'The click only plays during the count-in, so it never overlaps the recording — no headphones needed.'}
+            {clickMode === 'off' &&
+              'Silent metronome — follow the pulsing beat dots to keep time.'}
           </p>
         </div>
 
@@ -486,18 +549,24 @@ export function RecordPanel() {
 
         {/* Metronome controls */}
         <div className="field-card mt-4 p-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 gap-3">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Metronome</p>
-            <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
-              <input
-                type="checkbox"
-                className="toggle"
-                checked={muted}
-                onChange={(e) => setMuted(e.target.checked)}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Click</span>
+              <select
+                value={clickMode}
+                onChange={(e) => setClickMode(e.target.value as ClickMode)}
                 disabled={isLive}
-              />
-              Mute click (visual only)
-            </label>
+                className="select"
+                aria-label="Click behavior"
+                style={{ width: 'auto' }}
+              >
+                <option value="fade">Fade out after {FADE_FULL_BARS} bars</option>
+                <option value="countin">Count-in only</option>
+                <option value="always">Whole take</option>
+                <option value="off">Off (visual only)</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">

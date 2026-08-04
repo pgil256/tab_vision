@@ -775,3 +775,76 @@ body {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-subtle);
 }
+
+/* Clickable pill variant (yellow/red jump-to-next-note buttons). */
+.stat-pill-btn {
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.stat-pill-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-default);
+}
+.stat-pill-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* Score title: pencil affordance only on hover (and never in print). */
+.score-title-pencil {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.score-title:hover .score-title-pencil {
+  opacity: 1;
+}
+
+/* ===== Print (score view → PDF) =====
+   The score view's white page column is the printable surface. App chrome is
+   hidden, every fixed-height/overflow ancestor is unlocked so the sheet flows
+   across paper pages, and systems never split across a page break. */
+@media print {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-expand {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .score-scroll {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .score-page-wrap {
+    padding: 0 !important;
+  }
+
+  .score-page {
+    max-width: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  .score-system {
+    break-inside: avoid;
+  }
+
+  .score-cursor {
+    display: none !important;
+  }
+}

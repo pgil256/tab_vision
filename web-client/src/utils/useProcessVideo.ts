@@ -6,6 +6,7 @@ import { saveRecordingBlob } from './blobStore';
 export function useProcessVideo() {
   const {
     capoFretInput,
+    tuningInput,
     instrumentInput,
     toneInput,
     styleInput,
@@ -27,6 +28,7 @@ export function useProcessVideo() {
     try {
       const jobId = await uploadVideo(file, {
         capoFret: capoFretInput,
+        tuning: tuningInput,
         instrument: instrumentInput,
         tone: toneInput,
         style: styleInput,
@@ -74,6 +76,7 @@ export function useProcessVideo() {
     setVideoUrl,
     setPipelineVideoEnabled,
     capoFretInput,
+    tuningInput,
     instrumentInput,
     toneInput,
     styleInput,
