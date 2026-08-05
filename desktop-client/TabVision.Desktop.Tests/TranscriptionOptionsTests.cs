@@ -11,6 +11,7 @@ public sealed class TranscriptionOptionsTests
             new TranscriptionOptions("acoustic", "clean", "mixed", 0, "auto", false),
             TranscriptionOptions.Default
         );
+        Assert.Equal("most-accurate", TranscriptionOptions.Default.Accuracy);
     }
 
     [Fact]

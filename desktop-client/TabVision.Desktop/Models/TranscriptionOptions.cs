@@ -8,7 +8,7 @@ public sealed record TranscriptionOptions(
     string AudioBackend,
     bool NoVideo,
     string Tuning = "standard",
-    string Accuracy = "accurate",
+    string Accuracy = "most-accurate",
     TranscriptionRoi? Roi = null
 )
 {
@@ -54,7 +54,7 @@ public sealed record TranscriptionOptions(
             "auto",
             NoVideo: false,
             Tuning: "standard",
-            Accuracy: "accurate"
+            Accuracy: "most-accurate"
         );
 
     public string AccuracyMode =>

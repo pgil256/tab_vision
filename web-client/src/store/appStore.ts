@@ -294,7 +294,7 @@ const initialState = {
   instrumentInput: 'acoustic' as Instrument,
   toneInput: 'clean' as Tone,
   styleInput: 'mixed' as PlayingStyle,
-  speedAccuracyInput: 3, // 'Accurate' — matches the old default mode
+  speedAccuracyInput: SPEED_ACCURACY_MAX, // Default new transcriptions to 'Most accurate'.
   roiEnabled: false,
   roiInput: { x1: 0, y1: 0, x2: 1, y2: 1 } as UploadRoi,
   isVideoCollapsed: false,
