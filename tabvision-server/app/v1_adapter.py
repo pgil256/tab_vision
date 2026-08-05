@@ -71,7 +71,21 @@ def _policy_env(name: str, default: str) -> str:
     value = os.getenv(name)
     if value is None:
         return default
-    return value.strip().lower() or default
+    value = value.strip()
+    if not value:
+        return default
+    if _looks_like_artifact_path(value):
+        return value
+    return value.lower()
+
+
+def _looks_like_artifact_path(value: str) -> bool:
+    # A position prior may be a filesystem path to a personal artifact
+    # (SPEC §1.5 carve-out; ``_personal_position_prior_path`` keys on the
+    # ``.json`` suffix of the raw value). Lowercasing such a path breaks it
+    # on case-sensitive filesystems, so only named choices (auto/none/
+    # registered artifact names) get normalized.
+    return value.lower().endswith(".json") or "/" in value or "\\" in value
 
 
 def _truthy(value: str | None) -> bool:

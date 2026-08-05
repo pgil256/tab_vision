@@ -175,6 +175,22 @@ def test_v1_config_defaults_all_learned_evidence_to_auto(monkeypatch):
     assert config.assignment_decoder == "auto"
 
 
+def test_v1_config_preserves_case_of_personal_prior_path(monkeypatch):
+    # SPEC §1.5: TABVISION_POSITION_PRIOR may hold a filesystem path to a
+    # personal prior artifact. Lowercasing it silently breaks the load on
+    # case-sensitive filesystems, so path-like values must survive env
+    # parsing verbatim while named choices stay case-insensitive.
+    mixed_case_path = "C:/Users/Patri/Artifacts/MyPrior.JSON"
+    monkeypatch.setenv("TABVISION_POSITION_PRIOR", mixed_case_path)
+    monkeypatch.setenv("TABVISION_SEQUENCE_PRIOR", "AUTO")
+    config = V1PipelineConfig.from_env()
+    assert config.position_prior == mixed_case_path
+    assert config.sequence_prior == "auto"
+
+    monkeypatch.setenv("TABVISION_POSITION_PRIOR", r"priors\Session-3.json")
+    assert V1PipelineConfig.from_env().position_prior == r"priors\Session-3.json"
+
+
 def test_detailed_pipeline_result_writes_resolved_artifact_metadata(tmp_path):
     job = Job.create(video_path="/tmp/example.mp4", capo_fret=0)
     artifact = SimpleNamespace(
