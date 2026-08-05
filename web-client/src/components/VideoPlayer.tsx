@@ -255,8 +255,8 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
                 <button
                   className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
                   style={{
-                    background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                    boxShadow: '0 0 8px var(--accent-glow)',
+                    background: 'var(--accent-primary)',
+                    boxShadow: 'inset 0 1px rgba(255, 255, 255, 0.28)',
                   }}
                   onClick={togglePlay}
                   aria-label={isPlaying ? 'Pause playback' : 'Play transcription'}

@@ -263,9 +263,8 @@ export function UploadPanel() {
               <div
                 className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center transition-all duration-300 group-hover:scale-105"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255, 112, 72, 0.13), rgba(255, 154, 98, 0.06))',
+                  background: 'rgba(255, 112, 72, 0.09)',
                   border: '1px solid rgba(255, 112, 72, 0.22)',
-                  boxShadow: '0 0 30px rgba(255, 112, 72, 0.09)',
                 }}
               >
                 <GuitarIcon />
@@ -367,12 +366,13 @@ export function UploadPanel() {
           {/* Animated logo */}
           <div className="flex justify-center mb-6">
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center animate-pulse-glow"
+              className="w-14 h-14 rounded-xl flex items-center justify-center animate-pulse-glow"
               style={{
-                background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                background: 'var(--accent-primary)',
+                boxShadow: 'inset 0 1px rgba(255, 255, 255, 0.28)',
               }}
             >
-              <svg className="w-7 h-7" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <svg className="w-7 h-7" fill="none" stroke="#26130d" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303" />
               </svg>
             </div>
