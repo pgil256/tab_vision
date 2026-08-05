@@ -60,13 +60,10 @@ public static class SidecarCommandBuilder
             "--accuracy-mode",
             options.AccuracyMode,
             "--audio-backend",
-            options.AudioBackend,
+            options.EffectiveAudioBackend,
         };
 
-        if (options.NoVideo)
-        {
-            arguments.Add("--no-video");
-        }
+        arguments.Add(options.NoVideo ? "--no-video" : "--video");
         if (options.Roi is not null)
         {
             arguments.Add("--roi");

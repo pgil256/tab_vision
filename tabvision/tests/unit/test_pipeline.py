@@ -1039,6 +1039,15 @@ def test_contact_evidence_requires_the_fretcam_backend():
         )
 
 
+def test_list_pipeline_contract_forwards_contact_evidence():
+    with pytest.raises(ValueError, match="contact_evidence requires"):
+        pipeline.run_pipeline(
+            "ignored.mp4",
+            video_backend="legacy",
+            contact_evidence=True,
+        )
+
+
 def test_contact_evidence_defaults_off_and_takes_the_single_pass_route(monkeypatch):
     """Off by default; on, both evidence types come from one traversal."""
     monkeypatch.setattr(pipeline, "demux", lambda _p: _make_demux_result(n_frames=6))

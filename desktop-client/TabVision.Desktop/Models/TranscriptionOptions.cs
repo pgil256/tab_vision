@@ -43,7 +43,7 @@ public sealed record TranscriptionOptions(
         ];
 
     public static IReadOnlyList<string> AudioBackends { get; } =
-        ["auto", "basicpitch", "highres", "highres-fl", "highres-ensemble", "highres-electric"];
+        ["auto", "highres", "highres-fl", "highres-ensemble", "highres-electric"];
 
     public static TranscriptionOptions Default { get; } =
         new(
@@ -59,6 +59,9 @@ public sealed record TranscriptionOptions(
 
     public string AccuracyMode =>
         AccuracyPresets.FirstOrDefault(preset => preset.Id == Accuracy)?.CliValue ?? "accurate";
+
+    public string EffectiveAudioBackend =>
+        AccuracyMode == "fast" && AudioBackend == "auto" ? "highres" : AudioBackend;
 }
 
 public sealed record TuningPreset(

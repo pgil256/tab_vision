@@ -19,6 +19,9 @@ public static class BootstrapRuntimeEnvironment
         {
             ["PYTHONNOUSERSITE"] = "1",
             ["PYTHONUTF8"] = "1",
+            ["OMP_NUM_THREADS"] = "1",
+            ["MKL_NUM_THREADS"] = "1",
+            ["OPENBLAS_NUM_THREADS"] = "1",
             ["HF_HOME"] = layout.HuggingFaceHome,
             ["TABVISION_DATA_ROOT"] = layout.TabVisionDataRoot,
             ["PATH"] = string.Join(

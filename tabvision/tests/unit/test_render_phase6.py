@@ -132,6 +132,35 @@ def test_musicxml_round_trip_preserves_notes() -> None:
 
 
 @pytest.mark.render
+def test_musicxml_quantizes_real_overlapping_timing_to_supported_durations() -> None:
+    music21 = pytest.importorskip("music21")
+    from tabvision.render.musicxml import render
+
+    events = [
+        TabEvent(
+            onset_s=0.321615,
+            duration_s=1.967448,
+            string_idx=0,
+            fret=1,
+            pitch_midi=41,
+            confidence=0.9,
+        ),
+        TabEvent(
+            onset_s=0.385417,
+            duration_s=1.94401,
+            string_idx=1,
+            fret=1,
+            pitch_midi=46,
+            confidence=0.9,
+        ),
+    ]
+
+    score = music21.converter.parseData(render(events, GuitarConfig()).decode())
+
+    assert [item.pitch.midi for item in score.recurse().notes] == [41, 46]
+
+
+@pytest.mark.render
 def test_gp5_round_trip_preserves_notes_when_pyguitarpro_is_available(tmp_path) -> None:
     guitarpro = pytest.importorskip("guitarpro")
     from tabvision.render.gp5 import render

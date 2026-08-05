@@ -32,7 +32,6 @@ public sealed class TranscriptionOptionsTests
         Assert.Equal(
             [
                 "auto",
-                "basicpitch",
                 "highres",
                 "highres-fl",
                 "highres-ensemble",
@@ -53,6 +52,19 @@ public sealed class TranscriptionOptionsTests
         var options = TranscriptionOptions.Default with { Accuracy = preset };
 
         Assert.Equal(mode, options.AccuracyMode);
+    }
+
+    [Theory]
+    [InlineData("fastest", "highres")]
+    [InlineData("fast", "highres")]
+    [InlineData("balanced", "auto")]
+    [InlineData("accurate", "auto")]
+    [InlineData("most-accurate", "auto")]
+    public void AutomaticBackendUsesTheBundledFastPath(string preset, string backend)
+    {
+        var options = TranscriptionOptions.Default with { Accuracy = preset };
+
+        Assert.Equal(backend, options.EffectiveAudioBackend);
     }
 
     [Theory]
