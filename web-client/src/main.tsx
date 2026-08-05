@@ -1,3 +1,5 @@
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/fraunces/wght-italic.css';
 import './index.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
