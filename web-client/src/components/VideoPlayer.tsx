@@ -175,23 +175,26 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
         </button>
       ) : (
         <>
-          {/* Video element (absent when no recording is available) */}
+          {/* Video element (absent when no recording is available). The media
+              slot flexes into whatever height the control deck has; the frame
+              letterboxes inside it at its own aspect ratio. */}
           {videoUrl && (
-            <div className="relative">
+            <div className="source-media">
               <video
                 ref={videoRef}
                 src={videoUrl}
-                className="w-full bg-black"
-                style={{ aspectRatio: '16/9' }}
+                className="source-media__video"
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onPlay={handlePlay}
                 onPause={handlePause}
               />
-              {/* Collapse button overlay */}
+              {/* Collapse button overlay. Positioned entirely in CSS: this
+                  button carries data-tooltip, and that unlayered rule sets
+                  position:relative, which outranks Tailwind's layered
+                  `.absolute` utility. */}
               <button
-                className="video-collapse-button absolute top-2 right-2 rounded flex items-center justify-center"
-                style={{ background: 'rgba(0,0,0,0.6)' }}
+                className="video-collapse-button rounded flex items-center justify-center"
                 onClick={toggleVideoCollapsed}
                 aria-label="Hide video"
                 data-tooltip="Hide video"
@@ -203,9 +206,58 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
             </div>
           )}
 
-          {/* Controls */}
-          <div className="px-3 py-2 space-y-1.5">
-            {/* Progress bar */}
+          {/* Transport: one row — buttons, scrubber, time, rate. */}
+          <div className="source-transport">
+            <div className="source-transport__buttons">
+              {/* Skip back */}
+              <button
+                className="btn btn-ghost btn-icon"
+                onClick={() => skip(-5)}
+                aria-label="Back 5 seconds"
+                data-tooltip="Back 5s"
+                style={{ padding: '4px' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 010-1.953l7.108-4.062A1.125 1.125 0 0121 8.688v8.123zM11.25 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 010-1.953l7.108-4.062a1.125 1.125 0 011.683.977v8.123z" />
+                </svg>
+              </button>
+
+              {/* Play/Pause */}
+              <button
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{
+                  background: 'var(--accent-primary)',
+                  boxShadow: 'inset 0 1px rgba(255, 255, 255, 0.28)',
+                }}
+                onClick={togglePlay}
+                aria-label={isPlaying ? 'Pause playback' : 'Play transcription'}
+                data-tooltip={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <svg className="w-3.5 h-3.5" fill="white" viewBox="0 0 24 24">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5 ml-0.5" fill="white" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                )}
+              </button>
+
+              {/* Skip forward */}
+              <button
+                className="btn btn-ghost btn-icon"
+                onClick={() => skip(5)}
+                aria-label="Forward 5 seconds"
+                data-tooltip="Forward 5s"
+                style={{ padding: '4px' }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.811V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" />
+                </svg>
+              </button>
+            </div>
+
             <div
               ref={progressRef}
               className={`video-progress cursor-pointer group ${isScrubbing ? 'is-scrubbing' : ''}`}
@@ -235,112 +287,59 @@ export function VideoPlayer({ videoRef }: VideoPlayerProps) {
               </div>
             </div>
 
-            {/* Buttons row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-0.5">
-                {/* Skip back */}
-                <button
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => skip(-5)}
-                  aria-label="Back 5 seconds"
-                  data-tooltip="Back 5s"
-                  style={{ padding: '4px' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 010-1.953l7.108-4.062A1.125 1.125 0 0121 8.688v8.123zM11.25 16.811c0 .864-.933 1.405-1.683.977l-7.108-4.062a1.125 1.125 0 010-1.953l7.108-4.062a1.125 1.125 0 011.683.977v8.123z" />
-                  </svg>
-                </button>
+            {/* Time + Rate */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                {formatTime(currentTime)}/{formatTime(duration)}
+              </span>
 
-                {/* Play/Pause */}
+              {/* Playback rate */}
+              <div className="relative">
                 <button
-                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                  className="text-[11px] px-1.5 py-0.5 rounded transition-colors"
                   style={{
-                    background: 'var(--accent-primary)',
-                    boxShadow: 'inset 0 1px rgba(255, 255, 255, 0.28)',
+                    color: playbackRate !== 1 ? 'var(--accent-primary)' : 'var(--text-muted)',
+                    background: playbackRate !== 1 ? 'var(--accent-glow)' : 'transparent',
                   }}
-                  onClick={togglePlay}
-                  aria-label={isPlaying ? 'Pause playback' : 'Play transcription'}
-                  data-tooltip={isPlaying ? 'Pause' : 'Play'}
+                  onClick={(e) => { e.stopPropagation(); setShowRateMenu(!showRateMenu); }}
+                  aria-label={`Playback speed ${playbackRate} times`}
+                  aria-expanded={showRateMenu}
+                  aria-haspopup="menu"
+                  aria-controls="playback-rate-menu"
+                  data-tooltip="Playback speed"
                 >
-                  {isPlaying ? (
-                    <svg className="w-3.5 h-3.5" fill="white" viewBox="0 0 24 24">
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-3.5 h-3.5 ml-0.5" fill="white" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  )}
+                  {playbackRate}x
                 </button>
 
-                {/* Skip forward */}
-                <button
-                  className="btn btn-ghost btn-icon"
-                  onClick={() => skip(5)}
-                  aria-label="Forward 5 seconds"
-                  data-tooltip="Forward 5s"
-                  style={{ padding: '4px' }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.811V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Time + Rate */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                  {formatTime(currentTime)}/{formatTime(duration)}
-                </span>
-
-                {/* Playback rate */}
-                <div className="relative">
-                  <button
-                    className="text-[11px] px-1.5 py-0.5 rounded transition-colors"
+                {showRateMenu && (
+                  <div
+                    id="playback-rate-menu"
+                    className="absolute bottom-full right-0 mb-1 py-1 rounded-lg shadow-lg z-50"
+                    role="menu"
                     style={{
-                      color: playbackRate !== 1 ? 'var(--accent-primary)' : 'var(--text-muted)',
-                      background: playbackRate !== 1 ? 'var(--accent-glow)' : 'transparent',
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-default)',
+                      minWidth: '60px',
                     }}
-                    onClick={(e) => { e.stopPropagation(); setShowRateMenu(!showRateMenu); }}
-                    aria-label={`Playback speed ${playbackRate} times`}
-                    aria-expanded={showRateMenu}
-                    aria-haspopup="menu"
-                    aria-controls="playback-rate-menu"
-                    data-tooltip="Playback speed"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {playbackRate}x
-                  </button>
-
-                  {showRateMenu && (
-                    <div
-                      id="playback-rate-menu"
-                      className="absolute bottom-full right-0 mb-1 py-1 rounded-lg shadow-lg z-50"
-                      role="menu"
-                      style={{
-                        background: 'var(--bg-elevated)',
-                        border: '1px solid var(--border-default)',
-                        minWidth: '60px',
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {PLAYBACK_RATES.map(rate => (
-                        <button
-                          key={rate}
-                          className="w-full px-3 py-1 text-xs text-left transition-colors hover:bg-white/5"
-                          role="menuitemradio"
-                          aria-checked={rate === playbackRate}
-                          style={{
-                            color: rate === playbackRate ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                            fontWeight: rate === playbackRate ? 600 : 400,
-                          }}
-                          onClick={() => { setPlaybackRate(rate); setShowRateMenu(false); }}
-                        >
-                          {rate}x
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    {PLAYBACK_RATES.map(rate => (
+                      <button
+                        key={rate}
+                        className="w-full px-3 py-1 text-xs text-left transition-colors hover:bg-white/5"
+                        role="menuitemradio"
+                        aria-checked={rate === playbackRate}
+                        style={{
+                          color: rate === playbackRate ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                          fontWeight: rate === playbackRate ? 600 : 400,
+                        }}
+                        onClick={() => { setPlaybackRate(rate); setShowRateMenu(false); }}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

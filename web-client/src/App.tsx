@@ -5,6 +5,7 @@ import { VideoPlayer } from './components/VideoPlayer';
 import { TabCanvas } from './components/TabCanvas';
 import { ScoreView } from './components/ScoreView';
 import { TabToolbar } from './components/TabToolbar';
+import { NoteInspector } from './components/NoteInspector';
 import { ShortcutsModal } from './components/ShortcutsModal';
 import { RestoreBanner } from './components/RestoreBanner';
 import { useAppStore } from './store/appStore';
@@ -34,7 +35,7 @@ function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [inputMode, setInputMode] = useState<InputMode>('record');
   const [confirmingNewTake, setConfirmingNewTake] = useState(false);
-  const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset, viewMode } = useAppStore();
+  const { jobStatus, showShortcutsModal, setShowShortcutsModal, reset, viewMode, isVideoCollapsed } = useAppStore();
   const editedNoteCount = useAppStore((state) =>
     state.tabDocument?.notes.reduce((count, note) => count + (note.isEdited ? 1 : 0), 0) ?? 0,
   );
@@ -241,7 +242,7 @@ function App() {
 
         {showEditor && (
           <div className="editor-shell animate-fade-in print-expand">
-            <div className="editor-control-deck print-hide">
+            <div className={`editor-control-deck print-hide ${isVideoCollapsed ? 'is-source-collapsed' : ''}`}>
               <section className="editor-source-panel" aria-label="Source playback">
                 <div className="panel-label">
                   <span>Source</span>
@@ -255,6 +256,7 @@ function App() {
                   <small>Correct · audition · export</small>
                 </div>
                 <TabToolbar />
+                <NoteInspector />
               </section>
             </div>
 
