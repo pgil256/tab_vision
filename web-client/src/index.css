@@ -79,12 +79,6 @@ body {
   height: 100dvh;
 }
 
-body.is-editor-resizing,
-body.is-editor-resizing * {
-  cursor: row-resize !important;
-  user-select: none !important;
-}
-
 #root {
   height: 100vh;
   height: 100dvh;
@@ -814,11 +808,11 @@ button, input, select, summary { font: inherit; }
 }
 
 .app-main { flex: 1; min-height: 0; overflow: hidden; }
+/* The editor fits the viewport (canvas flexes to the leftover height); the
+   scroll fallback only engages on windows too short for the minimum layout. */
 .app-shell--editor .app-main {
   overflow-y: auto;
-  overflow-anchor: none;
   overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
 }
 
 .topbar {
@@ -1539,25 +1533,23 @@ button, input, select, summary { font: inherit; }
   outline-offset: 2px;
 }
 
-/* ===== Editor Workspace ===== */
+/* ===== Editor Workspace =====
+   Fixed-viewport layout: topbar + a content-sized control deck, then the
+   canvas flexes into everything that remains. Nothing here scrolls the page;
+   the score and timeline scroll internally. */
 .editor-shell {
-  min-height: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: #0f0f0e;
 }
 .editor-control-deck {
-  position: sticky;
-  top: 0;
   z-index: 20;
-  height: 300px;
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   border-bottom: 1px solid var(--border-default);
   background: #131311;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
-  overflow: hidden auto;
 }
 .editor-source-panel, .editor-tools-panel { min-width: 0; }
 .editor-source-panel { border-right: 1px solid var(--border-default); background: #10100f; }
@@ -1578,19 +1570,14 @@ button, input, select, summary { font: inherit; }
 }
 .panel-label small { font-size: 11px; }
 .panel-label--tools { padding: 0 15px; }
-.panel-label--tools small { display: flex; align-items: center; gap: 5px; }
-.confidence-dot {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  margin-left: 7px;
-  border-radius: 999px;
-}
-.confidence-dot:first-child { margin-left: 0; }
-.confidence-dot--high { border-radius: 999px; background: var(--color-success); }
-.confidence-dot--medium { border: 2px solid var(--color-warning); border-radius: 2px; background: transparent; }
-.confidence-dot--low { border-radius: 1px; background: var(--color-error); transform: rotate(45deg); }
 .source-player { min-height: 61px; background: #10100f !important; }
+/* Cap the source video so the control deck stays a shallow band; the video
+   letterboxes inside the cap rather than dictating the deck height. */
+.source-player video {
+  max-height: 150px;
+  object-fit: contain;
+  background: #000;
+}
 .source-player > .px-3 { padding: 10px 13px; }
 .video-collapse-button {
   width: 30px;
@@ -1641,20 +1628,31 @@ button, input, select, summary { font: inherit; }
   opacity: 1;
   transform: translate(50%, -50%) scale(1.15);
 }
+/* Two structured rows, top-aligned: the review queue on top, then the
+   edit/view/playback/export tools under a hairline. */
 .tab-toolbar {
-  min-height: 61px;
   flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: center;
-  gap: 7px !important;
-  padding: 8px 14px !important;
-  border-left: 0 !important;
-  background: #151513 !important;
+  padding: 2px 14px 10px;
+  background: var(--bg-surface);
 }
-.tab-toolbar__stats, .tab-toolbar__controls { width: 100%; min-width: 0; }
-.tab-toolbar__stats { min-height: 25px; }
-.tab-toolbar__controls { justify-content: flex-start; flex-wrap: wrap; gap: 0 !important; }
+.tab-toolbar__stats, .tab-toolbar__controls {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.tab-toolbar__stats { gap: 12px; min-height: 44px; }
+.tab-toolbar__controls {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
 .toolbar-group {
   min-width: 0;
   display: inline-flex;
@@ -1805,43 +1803,14 @@ button, input, select, summary { font: inherit; }
 .stat-pill__label { color: var(--text-secondary); }
 .stat-pill strong { color: var(--text-primary); font: 700 11px 'Cascadia Code', monospace; }
 .editor-canvas-deck {
-  height: 304px;
-  min-height: 280px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  /* Never squeeze below the timeline canvas's fixed drawing height; on
+     shorter windows the app-main scroll fallback takes over instead. */
+  min-height: 285px;
   display: flex;
   flex-direction: column;
   padding: 12px 14px 14px;
   background: #0e0e0d;
-}
-.editor-splitter {
-  position: relative;
-  z-index: 25;
-  flex: 0 0 12px;
-  display: grid;
-  place-items: center;
-  cursor: row-resize;
-  outline: none;
-  border-bottom: 1px solid var(--border-subtle);
-  background: #0f0f0e;
-  touch-action: none;
-}
-.editor-splitter::before {
-  content: '';
-  position: absolute;
-  inset: -3px 0;
-}
-.editor-splitter > span {
-  width: 54px;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--border-strong);
-  transition: width var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
-}
-.editor-splitter:hover > span,
-.editor-splitter:focus-visible > span {
-  width: 72px;
-  background: var(--accent-primary);
-  box-shadow: 0 0 0 4px var(--accent-glow);
 }
 .canvas-heading {
   min-height: 39px;
@@ -1903,12 +1872,6 @@ button, input, select, summary { font: inherit; }
   }
   .landing-intro h2 { font-size: clamp(39px, 5vw, 57px); }
   .editor-control-deck { grid-template-columns: 292px minmax(0, 1fr); }
-  .tab-toolbar__controls {
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 2px;
-  }
   .toolbar-group { flex: 0 0 auto; }
   .toolbar-group--export { margin-left: 0; }
 }
@@ -1929,9 +1892,10 @@ button, input, select, summary { font: inherit; }
   .landing-proof > div:last-child { border-right: 0; }
   .proof-number { position: absolute; top: 15px; right: 8px; }
   .landing-workbench { max-width: 660px; margin: 0 auto; }
-  .editor-control-deck { height: 360px; display: flex; flex-direction: column; }
+  .editor-control-deck { display: flex; flex-direction: column; }
   .editor-source-panel { border-right: 0; border-bottom: 1px solid var(--border-default); }
   .source-player { min-height: auto; }
+  .source-player video { max-height: 120px; }
   .editor-canvas-deck { padding: 9px; }
 }
 
@@ -1958,7 +1922,7 @@ button, input, select, summary { font: inherit; }
   .roi-grid { grid-template-columns: 1fr 1fr; }
   .metronome-card > .grid { grid-template-columns: 1fr 1fr; }
   .editor-control-deck .panel-label { display: none; }
-  .tab-toolbar { padding: 7px 8px !important; }
+  .tab-toolbar { padding: 4px 8px 8px; }
   .tab-toolbar__stats { overflow-x: auto; }
   .toolbar-summary { margin-left: 0; }
   .canvas-heading { min-height: 32px; }

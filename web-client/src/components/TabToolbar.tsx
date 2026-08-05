@@ -227,14 +227,8 @@ export function TabToolbar() {
 
   return (
     <>
-      <div
-        className="tab-toolbar h-full flex items-center justify-between gap-4 px-4 py-2.5"
-        style={{
-          background: 'var(--bg-surface)',
-          borderLeft: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div className="tab-toolbar__stats flex items-center gap-3">
+      <div className="tab-toolbar">
+        <div className="tab-toolbar__stats">
           <div className="toolbar-group toolbar-group--review" aria-label="Confidence review">
             <span className="toolbar-group__label">Review</span>
             <div className="toolbar-confidence-list">
@@ -327,10 +321,9 @@ export function TabToolbar() {
           </div>
         </div>
 
-        {/* Right: Controls */}
-        <div className="tab-toolbar__controls flex items-center gap-2">
+        {/* Second row: editing, view, playback, and export tools */}
+        <div className="tab-toolbar__controls">
           <div className="toolbar-group" aria-label="Edit tools">
-            <span className="toolbar-group__label">Edit</span>
             <label
               className="technique-picker"
               data-tooltip={techniqueDisabled ? 'Select one or more pitched notes first' : 'Expressive marking'}
@@ -388,7 +381,6 @@ export function TabToolbar() {
           </div>
 
           <div className="toolbar-group" aria-label="View tools">
-            <span className="toolbar-group__label">View</span>
             <div className="toolbar-zoom" role="group" aria-label="Timeline zoom">
             <button
               onClick={zoomOut}
@@ -451,7 +443,6 @@ export function TabToolbar() {
           </div>
 
           <div className="toolbar-group" aria-label="Playback tools">
-            <span className="toolbar-group__label">Playback</span>
             <div className="toolbar-segmented" role="group" aria-label="Playback source" data-testid="audition-toggle">
               {([
                 ['original', 'Rec'],
@@ -506,7 +497,6 @@ export function TabToolbar() {
           </div>
 
           <div className="toolbar-group toolbar-group--export" aria-label="Export tools">
-            <span className="toolbar-group__label">Export</span>
             {personalIngestAvailable && currentJobId && (
             <button
               className="btn btn-ghost text-xs"
