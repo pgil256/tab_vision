@@ -273,9 +273,9 @@ soxr==1.1.0
     # via librosa
 sympy==1.14.0
     # via torch
-./wheels/tabvision-1.0.0-py3-none-any.whl \
-    --hash=sha256:382eef68bd506db27fbe99936228c957505d19d9296e5cc985367341914ccb80
-    # app-bundled desktop sidecar wheel built from tracked tree 53f3393
+./wheels/tabvision-1.0.1-py3-none-any.whl \
+    --hash=sha256:4596e406ac5a6c0620a7ee89a2cad87e627d8d08d31a24177f612ea981edcea4
+    # app-bundled desktop sidecar wheel built from tracked tree d300090
 threadpoolctl==3.6.0
     # via scikit-learn
 torch==2.13.0

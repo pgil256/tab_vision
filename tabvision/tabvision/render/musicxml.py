@@ -6,10 +6,12 @@ Via music21.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from fractions import Fraction
 
 from tabvision.types import GuitarConfig, TabEvent
 
 QUARTERS_PER_SECOND = 2.0
+MUSICXML_GRID_DIVISIONS = 64
 
 
 def render(events: Sequence[TabEvent], cfg: GuitarConfig | None = None) -> bytes:
@@ -34,10 +36,21 @@ def render(events: Sequence[TabEvent], cfg: GuitarConfig | None = None) -> bytes
     for event in sorted(events, key=lambda e: e.onset_s):
         _validate_string(event, cfg)
         n = note.Note(event.pitch_midi)
-        n.quarterLength = max(0.25, event.duration_s * QUARTERS_PER_SECOND)
+        onset_quarters = Fraction(
+            round(max(0.0, event.onset_s) * QUARTERS_PER_SECOND * MUSICXML_GRID_DIVISIONS),
+            MUSICXML_GRID_DIVISIONS,
+        )
+        duration_quarters = Fraction(
+            max(
+                MUSICXML_GRID_DIVISIONS // 4,
+                round(event.duration_s * QUARTERS_PER_SECOND * MUSICXML_GRID_DIVISIONS),
+            ),
+            MUSICXML_GRID_DIVISIONS,
+        )
+        n.quarterLength = duration_quarters
         n.volume.velocityScalar = max(0.0, min(1.0, event.confidence))
         n.addLyric(f"s{event.string_idx + 1} f{event.fret} c{event.confidence:.2f}")
-        part.insert(event.onset_s * QUARTERS_PER_SECOND, n)
+        part.insert(onset_quarters, n)
 
     score.insert(0, part)
     payload = GeneralObjectExporter(score).parse()

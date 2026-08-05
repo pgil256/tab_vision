@@ -63,9 +63,7 @@ def clean_take(
         raise InvalidInputError(f"recording not found: {source}")
     if not math.isfinite(trim_start) or trim_start < 0:
         raise InvalidInputError("trim start must be finite and non-negative")
-    if trim_end is not None and (
-        not math.isfinite(trim_end) or trim_end <= trim_start + 0.25
-    ):
+    if trim_end is not None and (not math.isfinite(trim_end) or trim_end <= trim_start + 0.25):
         raise InvalidInputError("trim end must keep at least 0.25 seconds")
     if not math.isfinite(gain_db) or not -24 <= gain_db <= 24:
         raise InvalidInputError("gain must be between -24 and +24 dB")
@@ -88,9 +86,7 @@ def clean_take(
             else min(len(wav), max(start_index + 1, int(trim_end * REVIEW_SAMPLE_RATE)))
         )
         kept_peak = (
-            float(np.max(np.abs(wav[start_index:end_index])))
-            if end_index > start_index
-            else 0
+            float(np.max(np.abs(wav[start_index:end_index]))) if end_index > start_index else 0
         )
         if kept_peak > 0:
             gain *= NORMALIZE_PEAK / (kept_peak * gain)

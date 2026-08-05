@@ -17,7 +17,7 @@ $projectPath = Join-Path $desktopRoot "TabVision.Desktop\TabVision.Desktop.cspro
 $payloadManifestPath = Join-Path $desktopRoot "installer\payloads.json"
 $installerScriptPath = Join-Path $desktopRoot "installer\TabVision.iss"
 $requirementsPath = Join-Path $desktopRoot "bootstrap\requirements.lock"
-$tabVisionWheelPath = Join-Path $desktopRoot "bootstrap\wheels\tabvision-1.0.0-py3-none-any.whl"
+$tabVisionWheelPath = Join-Path $desktopRoot "bootstrap\wheels\tabvision-1.0.1-py3-none-any.whl"
 $weightsManifestPath = Join-Path $desktopRoot "bootstrap\weights.manifest.json"
 $smokeFixturePath = Join-Path $desktopRoot "bootstrap\smoke\test_a440_5s.mp4"
 $smokeGoldenPath = Join-Path $desktopRoot "bootstrap\smoke\expected.tab"
@@ -206,7 +206,7 @@ Copy-Item -LiteralPath $payloadFiles.pip_zipapp -Destination (Join-Path $bootstr
 Copy-Item -LiteralPath $requirementsPath -Destination (Join-Path $bootstrapDirectory "requirements.lock")
 $wheelBundleDirectory = Join-Path $bootstrapDirectory "wheels"
 New-Item -ItemType Directory -Path $wheelBundleDirectory -Force | Out-Null
-Copy-Item -LiteralPath $tabVisionWheelPath -Destination (Join-Path $wheelBundleDirectory "tabvision-1.0.0-py3-none-any.whl")
+Copy-Item -LiteralPath $tabVisionWheelPath -Destination (Join-Path $wheelBundleDirectory "tabvision-1.0.1-py3-none-any.whl")
 Copy-Item -LiteralPath $weightsManifestPath -Destination (Join-Path $bootstrapDirectory "weights.manifest.json")
 Copy-Item -LiteralPath $payloadManifestPath -Destination (Join-Path $bootstrapDirectory "payloads.json")
 
@@ -236,7 +236,7 @@ $bundleInputs = @(
     @{ id = "cpython_embed"; path = Join-Path $bootstrapDirectory "python-embed.zip" },
     @{ id = "pip_zipapp"; path = Join-Path $bootstrapDirectory "pip.pyz" },
     @{ id = "requirements_lock"; path = Join-Path $bootstrapDirectory "requirements.lock" },
-    @{ id = "tabvision_wheel"; path = Join-Path $wheelBundleDirectory "tabvision-1.0.0-py3-none-any.whl" },
+    @{ id = "tabvision_wheel"; path = Join-Path $wheelBundleDirectory "tabvision-1.0.1-py3-none-any.whl" },
     @{ id = "weights_manifest"; path = Join-Path $bootstrapDirectory "weights.manifest.json" },
     @{ id = "smoke_fixture"; path = Join-Path $smokeBundleDirectory "test_a440_5s.mp4" },
     @{ id = "smoke_golden"; path = Join-Path $smokeBundleDirectory "expected.tab" }

@@ -38,9 +38,11 @@ public sealed class SidecarCommandBuilderTests
                 "accurate",
                 "--audio-backend",
                 "auto",
+                "--video",
             ],
             arguments
         );
+        Assert.DoesNotContain("--no-video", arguments);
     }
 
     [Fact]
@@ -52,6 +54,19 @@ public sealed class SidecarCommandBuilderTests
 
         Assert.Equal("--no-video", arguments[^1]);
         Assert.Single(arguments, argument => argument == "--no-video");
+        Assert.DoesNotContain("--video", arguments);
+    }
+
+    [Fact]
+    public void FastPresetUsesTheFastestBackendBundledWithDesktop()
+    {
+        var options = TranscriptionOptions.Default with { Accuracy = "fast" };
+
+        var arguments = SidecarCommandBuilder.BuildAsciiArguments("input.mp4", "output.tab", options);
+
+        var backendIndex = arguments.ToList().IndexOf("--audio-backend");
+        Assert.Equal("highres", arguments[backendIndex + 1]);
+        Assert.DoesNotContain("basicpitch", arguments);
     }
 
     [Theory]

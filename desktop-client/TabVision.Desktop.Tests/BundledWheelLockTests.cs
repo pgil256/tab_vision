@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Security.Cryptography;
 
 namespace TabVision.Desktop.Tests;
@@ -12,7 +13,7 @@ public sealed class BundledWheelLockTests
             desktopRoot,
             "bootstrap",
             "wheels",
-            "tabvision-1.0.0-py3-none-any.whl"
+            "tabvision-1.0.1-py3-none-any.whl"
         );
         var digest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(wheel))).ToLowerInvariant();
         var requirements = File.ReadAllText(
@@ -20,11 +21,20 @@ public sealed class BundledWheelLockTests
         );
 
         Assert.Equal(
-            "382eef68bd506db27fbe99936228c957505d19d9296e5cc985367341914ccb80",
+            "4596e406ac5a6c0620a7ee89a2cad87e627d8d08d31a24177f612ea981edcea4",
             digest
         );
-        Assert.Contains("./wheels/tabvision-1.0.0-py3-none-any.whl", requirements);
+        Assert.Contains("./wheels/tabvision-1.0.1-py3-none-any.whl", requirements);
         Assert.Contains($"--hash=sha256:{digest}", requirements);
+
+        using var archive = ZipFile.OpenRead(wheel);
+        var cliEntry = Assert.Single(archive.Entries, entry => entry.FullName == "tabvision/cli.py");
+        using var reader = new StreamReader(cliEntry.Open());
+        var cli = reader.ReadToEnd();
+        Assert.Contains("--editor-output", cli);
+        Assert.Contains("--tuning", cli);
+        Assert.Contains("--accuracy-mode", cli);
+        Assert.Contains("--roi", cli);
     }
 
     private static string FindDesktopRoot()

@@ -28,9 +28,7 @@ def test_every_browser_tuning_is_accepted(tuning: str) -> None:
 
 
 def test_normalized_roi_is_parsed_in_display_order() -> None:
-    args = _build_parser().parse_args(
-        ["transcribe", "in.mp4", "--roi", "0.1", "0.2", "0.8", "0.9"]
-    )
+    args = _build_parser().parse_args(["transcribe", "in.mp4", "--roi", "0.1", "0.2", "0.8", "0.9"])
 
     assert args.roi == [0.1, 0.2, 0.8, 0.9]
 
@@ -38,9 +36,7 @@ def test_normalized_roi_is_parsed_in_display_order() -> None:
 @pytest.mark.parametrize("value", ["-0.1", "1.1", "nan", "not-a-number"])
 def test_roi_rejects_non_normalized_coordinates(value: str) -> None:
     with pytest.raises(SystemExit):
-        _build_parser().parse_args(
-            ["transcribe", "in.mp4", "--roi", value, "0", "1", "1"]
-        )
+        _build_parser().parse_args(["transcribe", "in.mp4", "--roi", value, "0", "1", "1"])
 
 
 def test_frame_roi_crops_lazily_and_preserves_timestamp() -> None:

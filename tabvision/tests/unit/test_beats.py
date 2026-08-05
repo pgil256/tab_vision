@@ -23,9 +23,9 @@ def _click_track(bpm: float, duration_s: float, sr: int = SR) -> np.ndarray:
     """Synthetic click track: short 1 kHz bursts on every beat."""
     wav = np.zeros(int(sr * duration_s), dtype=np.float32)
     burst_len = 220
-    burst = (
-        np.hanning(burst_len) * np.sin(2 * np.pi * 1000 * np.arange(burst_len) / sr)
-    ).astype(np.float32)
+    burst = (np.hanning(burst_len) * np.sin(2 * np.pi * 1000 * np.arange(burst_len) / sr)).astype(
+        np.float32
+    )
     beat_interval = 60.0 / bpm
     t = 0.0
     while t < duration_s:
