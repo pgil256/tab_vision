@@ -43,13 +43,13 @@
                         </StackPanel>
                     </Border>
 
-                    <Border x:Name="ClippingWarning" Margin="0,10,0,0" Padding="12" Background="{StaticResource ErrorSoftBrush}" BorderBrush="#55FB7185" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                    <Border x:Name="ClippingWarning" Margin="0,10,0,0" Padding="12" Background="{StaticResource ErrorSoftBrush}" BorderBrush="#55F06B68" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
                         <TextBlock x:Name="ClippingWarningText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" />
                     </Border>
-                    <Border x:Name="TuningWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55FBBF24" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                    <Border x:Name="TuningWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55F4B860" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
                         <TextBlock x:Name="TuningWarningText" Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" />
                     </Border>
-                    <Border x:Name="VideoCleanupWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55FBBF24" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
+                    <Border x:Name="VideoCleanupWarning" Margin="0,8,0,0" Padding="12" Background="{StaticResource WarningSoftBrush}" BorderBrush="#55F4B860" BorderThickness="1" CornerRadius="9" Visibility="Collapsed">
                         <TextBlock Foreground="{StaticResource WarningBrush}" TextWrapping="Wrap" Text="Applying cleanup to a video creates an audio-only WAV, so fretboard tracking will be skipped. Use the original to keep video analysis." />
                     </Border>
 

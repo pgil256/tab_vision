@@ -17,7 +17,7 @@ public sealed class EditorScoreView : FrameworkElement
     private const double Right = 42;
     private static readonly Brush Ink = Brush("#1A1A1A");
     private static readonly Brush FaintInk = Brush("#7B7B7B");
-    private static readonly Brush Accent = Brush("#5746E5");
+    private static readonly Brush Accent = Brush("#C84B2C");
     private static readonly Brush CursorFill = Brush("#2EFF7048");
     private EditorSession? _session;
     private readonly List<NoteHit> _noteHits = [];

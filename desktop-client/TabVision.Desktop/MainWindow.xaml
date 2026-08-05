@@ -21,7 +21,7 @@
         <!-- Studio header -->
         <Border BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,0,0,1"
-                Background="#F40D131D">
+                Background="#F20D0D0C">
             <Grid Margin="26,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -32,18 +32,18 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="38"
                             Height="38"
-                            Background="{StaticResource AccentGradientBrush}"
+                            Background="{StaticResource AccentBrush}"
                             CornerRadius="10"
                             Effect="{StaticResource AccentShadow}">
                         <Grid Margin="9,8">
-                            <Rectangle Width="2" Height="22" HorizontalAlignment="Left" Fill="White" RadiusX="1" RadiusY="1" />
-                            <Rectangle Width="2" Height="16" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="White" Opacity="0.82" RadiusX="1" RadiusY="1" />
-                            <Rectangle Width="2" Height="20" Margin="12,0,0,0" HorizontalAlignment="Left" Fill="White" Opacity="0.66" RadiusX="1" RadiusY="1" />
-                            <Rectangle Width="2" Height="13" HorizontalAlignment="Right" Fill="White" Opacity="0.5" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="22" HorizontalAlignment="Left" Fill="#26130D" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="16" Margin="6,0,0,0" HorizontalAlignment="Left" Fill="#26130D" Opacity="0.82" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="20" Margin="12,0,0,0" HorizontalAlignment="Left" Fill="#26130D" Opacity="0.66" RadiusX="1" RadiusY="1" />
+                            <Rectangle Width="2" Height="13" HorizontalAlignment="Right" Fill="#26130D" Opacity="0.5" RadiusX="1" RadiusY="1" />
                         </Grid>
                     </Border>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock FontSize="15" FontWeight="SemiBold" Text="TabVision" />
+                        <TextBlock FontFamily="Georgia" FontSize="16" FontWeight="Bold" Text="TabVision" />
                         <TextBlock Margin="0,1,0,0"
                                    FontSize="10"
                                    Foreground="{StaticResource TextMutedBrush}"
@@ -55,27 +55,16 @@
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             Orientation="Horizontal">
-                    <Border Padding="10,6" Background="{StaticResource AccentSoftBrush}" CornerRadius="14">
+                    <Border Padding="2,6" Background="Transparent">
                         <StackPanel Orientation="Horizontal">
-                            <Border Width="20" Height="20" Background="{StaticResource AccentBrush}" CornerRadius="10">
-                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="1" />
-                            </Border>
-                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" Text="Capture" />
+                            <TextBlock VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentCyanBrush}" Text="01" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Text="CAPTURE" />
                         </StackPanel>
                     </Border>
                     <Rectangle Width="34" Height="1" Margin="8,0" Fill="{StaticResource BorderStrongBrush}" />
                     <StackPanel Orientation="Horizontal" Opacity="0.52">
-                        <Border Width="20" Height="20" Background="{StaticResource SurfaceHoverBrush}" CornerRadius="10">
-                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="2" />
-                        </Border>
-                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" Text="Refine" />
-                    </StackPanel>
-                    <Rectangle Width="34" Height="1" Margin="8,0" Fill="{StaticResource BorderStrongBrush}" />
-                    <StackPanel Orientation="Horizontal" Opacity="0.52">
-                        <Border Width="20" Height="20" Background="{StaticResource SurfaceHoverBrush}" CornerRadius="10">
-                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10" FontWeight="Bold" Text="3" />
-                        </Border>
-                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" Text="Export" />
+                        <TextBlock VerticalAlignment="Center" FontFamily="Cascadia Mono" FontSize="10" FontWeight="Bold" Text="02" />
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontSize="11" Text="REFINE" />
                     </StackPanel>
                 </StackPanel>
 
@@ -83,7 +72,7 @@
                     <Border Margin="0,0,10,0"
                             Padding="10,6"
                             Background="{StaticResource SuccessSoftBrush}"
-                            BorderBrush="#3234D399"
+                            BorderBrush="#3263D8A1"
                             BorderThickness="1"
                             CornerRadius="14">
                         <StackPanel Orientation="Horizontal">
@@ -143,15 +132,18 @@
                                 <TextBlock Style="{StaticResource EyebrowText}" Text="AUDIO MEETS VISION" />
                             </StackPanel>
                             <TextBlock Margin="0,9,0,0"
-                                       FontSize="34"
-                                       FontWeight="SemiBold"
-                                       Text="Turn a performance into playable tab." />
+                                       MaxWidth="680"
+                                       Style="{StaticResource DisplayTitle}"
+                                       TextWrapping="Wrap">
+                                <Run Text="Your performance, " />
+                                <Run Foreground="{StaticResource AccentCyanBrush}" FontStyle="Italic" Text="mapped to every string." />
+                            </TextBlock>
                             <TextBlock Margin="0,9,0,0"
                                        MaxWidth="650"
                                        FontSize="14"
                                        LineHeight="22"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       Text="Record a take or bring your own file. TabVision listens for every note, maps it to the fretboard, and keeps the entire workflow on this PC."
+                                       Text="Turn a guitar take into playable tablature. TabVision listens for every note, watches the fretboard, and gives you a fast visual review pass."
                                        TextWrapping="Wrap" />
                         </StackPanel>
 
@@ -159,16 +151,23 @@
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="128" Style="{StaticResource FieldBorder}">
                                     <StackPanel>
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Text="01" />
+                                        <TextBlock FontFamily="Cascadia Mono" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentCyanBrush}" Text="01" />
                                         <TextBlock Margin="0,5,0,0" FontSize="11" FontWeight="SemiBold" Text="HEAR THE NOTES" />
-                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Pitch + timing" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Pitch and timing" />
                                     </StackPanel>
                                 </Border>
                                 <Border Width="128" Margin="9,0,0,0" Style="{StaticResource FieldBorder}">
                                     <StackPanel>
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource AccentCyanBrush}" Text="02" />
+                                        <TextBlock FontFamily="Cascadia Mono" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Text="02" />
                                         <TextBlock Margin="0,5,0,0" FontSize="11" FontWeight="SemiBold" Text="SEE POSITION" />
-                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="String + fret" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="String and fret" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="128" Margin="9,0,0,0" Style="{StaticResource FieldBorder}">
+                                    <StackPanel>
+                                        <TextBlock FontFamily="Cascadia Mono" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource WarningBrush}" Text="03" />
+                                        <TextBlock Margin="0,5,0,0" FontSize="11" FontWeight="SemiBold" Text="MAKE IT YOURS" />
+                                        <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Correct and export" />
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
@@ -195,10 +194,10 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Style="{StaticResource EyebrowText}" Text="NEW TRANSCRIPTION" />
-                                        <TextBlock Margin="0,5,0,0" Style="{StaticResource SectionTitle}" Text="Choose your source" />
+                                        <TextBlock Margin="0,5,0,0" Style="{StaticResource SectionTitle}" Text="Capture a live take" />
                                         <TextBlock Margin="0,5,0,0"
                                                    Foreground="{StaticResource TextMutedBrush}"
-                                                   Text="Video provides the strongest string and fret evidence."
+                                                   Text="Record with a camera or microphone, or bring your own file."
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Padding="9,5" Background="{StaticResource SuccessSoftBrush}" CornerRadius="12" VerticalAlignment="Top">
@@ -220,8 +219,8 @@
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Margin="0,0,10,0" FontFamily="Segoe Fluent Icons" FontSize="17" Text="&#xE714;" />
                                             <StackPanel>
-                                                <TextBlock x:Name="VideoActionTitleText" FontWeight="SemiBold" Text="Video" />
-                                                <TextBlock x:Name="VideoActionSubtitleText" Margin="0,2,0,0" FontSize="10" Foreground="#DDE7FF" Text="Camera + mic" />
+                                                <TextBlock x:Name="VideoActionTitleText" FontWeight="SemiBold" Text="Video + audio" />
+                                                <TextBlock x:Name="VideoActionSubtitleText" Margin="0,2,0,0" FontSize="10" Foreground="#61301F" Text="Camera + mic" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Button>
@@ -235,7 +234,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Margin="0,0,9,0" FontFamily="Segoe Fluent Icons" FontSize="17" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE720;" />
                                             <StackPanel>
-                                                <TextBlock x:Name="AudioActionTitleText" FontWeight="SemiBold" Text="Audio" />
+                                                <TextBlock x:Name="AudioActionTitleText" FontWeight="SemiBold" Text="Audio only" />
                                                 <TextBlock x:Name="AudioActionSubtitleText" Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Text="Microphone" />
                                             </StackPanel>
                                         </StackPanel>
@@ -250,7 +249,7 @@
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Margin="0,0,10,0" FontFamily="Segoe Fluent Icons" FontSize="17" Foreground="{StaticResource AccentCyanBrush}" Text="&#xE898;" />
                                             <StackPanel>
-                                                <TextBlock FontWeight="SemiBold" Text="Import" />
+                                                <TextBlock FontWeight="SemiBold" Text="Upload file" />
                                                 <TextBlock Margin="0,2,0,0" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Text="Video or audio" />
                                             </StackPanel>
                                         </StackPanel>
@@ -261,7 +260,7 @@
                                         Grid.Row="2"
                                         Margin="0,18,0,0"
                                         Padding="14"
-                                        Background="#080B11"
+                                        Background="{StaticResource BackgroundBrush}"
                                         BorderBrush="{StaticResource BorderStrongBrush}"
                                         BorderThickness="1"
                                         CornerRadius="11"
@@ -286,7 +285,7 @@
                                                     Click="CloseCamera_Click"
                                                     Content="Close" />
                                         </Grid>
-                                        <Border Grid.Row="1" Margin="0,12" Background="Black" BorderBrush="#323F54" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                        <Border Grid.Row="1" Margin="0,12" Background="Black" BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                             <Grid>
                                                 <Image x:Name="CameraPreviewImage" AutomationProperties.Name="Live camera preview" Stretch="Uniform" />
                                                 <TextBlock x:Name="CameraPreviewPlaceholder"
@@ -316,7 +315,7 @@
                                         Grid.Row="2"
                                         Margin="0,18,0,0"
                                         Padding="16"
-                                        Background="#080B11"
+                                        Background="{StaticResource BackgroundBrush}"
                                         BorderBrush="{StaticResource BorderStrongBrush}"
                                         BorderThickness="1"
                                         CornerRadius="11"
@@ -337,7 +336,7 @@
                                             <Button x:Name="CloseAudioButton" Grid.Column="1" Style="{StaticResource GhostButton}" Click="CloseAudio_Click" Content="Close" />
                                         </Grid>
 
-                                        <Border Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="#101925" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10">
+                                        <Border Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="{StaticResource SurfaceRaisedBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="10">
                                             <Grid>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
                                                 <StackPanel>
@@ -349,7 +348,7 @@
                                                     <ProgressBar x:Name="MicrophoneLevelBar" Margin="0,10,0,0" Height="10" Maximum="1" AutomationProperties.Name="Microphone input level" />
                                                     <TextBlock Margin="0,9,0,0" Style="{StaticResource CaptionText}" Text="Aim for a strong signal without touching the red." />
                                                 </StackPanel>
-                                                <Border Grid.Column="1" Margin="16,0,0,0" Padding="10,7" Background="#0B111B" CornerRadius="9">
+                                                <Border Grid.Column="1" Margin="16,0,0,0" Padding="10,7" Background="{StaticResource BackgroundBrush}" CornerRadius="9">
                                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                                         <TextBlock Style="{StaticResource CaptionText}" Text="LIVE TUNER" />
                                                         <TextBlock x:Name="TunerNoteText" Margin="0,2,0,0" FontSize="25" FontWeight="SemiBold" Text="—" />
@@ -389,7 +388,7 @@
                                 <Border Grid.Row="3"
                                         Margin="0,18,0,0"
                                         Padding="14,12"
-                                        Background="#0C121C"
+                                        Background="{StaticResource BackgroundBrush}"
                                         BorderBrush="{StaticResource BorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="10">
@@ -574,7 +573,7 @@
                                          MinHeight="220"
                                          Margin="0,14,0,0"
                                          Padding="16"
-                                         Background="#080C12"
+                                         Background="{StaticResource BackgroundBrush}"
                                          BorderBrush="{StaticResource BorderBrush}"
                                          FontFamily="Cascadia Mono, Consolas"
                                          FontSize="13"
@@ -593,7 +592,7 @@
                                 Margin="0,18,0,0"
                                 Padding="22"
                                 Background="{StaticResource SurfaceBrush}"
-                                BorderBrush="#50FB7185"
+                                BorderBrush="#50F06B68"
                                 BorderThickness="1"
                                 CornerRadius="14"
                                 Visibility="Collapsed">
@@ -608,7 +607,7 @@
                                         <TextBlock Margin="0,2,0,0" Style="{StaticResource CaptionText}" Text="Nothing was lost. Review the details and try again." />
                                     </StackPanel>
                                 </StackPanel>
-                                <TextBox x:Name="SidecarErrorTextBox" Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="#11090D14" BorderBrush="#38FB7185" FontFamily="Cascadia Mono, Consolas" FontSize="12" AcceptsReturn="True" AutomationProperties.Name="TabVision error text" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                                <TextBox x:Name="SidecarErrorTextBox" Grid.Row="1" Margin="0,14,0,0" Padding="14" Background="{StaticResource BackgroundBrush}" BorderBrush="#38F06B68" FontFamily="Cascadia Mono, Consolas" FontSize="12" AcceptsReturn="True" AutomationProperties.Name="TabVision error text" HorizontalScrollBarVisibility="Auto" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
                             </Grid>
                         </Border>
                     </Grid>
@@ -617,7 +616,7 @@
         </ScrollViewer>
 
         <Border x:Name="DropOverlay" Grid.RowSpan="2" Panel.ZIndex="100" Margin="18"
-                Background="#ED101722" BorderBrush="{StaticResource AccentCyanBrush}" BorderThickness="2"
+                Background="#ED151513" BorderBrush="{StaticResource AccentBrush}" BorderThickness="2"
                 CornerRadius="18" IsHitTestVisible="False" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Border Width="64" Height="64" HorizontalAlignment="Center" Background="{StaticResource AccentSoftBrush}" CornerRadius="18">

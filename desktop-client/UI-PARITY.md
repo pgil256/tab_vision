@@ -76,7 +76,7 @@ Status values:
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| Cohesive studio identity across windows | **Done** | Shared dark resources cover capture, review, and editor windows. |
+| Cohesive studio identity across windows | **Done** | Shared charcoal, warm-neutral, coral, serif-display, and state-color resources mirror the current browser design across capture, review, and editor windows. |
 | Clear capture -> refine -> export hierarchy | **Done** | Workflow rail, section cards, and page-level hierarchy are consistent. |
 | Desktop scaling and keyboard access | **Done** | Main, review, timeline, and score surfaces were checked in the live Windows app. |
 | Accessible automation names | **Done** | Core controls retain stable automation identifiers and explicit names. |

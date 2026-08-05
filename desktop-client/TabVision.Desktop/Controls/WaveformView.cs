@@ -6,13 +6,13 @@ namespace TabVision.Desktop.Controls;
 
 public sealed class WaveformView : FrameworkElement
 {
-    private static readonly Brush Background = Brush("#090E16");
-    private static readonly Brush Waveform = Brush("#70829D");
-    private static readonly Brush KeptWaveform = Brush("#8B5CF6");
-    private static readonly Brush TrimmedOverlay = Brush("#9903070C");
-    private static readonly Brush Boundary = Brush("#FBBF24");
-    private static readonly Brush CenterLine = Brush("#263247");
-    private static readonly Brush Playhead = Brush("#38BDF8");
+    private static readonly Brush Background = Brush("#0D0D0C");
+    private static readonly Brush Waveform = Brush("#6D6B64");
+    private static readonly Brush KeptWaveform = Brush("#FF7048");
+    private static readonly Brush TrimmedOverlay = Brush("#99000000");
+    private static readonly Brush Boundary = Brush("#F4B860");
+    private static readonly Brush CenterLine = Brush("#2A2926");
+    private static readonly Brush Playhead = Brush("#FFAD84");
     private AudioReviewAnalysis? _analysis;
 
     public double TrimStart { get; set; }

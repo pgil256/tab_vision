@@ -11,18 +11,18 @@ public sealed class EditorTimeline : FrameworkElement
     private const double TimelineTop = 54;
     private const double StringSpacing = 42;
     private const double PixelsPerSecond = 82;
-    private static readonly Brush BackgroundBrush = Brush("#0B111B");
-    private static readonly Brush LaneBrush = Brush("#0F1724");
-    private static readonly Brush AlternateLaneBrush = Brush("#111B29");
-    private static readonly Brush GridBrush = Brush("#263247");
-    private static readonly Brush StrongGridBrush = Brush("#35445D");
-    private static readonly Brush LabelBrush = Brush("#7D8AA0");
-    private static readonly Brush HighBrush = Brush("#22B98A");
-    private static readonly Brush MediumBrush = Brush("#D89A25");
-    private static readonly Brush LowBrush = Brush("#E45B72");
-    private static readonly Brush SelectedBrush = Brush("#A78BFA");
-    private static readonly Brush EditedBrush = Brush("#56B8FF");
-    private static readonly Brush PlayheadBrush = Brush("#69D5FF");
+    private static readonly Brush BackgroundBrush = Brush("#0D0D0C");
+    private static readonly Brush LaneBrush = Brush("#151513");
+    private static readonly Brush AlternateLaneBrush = Brush("#1C1C19");
+    private static readonly Brush GridBrush = Brush("#262623");
+    private static readonly Brush StrongGridBrush = Brush("#3A3934");
+    private static readonly Brush LabelBrush = Brush("#6D6B64");
+    private static readonly Brush HighBrush = Brush("#63D8A1");
+    private static readonly Brush MediumBrush = Brush("#F4B860");
+    private static readonly Brush LowBrush = Brush("#F06B68");
+    private static readonly Brush SelectedBrush = Brush("#FF7048");
+    private static readonly Brush EditedBrush = Brush("#FF9A62");
+    private static readonly Brush PlayheadBrush = Brush("#FFAD84");
     private static readonly string[] StandardLabels = ["E", "B", "G", "D", "A", "E"];
     private EditorSession? _session;
     private string? _dragNoteId;
@@ -124,7 +124,7 @@ public sealed class EditorTimeline : FrameworkElement
             var x = LeftGutter + timestamp * pixelsPerSecond;
             var y = TimelineTop + (stringNumber - 1) * StringSpacing;
             context.DrawRoundedRectangle(
-                Brush("#55A78BFA"),
+                Brush("#55FF7048"),
                 new Pen(SelectedBrush, 2),
                 new Rect(x - 15, y - 16, 32, 32),
                 8,
@@ -270,7 +270,7 @@ public sealed class EditorTimeline : FrameworkElement
             var x = LeftGutter + beats[index] * pixelsPerSecond;
             var bar = index % beatsPerBar == 0;
             context.DrawLine(
-                new Pen(bar ? Brush("#568B5CF6") : Brush("#2838BDF8"), bar ? 1.5 : 1),
+                new Pen(bar ? Brush("#56FF7048") : Brush("#2863D8A1"), bar ? 1.5 : 1),
                 new Point(x, 34),
                 new Point(x, TimelineTop + 5 * StringSpacing + 23)
             );
