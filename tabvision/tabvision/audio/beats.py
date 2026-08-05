@@ -54,9 +54,7 @@ def detect_beat_grid(wav: np.ndarray, sample_rate: int) -> BeatGrid | None:
         tempo_bpm = float(tempo)
 
     if len(beat_times) < MIN_BEATS or not (MIN_BPM <= tempo_bpm <= MAX_BPM):
-        logger.info(
-            "beat grid rejected (tempo=%.1f BPM, beats=%d)", tempo_bpm, len(beat_times)
-        )
+        logger.info("beat grid rejected (tempo=%.1f BPM, beats=%d)", tempo_bpm, len(beat_times))
         return None
     return BeatGrid(
         tempo_bpm=tempo_bpm,
