@@ -260,7 +260,8 @@ $bundleManifest = [ordered]@{
     self_contained = $true
     files = $bundleFiles
 }
-$bundleManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundleDirectory "bundle-manifest.json") -Encoding UTF8
+$bundleManifestJson = $bundleManifest | ConvertTo-Json -Depth 5
+[IO.File]::WriteAllText((Join-Path $bundleDirectory "bundle-manifest.json"), $bundleManifestJson, [Text.UTF8Encoding]::new($false))
 
 $innoPayload = $payloadManifest.payloads | Where-Object { $_.id -eq "inno_setup" }
 $iscc = Resolve-InnoCompiler -InstallerPath $payloadFiles.inno_setup -Version $innoPayload.version
