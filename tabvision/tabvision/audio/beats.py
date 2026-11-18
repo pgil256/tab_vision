@@ -48,10 +48,8 @@ def detect_beat_grid(wav: np.ndarray, sample_rate: int) -> BeatGrid | None:
         return None
 
     # librosa >= 0.10 may return tempo as a one-element ndarray.
-    if hasattr(tempo, "__len__"):
-        tempo_bpm = float(tempo[0]) if len(tempo) > 0 else 0.0
-    else:
-        tempo_bpm = float(tempo)
+    tempo_values = np.asarray(tempo).reshape(-1)
+    tempo_bpm = float(tempo_values[0]) if tempo_values.size else 0.0
 
     if len(beat_times) < MIN_BEATS or not (MIN_BPM <= tempo_bpm <= MAX_BPM):
         logger.info("beat grid rejected (tempo=%.1f BPM, beats=%d)", tempo_bpm, len(beat_times))
