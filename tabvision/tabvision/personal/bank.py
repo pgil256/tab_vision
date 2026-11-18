@@ -66,10 +66,9 @@ def bank_corrected_document(
     raw_id = str(document.get("id") or document_file.stem)
     session_id = re.sub(r"[^A-Za-z0-9._-]+", "-", raw_id).strip("-.") or "session"
     frames_written = 0
-    session_dir: Path | None = target_root / "video_corpus" / f"desktop-{session_id}"
-    if source.suffix.lower() in AUDIO_ONLY_EXTENSIONS:
-        session_dir = None
-    else:
+    session_dir: Path | None = None
+    if source.suffix.lower() not in AUDIO_ONLY_EXTENSIONS:
+        session_dir = target_root / "video_corpus" / f"desktop-{session_id}"
         from tabvision.demux import demux
 
         demuxed = demux(source)

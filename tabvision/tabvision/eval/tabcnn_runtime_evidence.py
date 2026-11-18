@@ -45,6 +45,8 @@ def _atomic_text(path: Path, text: str) -> None:
 def peak_rss_bytes() -> int | None:
     """Return this process's high-water RSS in bytes on supported platforms."""
 
+    if sys.platform == "win32":
+        return None
     try:
         import resource
     except ImportError:  # pragma: no cover - Windows Python
